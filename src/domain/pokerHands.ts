@@ -42,3 +42,11 @@ export function classifyHand(hand: PokerHand): HandCategory {
 export function comboCount(hand: PokerHand): number {
   return COMBO_COUNTS[classifyHand(hand)]
 }
+
+/** The 169 canonical starting hands, for O(1) validity lookups. */
+const HAND_SET = new Set<PokerHand>(ALL_HANDS)
+
+/** True when `hand` is one of the 169 canonical starting hands (e.g. "AA", "AKs", "AKo"). */
+export function isValidHand(hand: PokerHand): boolean {
+  return HAND_SET.has(hand)
+}
