@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { HandGrid } from './components/HandGrid'
+import { PracticeSession } from './components/PracticeSession'
 import { RangeLibrary } from './components/RangeLibrary'
 import { calculateRangePercentage, countSelectedCombos } from './domain/rangeMath'
 import type { PokerHand } from './domain/pokerHands'
@@ -21,6 +22,8 @@ function App() {
   // null = composing a new range; otherwise the id of the saved range being edited.
   const [editingId, setEditingId] = useState<string | null>(null)
   const [savedRanges, setSavedRanges] = useState<SavedRange[]>(() => loadSavedRanges())
+  // null = editor/library view; otherwise the saved range being practiced.
+  const [practicingRange, setPracticingRange] = useState<SavedRange | null>(null)
 
   function toggleHand(hand: PokerHand) {
     setSelected((prev) => {
@@ -95,52 +98,71 @@ function App() {
     }
   }
 
+  function handlePractice(range: SavedRange) {
+    setPracticingRange(range)
+  }
+
+  function handleEndPractice() {
+    setPracticingRange(null)
+  }
+
   return (
     <main className="app">
       <header className="app-header">
         <h1>Poker Range Trainer</h1>
-        <p>Click hands to build a Texas Hold'em preflop range.</p>
+        <p>
+          {practicingRange
+            ? 'Test your range recognition.'
+            : "Click hands to build a Texas Hold'em preflop range."}
+        </p>
       </header>
 
-      <section className="range-editor" aria-label="Range editor">
-        <div className="editor-controls">
-          <input
-            type="text"
-            className="range-name-input"
-            placeholder="Range name"
-            aria-label="Range name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
+      {practicingRange ? (
+        <PracticeSession range={practicingRange} onExit={handleEndPractice} />
+      ) : (
+        <>
+          <section className="range-editor" aria-label="Range editor">
+            <div className="editor-controls">
+              <input
+                type="text"
+                className="range-name-input"
+                placeholder="Range name"
+                aria-label="Range name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+              />
+              <button type="button" className="primary" onClick={handleSave} disabled={!canSave}>
+                {editingRange ? 'Save Changes' : 'Save Range'}
+              </button>
+              <button type="button" onClick={resetEditor}>
+                New Range
+              </button>
+            </div>
+            {editingRange && (
+              <p className="editing-indicator" role="status">
+                Editing saved range: <strong>{editingRange.name}</strong>
+              </p>
+            )}
+            {saveHint && <p className="editor-hint">{saveHint}</p>}
+          </section>
+
+          <HandGrid selected={selected} onToggle={toggleHand} />
+
+          <section className="range-summary" aria-label="Range summary">
+            <span>{selectedHands.length} hands selected</span>
+            <span>{combos} combos</span>
+            <span>{percentage.toFixed(1)}% of all hands</span>
+          </section>
+
+          <RangeLibrary
+            ranges={savedRanges}
+            activeId={editingId}
+            onLoad={handleLoad}
+            onDelete={handleDelete}
+            onPractice={handlePractice}
           />
-          <button type="button" className="primary" onClick={handleSave} disabled={!canSave}>
-            {editingRange ? 'Save Changes' : 'Save Range'}
-          </button>
-          <button type="button" onClick={resetEditor}>
-            New Range
-          </button>
-        </div>
-        {editingRange && (
-          <p className="editing-indicator" role="status">
-            Editing saved range: <strong>{editingRange.name}</strong>
-          </p>
-        )}
-        {saveHint && <p className="editor-hint">{saveHint}</p>}
-      </section>
-
-      <HandGrid selected={selected} onToggle={toggleHand} />
-
-      <section className="range-summary" aria-label="Range summary">
-        <span>{selectedHands.length} hands selected</span>
-        <span>{combos} combos</span>
-        <span>{percentage.toFixed(1)}% of all hands</span>
-      </section>
-
-      <RangeLibrary
-        ranges={savedRanges}
-        activeId={editingId}
-        onLoad={handleLoad}
-        onDelete={handleDelete}
-      />
+        </>
+      )}
     </main>
   )
 }

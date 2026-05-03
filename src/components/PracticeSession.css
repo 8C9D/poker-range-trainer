@@ -1,0 +1,146 @@
+.practice-session {
+  margin-top: 8px;
+  text-align: left;
+}
+
+.practice-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.practice-header h2 {
+  margin: 0;
+}
+
+.practice-header button {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 15px;
+  color: var(--text-h);
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.practice-header button:hover {
+  border-color: var(--accent-border);
+}
+
+.practice-header button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.practice-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin-top: 16px;
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--text);
+}
+
+.practice-stat {
+  white-space: nowrap;
+}
+
+.practice-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 28px 0;
+  padding: 28px 16px;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.practice-prompt-label {
+  font-size: 15px;
+  color: var(--text);
+}
+
+.practice-prompt-hand {
+  font-family: var(--mono);
+  font-size: 56px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--text-h);
+}
+
+.practice-answers,
+.practice-feedback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.practice-answers {
+  flex-direction: row;
+  justify-content: center;
+}
+
+.practice-answers button,
+.practice-feedback button {
+  padding: 10px 20px;
+  font: inherit;
+  font-size: 16px;
+  color: var(--text-h);
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.practice-answers button:hover,
+.practice-feedback button:hover {
+  border-color: var(--accent-border);
+}
+
+.practice-answers button:focus-visible,
+.practice-feedback button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.practice-answers button.primary,
+.practice-feedback button.primary {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.practice-result {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.practice-result.correct {
+  color: #1a7f37;
+}
+
+.practice-result.incorrect {
+  color: #cf222e;
+}
+
+@media (prefers-color-scheme: dark) {
+  .practice-result.correct {
+    color: #3fb950;
+  }
+
+  .practice-result.incorrect {
+    color: #ff7b72;
+  }
+}
+
+.practice-expected {
+  font-size: 15px;
+  color: var(--text);
+}

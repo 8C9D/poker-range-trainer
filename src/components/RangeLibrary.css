@@ -81,3 +81,14 @@
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+
+.range-item-actions button.practice-action {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.range-item-actions button.practice-action:hover {
+  border-color: var(--accent);
+  filter: brightness(1.05);
+}

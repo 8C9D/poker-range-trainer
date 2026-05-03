@@ -161,3 +161,32 @@ describe('Clearing and deleting ranges', () => {
     expect(screen.getByRole('button', { name: 'Save Range' })).toBeInTheDocument()
   })
 })
+
+describe('Practice mode', () => {
+  it('starts practice from the library and returns to the editor on End Practice', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    // Save a range so the library has something to practice.
+    await user.type(screen.getByLabelText('Range name'), 'Pairs')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'KK' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    await user.click(screen.getByRole('button', { name: 'Practice range Pairs' }))
+
+    // The practice view replaces the editor and library.
+    expect(screen.getByRole('heading', { name: /Practicing: Pairs/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'In range' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Out of range' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Range name')).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Saved ranges' })).not.toBeInTheDocument()
+
+    // Ending practice returns to the editor/library view.
+    await user.click(screen.getByRole('button', { name: 'End Practice' }))
+
+    expect(screen.getByLabelText('Range name')).toBeInTheDocument()
+    expect(within(library()).getByText('Pairs')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /Practicing: Pairs/ })).not.toBeInTheDocument()
+  })
+})

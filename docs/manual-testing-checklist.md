@@ -19,11 +19,15 @@
 
 ## v1 practice mode
 
-- [ ] User can choose a saved range to practice.
-- [ ] App shows random poker hands.
+- [ ] Each saved range shows a Practice button.
+- [ ] Clicking Practice opens the practice view for that range and shows its name.
+- [ ] App shows a random starting hand to identify.
 - [ ] User can answer "in range."
 - [ ] User can answer "out of range."
-- [ ] App gives immediate feedback.
+- [ ] App gives immediate correct/incorrect feedback and shows the expected answer.
+- [ ] The same hand cannot be answered twice (answer buttons are replaced by feedback).
+- [ ] Next hand advances to another random hand and re-enables answering.
 - [ ] Total questions updates.
 - [ ] Correct answers update.
 - [ ] Accuracy percentage updates.
+- [ ] End Practice returns to the editor/library view.

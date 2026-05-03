@@ -8,6 +8,8 @@ interface RangeLibraryProps {
   activeId: string | null
   onLoad: (range: SavedRange) => void
   onDelete: (id: string) => void
+  /** Start a practice session for the given saved range. */
+  onPractice: (range: SavedRange) => void
 }
 
 /**
@@ -16,7 +18,13 @@ interface RangeLibraryProps {
  * Combo counts and percentages are derived through the domain helpers so the
  * library never reimplements poker math.
  */
-export function RangeLibrary({ ranges, activeId, onLoad, onDelete }: RangeLibraryProps) {
+export function RangeLibrary({
+  ranges,
+  activeId,
+  onLoad,
+  onDelete,
+  onPractice,
+}: RangeLibraryProps) {
   return (
     <section className="range-library" aria-label="Saved ranges">
       <h2>Saved Ranges</h2>
@@ -41,6 +49,14 @@ export function RangeLibrary({ ranges, activeId, onLoad, onDelete }: RangeLibrar
                   </span>
                 </div>
                 <div className="range-item-actions">
+                  <button
+                    type="button"
+                    className="practice-action"
+                    aria-label={`Practice range ${range.name}`}
+                    onClick={() => onPractice(range)}
+                  >
+                    Practice
+                  </button>
                   <button
                     type="button"
                     aria-label={`Load range ${range.name}`}

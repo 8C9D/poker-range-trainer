@@ -17,7 +17,15 @@ function makeRange(overrides: Partial<SavedRange> = {}): SavedRange {
 
 describe('RangeLibrary', () => {
   it('shows an empty message when there are no saved ranges', () => {
-    render(<RangeLibrary ranges={[]} activeId={null} onLoad={vi.fn()} onDelete={vi.fn()} />)
+    render(
+      <RangeLibrary
+        ranges={[]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
     expect(screen.getByText(/no saved ranges/i)).toBeInTheDocument()
   })
 
@@ -28,6 +36,7 @@ describe('RangeLibrary', () => {
         activeId={null}
         onLoad={vi.fn()}
         onDelete={vi.fn()}
+        onPractice={vi.fn()}
       />,
     )
     expect(screen.getByText('Pairs')).toBeInTheDocument()
@@ -39,7 +48,15 @@ describe('RangeLibrary', () => {
     const user = userEvent.setup()
     const onLoad = vi.fn()
     const range = makeRange({ name: 'Pairs' })
-    render(<RangeLibrary ranges={[range]} activeId={null} onLoad={onLoad} onDelete={vi.fn()} />)
+    render(
+      <RangeLibrary
+        ranges={[range]}
+        activeId={null}
+        onLoad={onLoad}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
 
     await user.click(screen.getByRole('button', { name: 'Load range Pairs' }))
 
@@ -55,12 +72,32 @@ describe('RangeLibrary', () => {
         activeId={null}
         onLoad={vi.fn()}
         onDelete={onDelete}
+        onPractice={vi.fn()}
       />,
     )
 
     await user.click(screen.getByRole('button', { name: 'Delete range Pairs' }))
 
     expect(onDelete).toHaveBeenCalledExactlyOnceWith('r1')
+  })
+
+  it('exposes a Practice action that calls onPractice with the range', async () => {
+    const user = userEvent.setup()
+    const onPractice = vi.fn()
+    const range = makeRange({ name: 'Pairs' })
+    render(
+      <RangeLibrary
+        ranges={[range]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={onPractice}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Practice range Pairs' }))
+
+    expect(onPractice).toHaveBeenCalledExactlyOnceWith(range)
   })
 
   it('marks the active range as current', () => {
@@ -73,6 +110,7 @@ describe('RangeLibrary', () => {
         activeId="r1"
         onLoad={vi.fn()}
         onDelete={vi.fn()}
+        onPractice={vi.fn()}
       />,
     )
     expect(screen.getByText('Active One').closest('li')).toHaveAttribute('aria-current', 'true')
