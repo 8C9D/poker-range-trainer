@@ -29,3 +29,75 @@
 .range-summary span {
   white-space: nowrap;
 }
+
+.range-editor {
+  margin-bottom: 20px;
+}
+
+.editor-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.range-name-input {
+  flex: 1 1 200px;
+  min-width: 0;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 15px;
+  color: var(--text-h);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.range-name-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+.range-editor button {
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 15px;
+  color: var(--text-h);
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.range-editor button:hover:not(:disabled) {
+  border-color: var(--accent-border);
+}
+
+.range-editor button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.range-editor button.primary {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.range-editor button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.editing-indicator {
+  margin-top: 10px;
+  font-size: 14px;
+  color: var(--text-h);
+}
+
+.editor-hint {
+  margin-top: 10px;
+  font-size: 14px;
+  color: var(--text);
+}

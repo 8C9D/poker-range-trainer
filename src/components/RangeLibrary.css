@@ -1,0 +1,83 @@
+.range-library {
+  margin-top: 32px;
+  text-align: left;
+}
+
+.range-library h2 {
+  font-size: 20px;
+  margin-bottom: 12px;
+}
+
+.range-library-empty {
+  color: var(--text);
+  font-size: 15px;
+}
+
+.range-library-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.range-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.range-item.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.range-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.range-item-name {
+  font-weight: 500;
+  color: var(--text-h);
+}
+
+.range-item-stats {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text);
+}
+
+.range-item-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.range-item-actions button {
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text-h);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.range-item-actions button:hover {
+  border-color: var(--accent-border);
+}
+
+.range-item-actions button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
