@@ -25,16 +25,26 @@ function App() {
   // null = editor/library view; otherwise the saved range being practiced.
   const [practicingRange, setPracticingRange] = useState<SavedRange | null>(null)
 
-  function toggleHand(hand: PokerHand) {
+  // Idempotently set a hand's membership. Used for both click-toggle and
+  // drag-paint; returning the previous set when nothing changes avoids a
+  // needless re-render mid-drag.
+  function setHandSelected(hand: PokerHand, shouldSelect: boolean) {
     setSelected((prev) => {
+      if (prev.has(hand) === shouldSelect) return prev
       const next = new Set(prev)
-      if (next.has(hand)) {
-        next.delete(hand)
-      } else {
+      if (shouldSelect) {
         next.add(hand)
+      } else {
+        next.delete(hand)
       }
       return next
     })
+  }
+
+  // Clears the grid only. Name and the active editing id are intentionally
+  // left intact so an in-progress edit stays in editing mode.
+  function clearSelection() {
+    setSelected(new Set())
   }
 
   const selectedHands = Array.from(selected)
@@ -137,6 +147,13 @@ function App() {
               <button type="button" onClick={resetEditor}>
                 New Range
               </button>
+              <button
+                type="button"
+                onClick={clearSelection}
+                disabled={selected.size === 0}
+              >
+                Clear Selection
+              </button>
             </div>
             {editingRange && (
               <p className="editing-indicator" role="status">
@@ -146,7 +163,7 @@ function App() {
             {saveHint && <p className="editor-hint">{saveHint}</p>}
           </section>
 
-          <HandGrid selected={selected} onToggle={toggleHand} />
+          <HandGrid selected={selected} onSetSelected={setHandSelected} />
 
           <section className="range-summary" aria-label="Range summary">
             <span>{selectedHands.length} hands selected</span>

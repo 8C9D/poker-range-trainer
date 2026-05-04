@@ -4,6 +4,8 @@
   gap: 2px;
   max-width: 600px;
   margin: 0 auto;
+  /* Keep drag-to-select from highlighting cell labels as text. */
+  user-select: none;
 }
 
 .hand-cell {

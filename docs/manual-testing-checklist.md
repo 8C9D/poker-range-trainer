@@ -24,6 +24,20 @@
 - [ ] Saving an edited range updates it in place (no duplicate is created).
 - [ ] User can delete a saved range.
 
+## v1.1 faster hand selection
+
+- [ ] Clicking a single hand still toggles it selected/unselected.
+- [ ] Pressing on an unselected hand and dragging across others selects every hand crossed.
+- [ ] Pressing on a selected hand and dragging across others deselects every hand crossed.
+- [ ] Re-entering a hand during one drag does not flip it back and forth.
+- [ ] Releasing the mouse button (even off the grid) ends the drag; moving over hands afterward does not change the selection.
+- [ ] Dragging does not select the hand labels as text.
+- [ ] Keyboard: focus a hand with Tab and press Enter or Space to toggle it.
+- [ ] Clear Selection empties the grid.
+- [ ] Clear Selection keeps the range name.
+- [ ] Clear Selection is disabled when no hands are selected.
+- [ ] While editing a saved range, Clear Selection keeps the editing indicator and "Save Changes" label, and saving an empty selection stays blocked.
+
 ## v1 practice mode
 
 - [ ] Each saved range shows a Practice button.

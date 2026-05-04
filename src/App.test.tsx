@@ -162,6 +162,60 @@ describe('Clearing and deleting ranges', () => {
   })
 })
 
+describe('Clear Selection', () => {
+  it('is disabled until at least one hand is selected', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    const clear = screen.getByRole('button', { name: 'Clear Selection' })
+    expect(clear).toBeDisabled()
+
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+
+    expect(clear).toBeEnabled()
+  })
+
+  it('clears the selection but keeps the range name', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Keep My Name')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'KK' }))
+
+    await user.click(screen.getByRole('button', { name: 'Clear Selection' }))
+
+    expect(screen.getByRole('button', { name: 'AA' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'KK' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByText('0 hands selected')).toBeInTheDocument()
+    // The name is intentionally preserved.
+    expect(screen.getByLabelText('Range name')).toHaveValue('Keep My Name')
+  })
+
+  it('stays in editing mode for an active saved range and still blocks an empty save', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    // Save a range so the editor is attached to it (editing mode).
+    await user.type(screen.getByLabelText('Range name'), 'Editable')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    await user.click(screen.getByRole('button', { name: 'Clear Selection' }))
+
+    // Still editing the same range: indicator, name, and "Save Changes" remain.
+    expect(screen.getByText(/Editing saved range:/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Range name')).toHaveValue('Editable')
+    const save = screen.getByRole('button', { name: 'Save Changes' })
+    expect(save).toBeInTheDocument()
+    // Validation still prevents saving with no hands selected.
+    expect(save).toBeDisabled()
+    // The saved range itself is untouched until an allowed save happens.
+    expect(loadSavedRanges()).toHaveLength(1)
+    expect(loadSavedRanges()[0].hands).toEqual(['AA'])
+  })
+})
+
 describe('Practice mode', () => {
   it('starts practice from the library and returns to the editor on End Practice', async () => {
     const user = userEvent.setup()

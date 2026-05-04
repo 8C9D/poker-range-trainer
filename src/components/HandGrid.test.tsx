@@ -1,18 +1,42 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { useState } from 'react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { HandGrid } from './HandGrid'
 import App from '../App'
 import type { PokerHand } from '../domain/pokerHands'
 
-describe('HandGrid', () => {
+/**
+ * Stateful wrapper so gestures are reflected back through `selected` and become
+ * visible as `aria-pressed`, mirroring how App owns the selection set.
+ */
+function Harness({ initial = [] }: { initial?: PokerHand[] }) {
+  const [selected, setSelected] = useState<Set<PokerHand>>(() => new Set(initial))
+
+  function onSetSelected(hand: PokerHand, shouldSelect: boolean) {
+    setSelected((prev) => {
+      if (prev.has(hand) === shouldSelect) return prev
+      const next = new Set(prev)
+      if (shouldSelect) {
+        next.add(hand)
+      } else {
+        next.delete(hand)
+      }
+      return next
+    })
+  }
+
+  return <HandGrid selected={selected} onSetSelected={onSetSelected} />
+}
+
+describe('HandGrid rendering', () => {
   it('renders all 169 starting hands as buttons', () => {
-    render(<HandGrid selected={new Set<PokerHand>()} onToggle={vi.fn()} />)
+    render(<HandGrid selected={new Set<PokerHand>()} onSetSelected={vi.fn()} />)
     expect(screen.getAllByRole('button')).toHaveLength(169)
   })
 
   it('shows pairs, suited, and offsuit hands in standard notation', () => {
-    render(<HandGrid selected={new Set<PokerHand>()} onToggle={vi.fn()} />)
+    render(<HandGrid selected={new Set<PokerHand>()} onSetSelected={vi.fn()} />)
     expect(screen.getByRole('button', { name: 'AA' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'AKs' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'AKo' })).toBeInTheDocument()
@@ -20,19 +44,96 @@ describe('HandGrid', () => {
   })
 
   it('marks only the hands in the selected set as pressed', () => {
-    render(<HandGrid selected={new Set<PokerHand>(['AA'])} onToggle={vi.fn()} />)
+    render(<HandGrid selected={new Set<PokerHand>(['AA'])} onSetSelected={vi.fn()} />)
     expect(screen.getByRole('button', { name: 'AA' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'KK' })).toHaveAttribute('aria-pressed', 'false')
   })
+})
 
-  it('calls onToggle with the clicked hand', async () => {
+describe('HandGrid selection gestures', () => {
+  it('toggles a single hand on click', async () => {
     const user = userEvent.setup()
-    const onToggle = vi.fn()
-    render(<HandGrid selected={new Set<PokerHand>()} onToggle={onToggle} />)
+    render(<Harness />)
+    const aks = screen.getByRole('button', { name: 'AKs' })
 
-    await user.click(screen.getByRole('button', { name: 'AKs' }))
+    expect(aks).toHaveAttribute('aria-pressed', 'false')
+    await user.click(aks)
+    expect(aks).toHaveAttribute('aria-pressed', 'true')
+    await user.click(aks)
+    expect(aks).toHaveAttribute('aria-pressed', 'false')
+  })
 
-    expect(onToggle).toHaveBeenCalledExactlyOnceWith('AKs')
+  it('toggles a hand via keyboard activation', async () => {
+    const user = userEvent.setup()
+    render(<Harness />)
+    const aks = screen.getByRole('button', { name: 'AKs' })
+
+    aks.focus()
+    await user.keyboard('{Enter}')
+    expect(aks).toHaveAttribute('aria-pressed', 'true')
+    await user.keyboard(' ')
+    expect(aks).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('selects every hand crossed when dragging from an unselected hand', () => {
+    render(<Harness />)
+    const aa = screen.getByRole('button', { name: 'AA' })
+    const aks = screen.getByRole('button', { name: 'AKs' })
+    const aqs = screen.getByRole('button', { name: 'AQs' })
+
+    fireEvent.mouseDown(aa) // press an unselected hand -> paint "select"
+    fireEvent.mouseEnter(aks, { buttons: 1 })
+    fireEvent.mouseEnter(aqs, { buttons: 1 })
+    fireEvent.mouseUp(document)
+
+    expect(aa).toHaveAttribute('aria-pressed', 'true')
+    expect(aks).toHaveAttribute('aria-pressed', 'true')
+    expect(aqs).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('deselects every hand crossed when dragging from a selected hand', () => {
+    render(<Harness initial={['AA', 'AKs', 'AQs']} />)
+    const aa = screen.getByRole('button', { name: 'AA' })
+    const aks = screen.getByRole('button', { name: 'AKs' })
+    const aqs = screen.getByRole('button', { name: 'AQs' })
+
+    fireEvent.mouseDown(aa) // press a selected hand -> paint "deselect"
+    fireEvent.mouseEnter(aks, { buttons: 1 })
+    fireEvent.mouseEnter(aqs, { buttons: 1 })
+    fireEvent.mouseUp(document)
+
+    expect(aa).toHaveAttribute('aria-pressed', 'false')
+    expect(aks).toHaveAttribute('aria-pressed', 'false')
+    expect(aqs).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('does not flip a hand when the pointer re-enters it during one drag', () => {
+    render(<Harness />)
+    const aa = screen.getByRole('button', { name: 'AA' })
+    const aks = screen.getByRole('button', { name: 'AKs' })
+
+    fireEvent.mouseDown(aa) // start selecting at AA
+    fireEvent.mouseEnter(aks, { buttons: 1 })
+    fireEvent.mouseEnter(aa, { buttons: 1 }) // re-enter the origin
+    fireEvent.mouseUp(document)
+
+    // Re-entering AA re-applies "select" instead of toggling it back off.
+    expect(aa).toHaveAttribute('aria-pressed', 'true')
+    expect(aks).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('stops painting once the drag ends', () => {
+    render(<Harness />)
+    const aa = screen.getByRole('button', { name: 'AA' })
+    const aks = screen.getByRole('button', { name: 'AKs' })
+
+    fireEvent.mouseDown(aa)
+    fireEvent.mouseUp(document)
+    // Moving over another hand after release must not select it.
+    fireEvent.mouseEnter(aks, { buttons: 1 })
+
+    expect(aa).toHaveAttribute('aria-pressed', 'true')
+    expect(aks).toHaveAttribute('aria-pressed', 'false')
   })
 })
 
