@@ -38,6 +38,20 @@
 - [ ] Clear Selection is disabled when no hands are selected.
 - [ ] While editing a saved range, Clear Selection keeps the editing indicator and "Save Changes" label, and saving an empty selection stays blocked.
 
+## v1.1 range shortcuts
+
+- [ ] A "Range shortcuts" section appears near the editor controls with buttons: Add all pairs, Add 77+, Add suited broadways, Add offsuit broadways, Add all broadways.
+- [ ] Add all pairs selects all 13 pocket pairs and the summary updates immediately.
+- [ ] Add 77+ selects 77 through AA and leaves 66 unselected.
+- [ ] Add suited broadways selects the suited Broadway hands (AKs … JTs).
+- [ ] Add offsuit broadways selects the offsuit Broadway hands (AKo … JTo).
+- [ ] Add all broadways selects TT+ pairs plus the suited and offsuit Broadway non-pairs.
+- [ ] Shortcuts add to the current selection; hands selected by click or drag stay selected.
+- [ ] Applying the same shortcut twice does not change the hand or combo counts.
+- [ ] Applying a shortcut while editing a saved range keeps the editing indicator and the "Save Changes" label.
+- [ ] After applying a shortcut to a saved range, "Save Changes" updates it in place (no duplicate appears).
+- [ ] Clear Selection empties hands added by a shortcut.
+
 ## v1 practice mode
 
 - [ ] Each saved range shows a Practice button.

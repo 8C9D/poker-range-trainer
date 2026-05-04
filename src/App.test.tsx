@@ -244,3 +244,147 @@ describe('Practice mode', () => {
     expect(screen.queryByRole('heading', { name: /Practicing: Pairs/ })).not.toBeInTheDocument()
   })
 })
+
+describe('Range shortcuts', () => {
+  it('renders the range shortcut section', () => {
+    render(<App />)
+    expect(screen.getByRole('region', { name: 'Range shortcuts' })).toBeInTheDocument()
+  })
+
+  it('adds all 13 pairs and updates the summary', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add all pairs' }))
+
+    expect(screen.getByRole('button', { name: 'AA' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: '22' })).toHaveAttribute('aria-pressed', 'true')
+    // 13 pairs -> 78 combos -> 78/1326 = 5.9%.
+    expect(screen.getByText('13 hands selected')).toBeInTheDocument()
+    expect(screen.getByText('78 combos')).toBeInTheDocument()
+    expect(screen.getByText('5.9% of all hands')).toBeInTheDocument()
+  })
+
+  it('adds only the pairs 77 and higher for Add 77+', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add 77+' }))
+
+    expect(screen.getByText('8 hands selected')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '77' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'AA' })).toHaveAttribute('aria-pressed', 'true')
+    // 66 sits just below the threshold and must stay unselected.
+    expect(screen.getByRole('button', { name: '66' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('adds the suited Broadway hands', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add suited broadways' }))
+
+    expect(screen.getByText('10 hands selected')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'AKs' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'JTs' })).toHaveAttribute('aria-pressed', 'true')
+    // No offsuit Broadway was added.
+    expect(screen.getByRole('button', { name: 'AKo' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('adds the offsuit Broadway hands', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add offsuit broadways' }))
+
+    expect(screen.getByText('10 hands selected')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'AKo' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'JTo' })).toHaveAttribute('aria-pressed', 'true')
+    // No suited Broadway was added.
+    expect(screen.getByRole('button', { name: 'AKs' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('adds TT+ pairs plus suited and offsuit Broadway non-pairs for Add all broadways', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add all broadways' }))
+
+    // 5 Broadway pairs + 10 suited + 10 offsuit = 25 hands.
+    expect(screen.getByText('25 hands selected')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'TT' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'AKs' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'AKo' })).toHaveAttribute('aria-pressed', 'true')
+    // 99 is below the lowest Broadway pair and must stay unselected.
+    expect(screen.getByRole('button', { name: '99' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('preserves hands already selected before applying a shortcut', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    // AA is not part of the suited Broadways group, so it must survive the merge.
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Add suited broadways' }))
+
+    expect(screen.getByRole('button', { name: 'AA' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'AKs' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByText('11 hands selected')).toBeInTheDocument()
+  })
+
+  it('does not double-count hands or combos when a shortcut is applied twice', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add all pairs' }))
+    await user.click(screen.getByRole('button', { name: 'Add all pairs' }))
+
+    expect(screen.getByText('13 hands selected')).toBeInTheDocument()
+    expect(screen.getByText('78 combos')).toBeInTheDocument()
+  })
+
+  it('stays in editing mode when a shortcut is applied to a saved range', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Editable')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    await user.click(screen.getByRole('button', { name: 'Add suited broadways' }))
+
+    expect(screen.getByText(/Editing saved range:/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Range name')).toHaveValue('Editable')
+    expect(screen.getByRole('button', { name: 'Save Changes' })).toBeInTheDocument()
+  })
+
+  it('updates a saved range in place after applying a shortcut', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Starter')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    // Apply a shortcut, then save the changes onto the same range.
+    await user.click(screen.getByRole('button', { name: 'Add all pairs' }))
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    expect(loadSavedRanges()).toHaveLength(1)
+    expect(within(library()).getAllByText('Starter')).toHaveLength(1)
+    expect(loadSavedRanges()[0].hands).toHaveLength(13)
+  })
+
+  it('lets Clear Selection clear shortcut-selected hands', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add all pairs' }))
+    expect(screen.getByText('13 hands selected')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Clear Selection' }))
+
+    expect(screen.getByText('0 hands selected')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'AA' })).toHaveAttribute('aria-pressed', 'false')
+  })
+})

@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { HandGrid } from './components/HandGrid'
 import { PracticeSession } from './components/PracticeSession'
 import { RangeLibrary } from './components/RangeLibrary'
+import { RangeShortcuts } from './components/RangeShortcuts'
 import { calculateRangePercentage, countSelectedCombos } from './domain/rangeMath'
+import { mergeShortcutHands } from './domain/rangeShortcuts'
 import type { PokerHand } from './domain/pokerHands'
 import { deleteSavedRange, loadSavedRanges, saveSavedRange } from './storage/rangeStorage'
 import type { SavedRange } from './types/range'
@@ -45,6 +47,14 @@ function App() {
   // left intact so an in-progress edit stays in editing mode.
   function clearSelection() {
     setSelected(new Set())
+  }
+
+  // Adds a shortcut's hands on top of the current selection. mergeShortcutHands
+  // dedupes and returns canonical order, so re-applying a shortcut is a no-op
+  // and existing hands are preserved. Name and editing id are untouched, so an
+  // in-progress edit stays in editing mode.
+  function addShortcutHands(hands: PokerHand[]) {
+    setSelected((prev) => new Set(mergeShortcutHands(Array.from(prev), hands)))
   }
 
   const selectedHands = Array.from(selected)
@@ -162,6 +172,8 @@ function App() {
             )}
             {saveHint && <p className="editor-hint">{saveHint}</p>}
           </section>
+
+          <RangeShortcuts onAddHands={addShortcutHands} />
 
           <HandGrid selected={selected} onSetSelected={setHandSelected} />
 

@@ -1,0 +1,37 @@
+.range-shortcuts {
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.range-shortcuts h2 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-h);
+}
+
+.range-shortcuts-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.range-shortcuts-buttons button {
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text-h);
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.range-shortcuts-buttons button:hover {
+  border-color: var(--accent-border);
+}
+
+.range-shortcuts-buttons button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
