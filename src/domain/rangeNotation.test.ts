@@ -164,6 +164,46 @@ describe('parseRangeNotation', () => {
     })
   })
 
+  describe('dash-range expansion', () => {
+    it('expands a suited dash range (A5s-A2s)', () => {
+      expect(parseRangeNotation('A5s-A2s')).toEqual(['A5s', 'A4s', 'A3s', 'A2s'])
+    })
+
+    it('expands the same suited range regardless of endpoint order', () => {
+      expect(parseRangeNotation('A2s-A5s')).toEqual(parseRangeNotation('A5s-A2s'))
+    })
+
+    it('expands an offsuit dash range (AJo-ATo)', () => {
+      expect(parseRangeNotation('AJo-ATo')).toEqual(['AJo', 'ATo'])
+    })
+
+    it('expands a pair dash range (77-TT)', () => {
+      expect(parseRangeNotation('77-TT')).toEqual(['TT', '99', '88', '77'])
+    })
+
+    it('expands the same pair range regardless of endpoint order', () => {
+      expect(parseRangeNotation('TT-77')).toEqual(parseRangeNotation('77-TT'))
+    })
+
+    it('works inside a comma-separated list', () => {
+      const expected = normalizeRangeHands([
+        ...['AA', 'KK', 'QQ', 'JJ', 'TT', '99', '88', '77'],
+        ...['A5s', 'A4s', 'A3s', 'A2s'],
+        'KQo',
+      ])
+      expect(parseRangeNotation('77+, A5s-A2s, KQo')).toEqual(expected)
+    })
+
+    it('ignores whitespace around the dash', () => {
+      expect(parseRangeNotation('A5s - A2s')).toEqual(parseRangeNotation('A5s-A2s'))
+    })
+
+    it('dedupes hands shared by dash and plus notation', () => {
+      // A5s-A2s sits entirely inside the low end of A2s+, so the union is A2s+.
+      expect(parseRangeNotation('A2s+, A5s-A2s')).toEqual(parseRangeNotation('A2s+'))
+    })
+  })
+
   describe('invalid and not-yet-supported notation', () => {
     it('throws on an unrecognized token', () => {
       expect(() => parseRangeNotation('ZZ')).toThrow()
@@ -182,8 +222,17 @@ describe('parseRangeNotation', () => {
       expect(() => parseRangeNotation('AK')).toThrow()
     })
 
-    it('throws on dash/range notation for now', () => {
-      expect(() => parseRangeNotation('A5s-A2s')).toThrow(/not supported yet/)
+    it('throws when dash endpoints have mismatched categories', () => {
+      expect(() => parseRangeNotation('A5s-A5o')).toThrow()
+    })
+
+    it('throws when non-pair dash endpoints have different high cards', () => {
+      expect(() => parseRangeNotation('A5s-K5s')).toThrow()
+    })
+
+    it('throws on an invalid dash endpoint', () => {
+      expect(() => parseRangeNotation('A5s-Z2s')).toThrow()
+      expect(() => parseRangeNotation('77-')).toThrow()
     })
 
     it('throws on weighted/mixed-frequency notation for now', () => {

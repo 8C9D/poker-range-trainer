@@ -487,7 +487,8 @@ describe('Range notation', () => {
     const user = userEvent.setup()
     render(<App />)
 
-    await user.type(notationInput(), 'A5s-A2s')
+    // Bare rank-pair notation ("AK") has no suit suffix and is unsupported.
+    await user.type(notationInput(), 'AK')
     await user.click(applyNotation())
 
     expect(screen.getByRole('alert')).toBeInTheDocument()
@@ -512,7 +513,7 @@ describe('Range notation', () => {
     const user = userEvent.setup()
     render(<App />)
 
-    await user.type(notationInput(), 'A5s-A2s')
+    await user.type(notationInput(), 'AK')
     await user.click(applyNotation())
     expect(screen.getByRole('alert')).toBeInTheDocument()
 

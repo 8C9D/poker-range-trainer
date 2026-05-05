@@ -55,7 +55,7 @@
 ## v1.2 range notation import/export
 
 - [ ] A "Range notation" section appears near the editor controls with an input, an Apply Notation button, and a read-only "Current range" field.
-- [ ] The section shows example notation (e.g. `77+, AJs+, KQo` and `22+, A2s+, ATo+, KQs`).
+- [ ] The section shows example notation (e.g. `77+, AJs+, KQo`, `22+, A2s+, ATo+, KQs`, and `A5s-A2s`).
 - [ ] The "Current range" field is empty when no hands are selected.
 - [ ] Clicking hands updates the "Current range" notation immediately.
 - [ ] Drag-selecting hands updates the "Current range" notation immediately.
@@ -67,9 +67,15 @@
 - [ ] Applying suited-plus notation (e.g. `A2s+`) selects the expected suited hands.
 - [ ] Applying offsuit-plus notation (e.g. `ATo+`) selects the expected offsuit hands.
 - [ ] Applying a comma-separated list (e.g. `77+, AJs+, KQo`) selects the combined hands.
+- [ ] Applying a suited dash range (e.g. `A5s-A2s`) selects A5s, A4s, A3s, A2s.
+- [ ] Applying an offsuit dash range (e.g. `AJo-ATo`) selects AJo and ATo.
+- [ ] Applying a pair dash range (e.g. `77-TT`) selects 77, 88, 99, TT.
+- [ ] Dash endpoints work in either order (`A2s-A5s` matches `A5s-A2s`; `TT-77` matches `77-TT`).
+- [ ] Dash notation works inside a comma-separated list (e.g. `77+, A5s-A2s, KQo`).
+- [ ] Whitespace around the dash is ignored (e.g. `A5s - A2s`).
 - [ ] Applying notation replaces the current selection rather than adding to it.
 - [ ] Applying empty notation clears the current selection.
-- [ ] Applying invalid notation (e.g. `AK`, `A5s-A2s`) shows a clear error message.
+- [ ] Applying invalid notation (e.g. `AK`, mismatched-type `A5s-A5o`, or different-high-card `A5s-K5s`) shows a clear error message.
 - [ ] Applying invalid notation does not change the current selection.
 - [ ] A successful apply clears a previously shown error message.
 - [ ] Applying notation while editing a saved range keeps the editing indicator and "Save Changes" label.

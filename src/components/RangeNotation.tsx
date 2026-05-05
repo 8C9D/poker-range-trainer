@@ -56,7 +56,8 @@ export function RangeNotation({ selectedHands, onReplaceHands }: RangeNotationPr
           placeholder="e.g. 77+, AJs+, KQo"
         />
         <p className="range-notation-examples">
-          Examples: <code>77+, AJs+, KQo</code> · <code>22+, A2s+, ATo+, KQs</code>
+          Examples: <code>77+, AJs+, KQo</code> · <code>22+, A2s+, ATo+, KQs</code> ·{' '}
+          <code>A5s-A2s</code>
         </p>
         <button type="button" onClick={handleApply}>
           Apply Notation

@@ -69,6 +69,17 @@ describe('RangeNotation', () => {
     expect(onReplaceHands).toHaveBeenCalledExactlyOnceWith(['AA', 'AKs', 'AKo'])
   })
 
+  it('applies dash notation by expanding it', async () => {
+    const user = userEvent.setup()
+    const onReplaceHands = vi.fn()
+    render(<RangeNotation selectedHands={[]} onReplaceHands={onReplaceHands} />)
+
+    await user.type(inputField(), 'A5s-A2s')
+    await user.click(applyButton())
+
+    expect(onReplaceHands).toHaveBeenCalledExactlyOnceWith(['A5s', 'A4s', 'A3s', 'A2s'])
+  })
+
   it('clears the selection when empty notation is applied', async () => {
     const user = userEvent.setup()
     const onReplaceHands = vi.fn()
@@ -96,8 +107,8 @@ describe('RangeNotation', () => {
     const user = userEvent.setup()
     render(<RangeNotation selectedHands={[]} onReplaceHands={vi.fn()} />)
 
-    // Dash notation is unsupported, so it surfaces an error first.
-    await user.type(inputField(), 'A5s-A2s')
+    // Bare rank-pair notation ("AK") is unsupported, so it surfaces an error first.
+    await user.type(inputField(), 'AK')
     await user.click(applyButton())
     expect(screen.getByRole('alert')).toBeInTheDocument()
 
