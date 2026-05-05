@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { HandGrid } from './components/HandGrid'
 import { PracticeSession } from './components/PracticeSession'
 import { RangeLibrary } from './components/RangeLibrary'
+import { RangeNotation } from './components/RangeNotation'
 import { RangeShortcuts } from './components/RangeShortcuts'
 import { calculateRangePercentage, countSelectedCombos } from './domain/rangeMath'
 import { mergeShortcutHands } from './domain/rangeShortcuts'
@@ -55,6 +56,13 @@ function App() {
   // in-progress edit stays in editing mode.
   function addShortcutHands(hands: PokerHand[]) {
     setSelected((prev) => new Set(mergeShortcutHands(Array.from(prev), hands)))
+  }
+
+  // Replaces the whole selection with a parsed notation result (an empty array
+  // clears the grid). Name and editing id are left intact, so applying notation
+  // while editing a saved range keeps that range in editing mode.
+  function replaceHands(hands: PokerHand[]) {
+    setSelected(new Set(hands))
   }
 
   const selectedHands = Array.from(selected)
@@ -174,6 +182,8 @@ function App() {
           </section>
 
           <RangeShortcuts onAddHands={addShortcutHands} />
+
+          <RangeNotation selectedHands={selectedHands} onReplaceHands={replaceHands} />
 
           <HandGrid selected={selected} onSetSelected={setHandSelected} />
 

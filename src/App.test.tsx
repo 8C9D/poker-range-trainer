@@ -13,6 +13,18 @@ function library() {
   return screen.getByRole('region', { name: 'Saved ranges' })
 }
 
+function notationInput() {
+  return screen.getByLabelText('Paste or type notation')
+}
+
+function currentNotation() {
+  return screen.getByLabelText('Current range')
+}
+
+function applyNotation() {
+  return screen.getByRole('button', { name: 'Apply Notation' })
+}
+
 describe('Range editor validation', () => {
   it('renders a range name input', () => {
     render(<App />)
@@ -386,5 +398,184 @@ describe('Range shortcuts', () => {
 
     expect(screen.getByText('0 hands selected')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'AA' })).toHaveAttribute('aria-pressed', 'false')
+  })
+})
+
+describe('Range notation', () => {
+  it('renders the range notation section', () => {
+    render(<App />)
+    expect(screen.getByRole('region', { name: 'Range notation' })).toBeInTheDocument()
+  })
+
+  it('shows an empty current notation when no hands are selected', () => {
+    render(<App />)
+    expect(currentNotation()).toHaveValue('')
+  })
+
+  it('updates the displayed notation as hands are clicked', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    expect(currentNotation()).toHaveValue('AA')
+
+    await user.click(screen.getByRole('button', { name: 'KK' }))
+    expect(currentNotation()).toHaveValue('AA, KK')
+  })
+
+  it('applies an exact-hand list onto the grid', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(notationInput(), 'AA, KK')
+    await user.click(applyNotation())
+
+    expect(screen.getByRole('button', { name: 'AA' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'KK' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByText('2 hands selected')).toBeInTheDocument()
+    expect(currentNotation()).toHaveValue('AA, KK')
+  })
+
+  it('applies plus notation by expanding it onto the grid', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(notationInput(), '77+')
+    await user.click(applyNotation())
+
+    // 77 through AA is 8 pairs; 66 sits just below the threshold.
+    expect(screen.getByText('8 hands selected')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '77' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'AA' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: '66' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('applies a comma-separated mixed list onto the grid', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(notationInput(), '77+, AJs+, KQo')
+    await user.click(applyNotation())
+
+    // 8 pairs + AJs/AQs/AKs + KQo = 12 hands.
+    expect(screen.getByText('12 hands selected')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '77' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'AJs' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'KQo' })).toHaveAttribute('aria-pressed', 'true')
+    // ATs is below AJs+ and KJo is not part of the list.
+    expect(screen.getByRole('button', { name: 'ATs' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'KJo' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('clears the selection when empty notation is applied', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'KK' }))
+    expect(screen.getByText('2 hands selected')).toBeInTheDocument()
+
+    // Apply with a blank input.
+    await user.click(applyNotation())
+
+    expect(screen.getByText('0 hands selected')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'AA' })).toHaveAttribute('aria-pressed', 'false')
+    expect(currentNotation()).toHaveValue('')
+  })
+
+  it('shows an error for invalid notation', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(notationInput(), 'A5s-A2s')
+    await user.click(applyNotation())
+
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+  })
+
+  it('does not change the current selection when invalid notation is applied', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.type(notationInput(), 'AK')
+    await user.click(applyNotation())
+
+    // The selection and its notation are untouched, and an error is shown.
+    expect(screen.getByRole('button', { name: 'AA' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByText('1 hands selected')).toBeInTheDocument()
+    expect(currentNotation()).toHaveValue('AA')
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+  })
+
+  it('clears a previous error after a successful apply', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(notationInput(), 'A5s-A2s')
+    await user.click(applyNotation())
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+
+    await user.clear(notationInput())
+    await user.type(notationInput(), '22+')
+    await user.click(applyNotation())
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByText('13 hands selected')).toBeInTheDocument()
+  })
+
+  it('stays in editing mode when notation is applied to a saved range', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Editable')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    await user.type(notationInput(), '77+')
+    await user.click(applyNotation())
+
+    expect(screen.getByText(/Editing saved range:/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Range name')).toHaveValue('Editable')
+    expect(screen.getByRole('button', { name: 'Save Changes' })).toBeInTheDocument()
+  })
+
+  it('updates a saved range in place after applying notation', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Starter')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    // Replace the selection via notation, then save onto the same range.
+    await user.type(notationInput(), '22+')
+    await user.click(applyNotation())
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    expect(loadSavedRanges()).toHaveLength(1)
+    expect(within(library()).getAllByText('Starter')).toHaveLength(1)
+    expect(loadSavedRanges()[0].hands).toHaveLength(13)
+  })
+
+  it('keeps the notation display in sync with range shortcuts', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add all pairs' }))
+
+    expect(currentNotation()).toHaveValue('AA, KK, QQ, JJ, TT, 99, 88, 77, 66, 55, 44, 33, 22')
+  })
+
+  it('clears the notation display when Clear Selection is used', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add all pairs' }))
+    expect(currentNotation()).not.toHaveValue('')
+
+    await user.click(screen.getByRole('button', { name: 'Clear Selection' }))
+
+    expect(currentNotation()).toHaveValue('')
   })
 })

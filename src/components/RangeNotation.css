@@ -1,0 +1,94 @@
+.range-notation {
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.range-notation h2 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-h);
+}
+
+.range-notation-group {
+  margin-bottom: 12px;
+}
+
+.range-notation-group:last-child {
+  margin-bottom: 0;
+}
+
+.range-notation-group label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.range-notation-input,
+.range-notation-output {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--text-h);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  resize: vertical;
+}
+
+.range-notation-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+.range-notation-output {
+  background: var(--code-bg);
+  color: var(--text);
+}
+
+.range-notation-examples {
+  margin: 6px 0 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.range-notation-examples code {
+  font-family: var(--mono);
+}
+
+.range-notation-group button {
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text-h);
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.range-notation-group button:hover {
+  border-color: var(--accent-border);
+}
+
+.range-notation-group button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.range-notation-error {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #c0392b;
+}
+
+@media (prefers-color-scheme: dark) {
+  .range-notation-error {
+    color: #ff8a80;
+  }
+}

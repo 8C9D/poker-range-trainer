@@ -52,6 +52,30 @@
 - [ ] After applying a shortcut to a saved range, "Save Changes" updates it in place (no duplicate appears).
 - [ ] Clear Selection empties hands added by a shortcut.
 
+## v1.2 range notation import/export
+
+- [ ] A "Range notation" section appears near the editor controls with an input, an Apply Notation button, and a read-only "Current range" field.
+- [ ] The section shows example notation (e.g. `77+, AJs+, KQo` and `22+, A2s+, ATo+, KQs`).
+- [ ] The "Current range" field is empty when no hands are selected.
+- [ ] Clicking hands updates the "Current range" notation immediately.
+- [ ] Drag-selecting hands updates the "Current range" notation immediately.
+- [ ] Applying a range shortcut updates the "Current range" notation immediately.
+- [ ] Loading a saved range updates the "Current range" notation immediately.
+- [ ] Clear Selection empties the "Current range" notation.
+- [ ] Applying an exact list (e.g. `AA, KK, AKs`) selects exactly those hands.
+- [ ] Applying pair-plus notation (e.g. `77+`) selects 77 through AA and leaves 66 unselected.
+- [ ] Applying suited-plus notation (e.g. `A2s+`) selects the expected suited hands.
+- [ ] Applying offsuit-plus notation (e.g. `ATo+`) selects the expected offsuit hands.
+- [ ] Applying a comma-separated list (e.g. `77+, AJs+, KQo`) selects the combined hands.
+- [ ] Applying notation replaces the current selection rather than adding to it.
+- [ ] Applying empty notation clears the current selection.
+- [ ] Applying invalid notation (e.g. `AK`, `A5s-A2s`) shows a clear error message.
+- [ ] Applying invalid notation does not change the current selection.
+- [ ] A successful apply clears a previously shown error message.
+- [ ] Applying notation while editing a saved range keeps the editing indicator and "Save Changes" label.
+- [ ] After applying notation to a saved range, "Save Changes" updates it in place (no duplicate appears).
+- [ ] Saving is still blocked when notation clears the selection to no hands.
+
 ## v1 practice mode
 
 - [ ] Each saved range shows a Practice button.
