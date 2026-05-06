@@ -56,6 +56,17 @@
   color: var(--text);
 }
 
+.range-item-scenario {
+  font-size: 13px;
+  color: var(--text-h);
+}
+
+.range-item-notes {
+  font-size: 13px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
 .range-item-actions {
   display: flex;
   flex-shrink: 0;

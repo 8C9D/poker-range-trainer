@@ -82,6 +82,26 @@
 - [ ] After applying notation to a saved range, "Save Changes" updates it in place (no duplicate appears).
 - [ ] Saving is still blocked when notation clears the selection to no hands.
 
+## v1.3 scenario metadata
+
+- [ ] A "Scenario details" section appears near the editor controls with a Position dropdown, an Action type dropdown, and a Notes textarea.
+- [ ] Both dropdowns default to a blank option so metadata is optional.
+- [ ] The Position dropdown lists UTG, HJ, CO, BTN, SB, BB.
+- [ ] The Action type dropdown lists Open, Call, 3-bet, 4-bet, Defend, Jam, Call jam.
+- [ ] Changing Position, Action type, or Notes does not change the selected hands.
+- [ ] Changing Position, Action type, or Notes does not change the "Current range" notation.
+- [ ] Saving a range with metadata persists the position, action type, and notes.
+- [ ] Saving a range with no metadata still works.
+- [ ] A saved range card shows its position and action type (e.g. `BTN · Open`) when present.
+- [ ] A saved range card shows its notes when present, truncated to a short preview when long.
+- [ ] A saved range card with no metadata shows no empty metadata labels.
+- [ ] Loading a saved range restores its position, action type, and notes into the editor.
+- [ ] Editing only the metadata of a saved range and choosing "Save Changes" updates it in place (no duplicate appears).
+- [ ] New Range clears the position, action type, and notes along with the name and selection.
+- [ ] Clear Selection empties the grid but keeps the position, action type, and notes.
+- [ ] Applying range notation replaces the selection but keeps the position, action type, and notes.
+- [ ] Applying a range shortcut adds hands but keeps the position, action type, and notes.
+
 ## v1 practice mode
 
 - [ ] Each saved range shows a Practice button.

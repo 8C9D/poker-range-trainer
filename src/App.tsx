@@ -2,13 +2,14 @@ import { useState } from 'react'
 import { HandGrid } from './components/HandGrid'
 import { PracticeSession } from './components/PracticeSession'
 import { RangeLibrary } from './components/RangeLibrary'
+import { RangeMetadataEditor } from './components/RangeMetadataEditor'
 import { RangeNotation } from './components/RangeNotation'
 import { RangeShortcuts } from './components/RangeShortcuts'
 import { calculateRangePercentage, countSelectedCombos } from './domain/rangeMath'
 import { mergeShortcutHands } from './domain/rangeShortcuts'
 import type { PokerHand } from './domain/pokerHands'
 import { deleteSavedRange, loadSavedRanges, saveSavedRange } from './storage/rangeStorage'
-import type { SavedRange } from './types/range'
+import type { ActionType, Position, RangeMetadata, SavedRange } from './types/range'
 import './App.css'
 
 /** Best-effort unique id for a newly created range, with a fallback for older runtimes. */
@@ -27,6 +28,11 @@ function App() {
   const [savedRanges, setSavedRanges] = useState<SavedRange[]>(() => loadSavedRanges())
   // null = editor/library view; otherwise the saved range being practiced.
   const [practicingRange, setPracticingRange] = useState<SavedRange | null>(null)
+  // Optional scenario metadata. '' means "unset" for the two dropdowns. These
+  // are descriptive only and never affect the selected hands or notation.
+  const [position, setPosition] = useState<Position | ''>('')
+  const [actionType, setActionType] = useState<ActionType | ''>('')
+  const [notes, setNotes] = useState('')
 
   // Idempotently set a hand's membership. Used for both click-toggle and
   // drag-paint; returning the previous set when nothing changes avoids a
@@ -84,26 +90,53 @@ function App() {
     saveHint = 'Select at least one hand to save.'
   }
 
+  // New Range resets every editor field, including the optional metadata.
   function resetEditor() {
     setName('')
     setSelected(new Set())
     setEditingId(null)
+    setPosition('')
+    setActionType('')
+    setNotes('')
   }
 
   function handleSave() {
     if (!canSave) return
 
     const now = new Date().toISOString()
+
+    // Merge the edited fields onto any existing metadata so fields this slice
+    // does not surface yet (game type, table size, …) survive an edit. Blank
+    // fields are dropped, and an all-empty result collapses to no metadata.
+    // Storage re-normalizes, so this only needs to be well-formed, not minimal.
+    const metadata: RangeMetadata = { ...editingRange?.metadata }
+    if (position) metadata.position = position
+    else delete metadata.position
+    if (actionType) metadata.actionType = actionType
+    else delete metadata.actionType
+    const trimmedNotes = notes.trim()
+    if (trimmedNotes) metadata.notes = trimmedNotes
+    else delete metadata.notes
+    const hasMetadata = Object.keys(metadata).length > 0
+
     // Updating an existing range keeps its id and createdAt; a new one gets both fresh.
-    const range: SavedRange = editingRange
-      ? { ...editingRange, name: trimmedName, hands: selectedHands, updatedAt: now }
-      : {
-          id: createRangeId(),
-          name: trimmedName,
-          hands: selectedHands,
-          createdAt: now,
-          updatedAt: now,
-        }
+    let range: SavedRange
+    if (editingRange) {
+      range = { ...editingRange, name: trimmedName, hands: selectedHands, updatedAt: now }
+      // The spread is a fresh object, so attaching/removing metadata here never
+      // mutates the stored range; clearing every field removes metadata entirely.
+      if (hasMetadata) range.metadata = metadata
+      else delete range.metadata
+    } else {
+      range = {
+        id: createRangeId(),
+        name: trimmedName,
+        hands: selectedHands,
+        createdAt: now,
+        updatedAt: now,
+      }
+      if (hasMetadata) range.metadata = metadata
+    }
 
     saveSavedRange(range)
     setSavedRanges(loadSavedRanges())
@@ -116,6 +149,9 @@ function App() {
     setName(range.name)
     setSelected(new Set(range.hands))
     setEditingId(range.id)
+    setPosition(range.metadata?.position ?? '')
+    setActionType(range.metadata?.actionType ?? '')
+    setNotes(range.metadata?.notes ?? '')
   }
 
   function handleDelete(id: string) {
@@ -180,6 +216,15 @@ function App() {
             )}
             {saveHint && <p className="editor-hint">{saveHint}</p>}
           </section>
+
+          <RangeMetadataEditor
+            position={position}
+            actionType={actionType}
+            notes={notes}
+            onPositionChange={setPosition}
+            onActionTypeChange={setActionType}
+            onNotesChange={setNotes}
+          />
 
           <RangeShortcuts onAddHands={addShortcutHands} />
 

@@ -1,0 +1,59 @@
+.range-metadata {
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.range-metadata h2 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-h);
+}
+
+.range-metadata-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.range-metadata-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* The two dropdowns share the row; notes spans the full width below them. */
+.range-metadata-fields .range-metadata-group {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.range-metadata-group label {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.range-metadata-group select,
+.range-metadata-notes {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text-h);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.range-metadata-notes {
+  resize: vertical;
+}
+
+.range-metadata-group select:focus-visible,
+.range-metadata-notes:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}

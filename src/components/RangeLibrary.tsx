@@ -1,5 +1,5 @@
 import { calculateRangePercentage, countSelectedCombos } from '../domain/rangeMath'
-import type { SavedRange } from '../types/range'
+import { ACTION_TYPE_LABELS, POSITION_LABELS, type SavedRange } from '../types/range'
 import './RangeLibrary.css'
 
 interface RangeLibraryProps {
@@ -10,6 +10,15 @@ interface RangeLibraryProps {
   onDelete: (id: string) => void
   /** Start a practice session for the given saved range. */
   onPractice: (range: SavedRange) => void
+}
+
+/** Longest notes string shown in full on a card before it is truncated. */
+const NOTES_PREVIEW_MAX = 80
+
+/** Trim long notes to a compact, single-line-ish preview so cards stay tidy. */
+function previewNotes(notes: string): string {
+  if (notes.length <= NOTES_PREVIEW_MAX) return notes
+  return `${notes.slice(0, NOTES_PREVIEW_MAX).trimEnd()}…`
 }
 
 /**
@@ -36,6 +45,18 @@ export function RangeLibrary({
             const combos = countSelectedCombos(range.hands)
             const percentage = calculateRangePercentage(range.hands)
             const isActive = range.id === activeId
+
+            // Only the metadata fields that are actually set are shown, so an
+            // absent or empty metadata object renders no extra labels.
+            const scenarioParts: string[] = []
+            if (range.metadata?.position) {
+              scenarioParts.push(POSITION_LABELS[range.metadata.position])
+            }
+            if (range.metadata?.actionType) {
+              scenarioParts.push(ACTION_TYPE_LABELS[range.metadata.actionType])
+            }
+            const notes = range.metadata?.notes
+
             return (
               <li
                 key={range.id}
@@ -47,6 +68,10 @@ export function RangeLibrary({
                   <span className="range-item-stats">
                     {range.hands.length} hands · {combos} combos · {percentage.toFixed(1)}%
                   </span>
+                  {scenarioParts.length > 0 && (
+                    <span className="range-item-scenario">{scenarioParts.join(' · ')}</span>
+                  )}
+                  {notes && <span className="range-item-notes">{previewNotes(notes)}</span>}
                 </div>
                 <div className="range-item-actions">
                   <button

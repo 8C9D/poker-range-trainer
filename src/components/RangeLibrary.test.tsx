@@ -116,4 +116,67 @@ describe('RangeLibrary', () => {
     expect(screen.getByText('Active One').closest('li')).toHaveAttribute('aria-current', 'true')
     expect(screen.getByText('Other').closest('li')).not.toHaveAttribute('aria-current')
   })
+
+  it('shows position, action type, and notes when metadata is present', () => {
+    render(
+      <RangeLibrary
+        ranges={[
+          makeRange({
+            metadata: { position: 'btn', actionType: 'open', notes: 'Standard button open' },
+          }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('BTN · Open')).toBeInTheDocument()
+    expect(screen.getByText('Standard button open')).toBeInTheDocument()
+  })
+
+  it('shows only the metadata fields that are set', () => {
+    render(
+      <RangeLibrary
+        ranges={[makeRange({ metadata: { position: 'co' } })]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+    // Position alone renders as exactly "CO" (no separator); no action label appears.
+    expect(screen.getByText('CO')).toBeInTheDocument()
+    expect(screen.queryByText('Open')).not.toBeInTheDocument()
+  })
+
+  it('renders no metadata elements when metadata is absent', () => {
+    const { container } = render(
+      <RangeLibrary
+        ranges={[makeRange()]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+    // No empty scenario/notes labels are emitted for a metadata-less range.
+    expect(container.querySelector('.range-item-scenario')).toBeNull()
+    expect(container.querySelector('.range-item-notes')).toBeNull()
+  })
+
+  it('truncates long notes to a compact preview', () => {
+    const longNotes = 'x'.repeat(120)
+    render(
+      <RangeLibrary
+        ranges={[makeRange({ metadata: { notes: longNotes } })]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+    expect(screen.getByText(`${'x'.repeat(80)}…`)).toBeInTheDocument()
+    expect(screen.queryByText(longNotes)).not.toBeInTheDocument()
+  })
 })

@@ -29,6 +29,31 @@ export const ACTION_TYPES = [
 export type ActionType = (typeof ACTION_TYPES)[number]
 
 /**
+ * User-facing labels for the metadata vocabularies, kept beside the tuples so a
+ * new value forces a matching label (each `Record` is exhaustive over its
+ * union). Both the editor dropdowns and the library cards render through these
+ * maps, so the displayed wording stays in one place.
+ */
+export const POSITION_LABELS: Record<Position, string> = {
+  utg: 'UTG',
+  hj: 'HJ',
+  co: 'CO',
+  btn: 'BTN',
+  sb: 'SB',
+  bb: 'BB',
+}
+
+export const ACTION_TYPE_LABELS: Record<ActionType, string> = {
+  open: 'Open',
+  call: 'Call',
+  threeBet: '3-bet',
+  fourBet: '4-bet',
+  defend: 'Defend',
+  jam: 'Jam',
+  callJam: 'Call jam',
+}
+
+/**
  * Optional poker-situation metadata describing when a range applies.
  *
  * Every field is optional: a range may carry none, some, or all of them, and

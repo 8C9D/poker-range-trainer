@@ -25,6 +25,18 @@ function applyNotation() {
   return screen.getByRole('button', { name: 'Apply Notation' })
 }
 
+function positionSelect() {
+  return screen.getByLabelText('Position')
+}
+
+function actionSelect() {
+  return screen.getByLabelText('Action type')
+}
+
+function notesInput() {
+  return screen.getByLabelText('Notes')
+}
+
 describe('Range editor validation', () => {
   it('renders a range name input', () => {
     render(<App />)
@@ -578,5 +590,178 @@ describe('Range notation', () => {
     await user.click(screen.getByRole('button', { name: 'Clear Selection' }))
 
     expect(currentNotation()).toHaveValue('')
+  })
+})
+
+describe('Scenario metadata', () => {
+  it('renders the scenario details section', () => {
+    render(<App />)
+    expect(screen.getByRole('region', { name: 'Scenario details' })).toBeInTheDocument()
+  })
+
+  it('persists position, action type, and notes when saving a range', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'BTN Open')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.selectOptions(positionSelect(), 'btn')
+    await user.selectOptions(actionSelect(), 'open')
+    await user.type(notesInput(), 'Standard button open')
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    const [saved] = loadSavedRanges()
+    expect(saved.metadata).toEqual({
+      position: 'btn',
+      actionType: 'open',
+      notes: 'Standard button open',
+    })
+  })
+
+  it('saves a range with no metadata as before', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'No Meta')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    const [saved] = loadSavedRanges()
+    expect(saved.metadata).toBeUndefined()
+    expect(within(library()).getByText('No Meta')).toBeInTheDocument()
+  })
+
+  it('shows saved scenario metadata on the library card', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'BTN Open')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.selectOptions(positionSelect(), 'btn')
+    await user.selectOptions(actionSelect(), 'open')
+    await user.type(notesInput(), 'Standard button open')
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    const card = within(library())
+    expect(card.getByText('BTN · Open')).toBeInTheDocument()
+    expect(card.getByText('Standard button open')).toBeInTheDocument()
+  })
+
+  it('does not render empty metadata labels for a range saved without metadata', async () => {
+    const user = userEvent.setup()
+    const { container } = render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'No Meta')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    expect(container.querySelector('.range-item-scenario')).toBeNull()
+    expect(container.querySelector('.range-item-notes')).toBeNull()
+  })
+
+  it('restores metadata fields when a saved range is loaded', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Scenario')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.selectOptions(positionSelect(), 'btn')
+    await user.selectOptions(actionSelect(), 'open')
+    await user.type(notesInput(), 'Standard button open')
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+    await user.click(screen.getByRole('button', { name: 'New Range' }))
+
+    // New Range cleared the metadata controls back to their blank defaults.
+    expect(positionSelect()).toHaveValue('')
+    expect(actionSelect()).toHaveValue('')
+    expect(notesInput()).toHaveValue('')
+
+    await user.click(screen.getByRole('button', { name: 'Load range Scenario' }))
+
+    expect(positionSelect()).toHaveValue('btn')
+    expect(actionSelect()).toHaveValue('open')
+    expect(notesInput()).toHaveValue('Standard button open')
+  })
+
+  it('updates metadata on an existing range in place without duplicating', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Editable')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.selectOptions(positionSelect(), 'btn')
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    // Still editing the same range: extend its metadata and save again.
+    await user.selectOptions(actionSelect(), 'open')
+    await user.type(notesInput(), 'note')
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    expect(loadSavedRanges()).toHaveLength(1)
+    expect(within(library()).getAllByText('Editable')).toHaveLength(1)
+    expect(loadSavedRanges()[0].metadata).toEqual({
+      position: 'btn',
+      actionType: 'open',
+      notes: 'note',
+    })
+  })
+
+  it('clears metadata fields with New Range', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.selectOptions(positionSelect(), 'co')
+    await user.selectOptions(actionSelect(), 'threeBet')
+    await user.type(notesInput(), 'temp')
+
+    await user.click(screen.getByRole('button', { name: 'New Range' }))
+
+    expect(positionSelect()).toHaveValue('')
+    expect(actionSelect()).toHaveValue('')
+    expect(notesInput()).toHaveValue('')
+  })
+
+  it('keeps metadata when Clear Selection is used', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.selectOptions(positionSelect(), 'sb')
+    await user.type(notesInput(), 'keep me')
+
+    await user.click(screen.getByRole('button', { name: 'Clear Selection' }))
+
+    expect(screen.getByText('0 hands selected')).toBeInTheDocument()
+    expect(positionSelect()).toHaveValue('sb')
+    expect(notesInput()).toHaveValue('keep me')
+  })
+
+  it('keeps metadata when notation is applied', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.selectOptions(positionSelect(), 'utg')
+    await user.type(notesInput(), 'note')
+
+    await user.type(notationInput(), '22+')
+    await user.click(applyNotation())
+
+    expect(screen.getByText('13 hands selected')).toBeInTheDocument()
+    expect(positionSelect()).toHaveValue('utg')
+    expect(notesInput()).toHaveValue('note')
+  })
+
+  it('keeps metadata when a range shortcut is applied', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.selectOptions(actionSelect(), 'open')
+    await user.type(notesInput(), 'note')
+
+    await user.click(screen.getByRole('button', { name: 'Add all pairs' }))
+
+    expect(screen.getByText('13 hands selected')).toBeInTheDocument()
+    expect(actionSelect()).toHaveValue('open')
+    expect(notesInput()).toHaveValue('note')
   })
 })
