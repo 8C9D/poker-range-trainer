@@ -1,5 +1,11 @@
 import { calculateRangePercentage, countSelectedCombos } from '../domain/rangeMath'
-import { ACTION_TYPE_LABELS, POSITION_LABELS, type SavedRange } from '../types/range'
+import {
+  ACTION_TYPE_LABELS,
+  GAME_TYPE_LABELS,
+  POSITION_LABELS,
+  TABLE_SIZE_LABELS,
+  type SavedRange,
+} from '../types/range'
 import './RangeLibrary.css'
 
 interface RangeLibraryProps {
@@ -47,15 +53,29 @@ export function RangeLibrary({
             const isActive = range.id === activeId
 
             // Only the metadata fields that are actually set are shown, so an
-            // absent or empty metadata object renders no extra labels.
+            // absent or empty metadata object renders no extra labels. The parts
+            // form one compact scenario line, e.g. "Cash · 6-max · 100bb · BTN
+            // vs CO · Open".
+            const meta = range.metadata
             const scenarioParts: string[] = []
-            if (range.metadata?.position) {
-              scenarioParts.push(POSITION_LABELS[range.metadata.position])
+            if (meta?.gameType) scenarioParts.push(GAME_TYPE_LABELS[meta.gameType])
+            if (meta?.tableSize) scenarioParts.push(TABLE_SIZE_LABELS[meta.tableSize])
+            if (meta?.stackDepthBb !== undefined) scenarioParts.push(`${meta.stackDepthBb}bb`)
+
+            // Combine hero and opponent seats so "vs" reads unambiguously.
+            let seat = ''
+            if (meta?.position && meta?.versusPosition) {
+              seat = `${POSITION_LABELS[meta.position]} vs ${POSITION_LABELS[meta.versusPosition]}`
+            } else if (meta?.position) {
+              seat = POSITION_LABELS[meta.position]
+            } else if (meta?.versusPosition) {
+              seat = `vs ${POSITION_LABELS[meta.versusPosition]}`
             }
-            if (range.metadata?.actionType) {
-              scenarioParts.push(ACTION_TYPE_LABELS[range.metadata.actionType])
-            }
-            const notes = range.metadata?.notes
+            if (seat) scenarioParts.push(seat)
+
+            if (meta?.actionType) scenarioParts.push(ACTION_TYPE_LABELS[meta.actionType])
+
+            const notes = meta?.notes
 
             return (
               <li

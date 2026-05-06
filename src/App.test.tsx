@@ -25,8 +25,24 @@ function applyNotation() {
   return screen.getByRole('button', { name: 'Apply Notation' })
 }
 
+function gameTypeSelect() {
+  return screen.getByLabelText('Game type')
+}
+
+function tableSizeSelect() {
+  return screen.getByLabelText('Table size')
+}
+
+function stackDepthInput() {
+  return screen.getByLabelText('Stack depth')
+}
+
 function positionSelect() {
   return screen.getByLabelText('Position')
+}
+
+function versusPositionSelect() {
+  return screen.getByLabelText('Versus position')
 }
 
 function actionSelect() {
@@ -726,12 +742,16 @@ describe('Scenario metadata', () => {
     render(<App />)
 
     await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.selectOptions(gameTypeSelect(), 'cash')
+    await user.type(stackDepthInput(), '100')
     await user.selectOptions(positionSelect(), 'sb')
     await user.type(notesInput(), 'keep me')
 
     await user.click(screen.getByRole('button', { name: 'Clear Selection' }))
 
     expect(screen.getByText('0 hands selected')).toBeInTheDocument()
+    expect(gameTypeSelect()).toHaveValue('cash')
+    expect(stackDepthInput()).toHaveValue(100)
     expect(positionSelect()).toHaveValue('sb')
     expect(notesInput()).toHaveValue('keep me')
   })
@@ -740,14 +760,18 @@ describe('Scenario metadata', () => {
     const user = userEvent.setup()
     render(<App />)
 
+    await user.selectOptions(gameTypeSelect(), 'cash')
     await user.selectOptions(positionSelect(), 'utg')
+    await user.type(stackDepthInput(), '50')
     await user.type(notesInput(), 'note')
 
     await user.type(notationInput(), '22+')
     await user.click(applyNotation())
 
     expect(screen.getByText('13 hands selected')).toBeInTheDocument()
+    expect(gameTypeSelect()).toHaveValue('cash')
     expect(positionSelect()).toHaveValue('utg')
+    expect(stackDepthInput()).toHaveValue(50)
     expect(notesInput()).toHaveValue('note')
   })
 
@@ -755,13 +779,169 @@ describe('Scenario metadata', () => {
     const user = userEvent.setup()
     render(<App />)
 
+    await user.selectOptions(tableSizeSelect(), 'sixMax')
+    await user.selectOptions(versusPositionSelect(), 'bb')
     await user.selectOptions(actionSelect(), 'open')
     await user.type(notesInput(), 'note')
 
     await user.click(screen.getByRole('button', { name: 'Add all pairs' }))
 
     expect(screen.getByText('13 hands selected')).toBeInTheDocument()
+    expect(tableSizeSelect()).toHaveValue('sixMax')
+    expect(versusPositionSelect()).toHaveValue('bb')
     expect(actionSelect()).toHaveValue('open')
     expect(notesInput()).toHaveValue('note')
+  })
+
+  it('persists game type, table size, stack depth, and versus position when saving', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Full Meta')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.selectOptions(gameTypeSelect(), 'cash')
+    await user.selectOptions(tableSizeSelect(), 'sixMax')
+    await user.type(stackDepthInput(), '100')
+    await user.selectOptions(positionSelect(), 'btn')
+    await user.selectOptions(versusPositionSelect(), 'co')
+    await user.selectOptions(actionSelect(), 'open')
+    await user.type(notesInput(), 'Standard button open')
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    const [saved] = loadSavedRanges()
+    expect(saved.metadata).toEqual({
+      gameType: 'cash',
+      tableSize: 'sixMax',
+      stackDepthBb: 100,
+      position: 'btn',
+      versusPosition: 'co',
+      actionType: 'open',
+      notes: 'Standard button open',
+    })
+  })
+
+  it('shows the full scenario metadata on the library card', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Full Meta')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.selectOptions(gameTypeSelect(), 'cash')
+    await user.selectOptions(tableSizeSelect(), 'sixMax')
+    await user.type(stackDepthInput(), '100')
+    await user.selectOptions(positionSelect(), 'btn')
+    await user.selectOptions(versusPositionSelect(), 'co')
+    await user.selectOptions(actionSelect(), 'open')
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    expect(
+      within(library()).getByText('Cash · 6-max · 100bb · BTN vs CO · Open'),
+    ).toBeInTheDocument()
+  })
+
+  it('restores game type, table size, stack depth, and versus position on load', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Scenario')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.selectOptions(gameTypeSelect(), 'tournament')
+    await user.selectOptions(tableSizeSelect(), 'nineMax')
+    await user.type(stackDepthInput(), '40')
+    await user.selectOptions(versusPositionSelect(), 'co')
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+    await user.click(screen.getByRole('button', { name: 'New Range' }))
+
+    // New Range cleared the new controls back to their blank defaults.
+    expect(gameTypeSelect()).toHaveValue('')
+    expect(tableSizeSelect()).toHaveValue('')
+    expect(stackDepthInput()).toHaveValue(null)
+    expect(versusPositionSelect()).toHaveValue('')
+
+    await user.click(screen.getByRole('button', { name: 'Load range Scenario' }))
+
+    expect(gameTypeSelect()).toHaveValue('tournament')
+    expect(tableSizeSelect()).toHaveValue('nineMax')
+    expect(stackDepthInput()).toHaveValue(40)
+    expect(versusPositionSelect()).toHaveValue('co')
+  })
+
+  it('updates the new metadata fields on an existing range in place', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Editable')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.selectOptions(gameTypeSelect(), 'cash')
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    // Still editing the same range: extend its metadata and save again.
+    await user.selectOptions(tableSizeSelect(), 'sixMax')
+    await user.type(stackDepthInput(), '100')
+    await user.selectOptions(versusPositionSelect(), 'bb')
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    expect(loadSavedRanges()).toHaveLength(1)
+    expect(within(library()).getAllByText('Editable')).toHaveLength(1)
+    expect(loadSavedRanges()[0].metadata).toEqual({
+      gameType: 'cash',
+      tableSize: 'sixMax',
+      stackDepthBb: 100,
+      versusPosition: 'bb',
+    })
+  })
+
+  it('clears the new metadata fields with New Range', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.selectOptions(gameTypeSelect(), 'cash')
+    await user.selectOptions(tableSizeSelect(), 'sixMax')
+    await user.type(stackDepthInput(), '100')
+    await user.selectOptions(versusPositionSelect(), 'co')
+
+    await user.click(screen.getByRole('button', { name: 'New Range' }))
+
+    expect(gameTypeSelect()).toHaveValue('')
+    expect(tableSizeSelect()).toHaveValue('')
+    expect(stackDepthInput()).toHaveValue(null)
+    expect(versusPositionSelect()).toHaveValue('')
+  })
+
+  it('blocks saving and explains an invalid stack depth', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Bad Stack')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    // Zero is not a positive number, so it is invalid.
+    await user.type(stackDepthInput(), '0')
+
+    expect(screen.getByText('Stack depth must be a positive number.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save Range' })).toBeDisabled()
+
+    // Correcting it to a positive value clears the error and re-enables saving.
+    await user.clear(stackDepthInput())
+    await user.type(stackDepthInput(), '75')
+
+    expect(screen.queryByText('Stack depth must be a positive number.')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save Range' })).toBeEnabled()
+
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+    expect(loadSavedRanges()[0].metadata).toEqual({ stackDepthBb: 75 })
+  })
+
+  it('drops a blank stack depth rather than storing it', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'No Stack')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.selectOptions(positionSelect(), 'btn')
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    const [saved] = loadSavedRanges()
+    expect(saved.metadata).toEqual({ position: 'btn' })
+    expect(saved.metadata?.stackDepthBb).toBeUndefined()
   })
 })

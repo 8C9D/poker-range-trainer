@@ -34,6 +34,18 @@ export type ActionType = (typeof ACTION_TYPES)[number]
  * union). Both the editor dropdowns and the library cards render through these
  * maps, so the displayed wording stays in one place.
  */
+export const GAME_TYPE_LABELS: Record<GameType, string> = {
+  cash: 'Cash',
+  tournament: 'Tournament',
+  sitAndGo: 'Sit & Go',
+}
+
+export const TABLE_SIZE_LABELS: Record<TableSize, string> = {
+  headsUp: 'Heads-up',
+  sixMax: '6-max',
+  nineMax: '9-max',
+}
+
 export const POSITION_LABELS: Record<Position, string> = {
   utg: 'UTG',
   hj: 'HJ',

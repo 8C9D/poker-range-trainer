@@ -135,6 +135,56 @@ describe('RangeLibrary', () => {
     expect(screen.getByText('Standard button open')).toBeInTheDocument()
   })
 
+  it('shows game type, table size, stack depth, and versus position as one scenario line', () => {
+    render(
+      <RangeLibrary
+        ranges={[
+          makeRange({
+            metadata: {
+              gameType: 'cash',
+              tableSize: 'sixMax',
+              stackDepthBb: 100,
+              position: 'btn',
+              versusPosition: 'co',
+              actionType: 'open',
+            },
+          }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('Cash · 6-max · 100bb · BTN vs CO · Open')).toBeInTheDocument()
+  })
+
+  it('formats stack depth with a bb suffix', () => {
+    render(
+      <RangeLibrary
+        ranges={[makeRange({ metadata: { stackDepthBb: 40 } })]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('40bb')).toBeInTheDocument()
+  })
+
+  it('combines hero and versus position with vs', () => {
+    render(
+      <RangeLibrary
+        ranges={[makeRange({ metadata: { position: 'sb', versusPosition: 'btn', actionType: 'threeBet' } })]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('SB vs BTN · 3-bet')).toBeInTheDocument()
+  })
+
   it('shows only the metadata fields that are set', () => {
     render(
       <RangeLibrary

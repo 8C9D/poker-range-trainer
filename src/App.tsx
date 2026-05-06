@@ -9,7 +9,14 @@ import { calculateRangePercentage, countSelectedCombos } from './domain/rangeMat
 import { mergeShortcutHands } from './domain/rangeShortcuts'
 import type { PokerHand } from './domain/pokerHands'
 import { deleteSavedRange, loadSavedRanges, saveSavedRange } from './storage/rangeStorage'
-import type { ActionType, Position, RangeMetadata, SavedRange } from './types/range'
+import type {
+  ActionType,
+  GameType,
+  Position,
+  RangeMetadata,
+  SavedRange,
+  TableSize,
+} from './types/range'
 import './App.css'
 
 /** Best-effort unique id for a newly created range, with a fallback for older runtimes. */
@@ -28,9 +35,14 @@ function App() {
   const [savedRanges, setSavedRanges] = useState<SavedRange[]>(() => loadSavedRanges())
   // null = editor/library view; otherwise the saved range being practiced.
   const [practicingRange, setPracticingRange] = useState<SavedRange | null>(null)
-  // Optional scenario metadata. '' means "unset" for the two dropdowns. These
-  // are descriptive only and never affect the selected hands or notation.
+  // Optional scenario metadata. '' means "unset" for the dropdowns; stackDepth
+  // is raw input text ('' means no stack depth). These are descriptive only and
+  // never affect the selected hands or notation.
+  const [gameType, setGameType] = useState<GameType | ''>('')
+  const [tableSize, setTableSize] = useState<TableSize | ''>('')
+  const [stackDepth, setStackDepth] = useState('')
   const [position, setPosition] = useState<Position | ''>('')
+  const [versusPosition, setVersusPosition] = useState<Position | ''>('')
   const [actionType, setActionType] = useState<ActionType | ''>('')
   const [notes, setNotes] = useState('')
 
@@ -75,8 +87,24 @@ function App() {
   const combos = countSelectedCombos(selectedHands)
   const percentage = calculateRangePercentage(selectedHands)
 
+  // Stack depth is optional free text. Blank means "no stack depth"; a non-empty
+  // value must parse to a positive, finite number (matching storage's rule).
+  // Invalid input blocks saving with an inline message rather than silently
+  // dropping the value on save.
+  const trimmedStackDepth = stackDepth.trim()
+  let stackDepthValue: number | undefined
+  let stackDepthError = ''
+  if (trimmedStackDepth.length > 0) {
+    const parsed = Number(trimmedStackDepth)
+    if (Number.isFinite(parsed) && parsed > 0) {
+      stackDepthValue = parsed
+    } else {
+      stackDepthError = 'Stack depth must be a positive number.'
+    }
+  }
+
   const trimmedName = name.trim()
-  const canSave = trimmedName.length > 0 && selected.size > 0
+  const canSave = trimmedName.length > 0 && selected.size > 0 && !stackDepthError
   const editingRange = editingId
     ? savedRanges.find((range) => range.id === editingId)
     : undefined
@@ -95,7 +123,11 @@ function App() {
     setName('')
     setSelected(new Set())
     setEditingId(null)
+    setGameType('')
+    setTableSize('')
+    setStackDepth('')
     setPosition('')
+    setVersusPosition('')
     setActionType('')
     setNotes('')
   }
@@ -105,13 +137,21 @@ function App() {
 
     const now = new Date().toISOString()
 
-    // Merge the edited fields onto any existing metadata so fields this slice
-    // does not surface yet (game type, table size, …) survive an edit. Blank
-    // fields are dropped, and an all-empty result collapses to no metadata.
-    // Storage re-normalizes, so this only needs to be well-formed, not minimal.
+    // Merge the edited fields onto any existing metadata so unknown future
+    // fields survive an edit. Each blank field is dropped, and an all-empty
+    // result collapses to no metadata. Storage re-normalizes, so this only needs
+    // to be well-formed, not minimal.
     const metadata: RangeMetadata = { ...editingRange?.metadata }
+    if (gameType) metadata.gameType = gameType
+    else delete metadata.gameType
+    if (tableSize) metadata.tableSize = tableSize
+    else delete metadata.tableSize
+    if (stackDepthValue !== undefined) metadata.stackDepthBb = stackDepthValue
+    else delete metadata.stackDepthBb
     if (position) metadata.position = position
     else delete metadata.position
+    if (versusPosition) metadata.versusPosition = versusPosition
+    else delete metadata.versusPosition
     if (actionType) metadata.actionType = actionType
     else delete metadata.actionType
     const trimmedNotes = notes.trim()
@@ -149,7 +189,13 @@ function App() {
     setName(range.name)
     setSelected(new Set(range.hands))
     setEditingId(range.id)
+    setGameType(range.metadata?.gameType ?? '')
+    setTableSize(range.metadata?.tableSize ?? '')
+    setStackDepth(
+      range.metadata?.stackDepthBb !== undefined ? String(range.metadata.stackDepthBb) : '',
+    )
     setPosition(range.metadata?.position ?? '')
+    setVersusPosition(range.metadata?.versusPosition ?? '')
     setActionType(range.metadata?.actionType ?? '')
     setNotes(range.metadata?.notes ?? '')
   }
@@ -218,10 +264,19 @@ function App() {
           </section>
 
           <RangeMetadataEditor
+            gameType={gameType}
+            tableSize={tableSize}
+            stackDepth={stackDepth}
+            stackDepthError={stackDepthError}
             position={position}
+            versusPosition={versusPosition}
             actionType={actionType}
             notes={notes}
+            onGameTypeChange={setGameType}
+            onTableSizeChange={setTableSize}
+            onStackDepthChange={setStackDepth}
             onPositionChange={setPosition}
+            onVersusPositionChange={setVersusPosition}
             onActionTypeChange={setActionType}
             onNotesChange={setNotes}
           />

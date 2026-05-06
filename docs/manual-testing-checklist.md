@@ -84,23 +84,35 @@
 
 ## v1.3 scenario metadata
 
-- [ ] A "Scenario details" section appears near the editor controls with a Position dropdown, an Action type dropdown, and a Notes textarea.
-- [ ] Both dropdowns default to a blank option so metadata is optional.
-- [ ] The Position dropdown lists UTG, HJ, CO, BTN, SB, BB.
+- [ ] A "Scenario details" section appears near the editor controls with Game type, Table size, Stack depth, Position, Versus position, Action type, and Notes controls.
+- [ ] Every dropdown defaults to a blank option so metadata is optional.
+- [ ] The Game type dropdown lists Cash, Tournament, Sit & Go.
+- [ ] The Table size dropdown lists Heads-up, 6-max, 9-max.
+- [ ] The Position and Versus position dropdowns list UTG, HJ, CO, BTN, SB, BB.
 - [ ] The Action type dropdown lists Open, Call, 3-bet, 4-bet, Defend, Jam, Call jam.
-- [ ] Changing Position, Action type, or Notes does not change the selected hands.
-- [ ] Changing Position, Action type, or Notes does not change the "Current range" notation.
-- [ ] Saving a range with metadata persists the position, action type, and notes.
+- [ ] Stack depth is optional; leaving it blank saves no stack depth.
+- [ ] A positive number (e.g. 100) is accepted as a valid stack depth.
+- [ ] An invalid stack depth (e.g. 0 or a negative number) shows a clear validation message and keeps Save disabled.
+- [ ] Correcting an invalid stack depth clears the message and re-enables Save.
+- [ ] Changing any metadata field does not change the selected hands.
+- [ ] Changing any metadata field does not change the "Current range" notation.
+- [ ] Saving a range with metadata persists the game type, table size, stack depth, position, versus position, action type, and notes.
 - [ ] Saving a range with no metadata still works.
-- [ ] A saved range card shows its position and action type (e.g. `BTN · Open`) when present.
+- [ ] Saving is still blocked with a blank range name.
+- [ ] Saving is still blocked with zero selected hands.
+- [ ] A saved range card shows its game type when present.
+- [ ] A saved range card shows its table size when present.
+- [ ] A saved range card shows its stack depth formatted as e.g. `100bb` when present.
+- [ ] A saved range card shows its hero/versus seats (e.g. `BTN vs CO`) and action type (e.g. `BTN · Open`) when present.
 - [ ] A saved range card shows its notes when present, truncated to a short preview when long.
 - [ ] A saved range card with no metadata shows no empty metadata labels.
-- [ ] Loading a saved range restores its position, action type, and notes into the editor.
+- [ ] Loading a saved range restores every metadata field into the editor.
 - [ ] Editing only the metadata of a saved range and choosing "Save Changes" updates it in place (no duplicate appears).
-- [ ] New Range clears the position, action type, and notes along with the name and selection.
-- [ ] Clear Selection empties the grid but keeps the position, action type, and notes.
-- [ ] Applying range notation replaces the selection but keeps the position, action type, and notes.
-- [ ] Applying a range shortcut adds hands but keeps the position, action type, and notes.
+- [ ] updatedAt advances when a metadata-only change is saved.
+- [ ] New Range clears every metadata field along with the name and selection.
+- [ ] Clear Selection empties the grid but keeps every metadata field.
+- [ ] Applying range notation replaces the selection but keeps every metadata field.
+- [ ] Applying a range shortcut adds hands but keeps every metadata field.
 
 ## v1 practice mode
 
