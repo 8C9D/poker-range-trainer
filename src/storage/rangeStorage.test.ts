@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import type { SavedRange } from '../types/range'
+import type { RangeMetadata, SavedRange } from '../types/range'
 import {
   STORAGE_KEY,
   loadSavedRanges,
@@ -148,5 +148,126 @@ describe('findSavedRangeById', () => {
   it('returns undefined when no range matches', () => {
     saveSavedRange(makeRange({ id: 'a' }))
     expect(findSavedRangeById('missing')).toBeUndefined()
+  })
+})
+
+describe('range metadata', () => {
+  const fullMetadata: RangeMetadata = {
+    gameType: 'cash',
+    tableSize: 'sixMax',
+    stackDepthBb: 100,
+    position: 'btn',
+    actionType: 'open',
+    versusPosition: 'co',
+    notes: 'Standard BTN open.',
+  }
+
+  it('loads pre-v1.3 records that have no metadata field', () => {
+    const legacy = {
+      id: 'r1',
+      name: 'Legacy',
+      hands: ['AA', 'KK'],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([legacy]))
+
+    const loaded = loadSavedRanges()
+    expect(loaded).toHaveLength(1)
+    expect(loaded[0].hands).toEqual(['AA', 'KK'])
+    expect(loaded[0]).not.toHaveProperty('metadata')
+  })
+
+  it('adds no metadata field when a saved range has none', () => {
+    const range = makeRange()
+    saveSavedRange(range)
+
+    const [loaded] = loadSavedRanges()
+    expect(loaded).toEqual(range)
+    expect(loaded).not.toHaveProperty('metadata')
+  })
+
+  it('preserves full metadata across a save/load round trip', () => {
+    const range = makeRange({ metadata: fullMetadata })
+    saveSavedRange(range)
+    expect(loadSavedRanges()).toEqual([range])
+  })
+
+  it('preserves partial metadata across a save/load round trip', () => {
+    const range = makeRange({ metadata: { position: 'sb', actionType: 'threeBet' } })
+    saveSavedRange(range)
+    expect(loadSavedRanges()[0].metadata).toEqual({ position: 'sb', actionType: 'threeBet' })
+  })
+
+  it('drops unknown and invalid metadata fields but keeps the range and its valid fields', () => {
+    const stored = {
+      ...makeRange({ id: 'r1' }),
+      metadata: {
+        gameType: 'cash', // valid
+        tableSize: 'tenMax', // invalid value
+        position: 'lojack', // invalid value
+        actionType: 'open', // valid
+        stackDepthBb: -5, // non-positive
+        notes: '   ', // whitespace only
+        unknownField: 'x', // unknown key
+      },
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([stored]))
+
+    const [loaded] = loadSavedRanges()
+    expect(loaded.id).toBe('r1')
+    expect(loaded.hands).toEqual(['AA', 'KK'])
+    expect(loaded.metadata).toEqual({ gameType: 'cash', actionType: 'open' })
+  })
+
+  it('omits metadata entirely when no field is valid', () => {
+    const stored = {
+      ...makeRange({ id: 'r1' }),
+      metadata: { gameType: 'rummy', stackDepthBb: 0, notes: '' },
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([stored]))
+
+    const [loaded] = loadSavedRanges()
+    expect(loaded).not.toHaveProperty('metadata')
+    expect(loaded.hands).toEqual(['AA', 'KK'])
+  })
+
+  it('ignores non-object metadata and keeps the range', () => {
+    const stored = { ...makeRange({ id: 'r1' }), metadata: 'not-an-object' }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([stored]))
+
+    const [loaded] = loadSavedRanges()
+    expect(loaded).not.toHaveProperty('metadata')
+    expect(loaded.id).toBe('r1')
+  })
+
+  it('keeps a positive stack depth but drops non-positive or non-numeric ones', () => {
+    const storeDepth = (depth: unknown) => {
+      localStorage.clear()
+      const stored = { ...makeRange({ id: 'r1' }), metadata: { stackDepthBb: depth } }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([stored]))
+    }
+
+    storeDepth(40)
+    expect(loadSavedRanges()[0].metadata).toEqual({ stackDepthBb: 40 })
+
+    for (const bad of [0, -10, '100', null]) {
+      storeDepth(bad)
+      expect(loadSavedRanges()[0]).not.toHaveProperty('metadata')
+    }
+  })
+
+  it('trims notes when saving', () => {
+    saveSavedRange(
+      makeRange({ id: 'r1', metadata: { gameType: 'tournament', notes: '  3-bet vs LJ  ' } }),
+    )
+    expect(loadSavedRanges()[0].metadata).toEqual({ gameType: 'tournament', notes: '3-bet vs LJ' })
+  })
+
+  it('normalizes metadata on save, dropping fields that fail validation', () => {
+    saveSavedRange(
+      makeRange({ id: 'r1', metadata: { gameType: 'cash', stackDepthBb: 0, notes: '   ' } }),
+    )
+    expect(loadSavedRanges()[0].metadata).toEqual({ gameType: 'cash' })
   })
 })
