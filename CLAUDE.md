@@ -10,7 +10,7 @@ The v1 goal is to let users create, save, edit, delete, and practice Texas Hold'
 
 - Work directly on main.
 - Keep each change small, focused, and reversible.
-- Do not push unless explicitly asked.
+- Push to the tracked remote after every commit (standing user authorization).
 - Commit only after a completed slice passes validation.
 - Do not add accounts, backend, payments, solver imports, postflop boards, mixed frequencies, or AI features unless explicitly requested.
 - Prefer simple, maintainable code over over-engineering.
