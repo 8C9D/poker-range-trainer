@@ -229,4 +229,101 @@ describe('RangeLibrary', () => {
     expect(screen.getByText(`${'x'.repeat(80)}…`)).toBeInTheDocument()
     expect(screen.queryByText(longNotes)).not.toBeInTheDocument()
   })
+
+  it('narrows the listed ranges by name as the user types in the search box', async () => {
+    const user = userEvent.setup()
+    render(
+      <RangeLibrary
+        ranges={[
+          makeRange({ id: 'r1', name: 'Button open' }),
+          makeRange({ id: 'r2', name: 'BB defend' }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+
+    // Both are listed before searching.
+    expect(screen.getByText('Button open')).toBeInTheDocument()
+    expect(screen.getByText('BB defend')).toBeInTheDocument()
+
+    await user.type(screen.getByRole('searchbox', { name: /search ranges/i }), 'defend')
+
+    expect(screen.queryByText('Button open')).not.toBeInTheDocument()
+    expect(screen.getByText('BB defend')).toBeInTheDocument()
+  })
+
+  it('matches range names case-insensitively', async () => {
+    const user = userEvent.setup()
+    render(
+      <RangeLibrary
+        ranges={[makeRange({ name: 'Button open' })]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+
+    await user.type(screen.getByRole('searchbox'), 'BUTTON')
+
+    expect(screen.getByText('Button open')).toBeInTheDocument()
+  })
+
+  it('shows a no-match empty state when the search matches nothing', async () => {
+    const user = userEvent.setup()
+    render(
+      <RangeLibrary
+        ranges={[makeRange({ name: 'Button open' })]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+
+    await user.type(screen.getByRole('searchbox'), 'zzz')
+
+    expect(screen.queryByText('Button open')).not.toBeInTheDocument()
+    expect(screen.getByText(/no ranges match/i)).toBeInTheDocument()
+  })
+
+  it('restores the full list when the search query is cleared', async () => {
+    const user = userEvent.setup()
+    render(
+      <RangeLibrary
+        ranges={[
+          makeRange({ id: 'r1', name: 'Button open' }),
+          makeRange({ id: 'r2', name: 'BB defend' }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+
+    const search = screen.getByRole('searchbox')
+    await user.type(search, 'defend')
+    expect(screen.queryByText('Button open')).not.toBeInTheDocument()
+
+    await user.clear(search)
+    expect(screen.getByText('Button open')).toBeInTheDocument()
+    expect(screen.getByText('BB defend')).toBeInTheDocument()
+  })
+
+  it('does not render the search box when there are no saved ranges', () => {
+    render(
+      <RangeLibrary
+        ranges={[]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
+  })
 })
