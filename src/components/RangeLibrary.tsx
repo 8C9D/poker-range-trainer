@@ -1,12 +1,18 @@
 import { useState } from 'react'
-import { filterRangesByName, filterRangesByPosition } from '../domain/rangeLibrary'
+import {
+  filterRangesByActionType,
+  filterRangesByName,
+  filterRangesByPosition,
+} from '../domain/rangeLibrary'
 import { calculateRangePercentage, countSelectedCombos } from '../domain/rangeMath'
 import {
   ACTION_TYPE_LABELS,
+  ACTION_TYPES,
   GAME_TYPE_LABELS,
   POSITION_LABELS,
   POSITIONS,
   TABLE_SIZE_LABELS,
+  type ActionType,
   type Position,
   type SavedRange,
 } from '../types/range'
@@ -34,11 +40,12 @@ function previewNotes(notes: string): string {
 /**
  * Lists the saved ranges with summary stats and load/delete controls.
  *
- * A name search and a position filter narrow the list through the
- * {@link filterRangesByName} and {@link filterRangesByPosition} domain helpers,
- * so the component owns no matching logic of its own. The two compose: the
- * search narrows by name, then the select narrows by hero position. Combo counts
- * and percentages are likewise derived through the domain helpers, keeping the
+ * A name search, a position filter, and an action-type filter narrow the list
+ * through the {@link filterRangesByName}, {@link filterRangesByPosition}, and
+ * {@link filterRangesByActionType} domain helpers, so the component owns no
+ * matching logic of its own. The three compose: the search narrows by name, then
+ * the selects narrow by hero position and action type. Combo counts and
+ * percentages are likewise derived through the domain helpers, keeping the
  * library free of reimplemented poker math.
  */
 export function RangeLibrary({
@@ -52,7 +59,13 @@ export function RangeLibrary({
   // Empty string is the "All positions" sentinel; typing it as Position | ''
   // keeps only valid positions selectable.
   const [position, setPosition] = useState<Position | ''>('')
-  const visibleRanges = filterRangesByPosition(filterRangesByName(ranges, query), position)
+  // Empty string is the "All actions" sentinel; typing it as ActionType | ''
+  // keeps only valid actions selectable.
+  const [actionType, setActionType] = useState<ActionType | ''>('')
+  const visibleRanges = filterRangesByActionType(
+    filterRangesByPosition(filterRangesByName(ranges, query), position),
+    actionType,
+  )
 
   return (
     <section className="range-library" aria-label="Saved ranges">
@@ -83,12 +96,25 @@ export function RangeLibrary({
                 </option>
               ))}
             </select>
+            <select
+              className="range-library-filter"
+              value={actionType}
+              onChange={(event) => setActionType(event.target.value as ActionType | '')}
+              aria-label="Filter ranges by action type"
+            >
+              <option value="">All actions</option>
+              {ACTION_TYPES.map((action) => (
+                <option key={action} value={action}>
+                  {ACTION_TYPE_LABELS[action]}
+                </option>
+              ))}
+            </select>
           </div>
           {visibleRanges.length === 0 ? (
             <p className="range-library-empty">
               {query.trim()
                 ? `No ranges match “${query.trim()}”.`
-                : 'No ranges match the selected position.'}
+                : 'No ranges match the selected filters.'}
             </p>
           ) : (
             <ul className="range-library-list">

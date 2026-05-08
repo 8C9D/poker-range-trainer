@@ -196,9 +196,12 @@ describe('RangeLibrary', () => {
       />,
     )
     // Position alone renders as exactly "CO" (no separator); no action label appears.
-    // Scope to the scenario span so the "CO" option in the position filter does not match.
+    // Scope to the scenario span so the "CO" position option and "Open" action
+    // option in the filter selects do not match.
     expect(screen.getByText('CO', { selector: '.range-item-scenario' })).toBeInTheDocument()
-    expect(screen.queryByText('Open')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('Open', { selector: '.range-item-scenario' }),
+    ).not.toBeInTheDocument()
   })
 
   it('renders no metadata elements when metadata is absent', () => {
@@ -465,6 +468,163 @@ describe('RangeLibrary', () => {
     )
     expect(
       screen.queryByRole('combobox', { name: /filter ranges by position/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('narrows the listed ranges to the chosen action type', async () => {
+    const user = userEvent.setup()
+    render(
+      <RangeLibrary
+        ranges={[
+          makeRange({ id: 'r1', name: 'Button open', metadata: { actionType: 'open' } }),
+          makeRange({ id: 'r2', name: 'SB 3-bet', metadata: { actionType: 'threeBet' } }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+
+    // Both are listed before filtering.
+    expect(screen.getByText('Button open')).toBeInTheDocument()
+    expect(screen.getByText('SB 3-bet')).toBeInTheDocument()
+
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /filter ranges by action type/i }),
+      'open',
+    )
+
+    expect(screen.getByText('Button open')).toBeInTheDocument()
+    expect(screen.queryByText('SB 3-bet')).not.toBeInTheDocument()
+  })
+
+  it('excludes ranges without an action type while an action is selected', async () => {
+    const user = userEvent.setup()
+    render(
+      <RangeLibrary
+        ranges={[
+          makeRange({ id: 'r1', name: 'Has open', metadata: { actionType: 'open' } }),
+          makeRange({ id: 'r2', name: 'No metadata' }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /filter ranges by action type/i }),
+      'open',
+    )
+
+    expect(screen.getByText('Has open')).toBeInTheDocument()
+    expect(screen.queryByText('No metadata')).not.toBeInTheDocument()
+  })
+
+  it('restores every range when All actions is reselected', async () => {
+    const user = userEvent.setup()
+    render(
+      <RangeLibrary
+        ranges={[
+          makeRange({ id: 'r1', name: 'Button open', metadata: { actionType: 'open' } }),
+          makeRange({ id: 'r2', name: 'SB 3-bet', metadata: { actionType: 'threeBet' } }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+
+    const filter = screen.getByRole('combobox', { name: /filter ranges by action type/i })
+    await user.selectOptions(filter, 'open')
+    expect(screen.queryByText('SB 3-bet')).not.toBeInTheDocument()
+
+    await user.selectOptions(filter, '')
+    expect(screen.getByText('Button open')).toBeInTheDocument()
+    expect(screen.getByText('SB 3-bet')).toBeInTheDocument()
+  })
+
+  it('applies the action-type filter together with the name search and position filter', async () => {
+    const user = userEvent.setup()
+    render(
+      <RangeLibrary
+        ranges={[
+          makeRange({
+            id: 'r1',
+            name: 'Button open',
+            metadata: { position: 'btn', actionType: 'open' },
+          }),
+          makeRange({
+            id: 'r2',
+            name: 'Button 3-bet',
+            metadata: { position: 'btn', actionType: 'threeBet' },
+          }),
+          makeRange({
+            id: 'r3',
+            name: 'Cutoff open',
+            metadata: { position: 'co', actionType: 'open' },
+          }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+
+    // Name keeps the two "Button" ranges, position keeps the BTN ones, action
+    // keeps only the open: just "Button open" survives all three filters.
+    await user.type(screen.getByRole('searchbox'), 'button')
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /filter ranges by position/i }),
+      'btn',
+    )
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /filter ranges by action type/i }),
+      'open',
+    )
+
+    expect(screen.getByText('Button open')).toBeInTheDocument()
+    expect(screen.queryByText('Button 3-bet')).not.toBeInTheDocument()
+    expect(screen.queryByText('Cutoff open')).not.toBeInTheDocument()
+  })
+
+  it('shows the no-match empty state when the action-type filter matches nothing', async () => {
+    const user = userEvent.setup()
+    render(
+      <RangeLibrary
+        ranges={[makeRange({ name: 'Button open', metadata: { actionType: 'open' } })]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /filter ranges by action type/i }),
+      'threeBet',
+    )
+
+    expect(screen.queryByText('Button open')).not.toBeInTheDocument()
+    expect(screen.getByText(/no ranges match/i)).toBeInTheDocument()
+  })
+
+  it('does not render the action-type filter when there are no saved ranges', () => {
+    render(
+      <RangeLibrary
+        ranges={[]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+    expect(
+      screen.queryByRole('combobox', { name: /filter ranges by action type/i }),
     ).not.toBeInTheDocument()
   })
 })

@@ -40,3 +40,21 @@ export function filterRangesByPosition<T extends { metadata?: { position?: strin
   if (!position) return ranges.slice()
   return ranges.filter((range) => range.metadata?.position === position)
 }
+
+/**
+ * Return the ranges whose `metadata.actionType` equals `actionType`, preserving
+ * the input order.
+ *
+ * A `null` or empty `actionType` means "all actions" and matches every range. A
+ * specific action matches only ranges that carry that exact
+ * `metadata.actionType`; ranges with no metadata, or with metadata but no action
+ * type, are excluded. The input array is never mutated; a fresh array is always
+ * returned.
+ */
+export function filterRangesByActionType<T extends { metadata?: { actionType?: string } }>(
+  ranges: T[],
+  actionType: string | null,
+): T[] {
+  if (!actionType) return ranges.slice()
+  return ranges.filter((range) => range.metadata?.actionType === actionType)
+}

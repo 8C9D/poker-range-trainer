@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { filterRangesByName, filterRangesByPosition } from './rangeLibrary'
+import {
+  filterRangesByActionType,
+  filterRangesByName,
+  filterRangesByPosition,
+} from './rangeLibrary'
 
 /** Minimal stand-ins for saved ranges — only the name matters to the filter. */
 const ranges = [
@@ -112,5 +116,65 @@ describe('filterRangesByPosition', () => {
 
   it('returns a fresh array rather than the original reference', () => {
     expect(filterRangesByPosition(positioned, null)).not.toBe(positioned)
+  })
+})
+
+/** Mixed metadata so each action-type branch has a distinct case. */
+const actioned = [
+  { name: 'BTN open', metadata: { actionType: 'open' } },
+  { name: 'SB 3-bet', metadata: { actionType: 'threeBet' } },
+  { name: 'Another open', metadata: { actionType: 'open' } },
+  { name: 'Action-less metadata', metadata: {} },
+  { name: 'No metadata' },
+]
+
+describe('filterRangesByActionType', () => {
+  it('returns only the ranges whose metadata.actionType matches', () => {
+    expect(filterRangesByActionType(actioned, 'open')).toEqual([
+      { name: 'BTN open', metadata: { actionType: 'open' } },
+      { name: 'Another open', metadata: { actionType: 'open' } },
+    ])
+  })
+
+  it('excludes ranges without metadata or without an action type', () => {
+    // 'threeBet' matches a single actioned range; the metadata-less and
+    // action-less entries are never included.
+    expect(filterRangesByActionType(actioned, 'threeBet')).toEqual([
+      { name: 'SB 3-bet', metadata: { actionType: 'threeBet' } },
+    ])
+  })
+
+  it('returns every range for a null action type', () => {
+    expect(filterRangesByActionType(actioned, null)).toEqual(actioned)
+  })
+
+  it('treats an empty action type as "all" and returns every range', () => {
+    expect(filterRangesByActionType(actioned, '')).toEqual(actioned)
+  })
+
+  it('returns an empty array when no range has the action type', () => {
+    expect(filterRangesByActionType(actioned, 'fourBet')).toEqual([])
+  })
+
+  it('preserves the input order of the matches', () => {
+    expect(filterRangesByActionType(actioned, 'open')).toEqual([
+      { name: 'BTN open', metadata: { actionType: 'open' } },
+      { name: 'Another open', metadata: { actionType: 'open' } },
+    ])
+  })
+
+  it('does not mutate the input array', () => {
+    const input = [
+      { name: 'BTN open', metadata: { actionType: 'open' } },
+      { name: 'No metadata' },
+    ]
+    const snapshot = structuredClone(input)
+    filterRangesByActionType(input, 'open')
+    filterRangesByActionType(input, null)
+    expect(input).toEqual(snapshot)
+  })
+
+  it('returns a fresh array rather than the original reference', () => {
+    expect(filterRangesByActionType(actioned, null)).not.toBe(actioned)
   })
 })
