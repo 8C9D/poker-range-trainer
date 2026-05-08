@@ -1,11 +1,13 @@
 import { useState } from 'react'
-import { filterRangesByName } from '../domain/rangeLibrary'
+import { filterRangesByName, filterRangesByPosition } from '../domain/rangeLibrary'
 import { calculateRangePercentage, countSelectedCombos } from '../domain/rangeMath'
 import {
   ACTION_TYPE_LABELS,
   GAME_TYPE_LABELS,
   POSITION_LABELS,
+  POSITIONS,
   TABLE_SIZE_LABELS,
+  type Position,
   type SavedRange,
 } from '../types/range'
 import './RangeLibrary.css'
@@ -32,9 +34,11 @@ function previewNotes(notes: string): string {
 /**
  * Lists the saved ranges with summary stats and load/delete controls.
  *
- * A name search narrows the list through the {@link filterRangesByName} domain
- * helper, so the component owns no matching logic of its own. Combo counts and
- * percentages are likewise derived through the domain helpers, keeping the
+ * A name search and a position filter narrow the list through the
+ * {@link filterRangesByName} and {@link filterRangesByPosition} domain helpers,
+ * so the component owns no matching logic of its own. The two compose: the
+ * search narrows by name, then the select narrows by hero position. Combo counts
+ * and percentages are likewise derived through the domain helpers, keeping the
  * library free of reimplemented poker math.
  */
 export function RangeLibrary({
@@ -45,7 +49,10 @@ export function RangeLibrary({
   onPractice,
 }: RangeLibraryProps) {
   const [query, setQuery] = useState('')
-  const visibleRanges = filterRangesByName(ranges, query)
+  // Empty string is the "All positions" sentinel; typing it as Position | ''
+  // keeps only valid positions selectable.
+  const [position, setPosition] = useState<Position | ''>('')
+  const visibleRanges = filterRangesByPosition(filterRangesByName(ranges, query), position)
 
   return (
     <section className="range-library" aria-label="Saved ranges">
@@ -54,16 +61,35 @@ export function RangeLibrary({
         <p className="range-library-empty">No saved ranges yet.</p>
       ) : (
         <>
-          <input
-            type="search"
-            className="range-library-search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search ranges by name"
-            aria-label="Search ranges by name"
-          />
+          <div className="range-library-filters">
+            <input
+              type="search"
+              className="range-library-search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search ranges by name"
+              aria-label="Search ranges by name"
+            />
+            <select
+              className="range-library-filter"
+              value={position}
+              onChange={(event) => setPosition(event.target.value as Position | '')}
+              aria-label="Filter ranges by position"
+            >
+              <option value="">All positions</option>
+              {POSITIONS.map((pos) => (
+                <option key={pos} value={pos}>
+                  {POSITION_LABELS[pos]}
+                </option>
+              ))}
+            </select>
+          </div>
           {visibleRanges.length === 0 ? (
-            <p className="range-library-empty">No ranges match “{query.trim()}”.</p>
+            <p className="range-library-empty">
+              {query.trim()
+                ? `No ranges match “${query.trim()}”.`
+                : 'No ranges match the selected position.'}
+            </p>
           ) : (
             <ul className="range-library-list">
               {visibleRanges.map((range) => {

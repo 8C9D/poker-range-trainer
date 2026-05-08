@@ -196,7 +196,8 @@ describe('RangeLibrary', () => {
       />,
     )
     // Position alone renders as exactly "CO" (no separator); no action label appears.
-    expect(screen.getByText('CO')).toBeInTheDocument()
+    // Scope to the scenario span so the "CO" option in the position filter does not match.
+    expect(screen.getByText('CO', { selector: '.range-item-scenario' })).toBeInTheDocument()
     expect(screen.queryByText('Open')).not.toBeInTheDocument()
   })
 
@@ -325,5 +326,145 @@ describe('RangeLibrary', () => {
       />,
     )
     expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
+  })
+
+  it('narrows the listed ranges to the chosen position', async () => {
+    const user = userEvent.setup()
+    render(
+      <RangeLibrary
+        ranges={[
+          makeRange({ id: 'r1', name: 'Button open', metadata: { position: 'btn' } }),
+          makeRange({ id: 'r2', name: 'Cutoff open', metadata: { position: 'co' } }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+
+    // Both are listed before filtering.
+    expect(screen.getByText('Button open')).toBeInTheDocument()
+    expect(screen.getByText('Cutoff open')).toBeInTheDocument()
+
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /filter ranges by position/i }),
+      'btn',
+    )
+
+    expect(screen.getByText('Button open')).toBeInTheDocument()
+    expect(screen.queryByText('Cutoff open')).not.toBeInTheDocument()
+  })
+
+  it('excludes ranges without a position while a position is selected', async () => {
+    const user = userEvent.setup()
+    render(
+      <RangeLibrary
+        ranges={[
+          makeRange({ id: 'r1', name: 'Has BTN', metadata: { position: 'btn' } }),
+          makeRange({ id: 'r2', name: 'No metadata' }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /filter ranges by position/i }),
+      'btn',
+    )
+
+    expect(screen.getByText('Has BTN')).toBeInTheDocument()
+    expect(screen.queryByText('No metadata')).not.toBeInTheDocument()
+  })
+
+  it('restores every range when All positions is reselected', async () => {
+    const user = userEvent.setup()
+    render(
+      <RangeLibrary
+        ranges={[
+          makeRange({ id: 'r1', name: 'Button open', metadata: { position: 'btn' } }),
+          makeRange({ id: 'r2', name: 'Cutoff open', metadata: { position: 'co' } }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+
+    const filter = screen.getByRole('combobox', { name: /filter ranges by position/i })
+    await user.selectOptions(filter, 'btn')
+    expect(screen.queryByText('Cutoff open')).not.toBeInTheDocument()
+
+    await user.selectOptions(filter, '')
+    expect(screen.getByText('Button open')).toBeInTheDocument()
+    expect(screen.getByText('Cutoff open')).toBeInTheDocument()
+  })
+
+  it('applies the position filter and name search together', async () => {
+    const user = userEvent.setup()
+    render(
+      <RangeLibrary
+        ranges={[
+          makeRange({ id: 'r1', name: 'Button open', metadata: { position: 'btn' } }),
+          makeRange({ id: 'r2', name: 'Button 3-bet', metadata: { position: 'co' } }),
+          makeRange({ id: 'r3', name: 'Blind defend', metadata: { position: 'btn' } }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+
+    // Name search keeps the two "Button" ranges; position then keeps only the BTN one.
+    await user.type(screen.getByRole('searchbox'), 'button')
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /filter ranges by position/i }),
+      'btn',
+    )
+
+    expect(screen.getByText('Button open')).toBeInTheDocument()
+    expect(screen.queryByText('Button 3-bet')).not.toBeInTheDocument()
+    expect(screen.queryByText('Blind defend')).not.toBeInTheDocument()
+  })
+
+  it('shows the no-match empty state when the position filter matches nothing', async () => {
+    const user = userEvent.setup()
+    render(
+      <RangeLibrary
+        ranges={[makeRange({ name: 'Button open', metadata: { position: 'btn' } })]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /filter ranges by position/i }),
+      'co',
+    )
+
+    expect(screen.queryByText('Button open')).not.toBeInTheDocument()
+    expect(screen.getByText(/no ranges match/i)).toBeInTheDocument()
+  })
+
+  it('does not render the position filter when there are no saved ranges', () => {
+    render(
+      <RangeLibrary
+        ranges={[]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+    expect(
+      screen.queryByRole('combobox', { name: /filter ranges by position/i }),
+    ).not.toBeInTheDocument()
   })
 })

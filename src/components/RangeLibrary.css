@@ -13,11 +13,17 @@
   font-size: 15px;
 }
 
-.range-library-search {
-  display: block;
-  width: 100%;
-  box-sizing: border-box;
+.range-library-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-bottom: 12px;
+}
+
+.range-library-search {
+  flex: 1 1 160px;
+  min-width: 0;
+  box-sizing: border-box;
   padding: 8px 10px;
   font: inherit;
   font-size: 14px;
@@ -27,7 +33,20 @@
   border-radius: 6px;
 }
 
-.range-library-search:focus-visible {
+.range-library-filter {
+  flex: 0 0 auto;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text-h);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.range-library-search:focus-visible,
+.range-library-filter:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
   border-color: var(--accent);

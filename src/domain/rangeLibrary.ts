@@ -22,3 +22,21 @@ export function filterRangesByName<T extends { name: string }>(
   if (needle === '') return ranges.slice()
   return ranges.filter((range) => range.name.toLowerCase().includes(needle))
 }
+
+/**
+ * Return the ranges whose `metadata.position` equals `position`, preserving the
+ * input order.
+ *
+ * A `null` or empty `position` means "all positions" and matches every range. A
+ * specific position matches only ranges that carry that exact
+ * `metadata.position`; ranges with no metadata, or with metadata but no
+ * position, are excluded. The input array is never mutated; a fresh array is
+ * always returned.
+ */
+export function filterRangesByPosition<T extends { metadata?: { position?: string } }>(
+  ranges: T[],
+  position: string | null,
+): T[] {
+  if (!position) return ranges.slice()
+  return ranges.filter((range) => range.metadata?.position === position)
+}
