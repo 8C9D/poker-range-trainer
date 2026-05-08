@@ -58,3 +58,43 @@ export function filterRangesByActionType<T extends { metadata?: { actionType?: s
   if (!actionType) return ranges.slice()
   return ranges.filter((range) => range.metadata?.actionType === actionType)
 }
+
+/**
+ * Return the ranges whose `metadata.stackDepthBb` strictly equals
+ * `stackDepthBb`, preserving the input order.
+ *
+ * A `null` `stackDepthBb` means "all depths" and matches every range. A specific
+ * depth matches only ranges that carry that exact `metadata.stackDepthBb`; ranges
+ * with no metadata, or with metadata but no stack depth, are excluded. Unlike the
+ * enum-backed filters, stack depth is a free-form number, so `null` (not an empty
+ * string) is the "all" sentinel and the comparison is `=== stackDepthBb`. The
+ * input array is never mutated; a fresh array is always returned.
+ */
+export function filterRangesByStackDepth<T extends { metadata?: { stackDepthBb?: number } }>(
+  ranges: T[],
+  stackDepthBb: number | null,
+): T[] {
+  if (stackDepthBb === null) return ranges.slice()
+  return ranges.filter((range) => range.metadata?.stackDepthBb === stackDepthBb)
+}
+
+/**
+ * Return the distinct `metadata.stackDepthBb` values present across `ranges`,
+ * sorted numerically ascending.
+ *
+ * Duplicate depths collapse to a single entry, and ranges with no metadata or no
+ * stack depth contribute nothing; an empty array is returned when no range
+ * carries a depth. Deriving the selectable depths from the saved ranges keeps the
+ * stack-depth filter in step with the user's actual data instead of a hardcoded
+ * vocabulary. The input array is never mutated.
+ */
+export function distinctStackDepths<T extends { metadata?: { stackDepthBb?: number } }>(
+  ranges: T[],
+): number[] {
+  const depths = new Set<number>()
+  for (const range of ranges) {
+    const depth = range.metadata?.stackDepthBb
+    if (depth !== undefined) depths.add(depth)
+  }
+  return [...depths].sort((a, b) => a - b)
+}

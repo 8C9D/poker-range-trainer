@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { RangeLibrary } from './RangeLibrary'
 import type { SavedRange } from '../types/range'
@@ -169,7 +169,9 @@ describe('RangeLibrary', () => {
         onPractice={vi.fn()}
       />,
     )
-    expect(screen.getByText('40bb')).toBeInTheDocument()
+    // Scope to the scenario span so the matching "40bb" option in the
+    // stack-depth filter select does not also match.
+    expect(screen.getByText('40bb', { selector: '.range-item-scenario' })).toBeInTheDocument()
   })
 
   it('combines hero and versus position with vs', () => {
@@ -625,6 +627,200 @@ describe('RangeLibrary', () => {
     )
     expect(
       screen.queryByRole('combobox', { name: /filter ranges by action type/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('lists each distinct saved stack depth once as an option, sorted ascending', () => {
+    render(
+      <RangeLibrary
+        ranges={[
+          makeRange({ id: 'r1', name: 'Deep A', metadata: { stackDepthBb: 100 } }),
+          makeRange({ id: 'r2', name: 'Deep B', metadata: { stackDepthBb: 100 } }),
+          makeRange({ id: 'r3', name: 'Short', metadata: { stackDepthBb: 20 } }),
+          makeRange({ id: 'r4', name: 'No depth' }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+
+    const filter = screen.getByRole('combobox', { name: /filter ranges by stack depth/i })
+    // Two 100bb ranges collapse to one option; the depth-less range adds none.
+    const options = within(filter)
+      .getAllByRole('option')
+      .map((option) => option.textContent)
+    expect(options).toEqual(['All stack depths', '20bb', '100bb'])
+  })
+
+  it('narrows the listed ranges to the chosen stack depth', async () => {
+    const user = userEvent.setup()
+    render(
+      <RangeLibrary
+        ranges={[
+          makeRange({ id: 'r1', name: 'Deep', metadata: { stackDepthBb: 100 } }),
+          makeRange({ id: 'r2', name: 'Short', metadata: { stackDepthBb: 20 } }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+
+    // Both are listed before filtering.
+    expect(screen.getByText('Deep')).toBeInTheDocument()
+    expect(screen.getByText('Short')).toBeInTheDocument()
+
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /filter ranges by stack depth/i }),
+      '100',
+    )
+
+    expect(screen.getByText('Deep')).toBeInTheDocument()
+    expect(screen.queryByText('Short')).not.toBeInTheDocument()
+  })
+
+  it('excludes ranges without a stack depth while a depth is selected', async () => {
+    const user = userEvent.setup()
+    render(
+      <RangeLibrary
+        ranges={[
+          makeRange({ id: 'r1', name: 'Has depth', metadata: { stackDepthBb: 100 } }),
+          makeRange({ id: 'r2', name: 'No metadata' }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /filter ranges by stack depth/i }),
+      '100',
+    )
+
+    expect(screen.getByText('Has depth')).toBeInTheDocument()
+    expect(screen.queryByText('No metadata')).not.toBeInTheDocument()
+  })
+
+  it('restores every range when All stack depths is reselected', async () => {
+    const user = userEvent.setup()
+    render(
+      <RangeLibrary
+        ranges={[
+          makeRange({ id: 'r1', name: 'Deep', metadata: { stackDepthBb: 100 } }),
+          makeRange({ id: 'r2', name: 'Short', metadata: { stackDepthBb: 20 } }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+
+    const filter = screen.getByRole('combobox', { name: /filter ranges by stack depth/i })
+    await user.selectOptions(filter, '100')
+    expect(screen.queryByText('Short')).not.toBeInTheDocument()
+
+    await user.selectOptions(filter, '')
+    expect(screen.getByText('Deep')).toBeInTheDocument()
+    expect(screen.getByText('Short')).toBeInTheDocument()
+  })
+
+  it('applies the stack-depth filter together with the name, position, and action-type filters', async () => {
+    const user = userEvent.setup()
+    render(
+      <RangeLibrary
+        ranges={[
+          makeRange({
+            id: 'r1',
+            name: 'Button open',
+            metadata: { position: 'btn', actionType: 'open', stackDepthBb: 100 },
+          }),
+          makeRange({
+            id: 'r2',
+            name: 'Button open short',
+            metadata: { position: 'btn', actionType: 'open', stackDepthBb: 20 },
+          }),
+          makeRange({
+            id: 'r3',
+            name: 'Cutoff open',
+            metadata: { position: 'co', actionType: 'open', stackDepthBb: 100 },
+          }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+
+    // Name keeps the two "Button" ranges, position keeps the BTN ones, action
+    // keeps the opens, and 100bb keeps only "Button open" through all four.
+    await user.type(screen.getByRole('searchbox'), 'button')
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /filter ranges by position/i }),
+      'btn',
+    )
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /filter ranges by action type/i }),
+      'open',
+    )
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /filter ranges by stack depth/i }),
+      '100',
+    )
+
+    expect(screen.getByText('Button open')).toBeInTheDocument()
+    expect(screen.queryByText('Button open short')).not.toBeInTheDocument()
+    expect(screen.queryByText('Cutoff open')).not.toBeInTheDocument()
+  })
+
+  it('shows the no-match empty state when the combined filters match nothing', async () => {
+    const user = userEvent.setup()
+    render(
+      <RangeLibrary
+        ranges={[
+          makeRange({ id: 'r1', name: 'BTN deep', metadata: { position: 'btn', stackDepthBb: 100 } }),
+          makeRange({ id: 'r2', name: 'CO short', metadata: { position: 'co', stackDepthBb: 20 } }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+
+    // BTN exists only at 100bb, so BTN + 20bb matches nothing.
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /filter ranges by position/i }),
+      'btn',
+    )
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /filter ranges by stack depth/i }),
+      '20',
+    )
+
+    expect(screen.queryByText('BTN deep')).not.toBeInTheDocument()
+    expect(screen.queryByText('CO short')).not.toBeInTheDocument()
+    expect(screen.getByText('No ranges match the selected filters.')).toBeInTheDocument()
+  })
+
+  it('does not render the stack-depth filter when there are no saved ranges', () => {
+    render(
+      <RangeLibrary
+        ranges={[]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+    expect(
+      screen.queryByRole('combobox', { name: /filter ranges by stack depth/i }),
     ).not.toBeInTheDocument()
   })
 })

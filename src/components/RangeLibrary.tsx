@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import {
+  distinctStackDepths,
   filterRangesByActionType,
   filterRangesByName,
   filterRangesByPosition,
+  filterRangesByStackDepth,
 } from '../domain/rangeLibrary'
 import { calculateRangePercentage, countSelectedCombos } from '../domain/rangeMath'
 import {
@@ -40,13 +42,17 @@ function previewNotes(notes: string): string {
 /**
  * Lists the saved ranges with summary stats and load/delete controls.
  *
- * A name search, a position filter, and an action-type filter narrow the list
- * through the {@link filterRangesByName}, {@link filterRangesByPosition}, and
- * {@link filterRangesByActionType} domain helpers, so the component owns no
- * matching logic of its own. The three compose: the search narrows by name, then
- * the selects narrow by hero position and action type. Combo counts and
- * percentages are likewise derived through the domain helpers, keeping the
- * library free of reimplemented poker math.
+ * A name search, a position filter, an action-type filter, and a stack-depth
+ * filter narrow the list through the {@link filterRangesByName},
+ * {@link filterRangesByPosition}, {@link filterRangesByActionType}, and
+ * {@link filterRangesByStackDepth} domain helpers, so the component owns no
+ * matching logic of its own. The four compose: the search narrows by name, then
+ * the selects narrow by hero position, action type, and effective stack depth.
+ * The stack-depth options are the distinct depths actually present across the
+ * saved ranges (via {@link distinctStackDepths}), since depth is a free-form
+ * number rather than a fixed vocabulary. Combo counts and percentages are
+ * likewise derived through the domain helpers, keeping the library free of
+ * reimplemented poker math.
  */
 export function RangeLibrary({
   ranges,
@@ -62,9 +68,18 @@ export function RangeLibrary({
   // Empty string is the "All actions" sentinel; typing it as ActionType | ''
   // keeps only valid actions selectable.
   const [actionType, setActionType] = useState<ActionType | ''>('')
-  const visibleRanges = filterRangesByActionType(
-    filterRangesByPosition(filterRangesByName(ranges, query), position),
-    actionType,
+  // Stack depth is a free-form number, so the empty-string sentinel for "All
+  // stack depths" is mapped to null before it reaches the filter helper.
+  const [stackDepth, setStackDepth] = useState<number | ''>('')
+  // Options come from the depths actually saved, so the filter always reflects
+  // the user's data rather than a hardcoded list.
+  const stackDepths = distinctStackDepths(ranges)
+  const visibleRanges = filterRangesByStackDepth(
+    filterRangesByActionType(
+      filterRangesByPosition(filterRangesByName(ranges, query), position),
+      actionType,
+    ),
+    stackDepth === '' ? null : stackDepth,
   )
 
   return (
@@ -106,6 +121,21 @@ export function RangeLibrary({
               {ACTION_TYPES.map((action) => (
                 <option key={action} value={action}>
                   {ACTION_TYPE_LABELS[action]}
+                </option>
+              ))}
+            </select>
+            <select
+              className="range-library-filter"
+              value={String(stackDepth)}
+              onChange={(event) =>
+                setStackDepth(event.target.value === '' ? '' : Number(event.target.value))
+              }
+              aria-label="Filter ranges by stack depth"
+            >
+              <option value="">All stack depths</option>
+              {stackDepths.map((depth) => (
+                <option key={depth} value={depth}>
+                  {depth}bb
                 </option>
               ))}
             </select>

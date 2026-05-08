@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import {
+  distinctStackDepths,
   filterRangesByActionType,
   filterRangesByName,
   filterRangesByPosition,
+  filterRangesByStackDepth,
 } from './rangeLibrary'
 
 /** Minimal stand-ins for saved ranges — only the name matters to the filter. */
@@ -176,5 +178,99 @@ describe('filterRangesByActionType', () => {
 
   it('returns a fresh array rather than the original reference', () => {
     expect(filterRangesByActionType(actioned, null)).not.toBe(actioned)
+  })
+})
+
+/** Mixed metadata so each stack-depth branch has a distinct case. */
+const stacked = [
+  { name: 'Deep BTN', metadata: { stackDepthBb: 100 } },
+  { name: 'Short SB', metadata: { stackDepthBb: 20 } },
+  { name: 'Another deep', metadata: { stackDepthBb: 100 } },
+  { name: 'Depth-less metadata', metadata: {} },
+  { name: 'No metadata' },
+]
+
+describe('filterRangesByStackDepth', () => {
+  it('returns only the ranges whose metadata.stackDepthBb matches', () => {
+    expect(filterRangesByStackDepth(stacked, 100)).toEqual([
+      { name: 'Deep BTN', metadata: { stackDepthBb: 100 } },
+      { name: 'Another deep', metadata: { stackDepthBb: 100 } },
+    ])
+  })
+
+  it('excludes ranges without metadata or without a stack depth', () => {
+    // 20 matches a single stacked range; the metadata-less and depth-less
+    // entries are never included.
+    expect(filterRangesByStackDepth(stacked, 20)).toEqual([
+      { name: 'Short SB', metadata: { stackDepthBb: 20 } },
+    ])
+  })
+
+  it('returns every range for a null stack depth', () => {
+    expect(filterRangesByStackDepth(stacked, null)).toEqual(stacked)
+  })
+
+  it('returns an empty array when no range has the stack depth', () => {
+    expect(filterRangesByStackDepth(stacked, 40)).toEqual([])
+  })
+
+  it('preserves the input order of the matches', () => {
+    expect(filterRangesByStackDepth(stacked, 100)).toEqual([
+      { name: 'Deep BTN', metadata: { stackDepthBb: 100 } },
+      { name: 'Another deep', metadata: { stackDepthBb: 100 } },
+    ])
+  })
+
+  it('does not mutate the input array', () => {
+    const input = [
+      { name: 'Deep BTN', metadata: { stackDepthBb: 100 } },
+      { name: 'No metadata' },
+    ]
+    const snapshot = structuredClone(input)
+    filterRangesByStackDepth(input, 100)
+    filterRangesByStackDepth(input, null)
+    expect(input).toEqual(snapshot)
+  })
+
+  it('returns a fresh array rather than the original reference', () => {
+    expect(filterRangesByStackDepth(stacked, null)).not.toBe(stacked)
+  })
+})
+
+describe('distinctStackDepths', () => {
+  it('returns the unique depths present, sorted ascending', () => {
+    expect(distinctStackDepths(stacked)).toEqual([20, 100])
+  })
+
+  it('collapses duplicate depths to a single entry', () => {
+    const input = [
+      { name: 'a', metadata: { stackDepthBb: 100 } },
+      { name: 'b', metadata: { stackDepthBb: 100 } },
+      { name: 'c', metadata: { stackDepthBb: 100 } },
+    ]
+    expect(distinctStackDepths(input)).toEqual([100])
+  })
+
+  it('sorts numerically rather than lexicographically', () => {
+    const input = [
+      { name: 'a', metadata: { stackDepthBb: 100 } },
+      { name: 'b', metadata: { stackDepthBb: 20 } },
+      { name: 'c', metadata: { stackDepthBb: 40 } },
+    ]
+    expect(distinctStackDepths(input)).toEqual([20, 40, 100])
+  })
+
+  it('ignores ranges with no metadata or no stack depth', () => {
+    expect(
+      distinctStackDepths([
+        { name: 'a', metadata: { stackDepthBb: 50 } },
+        { name: 'b', metadata: {} },
+        { name: 'c' },
+      ]),
+    ).toEqual([50])
+  })
+
+  it('returns an empty array when no range has a stack depth', () => {
+    expect(distinctStackDepths([{ name: 'a', metadata: {} }, { name: 'b' }])).toEqual([])
   })
 })
