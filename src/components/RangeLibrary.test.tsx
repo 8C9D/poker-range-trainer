@@ -823,4 +823,188 @@ describe('RangeLibrary', () => {
       screen.queryByRole('combobox', { name: /filter ranges by stack depth/i }),
     ).not.toBeInTheDocument()
   })
+
+  it('narrows the listed ranges to the chosen game type', async () => {
+    const user = userEvent.setup()
+    render(
+      <RangeLibrary
+        ranges={[
+          makeRange({ id: 'r1', name: 'Cash range', metadata: { gameType: 'cash' } }),
+          makeRange({ id: 'r2', name: 'MTT range', metadata: { gameType: 'tournament' } }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+
+    // Both are listed before filtering.
+    expect(screen.getByText('Cash range')).toBeInTheDocument()
+    expect(screen.getByText('MTT range')).toBeInTheDocument()
+
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /filter ranges by game type/i }),
+      'cash',
+    )
+
+    expect(screen.getByText('Cash range')).toBeInTheDocument()
+    expect(screen.queryByText('MTT range')).not.toBeInTheDocument()
+  })
+
+  it('excludes ranges without a game type while a game type is selected', async () => {
+    const user = userEvent.setup()
+    render(
+      <RangeLibrary
+        ranges={[
+          makeRange({ id: 'r1', name: 'Has game', metadata: { gameType: 'cash' } }),
+          makeRange({ id: 'r2', name: 'No metadata' }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /filter ranges by game type/i }),
+      'cash',
+    )
+
+    expect(screen.getByText('Has game')).toBeInTheDocument()
+    expect(screen.queryByText('No metadata')).not.toBeInTheDocument()
+  })
+
+  it('restores every range when All game types is reselected', async () => {
+    const user = userEvent.setup()
+    render(
+      <RangeLibrary
+        ranges={[
+          makeRange({ id: 'r1', name: 'Cash range', metadata: { gameType: 'cash' } }),
+          makeRange({ id: 'r2', name: 'MTT range', metadata: { gameType: 'tournament' } }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+
+    const filter = screen.getByRole('combobox', { name: /filter ranges by game type/i })
+    await user.selectOptions(filter, 'cash')
+    expect(screen.queryByText('MTT range')).not.toBeInTheDocument()
+
+    await user.selectOptions(filter, '')
+    expect(screen.getByText('Cash range')).toBeInTheDocument()
+    expect(screen.getByText('MTT range')).toBeInTheDocument()
+  })
+
+  it('applies the game-type filter together with the name, position, action-type, and stack-depth filters', async () => {
+    const user = userEvent.setup()
+    render(
+      <RangeLibrary
+        ranges={[
+          makeRange({
+            id: 'r1',
+            name: 'Button open',
+            metadata: { position: 'btn', actionType: 'open', stackDepthBb: 100, gameType: 'cash' },
+          }),
+          makeRange({
+            id: 'r2',
+            name: 'Button open mtt',
+            metadata: {
+              position: 'btn',
+              actionType: 'open',
+              stackDepthBb: 100,
+              gameType: 'tournament',
+            },
+          }),
+          makeRange({
+            id: 'r3',
+            name: 'Cutoff open',
+            metadata: { position: 'co', actionType: 'open', stackDepthBb: 100, gameType: 'cash' },
+          }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+
+    // Name keeps the two "Button" ranges, position keeps the BTN ones, action
+    // keeps the opens, 100bb keeps them, and cash keeps only "Button open"
+    // through all five filters.
+    await user.type(screen.getByRole('searchbox'), 'button')
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /filter ranges by position/i }),
+      'btn',
+    )
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /filter ranges by action type/i }),
+      'open',
+    )
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /filter ranges by stack depth/i }),
+      '100',
+    )
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /filter ranges by game type/i }),
+      'cash',
+    )
+
+    expect(screen.getByText('Button open')).toBeInTheDocument()
+    expect(screen.queryByText('Button open mtt')).not.toBeInTheDocument()
+    expect(screen.queryByText('Cutoff open')).not.toBeInTheDocument()
+  })
+
+  it('shows the no-match empty state when the game-type filter combination matches nothing', async () => {
+    const user = userEvent.setup()
+    render(
+      <RangeLibrary
+        ranges={[
+          makeRange({ id: 'r1', name: 'Cash spot', metadata: { position: 'btn', gameType: 'cash' } }),
+          makeRange({
+            id: 'r2',
+            name: 'MTT spot',
+            metadata: { position: 'co', gameType: 'tournament' },
+          }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+
+    // BTN exists only as a cash range, so BTN + tournament matches nothing.
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /filter ranges by position/i }),
+      'btn',
+    )
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /filter ranges by game type/i }),
+      'tournament',
+    )
+
+    expect(screen.queryByText('Cash spot')).not.toBeInTheDocument()
+    expect(screen.queryByText('MTT spot')).not.toBeInTheDocument()
+    expect(screen.getByText('No ranges match the selected filters.')).toBeInTheDocument()
+  })
+
+  it('does not render the game-type filter when there are no saved ranges', () => {
+    render(
+      <RangeLibrary
+        ranges={[]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+    expect(
+      screen.queryByRole('combobox', { name: /filter ranges by game type/i }),
+    ).not.toBeInTheDocument()
+  })
 })

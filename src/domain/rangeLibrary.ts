@@ -60,6 +60,24 @@ export function filterRangesByActionType<T extends { metadata?: { actionType?: s
 }
 
 /**
+ * Return the ranges whose `metadata.gameType` equals `gameType`, preserving the
+ * input order.
+ *
+ * A `null` or empty `gameType` means "all game types" and matches every range. A
+ * specific game type matches only ranges that carry that exact
+ * `metadata.gameType`; ranges with no metadata, or with metadata but no game
+ * type, are excluded. The input array is never mutated; a fresh array is always
+ * returned.
+ */
+export function filterRangesByGameType<T extends { metadata?: { gameType?: string } }>(
+  ranges: T[],
+  gameType: string | null,
+): T[] {
+  if (!gameType) return ranges.slice()
+  return ranges.filter((range) => range.metadata?.gameType === gameType)
+}
+
+/**
  * Return the ranges whose `metadata.stackDepthBb` strictly equals
  * `stackDepthBb`, preserving the input order.
  *

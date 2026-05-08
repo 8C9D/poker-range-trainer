@@ -39,108 +39,100 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 2 | Filter saved ranges by position | v1.4 — Range library and filtering | 2026-06-03 |
 | 3 | Filter saved ranges by action type | v1.4 — Range library and filtering | 2026-06-03 |
 | 4 | Filter saved ranges by stack depth | v1.4 — Range library and filtering | 2026-06-03 |
+| 5 | Filter saved ranges by game type | v1.4 — Range library and filtering | 2026-06-03 |
 
 ## Next slice
 
-- **Number:** 5
+- **Number:** 6
 - **Roadmap target:** v1.4 — Range library and filtering
-- **Working title:** Filter saved ranges by game type
+- **Working title:** Sort saved ranges by name
 
 ### Prompt
 
-You are implementing roadmap slice 5, the fifth slice of **v1.4 — Range library and
-filtering**. This is the **last filter** in v1.4's filter list (Position, Action type,
-Stack depth, Game type); after it, v1.4 moves on to sorting, duplicate/archive/favorite,
-and richer range cards.
+You are implementing roadmap slice 6, the first **sorting** slice of **v1.4 — Range
+library and filtering**. v1.4's filter list (name search + Position, Action type,
+Stack depth, Game type) is now complete (slices 1–5). The next feature group is
+**Sort by: Recently edited, Recently practiced, Accuracy, Name**. This slice
+introduces the sort control with its first, simplest key — **Name (A–Z)** — backed
+only by data the app already has.
 
 Context:
-- The saved-range library lives in `src/components/RangeLibrary.tsx`. Slices 1–4 added
-  four filters, all backed by pure helpers in `src/domain/rangeLibrary.ts`: a name
-  search (`filterRangesByName(ranges, query)`), a position filter
-  (`filterRangesByPosition(ranges, position)`), an action-type filter
-  (`filterRangesByActionType(ranges, actionType)`), and a stack-depth filter
-  (`filterRangesByStackDepth(ranges, stackDepthBb)` plus `distinctStackDepths(ranges)`).
-  The component composes them as
-  `filterRangesByStackDepth(filterRangesByActionType(filterRangesByPosition(filterRangesByName(ranges, query), position), actionType), stackDepth === '' ? null : stackDepth)`.
+- The saved-range library lives in `src/components/RangeLibrary.tsx`. It currently
+  composes five pure filter helpers from `src/domain/rangeLibrary.ts` into a
+  `visibleRanges` list, then renders that list in array order (the order returned by
+  storage). The filter helpers are `filterRangesByName`, `filterRangesByPosition`,
+  `filterRangesByActionType`, `filterRangesByStackDepth`, and
+  `filterRangesByGameType`, composed as
+  `filterRangesByGameType(filterRangesByStackDepth(filterRangesByActionType(filterRangesByPosition(filterRangesByName(ranges, query), position), actionType), stackDepth === '' ? null : stackDepth), gameType)`.
 - The filter controls sit in a `.range-library-filters` flex row (`flex-wrap: wrap`):
-  a `searchbox` input plus three `<select>`s that share the `.range-library-filter` CSS
+  a `searchbox` input plus four `<select>`s sharing the `.range-library-filter` CSS
   class, each with a distinguishing aria-label ("Filter ranges by position", "Filter
-  ranges by action type", "Filter ranges by stack depth"). A generalized empty state —
-  "No ranges match the selected filters." — already shows when the combined filters
-  match nothing (and a query-specific message shows when a name search matches nothing).
-- Game type is **enum-backed**, like position and action type — and unlike stack depth.
-  `metadata.gameType` is a `GameType` (see `src/types/range.ts`), whose values come from
-  the `GAME_TYPES` tuple (`'cash' | 'tournament' | 'sitAndGo'`) with display strings in
-  `GAME_TYPE_LABELS`. So this slice mirrors the position/action-type filters exactly:
-  use the empty-string/`null` "all" sentinel and string equality, and iterate the fixed
-  `GAME_TYPES` tuple for the options. Do NOT derive the options from the data the way the
-  stack-depth filter does, and do NOT add a new vocabulary — reuse `GAME_TYPES` and
-  `GAME_TYPE_LABELS`.
+  ranges by action type", "Filter ranges by stack depth", "Filter ranges by game
+  type"). A generalized empty state — "No ranges match the selected filters." —
+  shows when the combined filters match nothing (and a query-specific message shows
+  when a name search matches nothing).
+- `SavedRange` (see `src/types/range.ts`) has `name`, `createdAt`, and `updatedAt`
+  (ISO-8601 strings) plus optional `metadata`. **Name** and **Recently edited**
+  (`updatedAt`) sorts need only existing fields. **Recently practiced** and
+  **Accuracy** sorts need per-range practice history that the app does NOT yet
+  persist — there is no practice-history storage today. Do NOT build those two keys
+  in this slice; they are blocked until a future slice adds practice-result
+  persistence (see Constraints).
 
 Task:
-- Add a game-type filter `<select>` to the filter row, after the stack-depth select. Its
-  first option is a default "All game types" (value `""`) that does not filter. The
-  remaining options are the `GAME_TYPES` values, each labelled via `GAME_TYPE_LABELS`
-  ("Cash", "Tournament", "Sit & Go"). Give it the accessible name "Filter ranges by game
-  type" (aria-label) so it is distinguishable from the other selects — there are now four
-  comboboxes.
-- When a specific game type is selected, show only ranges whose `metadata.gameType`
-  equals it. Ranges with no metadata, or with metadata but no game type, are excluded
-  while a game type is selected. "All game types" shows everything.
-- The game-type filter must compose with all existing filters: name search, then
-  position, then action type, then stack depth, then game type all apply together.
-- When the combined filters match nothing, the existing "No ranges match the selected
-  filters." empty state must still show. Keep the selection in local component state; it
-  is not persisted.
+- Add a **sort `<select>`** to the filter row, after the game-type select, reusing
+  the `.range-library-filter` class. Give it the accessible name "Sort ranges"
+  (aria-label) so it is distinct from the four "Filter ranges by …" comboboxes —
+  there are now five comboboxes.
+- Options: a default "Default order" (value `""`) that preserves the current
+  (filtered, storage) order, and "Name (A–Z)" (value `"name"`).
+- When "Name (A–Z)" is selected, render the filtered ranges sorted case-insensitively
+  by `name` ascending. "Default order" leaves the filtered order untouched.
+- Sorting applies to the **result of filtering**: keep the five-filter composition
+  exactly as it is, then sort the filtered list for display. Sorting must compose
+  with every filter, and the existing empty states must still show when nothing
+  matches. Keep the selection in local component state; it is not persisted.
 
 Keep domain logic separate:
-- Add a pure helper `filterRangesByGameType(ranges, gameType)` to
-  `src/domain/rangeLibrary.ts`, next to the other filters, mirroring
-  `filterRangesByPosition` / `filterRangesByActionType` exactly. Constrain the element
-  type to `{ metadata?: { gameType?: string } }` and accept `gameType: string | null`.
-  A `null` or empty-string `gameType` means "all" (return a fresh copy of every range);
-  otherwise return only the ranges whose `metadata?.gameType` equals the argument (use
-  the `if (!gameType) return ranges.slice()` guard like the sibling helpers). Do not
-  mutate the input; keep it decoupled (no app-type imports).
+- Add a pure helper `sortRangesByName(ranges)` to `src/domain/rangeLibrary.ts`, next
+  to the filters. Constrain the element type to `{ name: string }`. Return a new
+  array sorted ascending by `name` using
+  `a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })` for
+  case-insensitive ordering. Do NOT mutate the input — call `ranges.slice()` before
+  `.sort()`. `Array.prototype.sort` is stable, so ranges with equal names keep their
+  input order. Keep it decoupled (no app-type imports), mirroring the filter helpers.
 
 Component typing:
-- Type the select's state as `GameType | ''` (empty string = all), matching how
-  `position` (`Position | ''`) and `actionType` (`ActionType | ''`) are typed. Import
-  `GameType`, `GAME_TYPES`, and `GAME_TYPE_LABELS` from `../types/range` (the component
-  already imports `GAME_TYPE_LABELS`). On change, set
-  `event.target.value as GameType | ''`. Pass the value straight to the helper (empty
-  string is treated as "all" by the guard). Compose as
-  `filterRangesByGameType(filterRangesByStackDepth(filterRangesByActionType(filterRangesByPosition(filterRangesByName(ranges, query), position), actionType), stackDepth === '' ? null : stackDepth), gameType)`.
+- Type the select's state as `'' | 'name'` (empty string = default order). On
+  change, set `event.target.value as '' | 'name'`. After computing the filtered
+  list, branch: `sort === 'name' ? sortRangesByName(filtered) : filtered` to produce
+  the rendered list. (You may keep the filter composition in a `filtered` const and
+  derive `visibleRanges` from it.)
 
 Files to create or modify:
-- `src/domain/rangeLibrary.ts` — add `filterRangesByGameType`.
+- `src/domain/rangeLibrary.ts` — add `sortRangesByName`.
 - `src/domain/rangeLibrary.test.ts` — unit tests for the new helper.
-- `src/components/RangeLibrary.tsx` — render the game-type `<select>` (iterating
-  `GAME_TYPES`/`GAME_TYPE_LABELS`) and compose the five filters; update the component
-  doc comment to mention the fifth filter.
-- `src/components/RangeLibrary.css` — only if the fourth select needs layout tweaks; it
+- `src/components/RangeLibrary.tsx` — render the sort `<select>`, apply sorting after
+  filtering, and update the component doc comment to mention sorting.
+- `src/components/RangeLibrary.css` — only if the sort select needs layout tweaks; it
   should reuse `.range-library-filter`.
-- `src/components/RangeLibrary.test.tsx` — tests for filtering by game type and for
-  combining it with the other filters.
+- `src/components/RangeLibrary.test.tsx` — tests for sorting by name, default order,
+  and sorting combined with a filter.
 
 Tests to add:
-- `filterRangesByGameType`: returns only ranges whose `metadata.gameType` matches;
-  excludes ranges without metadata or without a game type; a `null` gameType returns all
-  (as a fresh array); an empty-string gameType returns all; returns an empty array when
-  nothing matches; preserves input order; does not mutate the input; returns a fresh
-  array. Mirror the existing `filterRangesByActionType` test block.
-- Library component: choosing a game type narrows the visible ranges; ranges without a
-  game type are excluded while one is selected; selecting "All game types" restores them;
-  the game-type filter composes with the name search, position, action-type, and
-  stack-depth filters; the no-match empty state shows when the combination matches
-  nothing; the game-type filter is not rendered when there are no saved ranges. There are
-  now four `<select>`s, so target each combobox by its accessible name
-  (`/filter ranges by position/i`, `/filter ranges by action type/i`,
-  `/filter ranges by stack depth/i`, `/filter ranges by game type/i`) rather than a bare
-  `getByRole('combobox')`. The game-type options ("Cash", "Tournament", "Sit & Go") now
-  always appear in the select; no existing test does a bare `getByText` on one of those
-  labels (the scenario-line test matches the full "Cash · 6-max · …" string), but keep an
-  eye out for that collision and scope by `.range-item-scenario` if needed.
+- `sortRangesByName`: sorts by name ascending; is case-insensitive ("apple" sorts
+  before "Banana"); preserves input order for names that compare equal (stable);
+  returns an empty array for an empty input; does not mutate the input; returns a
+  fresh array (not the same reference).
+- Library component: with the sort at "Default order", ranges render in their given
+  (input) order; selecting "Name (A–Z)" reorders the visible ranges alphabetically;
+  sorting composes with a filter (e.g. filter by a position, then sort by name, and
+  assert both membership and order). Assert DOM order by reading the
+  `.range-item-name` spans in document order (e.g.
+  `container.querySelectorAll('.range-item-name')` mapped to `textContent`) rather
+  than `getByText`, which is order-insensitive. There are now five `<select>`s, so
+  target the sort control by its accessible name (`/sort ranges/i`) and keep
+  targeting the filters by theirs.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -148,13 +140,17 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within v1.4 scope — only the game-type filter in this slice. Sorting (recently
-  edited / recently practiced / accuracy / name), duplicate/archive/favorite, and richer
-  range cards are later slices. Note that "recently practiced" and "accuracy" sorting
-  will need practice history that the app does not yet persist — flag that when the
-  sorting slice comes up, not now.
+- Stay within v1.4 scope, and within this slice: only the Name sort and the
+  sort-control scaffolding. The next sort slice should add **Recently edited** (sort
+  by `updatedAt` descending — also backed by existing data). **Recently practiced**
+  and **Accuracy** sorts are BLOCKED: the app does not persist practice history yet,
+  so a prior slice must add practice-result persistence before those keys can be
+  built. Do not add that persistence here, and do not add sort options the app cannot
+  back with real data.
+- Duplicate / archive / favorite range and richer range cards remain later v1.4
+  slices.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: add range library game-type filter`
+- `feat: add range library name sort`

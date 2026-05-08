@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   distinctStackDepths,
   filterRangesByActionType,
+  filterRangesByGameType,
   filterRangesByName,
   filterRangesByPosition,
   filterRangesByStackDepth,
@@ -178,6 +179,66 @@ describe('filterRangesByActionType', () => {
 
   it('returns a fresh array rather than the original reference', () => {
     expect(filterRangesByActionType(actioned, null)).not.toBe(actioned)
+  })
+})
+
+/** Mixed metadata so each game-type branch has a distinct case. */
+const gamed = [
+  { name: 'Cash BTN', metadata: { gameType: 'cash' } },
+  { name: 'MTT SB', metadata: { gameType: 'tournament' } },
+  { name: 'Another cash', metadata: { gameType: 'cash' } },
+  { name: 'Game-less metadata', metadata: {} },
+  { name: 'No metadata' },
+]
+
+describe('filterRangesByGameType', () => {
+  it('returns only the ranges whose metadata.gameType matches', () => {
+    expect(filterRangesByGameType(gamed, 'cash')).toEqual([
+      { name: 'Cash BTN', metadata: { gameType: 'cash' } },
+      { name: 'Another cash', metadata: { gameType: 'cash' } },
+    ])
+  })
+
+  it('excludes ranges without metadata or without a game type', () => {
+    // 'tournament' matches a single gamed range; the metadata-less and
+    // game-less entries are never included.
+    expect(filterRangesByGameType(gamed, 'tournament')).toEqual([
+      { name: 'MTT SB', metadata: { gameType: 'tournament' } },
+    ])
+  })
+
+  it('returns every range for a null game type', () => {
+    expect(filterRangesByGameType(gamed, null)).toEqual(gamed)
+  })
+
+  it('treats an empty game type as "all" and returns every range', () => {
+    expect(filterRangesByGameType(gamed, '')).toEqual(gamed)
+  })
+
+  it('returns an empty array when no range has the game type', () => {
+    expect(filterRangesByGameType(gamed, 'sitAndGo')).toEqual([])
+  })
+
+  it('preserves the input order of the matches', () => {
+    expect(filterRangesByGameType(gamed, 'cash')).toEqual([
+      { name: 'Cash BTN', metadata: { gameType: 'cash' } },
+      { name: 'Another cash', metadata: { gameType: 'cash' } },
+    ])
+  })
+
+  it('does not mutate the input array', () => {
+    const input = [
+      { name: 'Cash BTN', metadata: { gameType: 'cash' } },
+      { name: 'No metadata' },
+    ]
+    const snapshot = structuredClone(input)
+    filterRangesByGameType(input, 'cash')
+    filterRangesByGameType(input, null)
+    expect(input).toEqual(snapshot)
+  })
+
+  it('returns a fresh array rather than the original reference', () => {
+    expect(filterRangesByGameType(gamed, null)).not.toBe(gamed)
   })
 })
 

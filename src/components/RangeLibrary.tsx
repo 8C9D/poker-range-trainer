@@ -2,6 +2,7 @@ import { useState } from 'react'
 import {
   distinctStackDepths,
   filterRangesByActionType,
+  filterRangesByGameType,
   filterRangesByName,
   filterRangesByPosition,
   filterRangesByStackDepth,
@@ -11,10 +12,12 @@ import {
   ACTION_TYPE_LABELS,
   ACTION_TYPES,
   GAME_TYPE_LABELS,
+  GAME_TYPES,
   POSITION_LABELS,
   POSITIONS,
   TABLE_SIZE_LABELS,
   type ActionType,
+  type GameType,
   type Position,
   type SavedRange,
 } from '../types/range'
@@ -42,17 +45,18 @@ function previewNotes(notes: string): string {
 /**
  * Lists the saved ranges with summary stats and load/delete controls.
  *
- * A name search, a position filter, an action-type filter, and a stack-depth
- * filter narrow the list through the {@link filterRangesByName},
- * {@link filterRangesByPosition}, {@link filterRangesByActionType}, and
- * {@link filterRangesByStackDepth} domain helpers, so the component owns no
- * matching logic of its own. The four compose: the search narrows by name, then
- * the selects narrow by hero position, action type, and effective stack depth.
- * The stack-depth options are the distinct depths actually present across the
- * saved ranges (via {@link distinctStackDepths}), since depth is a free-form
- * number rather than a fixed vocabulary. Combo counts and percentages are
- * likewise derived through the domain helpers, keeping the library free of
- * reimplemented poker math.
+ * A name search, a position filter, an action-type filter, a stack-depth filter,
+ * and a game-type filter narrow the list through the {@link filterRangesByName},
+ * {@link filterRangesByPosition}, {@link filterRangesByActionType},
+ * {@link filterRangesByStackDepth}, and {@link filterRangesByGameType} domain
+ * helpers, so the component owns no matching logic of its own. The five compose:
+ * the search narrows by name, then the selects narrow by hero position, action
+ * type, effective stack depth, and game type. The stack-depth options are the
+ * distinct depths actually present across the saved ranges (via
+ * {@link distinctStackDepths}), since depth is a free-form number rather than a
+ * fixed vocabulary; the other selects iterate fixed vocabularies. Combo counts
+ * and percentages are likewise derived through the domain helpers, keeping the
+ * library free of reimplemented poker math.
  */
 export function RangeLibrary({
   ranges,
@@ -71,15 +75,21 @@ export function RangeLibrary({
   // Stack depth is a free-form number, so the empty-string sentinel for "All
   // stack depths" is mapped to null before it reaches the filter helper.
   const [stackDepth, setStackDepth] = useState<number | ''>('')
+  // Empty string is the "All game types" sentinel; typing it as GameType | ''
+  // keeps only valid game types selectable.
+  const [gameType, setGameType] = useState<GameType | ''>('')
   // Options come from the depths actually saved, so the filter always reflects
   // the user's data rather than a hardcoded list.
   const stackDepths = distinctStackDepths(ranges)
-  const visibleRanges = filterRangesByStackDepth(
-    filterRangesByActionType(
-      filterRangesByPosition(filterRangesByName(ranges, query), position),
-      actionType,
+  const visibleRanges = filterRangesByGameType(
+    filterRangesByStackDepth(
+      filterRangesByActionType(
+        filterRangesByPosition(filterRangesByName(ranges, query), position),
+        actionType,
+      ),
+      stackDepth === '' ? null : stackDepth,
     ),
-    stackDepth === '' ? null : stackDepth,
+    gameType,
   )
 
   return (
@@ -136,6 +146,19 @@ export function RangeLibrary({
               {stackDepths.map((depth) => (
                 <option key={depth} value={depth}>
                   {depth}bb
+                </option>
+              ))}
+            </select>
+            <select
+              className="range-library-filter"
+              value={gameType}
+              onChange={(event) => setGameType(event.target.value as GameType | '')}
+              aria-label="Filter ranges by game type"
+            >
+              <option value="">All game types</option>
+              {GAME_TYPES.map((game) => (
+                <option key={game} value={game}>
+                  {GAME_TYPE_LABELS[game]}
                 </option>
               ))}
             </select>
