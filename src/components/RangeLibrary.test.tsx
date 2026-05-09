@@ -1007,4 +1007,75 @@ describe('RangeLibrary', () => {
       screen.queryByRole('combobox', { name: /filter ranges by game type/i }),
     ).not.toBeInTheDocument()
   })
+
+  it('renders ranges in their given order while sort is at Default order', () => {
+    const { container } = render(
+      <RangeLibrary
+        ranges={[
+          makeRange({ id: 'r1', name: 'Cutoff open' }),
+          makeRange({ id: 'r2', name: 'Button open' }),
+          makeRange({ id: 'r3', name: 'Hijack open' }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+
+    // Read names in document order; getByText is order-insensitive.
+    const names = [...container.querySelectorAll('.range-item-name')].map((el) => el.textContent)
+    expect(names).toEqual(['Cutoff open', 'Button open', 'Hijack open'])
+  })
+
+  it('reorders the visible ranges alphabetically when Name (A–Z) is selected', async () => {
+    const user = userEvent.setup()
+    const { container } = render(
+      <RangeLibrary
+        ranges={[
+          makeRange({ id: 'r1', name: 'Cutoff open' }),
+          makeRange({ id: 'r2', name: 'Button open' }),
+          makeRange({ id: 'r3', name: 'Hijack open' }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+
+    await user.selectOptions(screen.getByRole('combobox', { name: /sort ranges/i }), 'name')
+
+    const names = [...container.querySelectorAll('.range-item-name')].map((el) => el.textContent)
+    expect(names).toEqual(['Button open', 'Cutoff open', 'Hijack open'])
+  })
+
+  it('sorts by name on top of an active filter', async () => {
+    const user = userEvent.setup()
+    const { container } = render(
+      <RangeLibrary
+        ranges={[
+          makeRange({ id: 'r1', name: 'Cutoff open', metadata: { position: 'btn' } }),
+          makeRange({ id: 'r2', name: 'Button open', metadata: { position: 'btn' } }),
+          makeRange({ id: 'r3', name: 'Away CO', metadata: { position: 'co' } }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /filter ranges by position/i }),
+      'btn',
+    )
+    await user.selectOptions(screen.getByRole('combobox', { name: /sort ranges/i }), 'name')
+
+    // The CO range is filtered out (it would sort first if present), and the two
+    // remaining BTN ranges are ordered alphabetically.
+    const names = [...container.querySelectorAll('.range-item-name')].map((el) => el.textContent)
+    expect(names).toEqual(['Button open', 'Cutoff open'])
+    expect(screen.queryByText('Away CO')).not.toBeInTheDocument()
+  })
 })

@@ -40,99 +40,93 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 3 | Filter saved ranges by action type | v1.4 — Range library and filtering | 2026-06-03 |
 | 4 | Filter saved ranges by stack depth | v1.4 — Range library and filtering | 2026-06-03 |
 | 5 | Filter saved ranges by game type | v1.4 — Range library and filtering | 2026-06-03 |
+| 6 | Sort saved ranges by name | v1.4 — Range library and filtering | 2026-06-05 |
 
 ## Next slice
 
-- **Number:** 6
+- **Number:** 7
 - **Roadmap target:** v1.4 — Range library and filtering
-- **Working title:** Sort saved ranges by name
+- **Working title:** Sort saved ranges by recently edited
 
 ### Prompt
 
-You are implementing roadmap slice 6, the first **sorting** slice of **v1.4 — Range
-library and filtering**. v1.4's filter list (name search + Position, Action type,
-Stack depth, Game type) is now complete (slices 1–5). The next feature group is
-**Sort by: Recently edited, Recently practiced, Accuracy, Name**. This slice
-introduces the sort control with its first, simplest key — **Name (A–Z)** — backed
-only by data the app already has.
+You are implementing roadmap slice 7, the second **sorting** slice of **v1.4 — Range
+library and filtering**. The sort control now exists with two options — "Default
+order" and "Name (A–Z)" — added in slice 6. This slice adds the next sort key in the
+roadmap's "Sort by" group: **Recently edited**, ordering by `updatedAt` descending
+(most recently edited first). Like Name, it is backed only by data the app already
+persists, so no new storage is needed.
 
 Context:
-- The saved-range library lives in `src/components/RangeLibrary.tsx`. It currently
-  composes five pure filter helpers from `src/domain/rangeLibrary.ts` into a
-  `visibleRanges` list, then renders that list in array order (the order returned by
-  storage). The filter helpers are `filterRangesByName`, `filterRangesByPosition`,
-  `filterRangesByActionType`, `filterRangesByStackDepth`, and
-  `filterRangesByGameType`, composed as
-  `filterRangesByGameType(filterRangesByStackDepth(filterRangesByActionType(filterRangesByPosition(filterRangesByName(ranges, query), position), actionType), stackDepth === '' ? null : stackDepth), gameType)`.
-- The filter controls sit in a `.range-library-filters` flex row (`flex-wrap: wrap`):
-  a `searchbox` input plus four `<select>`s sharing the `.range-library-filter` CSS
-  class, each with a distinguishing aria-label ("Filter ranges by position", "Filter
-  ranges by action type", "Filter ranges by stack depth", "Filter ranges by game
-  type"). A generalized empty state — "No ranges match the selected filters." —
-  shows when the combined filters match nothing (and a query-specific message shows
-  when a name search matches nothing).
+- The saved-range library lives in `src/components/RangeLibrary.tsx`. It composes
+  five pure filter helpers from `src/domain/rangeLibrary.ts` into a `filtered` list,
+  then derives `visibleRanges` from it via a sort branch:
+  `const visibleRanges = sort === 'name' ? sortRangesByName(filtered) : filtered`.
+  The sort selection lives in local state typed `'' | 'name'` (`const [sort, setSort]
+  = useState<'' | 'name'>('')`), bound to a `<select>` with aria-label "Sort ranges"
+  (options: "Default order" = `""`, "Name (A–Z)" = `"name"`). The select sits last in
+  the `.range-library-filters` flex row, reusing the `.range-library-filter` class.
+- The sort helper `sortRangesByName(ranges)` in `src/domain/rangeLibrary.ts` is a
+  pure, decoupled helper constrained to `{ name: string }` that returns
+  `ranges.slice().sort((a, b) => a.name.localeCompare(b.name, undefined, {
+  sensitivity: 'base' }))`. Mirror its shape for the new helper.
 - `SavedRange` (see `src/types/range.ts`) has `name`, `createdAt`, and `updatedAt`
-  (ISO-8601 strings) plus optional `metadata`. **Name** and **Recently edited**
-  (`updatedAt`) sorts need only existing fields. **Recently practiced** and
-  **Accuracy** sorts need per-range practice history that the app does NOT yet
-  persist — there is no practice-history storage today. Do NOT build those two keys
-  in this slice; they are blocked until a future slice adds practice-result
-  persistence (see Constraints).
+  (ISO-8601 strings) plus optional `metadata`. `updatedAt` is written on every
+  save/edit, so sorting by it descending gives a "most recently edited first" order
+  using existing data. **Recently practiced** and **Accuracy** sorts still need
+  per-range practice history that the app does NOT persist yet — do NOT build those
+  here (see Constraints).
 
 Task:
-- Add a **sort `<select>`** to the filter row, after the game-type select, reusing
-  the `.range-library-filter` class. Give it the accessible name "Sort ranges"
-  (aria-label) so it is distinct from the four "Filter ranges by …" comboboxes —
-  there are now five comboboxes.
-- Options: a default "Default order" (value `""`) that preserves the current
-  (filtered, storage) order, and "Name (A–Z)" (value `"name"`).
-- When "Name (A–Z)" is selected, render the filtered ranges sorted case-insensitively
-  by `name` ascending. "Default order" leaves the filtered order untouched.
-- Sorting applies to the **result of filtering**: keep the five-filter composition
-  exactly as it is, then sort the filtered list for display. Sorting must compose
-  with every filter, and the existing empty states must still show when nothing
-  matches. Keep the selection in local component state; it is not persisted.
+- Add a third option to the existing sort `<select>`: "Recently edited" with value
+  `"recent"`, placed after "Name (A–Z)". Keep "Default order" first.
+- Widen the sort state type to `'' | 'name' | 'recent'`, and update the change
+  handler cast accordingly (`event.target.value as '' | 'name' | 'recent'`).
+- When "Recently edited" is selected, render the filtered ranges sorted by
+  `updatedAt` **descending** (newest first). "Default order" and "Name (A–Z)" keep
+  their current behavior.
+- Sorting still applies to the **result of filtering**: keep the five-filter
+  composition and the `filtered` const exactly as they are, and extend only the sort
+  branch that derives `visibleRanges`. The existing empty states must still show when
+  nothing matches. Keep the selection in local component state; it is not persisted.
 
 Keep domain logic separate:
-- Add a pure helper `sortRangesByName(ranges)` to `src/domain/rangeLibrary.ts`, next
-  to the filters. Constrain the element type to `{ name: string }`. Return a new
-  array sorted ascending by `name` using
-  `a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })` for
-  case-insensitive ordering. Do NOT mutate the input — call `ranges.slice()` before
-  `.sort()`. `Array.prototype.sort` is stable, so ranges with equal names keep their
-  input order. Keep it decoupled (no app-type imports), mirroring the filter helpers.
+- Add a pure helper `sortRangesByUpdatedAt(ranges)` to `src/domain/rangeLibrary.ts`,
+  next to `sortRangesByName`. Constrain the element type to `{ updatedAt: string }`.
+  Return a new array sorted by `updatedAt` descending using
+  `b.updatedAt.localeCompare(a.updatedAt)` (ISO-8601 strings sort chronologically as
+  plain strings, and `b` vs `a` gives descending). Do NOT mutate the input — call
+  `ranges.slice()` before `.sort()`. `Array.prototype.sort` is stable, so ranges with
+  equal `updatedAt` keep their input order. Keep it decoupled (no app-type imports),
+  mirroring the existing helpers.
 
 Component typing:
-- Type the select's state as `'' | 'name'` (empty string = default order). On
-  change, set `event.target.value as '' | 'name'`. After computing the filtered
-  list, branch: `sort === 'name' ? sortRangesByName(filtered) : filtered` to produce
-  the rendered list. (You may keep the filter composition in a `filtered` const and
-  derive `visibleRanges` from it.)
+- Extend the sort branch to a three-way: `sort === 'name' ? sortRangesByName(filtered)
+  : sort === 'recent' ? sortRangesByUpdatedAt(filtered) : filtered`.
 
 Files to create or modify:
-- `src/domain/rangeLibrary.ts` — add `sortRangesByName`.
+- `src/domain/rangeLibrary.ts` — add `sortRangesByUpdatedAt`.
 - `src/domain/rangeLibrary.test.ts` — unit tests for the new helper.
-- `src/components/RangeLibrary.tsx` — render the sort `<select>`, apply sorting after
-  filtering, and update the component doc comment to mention sorting.
-- `src/components/RangeLibrary.css` — only if the sort select needs layout tweaks; it
-  should reuse `.range-library-filter`.
-- `src/components/RangeLibrary.test.tsx` — tests for sorting by name, default order,
-  and sorting combined with a filter.
+- `src/components/RangeLibrary.tsx` — add the "Recently edited" option, widen the sort
+  state type, extend the sort branch, and update the component doc comment to mention
+  the recently-edited sort.
+- `src/components/RangeLibrary.css` — only if needed; the select reuses
+  `.range-library-filter`, so likely no change.
+- `src/components/RangeLibrary.test.tsx` — tests for sorting by recently edited and
+  for it composing with a filter.
 
 Tests to add:
-- `sortRangesByName`: sorts by name ascending; is case-insensitive ("apple" sorts
-  before "Banana"); preserves input order for names that compare equal (stable);
-  returns an empty array for an empty input; does not mutate the input; returns a
-  fresh array (not the same reference).
-- Library component: with the sort at "Default order", ranges render in their given
-  (input) order; selecting "Name (A–Z)" reorders the visible ranges alphabetically;
-  sorting composes with a filter (e.g. filter by a position, then sort by name, and
-  assert both membership and order). Assert DOM order by reading the
-  `.range-item-name` spans in document order (e.g.
-  `container.querySelectorAll('.range-item-name')` mapped to `textContent`) rather
-  than `getByText`, which is order-insensitive. There are now five `<select>`s, so
-  target the sort control by its accessible name (`/sort ranges/i`) and keep
-  targeting the filters by theirs.
+- `sortRangesByUpdatedAt`: sorts by `updatedAt` descending (newest first); preserves
+  input order for equal timestamps (stable); returns an empty array for empty input;
+  does not mutate the input; returns a fresh array (not the same reference).
+- Library component: selecting "Recently edited" orders the visible ranges by
+  `updatedAt` descending (use ranges with distinct `updatedAt` values via the
+  `makeRange` override, in a non-sorted input order, and assert the rendered order);
+  recently-edited sort composes with a filter (filter by a position, then sort by
+  recent, and assert both membership and order). Assert DOM order by reading the
+  `.range-item-name` spans in document order
+  (`container.querySelectorAll('.range-item-name')` mapped to `textContent`), not
+  `getByText`. Target the sort control by its accessible name (`/sort ranges/i`).
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -140,17 +134,15 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within v1.4 scope, and within this slice: only the Name sort and the
-  sort-control scaffolding. The next sort slice should add **Recently edited** (sort
-  by `updatedAt` descending — also backed by existing data). **Recently practiced**
-  and **Accuracy** sorts are BLOCKED: the app does not persist practice history yet,
-  so a prior slice must add practice-result persistence before those keys can be
-  built. Do not add that persistence here, and do not add sort options the app cannot
-  back with real data.
+- Stay within v1.4 scope, and within this slice: only the Recently-edited sort key.
+  **Recently practiced** and **Accuracy** sorts are BLOCKED: the app does not persist
+  practice history yet, so a prior slice must add practice-result persistence before
+  those keys can be built. Do not add that persistence here, and do not add sort
+  options the app cannot back with real data.
 - Duplicate / archive / favorite range and richer range cards remain later v1.4
   slices.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: add range library name sort`
+- `feat: add range library recently-edited sort`

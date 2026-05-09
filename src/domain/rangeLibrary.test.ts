@@ -6,6 +6,7 @@ import {
   filterRangesByName,
   filterRangesByPosition,
   filterRangesByStackDepth,
+  sortRangesByName,
 } from './rangeLibrary'
 
 /** Minimal stand-ins for saved ranges — only the name matters to the filter. */
@@ -333,5 +334,51 @@ describe('distinctStackDepths', () => {
 
   it('returns an empty array when no range has a stack depth', () => {
     expect(distinctStackDepths([{ name: 'a', metadata: {} }, { name: 'b' }])).toEqual([])
+  })
+})
+
+describe('sortRangesByName', () => {
+  it('sorts by name ascending', () => {
+    expect(
+      sortRangesByName([{ name: 'Cutoff' }, { name: 'Button' }, { name: 'Hijack' }]),
+    ).toEqual([{ name: 'Button' }, { name: 'Cutoff' }, { name: 'Hijack' }])
+  })
+
+  it('is case-insensitive: "apple" sorts before "Banana"', () => {
+    expect(sortRangesByName([{ name: 'Banana' }, { name: 'apple' }])).toEqual([
+      { name: 'apple' },
+      { name: 'Banana' },
+    ])
+  })
+
+  it('preserves input order for names that compare equal (stable)', () => {
+    // All three names compare equal under case-insensitive ordering, so the
+    // distinguishing ids must stay in their input order.
+    const input = [
+      { name: 'open', id: 1 },
+      { name: 'Open', id: 2 },
+      { name: 'OPEN', id: 3 },
+    ]
+    expect(sortRangesByName(input)).toEqual([
+      { name: 'open', id: 1 },
+      { name: 'Open', id: 2 },
+      { name: 'OPEN', id: 3 },
+    ])
+  })
+
+  it('returns an empty array for an empty input', () => {
+    expect(sortRangesByName([])).toEqual([])
+  })
+
+  it('does not mutate the input array', () => {
+    const input = [{ name: 'Cutoff' }, { name: 'Button' }]
+    const snapshot = structuredClone(input)
+    sortRangesByName(input)
+    expect(input).toEqual(snapshot)
+  })
+
+  it('returns a fresh array rather than the original reference', () => {
+    const input = [{ name: 'Button' }]
+    expect(sortRangesByName(input)).not.toBe(input)
   })
 })

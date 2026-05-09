@@ -116,3 +116,18 @@ export function distinctStackDepths<T extends { metadata?: { stackDepthBb?: numb
   }
   return [...depths].sort((a, b) => a - b)
 }
+
+/**
+ * Return a copy of `ranges` sorted by `name` ascending, case-insensitively.
+ *
+ * Ordering uses `localeCompare` with `sensitivity: 'base'`, so case and accents
+ * are ignored and "apple" sorts before "Banana". `Array.prototype.sort` is
+ * stable, so ranges whose names compare equal keep their input order. The input
+ * array is never mutated — a fresh, sorted array is always returned (the input is
+ * copied with `.slice()` before sorting).
+ */
+export function sortRangesByName<T extends { name: string }>(ranges: T[]): T[] {
+  return ranges
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+}
