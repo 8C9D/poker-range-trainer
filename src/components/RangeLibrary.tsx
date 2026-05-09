@@ -7,6 +7,7 @@ import {
   filterRangesByPosition,
   filterRangesByStackDepth,
   sortRangesByName,
+  sortRangesByUpdatedAt,
 } from '../domain/rangeLibrary'
 import { calculateRangePercentage, countSelectedCombos } from '../domain/rangeMath'
 import {
@@ -56,11 +57,13 @@ function previewNotes(notes: string): string {
  * distinct depths actually present across the saved ranges (via
  * {@link distinctStackDepths}), since depth is a free-form number rather than a
  * fixed vocabulary; the other selects iterate fixed vocabularies. A final sort
- * select orders the filtered result through the {@link sortRangesByName} domain
- * helper: "Default order" keeps the filtered (storage) order, while "Name (A–Z)"
- * sorts alphabetically; sorting always applies to the result of filtering and is
- * not persisted. Combo counts and percentages are likewise derived through the
- * domain helpers, keeping the library free of reimplemented poker math.
+ * select orders the filtered result through the {@link sortRangesByName} and
+ * {@link sortRangesByUpdatedAt} domain helpers: "Default order" keeps the
+ * filtered (storage) order, "Name (A–Z)" sorts alphabetically, and "Recently
+ * edited" sorts by `updatedAt` descending (newest first); sorting always applies
+ * to the result of filtering and is not persisted. Combo counts and percentages
+ * are likewise derived through the domain helpers, keeping the library free of
+ * reimplemented poker math.
  */
 export function RangeLibrary({
   ranges,
@@ -83,8 +86,9 @@ export function RangeLibrary({
   // keeps only valid game types selectable.
   const [gameType, setGameType] = useState<GameType | ''>('')
   // Empty string is the "Default order" sentinel; 'name' sorts the filtered list
-  // alphabetically. Sorting applies after filtering and is not persisted.
-  const [sort, setSort] = useState<'' | 'name'>('')
+  // alphabetically and 'recent' sorts by most recently edited. Sorting applies
+  // after filtering and is not persisted.
+  const [sort, setSort] = useState<'' | 'name' | 'recent'>('')
   // Options come from the depths actually saved, so the filter always reflects
   // the user's data rather than a hardcoded list.
   const stackDepths = distinctStackDepths(ranges)
@@ -99,7 +103,12 @@ export function RangeLibrary({
     gameType,
   )
   // Sorting operates on the filtered result; "Default order" leaves it untouched.
-  const visibleRanges = sort === 'name' ? sortRangesByName(filtered) : filtered
+  const visibleRanges =
+    sort === 'name'
+      ? sortRangesByName(filtered)
+      : sort === 'recent'
+        ? sortRangesByUpdatedAt(filtered)
+        : filtered
 
   return (
     <section className="range-library" aria-label="Saved ranges">
@@ -174,11 +183,12 @@ export function RangeLibrary({
             <select
               className="range-library-filter"
               value={sort}
-              onChange={(event) => setSort(event.target.value as '' | 'name')}
+              onChange={(event) => setSort(event.target.value as '' | 'name' | 'recent')}
               aria-label="Sort ranges"
             >
               <option value="">Default order</option>
               <option value="name">Name (A–Z)</option>
+              <option value="recent">Recently edited</option>
             </select>
           </div>
           {visibleRanges.length === 0 ? (

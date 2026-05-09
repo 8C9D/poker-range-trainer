@@ -7,6 +7,7 @@ import {
   filterRangesByPosition,
   filterRangesByStackDepth,
   sortRangesByName,
+  sortRangesByUpdatedAt,
 } from './rangeLibrary'
 
 /** Minimal stand-ins for saved ranges — only the name matters to the filter. */
@@ -380,5 +381,55 @@ describe('sortRangesByName', () => {
   it('returns a fresh array rather than the original reference', () => {
     const input = [{ name: 'Button' }]
     expect(sortRangesByName(input)).not.toBe(input)
+  })
+})
+
+describe('sortRangesByUpdatedAt', () => {
+  it('sorts by updatedAt descending — most recently edited first', () => {
+    expect(
+      sortRangesByUpdatedAt([
+        { name: 'Older', updatedAt: '2026-01-01T00:00:00.000Z' },
+        { name: 'Newest', updatedAt: '2026-03-01T00:00:00.000Z' },
+        { name: 'Middle', updatedAt: '2026-02-01T00:00:00.000Z' },
+      ]),
+    ).toEqual([
+      { name: 'Newest', updatedAt: '2026-03-01T00:00:00.000Z' },
+      { name: 'Middle', updatedAt: '2026-02-01T00:00:00.000Z' },
+      { name: 'Older', updatedAt: '2026-01-01T00:00:00.000Z' },
+    ])
+  })
+
+  it('preserves input order for equal timestamps (stable)', () => {
+    // All three share a timestamp, so the distinguishing ids must stay in their
+    // input order.
+    const input = [
+      { name: 'a', id: 1, updatedAt: '2026-01-01T00:00:00.000Z' },
+      { name: 'b', id: 2, updatedAt: '2026-01-01T00:00:00.000Z' },
+      { name: 'c', id: 3, updatedAt: '2026-01-01T00:00:00.000Z' },
+    ]
+    expect(sortRangesByUpdatedAt(input)).toEqual([
+      { name: 'a', id: 1, updatedAt: '2026-01-01T00:00:00.000Z' },
+      { name: 'b', id: 2, updatedAt: '2026-01-01T00:00:00.000Z' },
+      { name: 'c', id: 3, updatedAt: '2026-01-01T00:00:00.000Z' },
+    ])
+  })
+
+  it('returns an empty array for an empty input', () => {
+    expect(sortRangesByUpdatedAt([])).toEqual([])
+  })
+
+  it('does not mutate the input array', () => {
+    const input = [
+      { name: 'Older', updatedAt: '2026-01-01T00:00:00.000Z' },
+      { name: 'Newest', updatedAt: '2026-03-01T00:00:00.000Z' },
+    ]
+    const snapshot = structuredClone(input)
+    sortRangesByUpdatedAt(input)
+    expect(input).toEqual(snapshot)
+  })
+
+  it('returns a fresh array rather than the original reference', () => {
+    const input = [{ name: 'Button', updatedAt: '2026-01-01T00:00:00.000Z' }]
+    expect(sortRangesByUpdatedAt(input)).not.toBe(input)
   })
 })

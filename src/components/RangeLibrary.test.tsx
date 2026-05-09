@@ -1078,4 +1078,70 @@ describe('RangeLibrary', () => {
     expect(names).toEqual(['Button open', 'Cutoff open'])
     expect(screen.queryByText('Away CO')).not.toBeInTheDocument()
   })
+
+  it('reorders the visible ranges by most recently edited when Recently edited is selected', async () => {
+    const user = userEvent.setup()
+    const { container } = render(
+      <RangeLibrary
+        ranges={[
+          makeRange({ id: 'r1', name: 'Edited middle', updatedAt: '2026-02-01T00:00:00.000Z' }),
+          makeRange({ id: 'r2', name: 'Edited newest', updatedAt: '2026-03-01T00:00:00.000Z' }),
+          makeRange({ id: 'r3', name: 'Edited oldest', updatedAt: '2026-01-01T00:00:00.000Z' }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+
+    await user.selectOptions(screen.getByRole('combobox', { name: /sort ranges/i }), 'recent')
+
+    const names = [...container.querySelectorAll('.range-item-name')].map((el) => el.textContent)
+    expect(names).toEqual(['Edited newest', 'Edited middle', 'Edited oldest'])
+  })
+
+  it('sorts by recently edited on top of an active filter', async () => {
+    const user = userEvent.setup()
+    const { container } = render(
+      <RangeLibrary
+        ranges={[
+          makeRange({
+            id: 'r1',
+            name: 'BTN older',
+            metadata: { position: 'btn' },
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          }),
+          makeRange({
+            id: 'r2',
+            name: 'BTN newer',
+            metadata: { position: 'btn' },
+            updatedAt: '2026-03-01T00:00:00.000Z',
+          }),
+          makeRange({
+            id: 'r3',
+            name: 'CO newest',
+            metadata: { position: 'co' },
+            updatedAt: '2026-06-01T00:00:00.000Z',
+          }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+      />,
+    )
+
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /filter ranges by position/i }),
+      'btn',
+    )
+    await user.selectOptions(screen.getByRole('combobox', { name: /sort ranges/i }), 'recent')
+
+    // The CO range is filtered out (it would sort first by recency if present),
+    // and the two remaining BTN ranges are ordered newest-edited first.
+    const names = [...container.querySelectorAll('.range-item-name')].map((el) => el.textContent)
+    expect(names).toEqual(['BTN newer', 'BTN older'])
+    expect(screen.queryByText('CO newest')).not.toBeInTheDocument()
+  })
 })

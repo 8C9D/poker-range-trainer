@@ -131,3 +131,18 @@ export function sortRangesByName<T extends { name: string }>(ranges: T[]): T[] {
     .slice()
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
 }
+
+/**
+ * Return a copy of `ranges` sorted by `updatedAt` descending — most recently
+ * edited first.
+ *
+ * `updatedAt` holds ISO-8601 timestamps, which sort chronologically as plain
+ * strings, so comparing `b` against `a` (`b.updatedAt.localeCompare(a.updatedAt)`)
+ * yields newest first. `Array.prototype.sort` is stable, so ranges whose
+ * timestamps compare equal keep their input order. The input array is never
+ * mutated — a fresh, sorted array is always returned (the input is copied with
+ * `.slice()` before sorting).
+ */
+export function sortRangesByUpdatedAt<T extends { updatedAt: string }>(ranges: T[]): T[] {
+  return ranges.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+}

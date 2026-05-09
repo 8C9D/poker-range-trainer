@@ -41,92 +41,95 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 4 | Filter saved ranges by stack depth | v1.4 — Range library and filtering | 2026-06-03 |
 | 5 | Filter saved ranges by game type | v1.4 — Range library and filtering | 2026-06-03 |
 | 6 | Sort saved ranges by name | v1.4 — Range library and filtering | 2026-06-05 |
+| 7 | Sort saved ranges by recently edited | v1.4 — Range library and filtering | 2026-06-05 |
 
 ## Next slice
 
-- **Number:** 7
+- **Number:** 8
 - **Roadmap target:** v1.4 — Range library and filtering
-- **Working title:** Sort saved ranges by recently edited
+- **Working title:** Duplicate a saved range
 
 ### Prompt
 
-You are implementing roadmap slice 7, the second **sorting** slice of **v1.4 — Range
-library and filtering**. The sort control now exists with two options — "Default
-order" and "Name (A–Z)" — added in slice 6. This slice adds the next sort key in the
-roadmap's "Sort by" group: **Recently edited**, ordering by `updatedAt` descending
-(most recently edited first). Like Name, it is backed only by data the app already
-persists, so no new storage is needed.
+You are implementing roadmap slice 8 of **v1.4 — Range library and filtering**. The
+search, four filters, and two sorts (Name, Recently edited) now exist. The next two
+sort keys in the roadmap — **Recently practiced** and **Accuracy** — are BLOCKED
+because the app does not persist any practice history yet, so this slice instead picks
+up the next unblocked v1.4 feature in roadmap order: **Duplicate range**. It copies an
+existing saved range into a new, independent saved range so the user can branch a
+variation without rebuilding it.
 
 Context:
-- The saved-range library lives in `src/components/RangeLibrary.tsx`. It composes
-  five pure filter helpers from `src/domain/rangeLibrary.ts` into a `filtered` list,
-  then derives `visibleRanges` from it via a sort branch:
-  `const visibleRanges = sort === 'name' ? sortRangesByName(filtered) : filtered`.
-  The sort selection lives in local state typed `'' | 'name'` (`const [sort, setSort]
-  = useState<'' | 'name'>('')`), bound to a `<select>` with aria-label "Sort ranges"
-  (options: "Default order" = `""`, "Name (A–Z)" = `"name"`). The select sits last in
-  the `.range-library-filters` flex row, reusing the `.range-library-filter` class.
-- The sort helper `sortRangesByName(ranges)` in `src/domain/rangeLibrary.ts` is a
-  pure, decoupled helper constrained to `{ name: string }` that returns
-  `ranges.slice().sort((a, b) => a.name.localeCompare(b.name, undefined, {
-  sensitivity: 'base' }))`. Mirror its shape for the new helper.
-- `SavedRange` (see `src/types/range.ts`) has `name`, `createdAt`, and `updatedAt`
-  (ISO-8601 strings) plus optional `metadata`. `updatedAt` is written on every
-  save/edit, so sorting by it descending gives a "most recently edited first" order
-  using existing data. **Recently practiced** and **Accuracy** sorts still need
-  per-range practice history that the app does NOT persist yet — do NOT build those
-  here (see Constraints).
+- The library `src/components/RangeLibrary.tsx` renders each saved range as a
+  `<li className="range-item">` whose `.range-item-actions` div holds three buttons —
+  Practice, Load, Delete — each calling a callback prop (`onPractice`, `onLoad` with
+  the `range`; `onDelete` with `range.id`) and labelled `aria-label={`<Verb> range
+  ${range.name}`}`. The component takes its callbacks via the `RangeLibraryProps`
+  interface at the top of the file.
+- `src/App.tsx` owns the saved-ranges state and all storage calls. It passes
+  `onLoad={handleLoad}`, `onDelete={handleDelete}`, `onPractice={handlePractice}` to
+  `<RangeLibrary>`. After any storage mutation it refreshes state with
+  `setSavedRanges(loadSavedRanges())`. New ids come from the existing
+  `createRangeId()` helper; timestamps from `new Date().toISOString()`. `handleSave`
+  already shows the pattern for constructing a `SavedRange` and persisting it via
+  `saveSavedRange`.
+- `saveSavedRange(range)` (in `src/storage/rangeStorage.ts`) inserts a range with a
+  new id by appending it to the end of storage order, and re-normalizes hands and
+  metadata — so a duplicate only needs a fresh id and is appended after the original.
+- `SavedRange` (see `src/types/range.ts`) has `id`, `name`, `hands`, `createdAt`,
+  `updatedAt`, and optional `metadata` (a `RangeMetadata` object). `metadata`, when
+  present, is a flat object of optional scalar fields, so a shallow copy fully
+  detaches it from the source.
 
 Task:
-- Add a third option to the existing sort `<select>`: "Recently edited" with value
-  `"recent"`, placed after "Name (A–Z)". Keep "Default order" first.
-- Widen the sort state type to `'' | 'name' | 'recent'`, and update the change
-  handler cast accordingly (`event.target.value as '' | 'name' | 'recent'`).
-- When "Recently edited" is selected, render the filtered ranges sorted by
-  `updatedAt` **descending** (newest first). "Default order" and "Name (A–Z)" keep
-  their current behavior.
-- Sorting still applies to the **result of filtering**: keep the five-filter
-  composition and the `filtered` const exactly as they are, and extend only the sort
-  branch that derives `visibleRanges`. The existing empty states must still show when
-  nothing matches. Keep the selection in local component state; it is not persisted.
+- Give each range card a fourth action button, "Duplicate", in `.range-item-actions`.
+  Place it first (before Practice) or last — your call for layout, but keep the other
+  three buttons and their behavior unchanged. Label it
+  `aria-label={`Duplicate range ${range.name}`}` and have it call a new `onDuplicate`
+  prop with the full `range`. Add `onDuplicate: (range: SavedRange) => void` to
+  `RangeLibraryProps`.
+- In `src/App.tsx`, add `handleDuplicate(range: SavedRange)` that builds the copy via
+  the new `duplicateRange` domain helper (passing `createRangeId()` and
+  `new Date().toISOString()`), persists it with `saveSavedRange`, then refreshes with
+  `setSavedRanges(loadSavedRanges())`. Do NOT change the editor selection or
+  `editingId` — duplicating is a library action, not an edit; the new copy simply
+  appears in the list. Pass `onDuplicate={handleDuplicate}` to `<RangeLibrary>`.
 
 Keep domain logic separate:
-- Add a pure helper `sortRangesByUpdatedAt(ranges)` to `src/domain/rangeLibrary.ts`,
-  next to `sortRangesByName`. Constrain the element type to `{ updatedAt: string }`.
-  Return a new array sorted by `updatedAt` descending using
-  `b.updatedAt.localeCompare(a.updatedAt)` (ISO-8601 strings sort chronologically as
-  plain strings, and `b` vs `a` gives descending). Do NOT mutate the input — call
-  `ranges.slice()` before `.sort()`. `Array.prototype.sort` is stable, so ranges with
-  equal `updatedAt` keep their input order. Keep it decoupled (no app-type imports),
-  mirroring the existing helpers.
-
-Component typing:
-- Extend the sort branch to a three-way: `sort === 'name' ? sortRangesByName(filtered)
-  : sort === 'recent' ? sortRangesByUpdatedAt(filtered) : filtered`.
+- Create `src/domain/rangeDuplication.ts` exporting a pure
+  `duplicateRange(source: SavedRange, newId: string, timestamp: string): SavedRange`.
+  It returns a NEW range object: `id: newId`; `name: `${source.name} (copy)``; a fresh
+  copy of `hands` (`[...source.hands]`, not the same array reference); `createdAt` and
+  `updatedAt` both set to `timestamp`; and `metadata` set to a shallow copy
+  (`{ ...source.metadata }`) ONLY when `source.metadata` is present, omitted entirely
+  when absent. It must NOT mutate `source` (including not sharing its `hands` or
+  `metadata` references). Import `SavedRange` from `../types/range`; this helper
+  legitimately owns the full shape, unlike the decoupled minimal-shape helpers in
+  `rangeLibrary.ts`, so keep it in its own file rather than there.
 
 Files to create or modify:
-- `src/domain/rangeLibrary.ts` — add `sortRangesByUpdatedAt`.
-- `src/domain/rangeLibrary.test.ts` — unit tests for the new helper.
-- `src/components/RangeLibrary.tsx` — add the "Recently edited" option, widen the sort
-  state type, extend the sort branch, and update the component doc comment to mention
-  the recently-edited sort.
-- `src/components/RangeLibrary.css` — only if needed; the select reuses
-  `.range-library-filter`, so likely no change.
-- `src/components/RangeLibrary.test.tsx` — tests for sorting by recently edited and
-  for it composing with a filter.
+- `src/domain/rangeDuplication.ts` — new: the `duplicateRange` helper.
+- `src/domain/rangeDuplication.test.ts` — new: unit tests for the helper.
+- `src/components/RangeLibrary.tsx` — add the `onDuplicate` prop, the Duplicate
+  button, and a mention of the duplicate action in the component doc comment.
+- `src/components/RangeLibrary.test.tsx` — test the Duplicate button (and update the
+  existing renders that construct `<RangeLibrary>` to pass an `onDuplicate` prop;
+  `vi.fn()` is fine for the ones that don't exercise it).
+- `src/App.tsx` — add `handleDuplicate` and pass `onDuplicate` to `<RangeLibrary>`.
+- `src/components/RangeLibrary.css` — only if the extra button needs layout tweaks;
+  likely no change since it reuses the existing actions row.
 
 Tests to add:
-- `sortRangesByUpdatedAt`: sorts by `updatedAt` descending (newest first); preserves
-  input order for equal timestamps (stable); returns an empty array for empty input;
-  does not mutate the input; returns a fresh array (not the same reference).
-- Library component: selecting "Recently edited" orders the visible ranges by
-  `updatedAt` descending (use ranges with distinct `updatedAt` values via the
-  `makeRange` override, in a non-sorted input order, and assert the rendered order);
-  recently-edited sort composes with a filter (filter by a position, then sort by
-  recent, and assert both membership and order). Assert DOM order by reading the
-  `.range-item-name` spans in document order
-  (`container.querySelectorAll('.range-item-name')` mapped to `textContent`), not
-  `getByText`. Target the sort control by its accessible name (`/sort ranges/i`).
+- `duplicateRange`: gives the copy the supplied `newId`; names it `"<name> (copy)"`;
+  copies `hands` by value into a fresh array (deep-equal to source hands but NOT the
+  same reference); sets both `createdAt` and `updatedAt` to the supplied `timestamp`;
+  shallow-copies `metadata` when present (deep-equal but not the same reference) and
+  omits `metadata` entirely when the source has none; does not mutate the source
+  (snapshot the source with `structuredClone` and assert it is unchanged).
+- Library component: each card exposes a "Duplicate range <name>" button; clicking it
+  calls `onDuplicate` exactly once with the range
+  (`toHaveBeenCalledExactlyOnceWith(range)`), mirroring the existing
+  Load/Delete/Practice button tests.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -134,15 +137,15 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within v1.4 scope, and within this slice: only the Recently-edited sort key.
-  **Recently practiced** and **Accuracy** sorts are BLOCKED: the app does not persist
-  practice history yet, so a prior slice must add practice-result persistence before
-  those keys can be built. Do not add that persistence here, and do not add sort
-  options the app cannot back with real data.
-- Duplicate / archive / favorite range and richer range cards remain later v1.4
-  slices.
+- Stay within v1.4 scope and within this slice: only the Duplicate action. Do NOT add
+  archive or favorite (later v1.4 slices), and do NOT add unique-name disambiguation
+  (e.g. "(copy 2)") — a plain " (copy)" suffix is sufficient for this slice; repeated
+  duplicates may share a name.
+- **Recently practiced** and **Accuracy** sorts, plus the "Last practiced" / accuracy
+  fields on richer range cards, remain BLOCKED until a future slice adds
+  practice-result persistence. Do not add that persistence here.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: add range library recently-edited sort`
+- `feat: add range library duplicate action`
