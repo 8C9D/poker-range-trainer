@@ -25,6 +25,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
     expect(screen.getByText(/no saved ranges/i)).toBeInTheDocument()
@@ -39,6 +40,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
     expect(screen.getByText('Pairs')).toBeInTheDocument()
@@ -58,6 +60,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -77,6 +80,7 @@ describe('RangeLibrary', () => {
         onDelete={onDelete}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -97,6 +101,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={onPractice}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -117,12 +122,80 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={onDuplicate}
+        onArchive={vi.fn()}
       />,
     )
 
     await user.click(screen.getByRole('button', { name: 'Duplicate range Pairs' }))
 
     expect(onDuplicate).toHaveBeenCalledExactlyOnceWith(range)
+  })
+
+  it('exposes an Archive action that calls onArchive with the range', async () => {
+    const user = userEvent.setup()
+    const onArchive = vi.fn()
+    const range = makeRange({ name: 'Pairs' })
+    render(
+      <RangeLibrary
+        ranges={[range]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+        onDuplicate={vi.fn()}
+        onArchive={onArchive}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Archive range Pairs' }))
+
+    expect(onArchive).toHaveBeenCalledExactlyOnceWith(range)
+  })
+
+  it('shows no Archived badge and an Archive button for an active range', () => {
+    render(
+      <RangeLibrary
+        ranges={[makeRange({ name: 'Pairs' })]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+        onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
+      />,
+    )
+
+    expect(screen.queryByText('Archived')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Archive range Pairs' })).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Unarchive range Pairs' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('shows an Archived badge and an Unarchive action for an archived range', async () => {
+    const user = userEvent.setup()
+    const onArchive = vi.fn()
+    const range = makeRange({ name: 'Pairs', archived: true })
+    render(
+      <RangeLibrary
+        ranges={[range]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+        onDuplicate={vi.fn()}
+        onArchive={onArchive}
+      />,
+    )
+
+    expect(screen.getByText('Archived')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Archive range Pairs' }),
+    ).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Unarchive range Pairs' }))
+
+    expect(onArchive).toHaveBeenCalledExactlyOnceWith(range)
   })
 
   it('marks the active range as current', () => {
@@ -137,6 +210,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
     expect(screen.getByText('Active One').closest('li')).toHaveAttribute('aria-current', 'true')
@@ -156,6 +230,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
     expect(screen.getByText('BTN · Open')).toBeInTheDocument()
@@ -182,6 +257,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
     expect(screen.getByText('Cash · 6-max · 100bb · BTN vs CO · Open')).toBeInTheDocument()
@@ -196,6 +272,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
     // Scope to the scenario span so the matching "40bb" option in the
@@ -212,6 +289,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
     expect(screen.getByText('SB vs BTN · 3-bet')).toBeInTheDocument()
@@ -226,6 +304,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
     // Position alone renders as exactly "CO" (no separator); no action label appears.
@@ -246,6 +325,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
     // No empty scenario/notes labels are emitted for a metadata-less range.
@@ -263,6 +343,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
     expect(screen.getByText(`${'x'.repeat(80)}…`)).toBeInTheDocument()
@@ -282,6 +363,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -305,6 +387,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -323,6 +406,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -345,6 +429,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -366,6 +451,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
     expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
@@ -384,6 +470,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -413,6 +500,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -438,6 +526,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -464,6 +553,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -489,6 +579,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -510,6 +601,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
     expect(
@@ -530,6 +622,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -559,6 +652,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -584,6 +678,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -622,6 +717,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -652,6 +748,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -673,6 +770,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
     expect(
@@ -694,6 +792,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -718,6 +817,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -747,6 +847,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -772,6 +873,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -810,6 +912,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -847,6 +950,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -874,6 +978,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
     expect(
@@ -894,6 +999,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -923,6 +1029,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -948,6 +1055,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -991,6 +1099,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -1037,6 +1146,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -1064,6 +1174,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
     expect(
@@ -1084,6 +1195,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -1106,6 +1218,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -1129,6 +1242,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -1159,6 +1273,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 
@@ -1197,6 +1312,7 @@ describe('RangeLibrary', () => {
         onDelete={vi.fn()}
         onPractice={vi.fn()}
         onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
       />,
     )
 

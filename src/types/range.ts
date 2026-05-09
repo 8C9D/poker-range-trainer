@@ -108,4 +108,9 @@ export interface SavedRange {
   updatedAt: string
   /** Optional scenario metadata; absent on ranges saved before v1.3. */
   metadata?: RangeMetadata
+  /**
+   * Library archive state; absent/false = active. Hidden-by-default filtering
+   * comes in a later slice.
+   */
+  archived?: boolean
 }

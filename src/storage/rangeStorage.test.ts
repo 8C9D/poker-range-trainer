@@ -271,3 +271,33 @@ describe('range metadata', () => {
     expect(loadSavedRanges()[0].metadata).toEqual({ gameType: 'cash' })
   })
 })
+
+describe('range archive flag', () => {
+  it('preserves archived: true across a save/load round trip', () => {
+    const range = makeRange({ archived: true })
+    saveSavedRange(range)
+    expect(loadSavedRanges()).toEqual([range])
+  })
+
+  it('does not persist an archived key when archived is false', () => {
+    saveSavedRange(makeRange({ archived: false }))
+    expect(loadSavedRanges()[0]).not.toHaveProperty('archived')
+  })
+
+  it('adds no archived key when a saved range has none', () => {
+    saveSavedRange(makeRange())
+    expect(loadSavedRanges()[0]).not.toHaveProperty('archived')
+  })
+
+  it('ignores a stored archived: false flag on load', () => {
+    const stored = { ...makeRange({ id: 'r1' }), archived: false }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([stored]))
+    expect(loadSavedRanges()[0]).not.toHaveProperty('archived')
+  })
+
+  it('ignores a non-boolean stored archived value', () => {
+    const stored = { ...makeRange({ id: 'r1' }), archived: 'yes' }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([stored]))
+    expect(loadSavedRanges()[0]).not.toHaveProperty('archived')
+  })
+})

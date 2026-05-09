@@ -89,6 +89,20 @@
   color: var(--text-h);
 }
 
+.range-item-badge {
+  align-self: flex-start;
+  margin: 2px 0;
+  padding: 1px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
 .range-item-stats {
   font-family: var(--mono);
   font-size: 13px;

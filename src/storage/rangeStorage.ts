@@ -76,7 +76,8 @@ function normalizeMetadata(value: unknown): RangeMetadata | undefined {
 /** Validate a parsed value as a `SavedRange`, returning `null` if it is malformed. */
 function parseSavedRange(value: unknown): SavedRange | null {
   if (typeof value !== 'object' || value === null) return null
-  const { id, name, hands, createdAt, updatedAt, metadata } = value as Record<string, unknown>
+  const { id, name, hands, createdAt, updatedAt, metadata, archived } =
+    value as Record<string, unknown>
 
   if (typeof id !== 'string' || id.length === 0) return null
   if (typeof name !== 'string') return null
@@ -100,6 +101,8 @@ function parseSavedRange(value: unknown): SavedRange | null {
     updatedAt,
     hands: normalizeRangeHands(validatedHands),
     ...(normalizedMetadata ? { metadata: normalizedMetadata } : {}),
+    // Only a strict `true` persists; absent/false stays unarchived with no key.
+    ...(archived === true ? { archived: true } : {}),
   }
 }
 
@@ -148,12 +151,14 @@ export function findSavedRangeById(id: string): SavedRange | undefined {
  * before any write and leaves existing storage untouched.
  */
 export function saveSavedRange(range: SavedRange): void {
-  const { metadata, ...rest } = range
+  const { metadata, archived, ...rest } = range
   const normalizedMetadata = normalizeMetadata(metadata)
   const normalized: SavedRange = {
     ...rest,
     hands: normalizeRangeHands(range.hands),
     ...(normalizedMetadata ? { metadata: normalizedMetadata } : {}),
+    // Mirror parse: only a strict `true` is stored, so `false`/undefined drops the key.
+    ...(archived === true ? { archived: true } : {}),
   }
 
   const ranges = loadSavedRanges()

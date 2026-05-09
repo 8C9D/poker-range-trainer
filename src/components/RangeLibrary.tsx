@@ -35,6 +35,8 @@ interface RangeLibraryProps {
   onPractice: (range: SavedRange) => void
   /** Save an independent copy of the given range to the library. */
   onDuplicate: (range: SavedRange) => void
+  /** Toggle the given range's archived (library) state. */
+  onArchive: (range: SavedRange) => void
 }
 
 /** Longest notes string shown in full on a card before it is truncated. */
@@ -48,8 +50,11 @@ function previewNotes(notes: string): string {
 
 /**
  * Lists the saved ranges with summary stats and per-range actions: practice,
- * load, duplicate, and delete. The duplicate action calls `onDuplicate` with
- * the range so a copy can be saved as a new, independent range.
+ * load, duplicate, archive, and delete. The duplicate action calls `onDuplicate`
+ * with the range so a copy can be saved as a new, independent range. The archive
+ * action calls `onArchive` with the range to toggle its persisted `archived`
+ * flag; archived ranges stay in the list for now and show an "Archived" badge
+ * and an Unarchive button.
  *
  * A name search, a position filter, an action-type filter, a stack-depth filter,
  * and a game-type filter narrow the list through the {@link filterRangesByName},
@@ -76,6 +81,7 @@ export function RangeLibrary({
   onDelete,
   onPractice,
   onDuplicate,
+  onArchive,
 }: RangeLibraryProps) {
   const [query, setQuery] = useState('')
   // Empty string is the "All positions" sentinel; typing it as Position | ''
@@ -242,6 +248,7 @@ export function RangeLibrary({
                   >
                     <div className="range-item-info">
                       <span className="range-item-name">{range.name}</span>
+                      {range.archived && <span className="range-item-badge">Archived</span>}
                       <span className="range-item-stats">
                         {range.hands.length} hands · {combos} combos · {percentage.toFixed(1)}%
                       </span>
@@ -272,6 +279,17 @@ export function RangeLibrary({
                         onClick={() => onDuplicate(range)}
                       >
                         Duplicate
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={
+                          range.archived
+                            ? `Unarchive range ${range.name}`
+                            : `Archive range ${range.name}`
+                        }
+                        onClick={() => onArchive(range)}
+                      >
+                        {range.archived ? 'Unarchive' : 'Archive'}
                       </button>
                       <button
                         type="button"

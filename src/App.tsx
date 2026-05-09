@@ -5,6 +5,7 @@ import { RangeLibrary } from './components/RangeLibrary'
 import { RangeMetadataEditor } from './components/RangeMetadataEditor'
 import { RangeNotation } from './components/RangeNotation'
 import { RangeShortcuts } from './components/RangeShortcuts'
+import { setRangeArchived } from './domain/rangeArchive'
 import { duplicateRange } from './domain/rangeDuplication'
 import { calculateRangePercentage, countSelectedCombos } from './domain/rangeMath'
 import { mergeShortcutHands } from './domain/rangeShortcuts'
@@ -216,6 +217,13 @@ function App() {
     setSavedRanges(loadSavedRanges())
   }
 
+  function handleArchive(range: SavedRange) {
+    // Archiving is a library action, not an edit: persist the toggled flag and
+    // refresh the list, leaving the editor selection and editingId untouched.
+    saveSavedRange(setRangeArchived(range, !range.archived))
+    setSavedRanges(loadSavedRanges())
+  }
+
   function handlePractice(range: SavedRange) {
     setPracticingRange(range)
   }
@@ -308,6 +316,7 @@ function App() {
             onDelete={handleDelete}
             onPractice={handlePractice}
             onDuplicate={handleDuplicate}
+            onArchive={handleArchive}
           />
         </>
       )}
