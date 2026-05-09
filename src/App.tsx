@@ -5,6 +5,7 @@ import { RangeLibrary } from './components/RangeLibrary'
 import { RangeMetadataEditor } from './components/RangeMetadataEditor'
 import { RangeNotation } from './components/RangeNotation'
 import { RangeShortcuts } from './components/RangeShortcuts'
+import { duplicateRange } from './domain/rangeDuplication'
 import { calculateRangePercentage, countSelectedCombos } from './domain/rangeMath'
 import { mergeShortcutHands } from './domain/rangeShortcuts'
 import type { PokerHand } from './domain/pokerHands'
@@ -208,6 +209,13 @@ function App() {
     }
   }
 
+  function handleDuplicate(range: SavedRange) {
+    // Duplicating is a library action, not an edit: persist an independent copy
+    // and refresh the list, leaving the editor selection and editingId untouched.
+    saveSavedRange(duplicateRange(range, createRangeId(), new Date().toISOString()))
+    setSavedRanges(loadSavedRanges())
+  }
+
   function handlePractice(range: SavedRange) {
     setPracticingRange(range)
   }
@@ -299,6 +307,7 @@ function App() {
             onLoad={handleLoad}
             onDelete={handleDelete}
             onPractice={handlePractice}
+            onDuplicate={handleDuplicate}
           />
         </>
       )}

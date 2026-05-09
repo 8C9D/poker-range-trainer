@@ -42,94 +42,107 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 5 | Filter saved ranges by game type | v1.4 — Range library and filtering | 2026-06-03 |
 | 6 | Sort saved ranges by name | v1.4 — Range library and filtering | 2026-06-05 |
 | 7 | Sort saved ranges by recently edited | v1.4 — Range library and filtering | 2026-06-05 |
+| 8 | Duplicate a saved range | v1.4 — Range library and filtering | 2026-06-05 |
 
 ## Next slice
 
-- **Number:** 8
+- **Number:** 9
 - **Roadmap target:** v1.4 — Range library and filtering
-- **Working title:** Duplicate a saved range
+- **Working title:** Archive / unarchive a saved range (persisted flag)
 
 ### Prompt
 
-You are implementing roadmap slice 8 of **v1.4 — Range library and filtering**. The
-search, four filters, and two sorts (Name, Recently edited) now exist. The next two
-sort keys in the roadmap — **Recently practiced** and **Accuracy** — are BLOCKED
-because the app does not persist any practice history yet, so this slice instead picks
-up the next unblocked v1.4 feature in roadmap order: **Duplicate range**. It copies an
-existing saved range into a new, independent saved range so the user can branch a
-variation without rebuilding it.
+You are implementing roadmap slice 9 of **v1.4 — Range library and filtering**. Search,
+the four filters, two sorts (Name, Recently edited), and Duplicate now exist. The next
+two sort keys — **Recently practiced** and **Accuracy** — remain BLOCKED (the app
+persists no practice history yet), so this slice continues in roadmap order with the
+next library-management feature: **Archive range**.
+
+This slice adds a *persisted* `archived` flag plus an Archive/Unarchive toggle on each
+range card and a small "Archived" badge. To keep the slice small, **archived ranges
+stay visible in the list for now** — hiding them by default behind a "Show archived"
+toggle is the NEXT slice. Favorite is a later slice still.
 
 Context:
-- The library `src/components/RangeLibrary.tsx` renders each saved range as a
-  `<li className="range-item">` whose `.range-item-actions` div holds three buttons —
-  Practice, Load, Delete — each calling a callback prop (`onPractice`, `onLoad` with
-  the `range`; `onDelete` with `range.id`) and labelled `aria-label={`<Verb> range
-  ${range.name}`}`. The component takes its callbacks via the `RangeLibraryProps`
-  interface at the top of the file.
-- `src/App.tsx` owns the saved-ranges state and all storage calls. It passes
-  `onLoad={handleLoad}`, `onDelete={handleDelete}`, `onPractice={handlePractice}` to
-  `<RangeLibrary>`. After any storage mutation it refreshes state with
-  `setSavedRanges(loadSavedRanges())`. New ids come from the existing
-  `createRangeId()` helper; timestamps from `new Date().toISOString()`. `handleSave`
-  already shows the pattern for constructing a `SavedRange` and persisting it via
-  `saveSavedRange`.
-- `saveSavedRange(range)` (in `src/storage/rangeStorage.ts`) inserts a range with a
-  new id by appending it to the end of storage order, and re-normalizes hands and
-  metadata — so a duplicate only needs a fresh id and is appended after the original.
-- `SavedRange` (see `src/types/range.ts`) has `id`, `name`, `hands`, `createdAt`,
-  `updatedAt`, and optional `metadata` (a `RangeMetadata` object). `metadata`, when
-  present, is a flat object of optional scalar fields, so a shallow copy fully
-  detaches it from the source.
+- `SavedRange` (`src/types/range.ts`) currently has `id`, `name`, `hands`, `createdAt`,
+  `updatedAt`, and optional `metadata`. Archive state is library management, not
+  scenario metadata, so it is a NEW top-level optional field `archived?: boolean`, not
+  part of `RangeMetadata`. Absent or `false` means active.
+- `src/storage/rangeStorage.ts` validates/normalizes ranges. `parseSavedRange` builds
+  an explicit object literal and uses a conditional spread for `metadata`
+  (`...(normalizedMetadata ? { metadata: normalizedMetadata } : {})`); it does NOT
+  currently read `archived`. `saveSavedRange` does `const { metadata, ...rest } = range`
+  and spreads `...rest`, so a top-level `archived` would pass through unnormalized —
+  including `archived: false`, which we do not want persisted.
+- `src/App.tsx` owns saved-range state and all storage calls; after any mutation it
+  refreshes with `setSavedRanges(loadSavedRanges())`. `handleDelete`/`handleDuplicate`
+  show the pattern. Archiving must NOT change the editor selection or `editingId`.
+- `src/components/RangeLibrary.tsx` renders each card with a `.range-item-info` block
+  (name, stats, scenario, notes) and a `.range-item-actions` block holding the
+  Practice, Load, Duplicate, and Delete buttons. Buttons use
+  `aria-label={`<Verb> range ${range.name}`}` and call a callback prop. Callbacks come
+  in via the `RangeLibraryProps` interface at the top of the file.
 
 Task:
-- Give each range card a fourth action button, "Duplicate", in `.range-item-actions`.
-  Place it first (before Practice) or last — your call for layout, but keep the other
-  three buttons and their behavior unchanged. Label it
-  `aria-label={`Duplicate range ${range.name}`}` and have it call a new `onDuplicate`
-  prop with the full `range`. Add `onDuplicate: (range: SavedRange) => void` to
-  `RangeLibraryProps`.
-- In `src/App.tsx`, add `handleDuplicate(range: SavedRange)` that builds the copy via
-  the new `duplicateRange` domain helper (passing `createRangeId()` and
-  `new Date().toISOString()`), persists it with `saveSavedRange`, then refreshes with
-  `setSavedRanges(loadSavedRanges())`. Do NOT change the editor selection or
-  `editingId` — duplicating is a library action, not an edit; the new copy simply
-  appears in the list. Pass `onDuplicate={handleDuplicate}` to `<RangeLibrary>`.
+- Type: add `archived?: boolean` to `SavedRange` with a doc comment ("Library archive
+  state; absent/false = active. Hidden-by-default filtering comes in a later slice.").
+- Storage:
+  - In `parseSavedRange`, read `archived` from the raw object and include
+    `archived: true` in the returned literal ONLY when the stored value is strictly
+    `true` (mirror the metadata conditional spread); omit the key otherwise, so old and
+    active ranges carry no `archived` key.
+  - In `saveSavedRange`, destructure `archived` out alongside `metadata` and re-add it
+    conditionally (`...(archived === true ? { archived: true } : {})`) so `false`/
+    `undefined` never persists the key.
+- Domain: create `src/domain/rangeArchive.ts` exporting a pure
+  `setRangeArchived(range: SavedRange, archived: boolean): SavedRange`. It returns a
+  NEW range (shallow top-level copy): when `archived` is true it sets `archived: true`;
+  when false it OMITS the `archived` key entirely. It does NOT change `updatedAt`,
+  `createdAt`, or any other field, and must not mutate `range`. Import `SavedRange`
+  from `../types/range`. Like `rangeDuplication.ts`, this helper owns the full
+  `SavedRange` shape, so keep it in its own file rather than in `rangeLibrary.ts`.
+- App: add `handleArchive(range: SavedRange)` that persists
+  `setRangeArchived(range, !range.archived)` via `saveSavedRange`, then refreshes with
+  `setSavedRanges(loadSavedRanges())`; do not touch `editingId`/selection. Pass
+  `onArchive={handleArchive}` to `<RangeLibrary>`.
+- Component: add `onArchive: (range: SavedRange) => void` to `RangeLibraryProps`. In
+  `.range-item-actions`, add an Archive button between Duplicate and Delete whose
+  visible text and `aria-label` reflect state — `Unarchive` /
+  `aria-label={`Unarchive range ${range.name}`}` when `range.archived`, else
+  `Archive` / `aria-label={`Archive range ${range.name}`}` — calling `onArchive(range)`.
+  When `range.archived`, render an "Archived" badge span (e.g.
+  `className="range-item-badge"`) inside `.range-item-info`. Update the component doc
+  comment to mention the archive toggle.
 
-Keep domain logic separate:
-- Create `src/domain/rangeDuplication.ts` exporting a pure
-  `duplicateRange(source: SavedRange, newId: string, timestamp: string): SavedRange`.
-  It returns a NEW range object: `id: newId`; `name: `${source.name} (copy)``; a fresh
-  copy of `hands` (`[...source.hands]`, not the same array reference); `createdAt` and
-  `updatedAt` both set to `timestamp`; and `metadata` set to a shallow copy
-  (`{ ...source.metadata }`) ONLY when `source.metadata` is present, omitted entirely
-  when absent. It must NOT mutate `source` (including not sharing its `hands` or
-  `metadata` references). Import `SavedRange` from `../types/range`; this helper
-  legitimately owns the full shape, unlike the decoupled minimal-shape helpers in
-  `rangeLibrary.ts`, so keep it in its own file rather than there.
+Keep domain logic separate: storage normalization stays in `rangeStorage.ts`, the pure
+transform in `rangeArchive.ts`; the component only renders state and calls `onArchive`.
 
 Files to create or modify:
-- `src/domain/rangeDuplication.ts` — new: the `duplicateRange` helper.
-- `src/domain/rangeDuplication.test.ts` — new: unit tests for the helper.
-- `src/components/RangeLibrary.tsx` — add the `onDuplicate` prop, the Duplicate
-  button, and a mention of the duplicate action in the component doc comment.
-- `src/components/RangeLibrary.test.tsx` — test the Duplicate button (and update the
-  existing renders that construct `<RangeLibrary>` to pass an `onDuplicate` prop;
-  `vi.fn()` is fine for the ones that don't exercise it).
-- `src/App.tsx` — add `handleDuplicate` and pass `onDuplicate` to `<RangeLibrary>`.
-- `src/components/RangeLibrary.css` — only if the extra button needs layout tweaks;
-  likely no change since it reuses the existing actions row.
+- `src/types/range.ts` — add `archived?: boolean`.
+- `src/storage/rangeStorage.ts` — parse + save normalization for `archived`.
+- `src/storage/rangeStorage.test.ts` — archived round-trips; `false`/absent omit the
+  key; a non-boolean `archived` is ignored.
+- `src/domain/rangeArchive.ts` — new: the `setRangeArchived` helper.
+- `src/domain/rangeArchive.test.ts` — new: unit tests for the helper.
+- `src/components/RangeLibrary.tsx` — add the `onArchive` prop, the Archive/Unarchive
+  button, the Archived badge, and a mention of the archive toggle in the doc comment.
+- `src/components/RangeLibrary.test.tsx` — pass `onArchive` to the existing renders
+  (`vi.fn()` is fine for the ones that don't exercise it); test the toggle button and
+  badge.
+- `src/components/RangeLibrary.css` — optional badge styling; reuse existing tokens.
+- `src/App.tsx` — add `handleArchive` and pass `onArchive` to `<RangeLibrary>`.
 
 Tests to add:
-- `duplicateRange`: gives the copy the supplied `newId`; names it `"<name> (copy)"`;
-  copies `hands` by value into a fresh array (deep-equal to source hands but NOT the
-  same reference); sets both `createdAt` and `updatedAt` to the supplied `timestamp`;
-  shallow-copies `metadata` when present (deep-equal but not the same reference) and
-  omits `metadata` entirely when the source has none; does not mutate the source
-  (snapshot the source with `structuredClone` and assert it is unchanged).
-- Library component: each card exposes a "Duplicate range <name>" button; clicking it
-  calls `onDuplicate` exactly once with the range
-  (`toHaveBeenCalledExactlyOnceWith(range)`), mirroring the existing
-  Load/Delete/Practice button tests.
+- `setRangeArchived`: archiving sets `archived: true`; unarchiving omits the key
+  (`'archived' in result === false`); `updatedAt`/`createdAt`/`name`/`hands`/`metadata`
+  are unchanged; does not mutate the source (snapshot with `structuredClone`).
+- Storage: a range with `archived: true` survives a save→load round-trip; both
+  `archived: false` and an absent flag load with no `archived` key; a non-boolean
+  `archived` is ignored.
+- Component: the toggle calls `onArchive` exactly once with the range
+  (`toHaveBeenCalledExactlyOnceWith(range)`); a range with `archived: true` exposes an
+  "Unarchive range <name>" button and an "Archived" badge; an active range exposes an
+  "Archive range <name>" button and no badge.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -137,10 +150,9 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within v1.4 scope and within this slice: only the Duplicate action. Do NOT add
-  archive or favorite (later v1.4 slices), and do NOT add unique-name disambiguation
-  (e.g. "(copy 2)") — a plain " (copy)" suffix is sufficient for this slice; repeated
-  duplicates may share a name.
+- Stay within this slice: only the persisted archive flag, the toggle, and the badge.
+  Do NOT hide archived ranges or add a "Show archived" toggle yet (that is the next
+  slice), and do NOT add favorite.
 - **Recently practiced** and **Accuracy** sorts, plus the "Last practiced" / accuracy
   fields on richer range cards, remain BLOCKED until a future slice adds
   practice-result persistence. Do not add that persistence here.
@@ -148,4 +160,4 @@ Constraints:
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: add range library duplicate action`
+- `feat: add range library archive toggle`
