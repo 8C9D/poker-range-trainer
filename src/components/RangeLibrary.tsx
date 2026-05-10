@@ -2,6 +2,7 @@ import { useState } from 'react'
 import {
   distinctStackDepths,
   filterArchivedRanges,
+  filterFavoriteRanges,
   filterRangesByActionType,
   filterRangesByGameType,
   filterRangesByName,
@@ -64,14 +65,17 @@ function previewNotes(notes: string): string {
  *
  * The filter pipeline starts by partitioning out archived ranges via
  * {@link filterArchivedRanges} (the outermost step, controlled by the "Show
- * archived" checkbox), then a name search, a position filter, an action-type
- * filter, a stack-depth filter, and a game-type filter narrow what remains
- * through the {@link filterRangesByName}, {@link filterRangesByPosition},
+ * archived" checkbox), then narrows to favorited ranges via
+ * {@link filterFavoriteRanges} (controlled by the "Favorites only" checkbox),
+ * then a name search, a position filter, an action-type filter, a stack-depth
+ * filter, and a game-type filter narrow what remains through the
+ * {@link filterRangesByName}, {@link filterRangesByPosition},
  * {@link filterRangesByActionType}, {@link filterRangesByStackDepth}, and
  * {@link filterRangesByGameType} domain helpers, so the component owns no
  * matching logic of its own. They compose in order: archived ranges drop out
- * first (unless revealed), then the search narrows by name, then the selects
- * narrow by hero position, action type, effective stack depth, and game type.
+ * first (unless revealed), then — when "Favorites only" is on — non-favorited
+ * ranges drop out, then the search narrows by name, then the selects narrow by
+ * hero position, action type, effective stack depth, and game type.
  * The stack-depth options are the distinct depths actually present across the
  * saved ranges (via {@link distinctStackDepths}), since depth is a free-form
  * number rather than a fixed vocabulary; the other selects iterate fixed
@@ -112,16 +116,22 @@ export function RangeLibrary({
   const [sort, setSort] = useState<'' | 'name' | 'recent'>('')
   // Archived ranges are hidden until this toggle is switched on.
   const [showArchived, setShowArchived] = useState(false)
+  // When on, the list is narrowed to favorited ranges only.
+  const [favoritesOnly, setFavoritesOnly] = useState(false)
   // Options come from the depths actually saved, so the filter always reflects
   // the user's data rather than a hardcoded list.
   const stackDepths = distinctStackDepths(ranges)
-  // Archived ranges drop out first (the outermost step) unless revealed, so the
+  // Archived ranges drop out first (the outermost step) unless revealed, then —
+  // when "Favorites only" is on — non-favorited ranges drop out, so the
   // name/metadata filters only ever narrow the visible set.
   const filtered = filterRangesByGameType(
     filterRangesByStackDepth(
       filterRangesByActionType(
         filterRangesByPosition(
-          filterRangesByName(filterArchivedRanges(ranges, showArchived), query),
+          filterRangesByName(
+            filterFavoriteRanges(filterArchivedRanges(ranges, showArchived), favoritesOnly),
+            query,
+          ),
           position,
         ),
         actionType,
@@ -215,6 +225,14 @@ export function RangeLibrary({
                 onChange={(event) => setShowArchived(event.target.checked)}
               />
               Show archived
+            </label>
+            <label className="range-library-toggle">
+              <input
+                type="checkbox"
+                checked={favoritesOnly}
+                onChange={(event) => setFavoritesOnly(event.target.checked)}
+              />
+              Favorites only
             </label>
             <select
               className="range-library-filter"

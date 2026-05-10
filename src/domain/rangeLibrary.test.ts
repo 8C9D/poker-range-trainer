@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   distinctStackDepths,
   filterArchivedRanges,
+  filterFavoriteRanges,
   filterRangesByActionType,
   filterRangesByGameType,
   filterRangesByName,
@@ -57,6 +58,50 @@ describe('filterArchivedRanges', () => {
   it('returns a fresh array rather than the original reference', () => {
     expect(filterArchivedRanges(archivable, true)).not.toBe(archivable)
     expect(filterArchivedRanges(archivable, false)).not.toBe(archivable)
+  })
+})
+
+/** Mixed favorite state so each branch has a distinct case. */
+const favoritable = [
+  { name: 'Plain A' },
+  { name: 'Favorite B', favorite: true },
+  { name: 'Plain C', favorite: false },
+  { name: 'Favorite D', favorite: true },
+]
+
+describe('filterFavoriteRanges', () => {
+  it('keeps only favorited ranges when favoritesOnly is true, in order', () => {
+    expect(filterFavoriteRanges(favoritable, true)).toEqual([
+      { name: 'Favorite B', favorite: true },
+      { name: 'Favorite D', favorite: true },
+    ])
+  })
+
+  it('returns every range when favoritesOnly is false', () => {
+    expect(filterFavoriteRanges(favoritable, false)).toEqual(favoritable)
+  })
+
+  it('treats favorite: false the same as an absent flag (not favorited)', () => {
+    // Storage never persists favorite: false, but the helper still counts it as
+    // not favorited by checking favorite === true rather than truthiness.
+    expect(filterFavoriteRanges([{ name: 'x', favorite: false }], true)).toEqual([])
+  })
+
+  it('returns an empty array when nothing is favorited and favoritesOnly is true', () => {
+    expect(filterFavoriteRanges([{ name: 'a' }, { name: 'b', favorite: false }], true)).toEqual([])
+  })
+
+  it('does not mutate the input array', () => {
+    const input = [{ name: 'a' }, { name: 'b', favorite: true }]
+    const snapshot = structuredClone(input)
+    filterFavoriteRanges(input, true)
+    filterFavoriteRanges(input, false)
+    expect(input).toEqual(snapshot)
+  })
+
+  it('returns a fresh array rather than the original reference', () => {
+    expect(filterFavoriteRanges(favoritable, true)).not.toBe(favoritable)
+    expect(filterFavoriteRanges(favoritable, false)).not.toBe(favoritable)
   })
 })
 

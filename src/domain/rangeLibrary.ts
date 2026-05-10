@@ -25,6 +25,25 @@ export function filterArchivedRanges<T extends { archived?: boolean }>(
 }
 
 /**
+ * Return the ranges to show for the given "favorites only" state, preserving the
+ * input order.
+ *
+ * The sense is inverted from {@link filterArchivedRanges}: this is an inclusion
+ * filter, not an exclusion. When `favoritesOnly` is false every range is returned
+ * (a fresh copy); when it is true only favorited ranges are kept — those whose
+ * `favorite` flag is exactly `true`. Storage only ever persists `favorite: true`
+ * (never `false`), so an absent or `false` flag reliably means not favorited. The
+ * input array is never mutated; a fresh array is always returned.
+ */
+export function filterFavoriteRanges<T extends { favorite?: boolean }>(
+  ranges: T[],
+  favoritesOnly: boolean,
+): T[] {
+  if (!favoritesOnly) return ranges.slice()
+  return ranges.filter((range) => range.favorite === true)
+}
+
+/**
  * Return the ranges whose name contains `query` as a case-insensitive
  * substring, preserving the input order.
  *

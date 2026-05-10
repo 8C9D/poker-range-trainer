@@ -356,6 +356,83 @@ describe('RangeLibrary', () => {
     expect(onFavorite).toHaveBeenCalledExactlyOnceWith(range)
   })
 
+  it('lists both favorited and non-favorited ranges by default', () => {
+    render(
+      <RangeLibrary
+        ranges={[
+          makeRange({ id: 'r1', name: 'Favorited range', favorite: true }),
+          makeRange({ id: 'r2', name: 'Plain range' }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+        onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
+        onFavorite={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('Favorited range')).toBeInTheDocument()
+    expect(screen.getByText('Plain range')).toBeInTheDocument()
+  })
+
+  it('narrows to favorited ranges only when Favorites only is on, and restores when off', async () => {
+    const user = userEvent.setup()
+    render(
+      <RangeLibrary
+        ranges={[
+          makeRange({ id: 'r1', name: 'Favorited range', favorite: true }),
+          makeRange({ id: 'r2', name: 'Plain range' }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+        onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
+        onFavorite={vi.fn()}
+      />,
+    )
+
+    const toggle = screen.getByRole('checkbox', { name: /favorites only/i })
+    await user.click(toggle)
+
+    // Only the favorited range remains; the non-favorited one drops out.
+    expect(screen.getByText('Favorited range')).toBeInTheDocument()
+    expect(screen.queryByText('Plain range')).not.toBeInTheDocument()
+
+    // Toggling it back off restores the full list.
+    await user.click(toggle)
+    expect(screen.getByText('Favorited range')).toBeInTheDocument()
+    expect(screen.getByText('Plain range')).toBeInTheDocument()
+  })
+
+  it('shows the no-match empty state when every range is non-favorited and Favorites only is on', async () => {
+    const user = userEvent.setup()
+    render(
+      <RangeLibrary
+        ranges={[
+          makeRange({ id: 'r1', name: 'Plain one' }),
+          makeRange({ id: 'r2', name: 'Plain two' }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+        onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
+        onFavorite={vi.fn()}
+      />,
+    )
+
+    await user.click(screen.getByRole('checkbox', { name: /favorites only/i }))
+
+    expect(screen.queryByText('Plain one')).not.toBeInTheDocument()
+    expect(screen.queryByText('Plain two')).not.toBeInTheDocument()
+    expect(screen.getByText('No ranges match the selected filters.')).toBeInTheDocument()
+  })
+
   it('marks the active range as current', () => {
     render(
       <RangeLibrary
