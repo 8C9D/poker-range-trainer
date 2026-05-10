@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import {
   distinctStackDepths,
+  filterArchivedRanges,
   filterRangesByActionType,
   filterRangesByGameType,
   filterRangesByName,
@@ -53,26 +54,30 @@ function previewNotes(notes: string): string {
  * load, duplicate, archive, and delete. The duplicate action calls `onDuplicate`
  * with the range so a copy can be saved as a new, independent range. The archive
  * action calls `onArchive` with the range to toggle its persisted `archived`
- * flag; archived ranges stay in the list for now and show an "Archived" badge
- * and an Unarchive button.
+ * flag; archived ranges are hidden by default and only appear when the "Show
+ * archived" toggle is on, where they show an "Archived" badge and an Unarchive
+ * button.
  *
- * A name search, a position filter, an action-type filter, a stack-depth filter,
- * and a game-type filter narrow the list through the {@link filterRangesByName},
- * {@link filterRangesByPosition}, {@link filterRangesByActionType},
- * {@link filterRangesByStackDepth}, and {@link filterRangesByGameType} domain
- * helpers, so the component owns no matching logic of its own. The five compose:
- * the search narrows by name, then the selects narrow by hero position, action
- * type, effective stack depth, and game type. The stack-depth options are the
- * distinct depths actually present across the saved ranges (via
- * {@link distinctStackDepths}), since depth is a free-form number rather than a
- * fixed vocabulary; the other selects iterate fixed vocabularies. A final sort
- * select orders the filtered result through the {@link sortRangesByName} and
- * {@link sortRangesByUpdatedAt} domain helpers: "Default order" keeps the
- * filtered (storage) order, "Name (A–Z)" sorts alphabetically, and "Recently
- * edited" sorts by `updatedAt` descending (newest first); sorting always applies
- * to the result of filtering and is not persisted. Combo counts and percentages
- * are likewise derived through the domain helpers, keeping the library free of
- * reimplemented poker math.
+ * The filter pipeline starts by partitioning out archived ranges via
+ * {@link filterArchivedRanges} (the outermost step, controlled by the "Show
+ * archived" checkbox), then a name search, a position filter, an action-type
+ * filter, a stack-depth filter, and a game-type filter narrow what remains
+ * through the {@link filterRangesByName}, {@link filterRangesByPosition},
+ * {@link filterRangesByActionType}, {@link filterRangesByStackDepth}, and
+ * {@link filterRangesByGameType} domain helpers, so the component owns no
+ * matching logic of its own. They compose in order: archived ranges drop out
+ * first (unless revealed), then the search narrows by name, then the selects
+ * narrow by hero position, action type, effective stack depth, and game type.
+ * The stack-depth options are the distinct depths actually present across the
+ * saved ranges (via {@link distinctStackDepths}), since depth is a free-form
+ * number rather than a fixed vocabulary; the other selects iterate fixed
+ * vocabularies. A final sort select orders the filtered result through the
+ * {@link sortRangesByName} and {@link sortRangesByUpdatedAt} domain helpers:
+ * "Default order" keeps the filtered (storage) order, "Name (A–Z)" sorts
+ * alphabetically, and "Recently edited" sorts by `updatedAt` descending (newest
+ * first); sorting always applies to the result of filtering and is not
+ * persisted. Combo counts and percentages are likewise derived through the
+ * domain helpers, keeping the library free of reimplemented poker math.
  */
 export function RangeLibrary({
   ranges,
@@ -100,13 +105,20 @@ export function RangeLibrary({
   // alphabetically and 'recent' sorts by most recently edited. Sorting applies
   // after filtering and is not persisted.
   const [sort, setSort] = useState<'' | 'name' | 'recent'>('')
+  // Archived ranges are hidden until this toggle is switched on.
+  const [showArchived, setShowArchived] = useState(false)
   // Options come from the depths actually saved, so the filter always reflects
   // the user's data rather than a hardcoded list.
   const stackDepths = distinctStackDepths(ranges)
+  // Archived ranges drop out first (the outermost step) unless revealed, so the
+  // name/metadata filters only ever narrow the visible set.
   const filtered = filterRangesByGameType(
     filterRangesByStackDepth(
       filterRangesByActionType(
-        filterRangesByPosition(filterRangesByName(ranges, query), position),
+        filterRangesByPosition(
+          filterRangesByName(filterArchivedRanges(ranges, showArchived), query),
+          position,
+        ),
         actionType,
       ),
       stackDepth === '' ? null : stackDepth,
@@ -191,6 +203,14 @@ export function RangeLibrary({
                 </option>
               ))}
             </select>
+            <label className="range-library-toggle">
+              <input
+                type="checkbox"
+                checked={showArchived}
+                onChange={(event) => setShowArchived(event.target.checked)}
+              />
+              Show archived
+            </label>
             <select
               className="range-library-filter"
               value={sort}

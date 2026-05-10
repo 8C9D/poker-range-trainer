@@ -1,9 +1,28 @@
 /**
  * Pure helpers for managing a library of saved ranges.
  *
- * These operate on anything with a `name`, so they stay decoupled from the full
- * `SavedRange` shape and never touch poker math, storage, or the DOM.
+ * These operate on minimal structural shapes (a `name`, a `metadata` field, an
+ * `archived` flag, …), so they stay decoupled from the full `SavedRange` shape
+ * and never touch poker math, storage, or the DOM.
  */
+
+/**
+ * Return the ranges to show for the given "show archived" state, preserving the
+ * input order.
+ *
+ * When `showArchived` is true every range is returned (a fresh copy). When it is
+ * false only active ranges are kept — those whose `archived` flag is not exactly
+ * `true` — so archived ranges drop out. Storage only ever persists `archived:
+ * true` (never `false`), so an absent flag reliably means active. The input array
+ * is never mutated; a fresh array is always returned.
+ */
+export function filterArchivedRanges<T extends { archived?: boolean }>(
+  ranges: T[],
+  showArchived: boolean,
+): T[] {
+  if (showArchived) return ranges.slice()
+  return ranges.filter((range) => range.archived !== true)
+}
 
 /**
  * Return the ranges whose name contains `query` as a case-insensitive

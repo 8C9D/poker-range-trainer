@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   distinctStackDepths,
+  filterArchivedRanges,
   filterRangesByActionType,
   filterRangesByGameType,
   filterRangesByName,
@@ -16,6 +17,48 @@ const ranges = [
   { name: 'BB defend vs CO' },
   { name: 'SB 3-bet vs BTN' },
 ]
+
+/** Mixed archive state so each branch has a distinct case. */
+const archivable = [
+  { name: 'Active A' },
+  { name: 'Archived B', archived: true },
+  { name: 'Active C', archived: false },
+  { name: 'Archived D', archived: true },
+]
+
+describe('filterArchivedRanges', () => {
+  it('drops archived ranges when showArchived is false, keeping active ones in order', () => {
+    expect(filterArchivedRanges(archivable, false)).toEqual([
+      { name: 'Active A' },
+      { name: 'Active C', archived: false },
+    ])
+  })
+
+  it('returns every range when showArchived is true', () => {
+    expect(filterArchivedRanges(archivable, true)).toEqual(archivable)
+  })
+
+  it('treats archived: false the same as an absent flag (active)', () => {
+    // Storage never persists archived: false, but the helper still counts it as
+    // active by checking archived !== true rather than truthiness.
+    expect(filterArchivedRanges([{ name: 'x', archived: false }], false)).toEqual([
+      { name: 'x', archived: false },
+    ])
+  })
+
+  it('does not mutate the input array', () => {
+    const input = [{ name: 'a' }, { name: 'b', archived: true }]
+    const snapshot = structuredClone(input)
+    filterArchivedRanges(input, false)
+    filterArchivedRanges(input, true)
+    expect(input).toEqual(snapshot)
+  })
+
+  it('returns a fresh array rather than the original reference', () => {
+    expect(filterArchivedRanges(archivable, true)).not.toBe(archivable)
+    expect(filterArchivedRanges(archivable, false)).not.toBe(archivable)
+  })
+})
 
 describe('filterRangesByName', () => {
   it('matches names containing the query as a substring', () => {

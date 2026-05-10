@@ -188,6 +188,9 @@ describe('RangeLibrary', () => {
       />,
     )
 
+    // Archived ranges are hidden by default; reveal them before asserting.
+    await user.click(screen.getByRole('checkbox', { name: /show archived/i }))
+
     expect(screen.getByText('Archived')).toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: 'Archive range Pairs' }),
@@ -196,6 +199,76 @@ describe('RangeLibrary', () => {
     await user.click(screen.getByRole('button', { name: 'Unarchive range Pairs' }))
 
     expect(onArchive).toHaveBeenCalledExactlyOnceWith(range)
+  })
+
+  it('hides archived ranges by default while listing active ones', () => {
+    render(
+      <RangeLibrary
+        ranges={[
+          makeRange({ id: 'r1', name: 'Active range' }),
+          makeRange({ id: 'r2', name: 'Archived range', archived: true }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+        onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('Active range')).toBeInTheDocument()
+    expect(screen.queryByText('Archived range')).not.toBeInTheDocument()
+  })
+
+  it('reveals archived ranges, with badge and Unarchive action, when Show archived is on', async () => {
+    const user = userEvent.setup()
+    render(
+      <RangeLibrary
+        ranges={[
+          makeRange({ id: 'r1', name: 'Active range' }),
+          makeRange({ id: 'r2', name: 'Archived range', archived: true }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+        onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
+      />,
+    )
+
+    await user.click(screen.getByRole('checkbox', { name: /show archived/i }))
+
+    // The active range stays listed; the archived range now appears with its
+    // badge and Unarchive action.
+    expect(screen.getByText('Active range')).toBeInTheDocument()
+    expect(screen.getByText('Archived range')).toBeInTheDocument()
+    expect(screen.getByText('Archived')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Unarchive range Archived range' }),
+    ).toBeInTheDocument()
+  })
+
+  it('shows the no-match empty state when every range is archived and Show archived is off', () => {
+    render(
+      <RangeLibrary
+        ranges={[
+          makeRange({ id: 'r1', name: 'Archived one', archived: true }),
+          makeRange({ id: 'r2', name: 'Archived two', archived: true }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+        onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
+      />,
+    )
+
+    expect(screen.queryByText('Archived one')).not.toBeInTheDocument()
+    expect(screen.queryByText('Archived two')).not.toBeInTheDocument()
+    expect(screen.getByText('No ranges match the selected filters.')).toBeInTheDocument()
   })
 
   it('marks the active range as current', () => {

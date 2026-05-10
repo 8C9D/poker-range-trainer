@@ -44,83 +44,84 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 7 | Sort saved ranges by recently edited | v1.4 — Range library and filtering | 2026-06-05 |
 | 8 | Duplicate a saved range | v1.4 — Range library and filtering | 2026-06-05 |
 | 9 | Archive / unarchive a saved range (persisted flag) | v1.4 — Range library and filtering | 2026-06-05 |
+| 10 | Hide archived ranges by default behind a "Show archived" toggle | v1.4 — Range library and filtering | 2026-06-05 |
 
 ## Next slice
 
-- **Number:** 10
+- **Number:** 11
 - **Roadmap target:** v1.4 — Range library and filtering
-- **Working title:** Hide archived ranges by default behind a "Show archived" toggle
+- **Working title:** Favorite / unfavorite a saved range (persisted flag)
 
 ### Prompt
 
-You are implementing roadmap slice 10 of **v1.4 — Range library and filtering**. Slice 9
-added a persisted `archived` flag (`SavedRange.archived?: boolean`), an Archive/Unarchive
-toggle button on each range card, and an "Archived" badge — but archived ranges still
-appear in the list. This slice **hides archived ranges by default** and adds a "Show
-archived" toggle that reveals them. Favorite is a later slice; **Recently practiced** and
-**Accuracy** sorts remain BLOCKED (no practice-result persistence yet).
+You are implementing roadmap slice 11 of **v1.4 — Range library and filtering**. The
+library already supports archive: slice 9 added a persisted `archived?: boolean` flag with
+an Archive/Unarchive toggle button and an "Archived" badge, and slice 10 hid archived
+ranges behind a "Show archived" toggle. This slice adds the **Favorite** feature's first
+half, mirroring slice 9 exactly but for a new `favorite?: boolean` flag: a persisted flag,
+a per-card Favorite/Unfavorite toggle button, and a "Favorite" badge. A later slice will
+add favorites-only filtering / favorites-first sorting — **do not** add that here.
 
-Context:
-- `SavedRange` (`src/types/range.ts`) has an optional top-level `archived?: boolean`
-  (absent/false = active). Storage normalizes it: `parseSavedRange`/`saveSavedRange` in
-  `src/storage/rangeStorage.ts` only ever persist/return `archived: true`, never `false`,
-  so reading `archived === true` (or `!== true` for "active") is reliable.
-- `src/domain/rangeLibrary.ts` holds the pure, generically-constrained filter/sort
-  helpers (`filterRangesByName`, `filterRangesByPosition`, `filterRangesByActionType`,
-  `filterRangesByGameType`, `filterRangesByStackDepth`, `distinctStackDepths`,
-  `sortRangesByName`, `sortRangesByUpdatedAt`). Each constrains `T` to the minimal shape
-  it needs (e.g. `T extends { name: string }`), returns a fresh array (`.slice()` /
-  `.filter()`), and never mutates its input. Its tests are `src/domain/rangeLibrary.test.ts`.
-- `src/components/RangeLibrary.tsx` composes those filters into `filtered`, then sorts
-  into `visibleRanges`. The filter controls live in a `.range-library-filters` row (the
-  search `<input type="search">` plus the `<select>`s); the whole filter UI and list are
-  only rendered when `ranges.length > 0`. The no-match empty state already reads "No
-  ranges match the selected filters." The per-card badge and Archive/Unarchive button
-  from slice 9 stay as-is.
-- The library currently shows ALL ranges, including archived ones.
+Context (mirror the archive implementation — favorite is structurally identical):
+- `SavedRange` (`src/types/range.ts`) already has `archived?: boolean`. Archive's data
+  path is the template to copy:
+  - Type: `archived?: boolean` is documented as "absent/false = active".
+  - Storage (`src/storage/rangeStorage.ts`): `parseSavedRange` destructures `archived`
+    and appends `...(archived === true ? { archived: true } : {})`; `saveSavedRange`
+    pulls `archived` out of `rest` and re-adds it the same way. Only a strict `true` is
+    ever persisted — `false`/`undefined` drops the key — so reading `=== true` (or
+    `!== true` for "not set") is reliable.
+  - Domain helper (`src/domain/rangeArchive.ts`): `setRangeArchived(range, archived)`
+    returns `{ ...range, archived: true }` when true and a copy with the key `delete`d
+    when false; it copies only the top level and never mutates the source. Its tests are
+    `src/domain/rangeArchive.test.ts`.
+  - Component (`src/components/RangeLibrary.tsx`): an `onArchive: (range: SavedRange) =>
+    void` prop, a per-card button whose aria-label is `Archive range <name>` /
+    `Unarchive range <name>` (text "Archive"/"Unarchive"), and a `{range.archived &&
+    <span className="range-item-badge">Archived</span>}` badge rendered right after the
+    `range-item-name` span.
+  - App (`src/App.tsx`): `handleArchive` calls `saveSavedRange(setRangeArchived(range,
+    !range.archived))` then `setSavedRanges(loadSavedRanges())`, and is passed as
+    `onArchive` to `<RangeLibrary>`.
+- `favorite` and `archived` are independent flags — a range may be neither, either, or
+  both. The `.range-item-badge` CSS class already exists and is reused as-is.
 
-Task:
-- Domain: add `filterArchivedRanges<T extends { archived?: boolean }>(ranges: T[],
-  showArchived: boolean): T[]` to `rangeLibrary.ts`. When `showArchived` is true it
-  returns a copy of all ranges (`.slice()`); when false it returns only ranges where
-  `archived !== true`, preserving input order. Never mutate the input; always return a
-  fresh array. Document it in the style of the neighbouring helpers.
-- Component:
-  - Add `showArchived` boolean state, default `false`.
-  - Apply `filterArchivedRanges(ranges, showArchived)` as the OUTERMOST (first) step of
-    the filter pipeline, so archived ranges are dropped before the name/metadata filters
-    unless the toggle is on. Sorting still applies last, to the filtered result.
-  - Add a "Show archived" checkbox to the `.range-library-filters` row: a `<label>`
-    wrapping `<input type="checkbox">` wired to `showArchived`. Ensure the input has the
-    accessible name "Show archived" (associated label text) so it is reachable via
-    `getByRole('checkbox', { name: /show archived/i })`.
-  - Leave the badge and Archive/Unarchive button behavior unchanged. Update the
-    component doc comment to describe the default-hide + toggle behavior.
-- Empty states: when every range is archived and `showArchived` is off, the existing
-  "No ranges match the selected filters." empty state should render (the filtered list
-  is empty but `ranges.length > 0`). Do not add a new special-case message this slice.
+Task — add a `favorite` flag everywhere `archived` lives:
+- Type: add `favorite?: boolean` to `SavedRange` in `src/types/range.ts`, documented in
+  the style of `archived` (absent/false = not favorited; this is library state, not an
+  edit).
+- Storage: in `src/storage/rangeStorage.ts`, normalize `favorite` exactly like `archived`
+  — destructure it in `parseSavedRange`, strip it from `rest` in `saveSavedRange`, and in
+  both append `...(favorite === true ? { favorite: true } : {})` so only a strict `true`
+  persists.
+- Domain: create `src/domain/rangeFavorite.ts` with `setRangeFavorite(range: SavedRange,
+  favorite: boolean): SavedRange`, mirroring `setRangeArchived` (set `favorite: true`, or
+  return a copy with the key deleted; top-level copy only; never mutate the source).
+- Component: in `src/components/RangeLibrary.tsx`, add an `onFavorite: (range: SavedRange)
+  => void` prop. Render a "Favorite" badge (`{range.favorite && <span
+  className="range-item-badge">Favorite</span>}`) immediately BEFORE the existing
+  "Archived" badge, and add a Favorite/Unfavorite button to `.range-item-actions` placed
+  immediately BEFORE the Archive button, with aria-label `Favorite range <name>` when not
+  favorited and `Unfavorite range <name>` when favorited (button text "Favorite" /
+  "Unfavorite"). Update the component doc comment to list favorite alongside archive.
+- App: in `src/App.tsx`, add `handleFavorite(range)` calling
+  `saveSavedRange(setRangeFavorite(range, !range.favorite))` then
+  `setSavedRanges(loadSavedRanges())`, and pass it as `onFavorite` to `<RangeLibrary>`.
 
-Keep domain logic separate: the active/archived partition lives in `rangeLibrary.ts`;
-the component only owns the `showArchived` checkbox state and rendering.
-
-Files to create or modify:
-- `src/domain/rangeLibrary.ts` — add `filterArchivedRanges`.
-- `src/domain/rangeLibrary.test.ts` — tests for `filterArchivedRanges`.
-- `src/components/RangeLibrary.tsx` — `showArchived` state, the checkbox, apply the
-  filter as the outermost step, update the doc comment.
-- `src/components/RangeLibrary.test.tsx` — archived hidden by default; toggling reveals
-  them; badge/Unarchive button still present when revealed; all-archived empty state.
-- `src/components/RangeLibrary.css` — optional styling for the checkbox label; reuse
-  existing tokens.
-
-Tests to add:
-- `filterArchivedRanges`: with `showArchived=false`, ranges with `archived: true` are
-  dropped while active ones (absent flag) are kept in order; with `showArchived=true`,
-  all ranges are returned; the input array is not mutated and a fresh array is returned.
-- Component: a range with `archived: true` is NOT listed by default; after clicking the
-  "Show archived" checkbox it appears (with its "Archived" badge and "Unarchive range
-  <name>" button); active ranges are always listed; when every range is archived and the
-  toggle is off, the "No ranges match the selected filters." empty state shows.
+Tests to add (mirror the archive tests):
+- `src/domain/rangeFavorite.test.ts`: sets `favorite: true` when favoriting; omits the key
+  when unfavoriting; keeps `favorite: true` when favoriting an already-favorited range;
+  leaves id/name/hands/timestamps/metadata unchanged; returns a new object without
+  mutating the source.
+- `src/storage/rangeStorage.test.ts`: a `favorite: true` range round-trips through
+  save/load; `favorite: false`/absent persists no `favorite` key (assert via the stored
+  JSON or `'favorite' in loaded`); `favorite` and `archived` coexist on one range.
+- `src/components/RangeLibrary.test.tsx`: a non-favorited range shows a "Favorite" button
+  (aria-label `Favorite range <name>`) and no "Favorite" badge; clicking it calls
+  `onFavorite` once with the range; a `favorite: true` range shows the "Favorite" badge
+  and an "Unfavorite" button. Update every existing `render(<RangeLibrary .../>)` call in
+  this file (and any other test rendering `<RangeLibrary>`) to pass an `onFavorite` prop,
+  e.g. `onFavorite={vi.fn()}`, so the new required prop does not break them.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -128,8 +129,10 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: only the default-hide behavior and the "Show archived" toggle.
-  Do NOT add favorite, a dedicated archive-only view, or archived-specific sorting.
+- Stay within this slice: only the persisted `favorite` flag, the per-card
+  Favorite/Unfavorite button, and the "Favorite" badge. Do NOT add a favorites-only
+  filter, favorites-first sorting, or any hide/show behavior — those are a later slice
+  (just as archive's filtering was split from its flag).
 - **Recently practiced** and **Accuracy** sorts, plus the "Last practiced" / accuracy
   fields on richer range cards, remain BLOCKED until a future slice adds
   practice-result persistence. Do not add that persistence here.
@@ -137,4 +140,4 @@ Constraints:
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: hide archived ranges behind show-archived toggle`
+- `feat: add range library favorite toggle`
