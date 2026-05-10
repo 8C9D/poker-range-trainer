@@ -113,4 +113,10 @@ export interface SavedRange {
    * comes in a later slice.
    */
   archived?: boolean
+  /**
+   * Library favorite state; absent/false = not favorited. This is library
+   * state, not an edit. Favorites-only filtering / favorites-first sorting
+   * comes in a later slice.
+   */
+  favorite?: boolean
 }

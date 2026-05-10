@@ -36,6 +36,8 @@ interface RangeLibraryProps {
   onPractice: (range: SavedRange) => void
   /** Save an independent copy of the given range to the library. */
   onDuplicate: (range: SavedRange) => void
+  /** Toggle the given range's favorite (library) state. */
+  onFavorite: (range: SavedRange) => void
   /** Toggle the given range's archived (library) state. */
   onArchive: (range: SavedRange) => void
 }
@@ -51,12 +53,14 @@ function previewNotes(notes: string): string {
 
 /**
  * Lists the saved ranges with summary stats and per-range actions: practice,
- * load, duplicate, archive, and delete. The duplicate action calls `onDuplicate`
- * with the range so a copy can be saved as a new, independent range. The archive
- * action calls `onArchive` with the range to toggle its persisted `archived`
- * flag; archived ranges are hidden by default and only appear when the "Show
- * archived" toggle is on, where they show an "Archived" badge and an Unarchive
- * button.
+ * load, duplicate, favorite, archive, and delete. The duplicate action calls
+ * `onDuplicate` with the range so a copy can be saved as a new, independent
+ * range. The favorite action calls `onFavorite` with the range to toggle its
+ * persisted `favorite` flag, shown as a "Favorite" badge and a Favorite /
+ * Unfavorite button. The archive action calls `onArchive` with the range to
+ * toggle its persisted `archived` flag; archived ranges are hidden by default
+ * and only appear when the "Show archived" toggle is on, where they show an
+ * "Archived" badge and an Unarchive button.
  *
  * The filter pipeline starts by partitioning out archived ranges via
  * {@link filterArchivedRanges} (the outermost step, controlled by the "Show
@@ -86,6 +90,7 @@ export function RangeLibrary({
   onDelete,
   onPractice,
   onDuplicate,
+  onFavorite,
   onArchive,
 }: RangeLibraryProps) {
   const [query, setQuery] = useState('')
@@ -268,6 +273,7 @@ export function RangeLibrary({
                   >
                     <div className="range-item-info">
                       <span className="range-item-name">{range.name}</span>
+                      {range.favorite && <span className="range-item-badge">Favorite</span>}
                       {range.archived && <span className="range-item-badge">Archived</span>}
                       <span className="range-item-stats">
                         {range.hands.length} hands · {combos} combos · {percentage.toFixed(1)}%
@@ -299,6 +305,17 @@ export function RangeLibrary({
                         onClick={() => onDuplicate(range)}
                       >
                         Duplicate
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={
+                          range.favorite
+                            ? `Unfavorite range ${range.name}`
+                            : `Favorite range ${range.name}`
+                        }
+                        onClick={() => onFavorite(range)}
+                      >
+                        {range.favorite ? 'Unfavorite' : 'Favorite'}
                       </button>
                       <button
                         type="button"

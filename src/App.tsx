@@ -7,6 +7,7 @@ import { RangeNotation } from './components/RangeNotation'
 import { RangeShortcuts } from './components/RangeShortcuts'
 import { setRangeArchived } from './domain/rangeArchive'
 import { duplicateRange } from './domain/rangeDuplication'
+import { setRangeFavorite } from './domain/rangeFavorite'
 import { calculateRangePercentage, countSelectedCombos } from './domain/rangeMath'
 import { mergeShortcutHands } from './domain/rangeShortcuts'
 import type { PokerHand } from './domain/pokerHands'
@@ -224,6 +225,13 @@ function App() {
     setSavedRanges(loadSavedRanges())
   }
 
+  function handleFavorite(range: SavedRange) {
+    // Favoriting is a library action, not an edit: persist the toggled flag and
+    // refresh the list, leaving the editor selection and editingId untouched.
+    saveSavedRange(setRangeFavorite(range, !range.favorite))
+    setSavedRanges(loadSavedRanges())
+  }
+
   function handlePractice(range: SavedRange) {
     setPracticingRange(range)
   }
@@ -316,6 +324,7 @@ function App() {
             onDelete={handleDelete}
             onPractice={handlePractice}
             onDuplicate={handleDuplicate}
+            onFavorite={handleFavorite}
             onArchive={handleArchive}
           />
         </>

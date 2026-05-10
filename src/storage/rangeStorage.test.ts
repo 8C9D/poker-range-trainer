@@ -301,3 +301,42 @@ describe('range archive flag', () => {
     expect(loadSavedRanges()[0]).not.toHaveProperty('archived')
   })
 })
+
+describe('range favorite flag', () => {
+  it('preserves favorite: true across a save/load round trip', () => {
+    const range = makeRange({ favorite: true })
+    saveSavedRange(range)
+    expect(loadSavedRanges()).toEqual([range])
+  })
+
+  it('does not persist a favorite key when favorite is false', () => {
+    saveSavedRange(makeRange({ favorite: false }))
+    expect(loadSavedRanges()[0]).not.toHaveProperty('favorite')
+  })
+
+  it('adds no favorite key when a saved range has none', () => {
+    saveSavedRange(makeRange())
+    expect(loadSavedRanges()[0]).not.toHaveProperty('favorite')
+  })
+
+  it('ignores a stored favorite: false flag on load', () => {
+    const stored = { ...makeRange({ id: 'r1' }), favorite: false }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([stored]))
+    expect(loadSavedRanges()[0]).not.toHaveProperty('favorite')
+  })
+
+  it('ignores a non-boolean stored favorite value', () => {
+    const stored = { ...makeRange({ id: 'r1' }), favorite: 'yes' }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([stored]))
+    expect(loadSavedRanges()[0]).not.toHaveProperty('favorite')
+  })
+
+  it('persists favorite and archived together on one range', () => {
+    const range = makeRange({ favorite: true, archived: true })
+    saveSavedRange(range)
+    const [loaded] = loadSavedRanges()
+    expect(loaded.favorite).toBe(true)
+    expect(loaded.archived).toBe(true)
+    expect(loaded).toEqual(range)
+  })
+})
