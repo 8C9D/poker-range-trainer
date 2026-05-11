@@ -184,3 +184,30 @@ export function sortRangesByName<T extends { name: string }>(ranges: T[]): T[] {
 export function sortRangesByUpdatedAt<T extends { updatedAt: string }>(ranges: T[]): T[] {
   return ranges.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
 }
+
+/**
+ * Return a copy of `ranges` sorted by their most recent practice timestamp,
+ * descending — most recently practiced first.
+ *
+ * Unlike {@link sortRangesByUpdatedAt}, the timestamp to sort by lives in a
+ * separate `practiceStats` map keyed by range id rather than on the range itself,
+ * so the helper takes that map and looks up
+ * `practiceStats[range.id]?.lastPracticedAt`. Those are ISO-8601 strings, which
+ * sort chronologically as plain strings, so comparing `b` against `a` yields
+ * newest first. A range with **no** stats entry falls back to an empty string,
+ * which sorts before any real ISO timestamp, so every never-practiced range ends
+ * up after every practiced one. `Array.prototype.sort` is stable, so ranges whose
+ * timestamps compare equal (including all never-practiced ranges) keep their input
+ * order. The input array is never mutated — a fresh, sorted array is always
+ * returned (the input is copied with `.slice()` before sorting).
+ */
+export function sortRangesByLastPracticed<T extends { id: string }>(
+  ranges: T[],
+  practiceStats: Record<string, { lastPracticedAt: string }>,
+): T[] {
+  return ranges.slice().sort((a, b) => {
+    const aAt = practiceStats[a.id]?.lastPracticedAt ?? ''
+    const bAt = practiceStats[b.id]?.lastPracticedAt ?? ''
+    return bAt.localeCompare(aAt)
+  })
+}

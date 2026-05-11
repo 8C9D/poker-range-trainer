@@ -8,6 +8,7 @@ import {
   filterRangesByName,
   filterRangesByPosition,
   filterRangesByStackDepth,
+  sortRangesByLastPracticed,
   sortRangesByName,
   sortRangesByUpdatedAt,
 } from './rangeLibrary'
@@ -519,5 +520,91 @@ describe('sortRangesByUpdatedAt', () => {
   it('returns a fresh array rather than the original reference', () => {
     const input = [{ name: 'Button', updatedAt: '2026-01-01T00:00:00.000Z' }]
     expect(sortRangesByUpdatedAt(input)).not.toBe(input)
+  })
+})
+
+describe('sortRangesByLastPracticed', () => {
+  it('sorts by practiceStats.lastPracticedAt descending — most recently practiced first', () => {
+    const ranges = [
+      { id: 'older', name: 'Older' },
+      { id: 'newest', name: 'Newest' },
+      { id: 'middle', name: 'Middle' },
+    ]
+    const stats = {
+      older: { lastPracticedAt: '2026-01-01T00:00:00.000Z' },
+      newest: { lastPracticedAt: '2026-03-01T00:00:00.000Z' },
+      middle: { lastPracticedAt: '2026-02-01T00:00:00.000Z' },
+    }
+    expect(sortRangesByLastPracticed(ranges, stats)).toEqual([
+      { id: 'newest', name: 'Newest' },
+      { id: 'middle', name: 'Middle' },
+      { id: 'older', name: 'Older' },
+    ])
+  })
+
+  it('places ranges with no practiceStats entry after every practiced range', () => {
+    const ranges = [
+      { id: 'never', name: 'Never practiced' },
+      { id: 'practiced', name: 'Practiced' },
+    ]
+    const stats = { practiced: { lastPracticedAt: '2026-01-01T00:00:00.000Z' } }
+    // The practiced range comes first even though it is second in the input; the
+    // never-practiced one (no stats entry) sorts last.
+    expect(sortRangesByLastPracticed(ranges, stats)).toEqual([
+      { id: 'practiced', name: 'Practiced' },
+      { id: 'never', name: 'Never practiced' },
+    ])
+  })
+
+  it('preserves input order for equal timestamps (stable)', () => {
+    // All three share a practice timestamp, so they must stay in input order.
+    const input = [
+      { id: 'a', name: 'a' },
+      { id: 'b', name: 'b' },
+      { id: 'c', name: 'c' },
+    ]
+    const stats = {
+      a: { lastPracticedAt: '2026-01-01T00:00:00.000Z' },
+      b: { lastPracticedAt: '2026-01-01T00:00:00.000Z' },
+      c: { lastPracticedAt: '2026-01-01T00:00:00.000Z' },
+    }
+    expect(sortRangesByLastPracticed(input, stats)).toEqual([
+      { id: 'a', name: 'a' },
+      { id: 'b', name: 'b' },
+      { id: 'c', name: 'c' },
+    ])
+  })
+
+  it('preserves input order among never-practiced ranges (stable)', () => {
+    // With an empty stats map every range falls back to '', so order is unchanged.
+    const input = [
+      { id: 'a', name: 'a' },
+      { id: 'b', name: 'b' },
+      { id: 'c', name: 'c' },
+    ]
+    expect(sortRangesByLastPracticed(input, {})).toEqual(input)
+  })
+
+  it('returns an empty array for an empty input', () => {
+    expect(sortRangesByLastPracticed([], {})).toEqual([])
+  })
+
+  it('does not mutate the input array', () => {
+    const input = [
+      { id: 'older', name: 'Older' },
+      { id: 'newest', name: 'Newest' },
+    ]
+    const stats = {
+      older: { lastPracticedAt: '2026-01-01T00:00:00.000Z' },
+      newest: { lastPracticedAt: '2026-03-01T00:00:00.000Z' },
+    }
+    const snapshot = structuredClone(input)
+    sortRangesByLastPracticed(input, stats)
+    expect(input).toEqual(snapshot)
+  })
+
+  it('returns a fresh array rather than the original reference', () => {
+    const input = [{ id: 'r1', name: 'Button' }]
+    expect(sortRangesByLastPracticed(input, {})).not.toBe(input)
   })
 })

@@ -1653,4 +1653,45 @@ describe('RangeLibrary', () => {
     expect(names).toEqual(['BTN newer', 'BTN older'])
     expect(screen.queryByText('CO newest')).not.toBeInTheDocument()
   })
+
+  it('reorders the visible ranges by most recently practiced when Recently practiced is selected', async () => {
+    const user = userEvent.setup()
+    const { container } = render(
+      <RangeLibrary
+        ranges={[
+          makeRange({ id: 'r1', name: 'Practiced middle' }),
+          makeRange({ id: 'r2', name: 'Practiced newest' }),
+          makeRange({ id: 'r3', name: 'Never practiced' }),
+        ]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+        onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
+        onFavorite={vi.fn()}
+        practiceStats={{
+          r1: {
+            rangeId: 'r1',
+            totalAttempts: 2,
+            correctAttempts: 1,
+            lastPracticedAt: '2026-02-01T00:00:00.000Z',
+          },
+          r2: {
+            rangeId: 'r2',
+            totalAttempts: 2,
+            correctAttempts: 2,
+            lastPracticedAt: '2026-03-01T00:00:00.000Z',
+          },
+        }}
+      />,
+    )
+
+    await user.selectOptions(screen.getByRole('combobox', { name: /sort ranges/i }), 'practiced')
+
+    // The two practiced ranges sort newest-practiced first; the never-practiced
+    // range (no stats entry) sorts last.
+    const names = [...container.querySelectorAll('.range-item-name')].map((el) => el.textContent)
+    expect(names).toEqual(['Practiced newest', 'Practiced middle', 'Never practiced'])
+  })
 })

@@ -8,6 +8,7 @@ import {
   filterRangesByName,
   filterRangesByPosition,
   filterRangesByStackDepth,
+  sortRangesByLastPracticed,
   sortRangesByName,
   sortRangesByUpdatedAt,
 } from '../domain/rangeLibrary'
@@ -89,11 +90,13 @@ function previewNotes(notes: string): string {
  * saved ranges (via {@link distinctStackDepths}), since depth is a free-form
  * number rather than a fixed vocabulary; the other selects iterate fixed
  * vocabularies. A final sort select orders the filtered result through the
- * {@link sortRangesByName} and {@link sortRangesByUpdatedAt} domain helpers:
- * "Default order" keeps the filtered (storage) order, "Name (A–Z)" sorts
- * alphabetically, and "Recently edited" sorts by `updatedAt` descending (newest
- * first); sorting always applies to the result of filtering and is not
- * persisted. Combo counts and percentages are likewise derived through the
+ * {@link sortRangesByName}, {@link sortRangesByUpdatedAt}, and
+ * {@link sortRangesByLastPracticed} domain helpers: "Default order" keeps the
+ * filtered (storage) order, "Name (A–Z)" sorts alphabetically, "Recently edited"
+ * sorts by `updatedAt` descending (newest first), and "Recently practiced" sorts
+ * by each range's `practiceStats` `lastPracticedAt` descending (most recently
+ * practiced first, never-practiced ranges last); sorting always applies to the
+ * result of filtering and is not persisted. Combo counts and percentages are likewise derived through the
  * domain helpers, keeping the library free of reimplemented poker math. Each
  * card also shows a practice-stats line — attempt count, accuracy percentage,
  * and last-practiced date — for ranges with a `practiceStats` entry that has
@@ -126,9 +129,10 @@ export function RangeLibrary({
   // keeps only valid game types selectable.
   const [gameType, setGameType] = useState<GameType | ''>('')
   // Empty string is the "Default order" sentinel; 'name' sorts the filtered list
-  // alphabetically and 'recent' sorts by most recently edited. Sorting applies
-  // after filtering and is not persisted.
-  const [sort, setSort] = useState<'' | 'name' | 'recent'>('')
+  // alphabetically, 'recent' sorts by most recently edited, and 'practiced' sorts
+  // by most recently practiced. Sorting applies after filtering and is not
+  // persisted.
+  const [sort, setSort] = useState<'' | 'name' | 'recent' | 'practiced'>('')
   // Archived ranges are hidden until this toggle is switched on.
   const [showArchived, setShowArchived] = useState(false)
   // When on, the list is narrowed to favorited ranges only.
@@ -161,7 +165,9 @@ export function RangeLibrary({
       ? sortRangesByName(filtered)
       : sort === 'recent'
         ? sortRangesByUpdatedAt(filtered)
-        : filtered
+        : sort === 'practiced'
+          ? sortRangesByLastPracticed(filtered, practiceStats)
+          : filtered
 
   return (
     <section className="range-library" aria-label="Saved ranges">
@@ -252,12 +258,15 @@ export function RangeLibrary({
             <select
               className="range-library-filter"
               value={sort}
-              onChange={(event) => setSort(event.target.value as '' | 'name' | 'recent')}
+              onChange={(event) =>
+                setSort(event.target.value as '' | 'name' | 'recent' | 'practiced')
+              }
               aria-label="Sort ranges"
             >
               <option value="">Default order</option>
               <option value="name">Name (A–Z)</option>
               <option value="recent">Recently edited</option>
+              <option value="practiced">Recently practiced</option>
             </select>
           </div>
           {visibleRanges.length === 0 ? (
