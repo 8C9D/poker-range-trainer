@@ -593,6 +593,53 @@ describe('RangeLibrary', () => {
     expect(screen.queryByText(longNotes)).not.toBeInTheDocument()
   })
 
+  it('shows a practice-stats line for a range with recorded practice stats', () => {
+    render(
+      <RangeLibrary
+        ranges={[makeRange({ id: 'r1', name: 'Pairs' })]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+        onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
+        onFavorite={vi.fn()}
+        practiceStats={{
+          r1: {
+            rangeId: 'r1',
+            totalAttempts: 4,
+            correctAttempts: 3,
+            lastPracticedAt: '2026-06-01T00:00:00.000Z',
+          },
+        }}
+      />,
+    )
+
+    // 3/4 -> 75% accuracy; the ".*" spans the "·" separators, and the
+    // locale-formatted date is left unasserted.
+    expect(
+      screen.getByText(/Practiced 4.*75% accuracy/, { selector: '.range-item-practice' }),
+    ).toBeInTheDocument()
+  })
+
+  it('renders no practice-stats line for a range without recorded stats', () => {
+    const { container } = render(
+      <RangeLibrary
+        ranges={[makeRange({ id: 'r1', name: 'Pairs' })]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+        onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
+        onFavorite={vi.fn()}
+      />,
+    )
+
+    // The default-empty practiceStats map has no entry for this range.
+    expect(container.querySelector('.range-item-practice')).toBeNull()
+  })
+
   it('narrows the listed ranges by name as the user types in the search box', async () => {
     const user = userEvent.setup()
     render(

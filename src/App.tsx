@@ -11,7 +11,7 @@ import { setRangeFavorite } from './domain/rangeFavorite'
 import { calculateRangePercentage, countSelectedCombos } from './domain/rangeMath'
 import { mergeShortcutHands } from './domain/rangeShortcuts'
 import type { PokerHand } from './domain/pokerHands'
-import { recordPracticeSession } from './storage/practiceStatsStorage'
+import { loadPracticeStats, recordPracticeSession } from './storage/practiceStatsStorage'
 import { deleteSavedRange, loadSavedRanges, saveSavedRange } from './storage/rangeStorage'
 import type { PracticeSessionSummary } from './types/practice'
 import type {
@@ -38,6 +38,9 @@ function App() {
   // null = composing a new range; otherwise the id of the saved range being edited.
   const [editingId, setEditingId] = useState<string | null>(null)
   const [savedRanges, setSavedRanges] = useState<SavedRange[]>(() => loadSavedRanges())
+  // Cumulative per-range practice stats, refreshed after each finished session
+  // so the library cards reflect the latest accuracy/last-practiced numbers.
+  const [practiceStats, setPracticeStats] = useState(() => loadPracticeStats())
   // null = editor/library view; otherwise the saved range being practiced.
   const [practicingRange, setPracticingRange] = useState<SavedRange | null>(null)
   // Optional scenario metadata. '' means "unset" for the dropdowns; stackDepth
@@ -245,6 +248,9 @@ function App() {
     // immediately records nothing.
     if (practicingRange) {
       recordPracticeSession(practicingRange.id, summary)
+      // Refresh from storage so the library card reflects this session, mirroring
+      // the setSavedRanges(loadSavedRanges()) refresh-after-write pattern.
+      setPracticeStats(loadPracticeStats())
     }
     setPracticingRange(null)
   }
@@ -329,6 +335,7 @@ function App() {
           <RangeLibrary
             ranges={savedRanges}
             activeId={editingId}
+            practiceStats={practiceStats}
             onLoad={handleLoad}
             onDelete={handleDelete}
             onPractice={handlePractice}

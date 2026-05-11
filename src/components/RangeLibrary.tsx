@@ -12,6 +12,7 @@ import {
   sortRangesByUpdatedAt,
 } from '../domain/rangeLibrary'
 import { calculateRangePercentage, countSelectedCombos } from '../domain/rangeMath'
+import { practiceAccuracyPercentage } from '../domain/practiceStats'
 import {
   ACTION_TYPE_LABELS,
   ACTION_TYPES,
@@ -25,6 +26,7 @@ import {
   type Position,
   type SavedRange,
 } from '../types/range'
+import type { RangePracticeStats } from '../types/practice'
 import './RangeLibrary.css'
 
 interface RangeLibraryProps {
@@ -41,6 +43,13 @@ interface RangeLibraryProps {
   onFavorite: (range: SavedRange) => void
   /** Toggle the given range's archived (library) state. */
   onArchive: (range: SavedRange) => void
+  /**
+   * Cumulative per-range practice stats, keyed by range id. A range with an
+   * entry that has recorded attempts shows a practice-stats line on its card;
+   * ranges absent from the map (or with no attempts) show none. Optional,
+   * defaulting to an empty map.
+   */
+  practiceStats?: Record<string, RangePracticeStats>
 }
 
 /** Longest notes string shown in full on a card before it is truncated. */
@@ -85,7 +94,12 @@ function previewNotes(notes: string): string {
  * alphabetically, and "Recently edited" sorts by `updatedAt` descending (newest
  * first); sorting always applies to the result of filtering and is not
  * persisted. Combo counts and percentages are likewise derived through the
- * domain helpers, keeping the library free of reimplemented poker math.
+ * domain helpers, keeping the library free of reimplemented poker math. Each
+ * card also shows a practice-stats line — attempt count, accuracy percentage,
+ * and last-practiced date — for ranges with a `practiceStats` entry that has
+ * recorded attempts, with the accuracy derived through the
+ * {@link practiceAccuracyPercentage} domain helper; ranges with no recorded
+ * stats render no such line.
  */
 export function RangeLibrary({
   ranges,
@@ -96,6 +110,7 @@ export function RangeLibrary({
   onDuplicate,
   onFavorite,
   onArchive,
+  practiceStats = {},
 }: RangeLibraryProps) {
   const [query, setQuery] = useState('')
   // Empty string is the "All positions" sentinel; typing it as Position | ''
@@ -283,6 +298,19 @@ export function RangeLibrary({
 
                 const notes = meta?.notes
 
+                // Performance line, shown only once the range has recorded
+                // attempts; the accuracy percentage is derived in the domain so
+                // the component owns no stats math of its own.
+                const stats = practiceStats[range.id]
+                const practiceSummary =
+                  stats && stats.totalAttempts > 0
+                    ? `Practiced ${stats.totalAttempts} · ${practiceAccuracyPercentage(
+                        stats,
+                      ).toFixed(0)}% accuracy · last ${new Date(
+                        stats.lastPracticedAt,
+                      ).toLocaleDateString()}`
+                    : null
+
                 return (
                   <li
                     key={range.id}
@@ -300,6 +328,9 @@ export function RangeLibrary({
                         <span className="range-item-scenario">{scenarioParts.join(' · ')}</span>
                       )}
                       {notes && <span className="range-item-notes">{previewNotes(notes)}</span>}
+                      {practiceSummary && (
+                        <span className="range-item-practice">{practiceSummary}</span>
+                      )}
                     </div>
                     <div className="range-item-actions">
                       <button

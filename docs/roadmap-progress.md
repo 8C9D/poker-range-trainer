@@ -49,91 +49,72 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 12 | Filter to favorited ranges only behind a "Favorites only" toggle | v1.4 — Range library and filtering | 2026-06-05 |
 | 13 | Persist per-range practice stats (type + storage foundation) | v1.4 — Range library and filtering | 2026-06-05 |
 | 14 | Record finished practice sessions into per-range stats | v1.4 — Range library and filtering | 2026-06-05 |
+| 15 | Show per-range practice stats (last practiced + accuracy) on library cards | v1.4 — Range library and filtering | 2026-06-05 |
 
 ## Next slice
 
-- **Number:** 15
+- **Number:** 16
 - **Roadmap target:** v1.4 — Range library and filtering
-- **Working title:** Show per-range practice stats (last practiced + accuracy) on library cards
+- **Working title:** Sort saved ranges by recently practiced
 
 ### Prompt
 
-You are implementing roadmap slice 15 of **v1.4 — Range library and filtering**. The
-persisted practice-stats pipeline is now complete end to end: slice 13 built the store
-(`RangePracticeStats` in `src/types/practice.ts`; `loadPracticeStats()` /
-`recordPracticeSession()` in `src/storage/practiceStatsStorage.ts`) and slice 14 wired
-recording so finishing a practice session folds its attempts into the range's cumulative
-`totalAttempts`, `correctAttempts`, and `lastPracticedAt`. But nothing **shows** those stats
-yet. This slice is the display step: surface each range's accumulated practice performance on
-its library card — a **"Last practiced"** date and an **accuracy** percentage — following the
-project's "data → behavior → display" rhythm. v1.4's range cards call for "Last practiced" and
-"Accuracy" fields, and this delivers them. **No sorting this slice** — the "Recently
-practiced" and "Accuracy" *sorts* are the next two slices and stay out of scope here.
+You are implementing roadmap slice 16 of **v1.4 — Range library and filtering**. The
+library can already sort by "Name (A–Z)" and "Recently edited" (slices 6–7), and as of
+slices 13–15 each range now carries cumulative practice stats that are persisted
+(`recordPracticeSession`), threaded into `RangeLibrary` as the `practiceStats` prop, and
+shown on each card. This slice adds the **"Recently practiced"** sort option from v1.4's
+"Sort by" list, ordering the filtered library by each range's `lastPracticedAt` (most
+recently practiced first), with never-practiced ranges sorting last. **No "Accuracy" sort
+this slice** — that is the next slice and stays out of scope here.
 
 Context (read these before starting):
-- `src/types/practice.ts` — `RangePracticeStats` has `rangeId`, `totalAttempts`,
-  `correctAttempts`, and `lastPracticedAt` (ISO-8601). Its doc comment already says accuracy
-  is "derived later as `correctAttempts / totalAttempts` (guarding the zero-attempt case)" —
-  that derivation is this slice's domain helper. Do not change this type.
-- `src/storage/practiceStatsStorage.ts` — `loadPracticeStats(): Record<string,
-  RangePracticeStats>` returns the stats map keyed by `rangeId` (empty `{}` when nothing is
-  stored). Do not change it.
-- `src/App.tsx` is the storage orchestrator and already holds `savedRanges` in state,
-  refreshing it via `setSavedRanges(loadSavedRanges())` after every mutation. It renders
-  `<RangeLibrary ranges={savedRanges} ... />` and, as of slice 14, records a finished session
-  in `handleEndPractice(summary)` via `recordPracticeSession(practicingRange.id, summary)`
-  before `setPracticingRange(null)`. This slice adds a sibling `practiceStats` state so the
-  freshly recorded numbers reach the library.
-- `src/components/RangeLibrary.tsx` renders each range as a card under
-  `<div className="range-item-info">`, with derived `combos`/`percentage` lines built from
-  domain helpers (`countSelectedCombos`, `calculateRangePercentage`) — the component owns no
-  math of its own. Add the practice-stats line the same way: derive via a domain helper, don't
-  inline the arithmetic. Existing badges/scenario/notes lines show how conditional card lines
-  are rendered (only when present).
-- `src/components/RangeLibrary.test.tsx` constructs the component directly and passes every
-  prop at ~20 call sites. To avoid churning all of them, make the new `practiceStats` prop
-  **optional with a `{}` default**, so existing renders compile and behave unchanged.
-- Existing domain modules (e.g. `src/domain/rangeFavorite.ts`, `rangeArchive.ts`) show the
-  one-module-per-concern + colocated-`.test.ts` convention to mirror for the new helper.
+- `src/domain/rangeLibrary.ts` holds the existing sort helpers. `sortRangesByUpdatedAt` is
+  the closest model: it `.slice()`-copies, sorts ISO-8601 strings with
+  `b.updatedAt.localeCompare(a.updatedAt)` for newest-first, never mutates the input, and
+  relies on stable sort for ties. The new helper differs in one way: the timestamp to sort
+  by lives in a separate `practiceStats` map keyed by range id, not on the range itself, so
+  the helper takes that map as a second argument and looks up `practiceStats[range.id]`.
+- `src/types/practice.ts` — `RangePracticeStats` has `lastPracticedAt` (ISO-8601). The
+  helper only needs `{ lastPracticedAt }`, so type its map parameter structurally (e.g.
+  `Record<string, { lastPracticedAt: string }>`) to stay decoupled, matching how the other
+  helpers constrain `T` to minimal shapes.
+- `src/components/RangeLibrary.tsx` already receives `practiceStats` (slice 15) and owns the
+  `sort` state as a `'' | 'name' | 'recent'` union, choosing the sort via a ternary over
+  `sortRangesByName`/`sortRangesByUpdatedAt`. Extend the union with a `'practiced'` member,
+  add a `<option value="practiced">Recently practiced</option>` to the sort `<select>`, and
+  call the new helper (passing `practiceStats`) when `sort === 'practiced'`. Keep the
+  `onChange` cast in step with the widened union.
+- `src/domain/rangeLibrary.test.ts` and `src/components/RangeLibrary.test.tsx` show the
+  established test patterns to mirror (the "Recently edited" sort tests are the closest
+  analog).
 
-Task — derive accuracy in the domain, thread the stats map through App, and render a
-last-practiced/accuracy line on each card:
-- Add `src/domain/practiceStats.ts` exporting
-  `practiceAccuracyPercentage(stats: RangePracticeStats): number` =
-  `totalAttempts === 0 ? 0 : (correctAttempts / totalAttempts) * 100`. Keep it pure (no React,
-  no storage), matching `summarizePracticeAttempts`'s zero-guard style. (A range that has been
-  recorded always has `totalAttempts > 0`, but guard zero anyway so the helper is total.)
-- In `src/App.tsx`: import `loadPracticeStats` from `./storage/practiceStatsStorage`; add
-  `const [practiceStats, setPracticeStats] = useState(() => loadPracticeStats())`. In
-  `handleEndPractice`, after `recordPracticeSession(...)`, refresh with
-  `setPracticeStats(loadPracticeStats())` (same refresh-after-write pattern as
-  `setSavedRanges(loadSavedRanges())`). Pass `practiceStats={practiceStats}` into
-  `<RangeLibrary>`.
-- In `src/components/RangeLibrary.tsx`: add an optional prop
-  `practiceStats?: Record<string, RangePracticeStats>` defaulting to `{}` (import the type
-  from `../types/practice`). For each card, look up `practiceStats[range.id]`; when present
-  (and `totalAttempts > 0`), render one line inside `range-item-info` — e.g. a
-  `<span className="range-item-practice">` reading
-  `Practiced {totalAttempts} · {practiceAccuracyPercentage(stats).toFixed(0)}% accuracy · last {date}`,
-  where `date = new Date(stats.lastPracticedAt).toLocaleDateString()`. Ranges with no recorded
-  stats render no such line (mirror the existing `scenarioParts`/`notes` conditional pattern).
-  Update the component doc comment to mention the practice-stats line. Do not add sorting.
+Task — add the domain sort helper, then wire a "Recently practiced" option into the library
+sort select:
+- In `src/domain/rangeLibrary.ts`, add
+  `sortRangesByLastPracticed<T extends { id: string }>(ranges: T[], practiceStats:
+  Record<string, { lastPracticedAt: string }>): T[]`. Return a `.slice()` copy sorted so
+  ranges with a more recent `practiceStats[range.id]?.lastPracticedAt` come first; ranges
+  with **no** stats entry sort after every practiced range (treat a missing entry as "never
+  practiced" — e.g. fall back to an empty string, which sorts before any real ISO timestamp,
+  so comparing `b` vs `a` puts the practiced ranges first and the never-practiced ones last).
+  Never mutate the input; rely on stable sort for ties. Add a doc comment in the same style as
+  `sortRangesByUpdatedAt`, calling out the missing-entry behavior.
+- In `src/components/RangeLibrary.tsx`: widen the `sort` state union to
+  `'' | 'name' | 'recent' | 'practiced'`; add the `Recently practiced` option to the sort
+  select (after `Recently edited`); and extend the sort selection so `sort === 'practiced'`
+  returns `sortRangesByLastPracticed(filtered, practiceStats)`. Update the component doc
+  comment's sort description to mention the new option.
 
 Tests to add/update:
-- `src/domain/practiceStats.test.ts`: cover `practiceAccuracyPercentage` — a perfect record
-  (e.g. 4/4 → 100), a partial record (e.g. 1/4 → 25), and the zero-attempt guard (0/0 → 0,
-  not `NaN`).
-- `src/components/RangeLibrary.test.tsx`: add a case rendering a range whose `id` has an entry
-  in a passed `practiceStats` map (e.g. `{ totalAttempts: 4, correctAttempts: 3,
-  lastPracticedAt: '2026-06-01T00:00:00.000Z', rangeId: 'r1' }`) and assert the card shows the
-  attempt count and `75% accuracy`. Add a case proving a range with no stats entry (and the
-  default-empty `practiceStats`) renders no practice line (query the `.range-item-practice`
-  class is absent).
-- `src/App.test.tsx` (`Practice mode` block): extend the end-to-end flow — after answering one
-  hand and clicking "End Practice", assert the returned library card now shows a practice-stats
-  line (e.g. `getByText(/100% accuracy/)` when the single answer was correct). Reuse the
-  read-the-prompt-hand-and-answer-truthfully approach already in that block so accuracy is
-  deterministic.
+- `src/domain/rangeLibrary.test.ts`: cover `sortRangesByLastPracticed` — orders practiced
+  ranges most-recent-first by `lastPracticedAt`; places ranges with no `practiceStats` entry
+  last; preserves input order for equal timestamps (stability); and does not mutate the input
+  array.
+- `src/components/RangeLibrary.test.tsx`: add a case selecting "Recently practiced" from the
+  sort select (passing a `practiceStats` map) and asserting the rendered `.range-item-name`
+  order is most-recently-practiced first with the never-practiced range last. Mirror the
+  existing "reorders ... when Recently edited is selected" test.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -141,13 +122,12 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: only the accuracy domain helper, the App `practiceStats` state +
-  prop wiring, and the RangeLibrary card line (plus tests). Do NOT add the "Recently
-  practiced" or "Accuracy" *sorts* (next two slices), and do NOT change `RangePracticeStats`,
-  `loadPracticeStats`, or `recordPracticeSession` — those are done.
+- Stay within this slice: only the `sortRangesByLastPracticed` helper and the "Recently
+  practiced" sort wiring (plus tests). Do NOT add the "Accuracy" sort (next slice), and do NOT
+  change the stats type, storage, or the card display.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
-- Keep the change small and reversible; keep poker/stats derivation in `src/domain/`, not in
-  the component.
+- Keep poker/library logic in `src/domain/`, not in the component; keep the change small and
+  reversible.
 
 Suggested commit message:
-- `feat: show per-range practice stats on library cards`
+- `feat: sort range library by recently practiced`

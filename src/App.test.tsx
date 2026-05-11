@@ -311,6 +311,28 @@ describe('Practice mode', () => {
     )
   })
 
+  it('shows the recorded practice stats on the library card after ending a session', async () => {
+    const user = userEvent.setup()
+    const { container } = render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Pairs')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'KK' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    await user.click(screen.getByRole('button', { name: 'Practice range Pairs' }))
+
+    // Answer the shown hand truthfully so the single attempt is correct, making
+    // the displayed accuracy a deterministic 100%.
+    const promptHand = container.querySelector('.practice-prompt-hand')?.textContent ?? ''
+    const inRange = promptHand === 'AA' || promptHand === 'KK'
+    await user.click(screen.getByRole('button', { name: inRange ? 'In range' : 'Out of range' }))
+    await user.click(screen.getByRole('button', { name: 'End Practice' }))
+
+    // The library card now carries the cumulative practice line for this range.
+    expect(within(library()).getByText(/Practiced 1.*100% accuracy/)).toBeInTheDocument()
+  })
+
   it('records nothing when practice ends without any answers', async () => {
     const user = userEvent.setup()
     render(<App />)
