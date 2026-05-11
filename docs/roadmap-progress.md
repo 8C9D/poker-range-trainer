@@ -47,86 +47,81 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 10 | Hide archived ranges by default behind a "Show archived" toggle | v1.4 — Range library and filtering | 2026-06-05 |
 | 11 | Favorite / unfavorite a saved range (persisted flag) | v1.4 — Range library and filtering | 2026-06-05 |
 | 12 | Filter to favorited ranges only behind a "Favorites only" toggle | v1.4 — Range library and filtering | 2026-06-05 |
+| 13 | Persist per-range practice stats (type + storage foundation) | v1.4 — Range library and filtering | 2026-06-05 |
 
 ## Next slice
 
-- **Number:** 13
+- **Number:** 14
 - **Roadmap target:** v1.4 — Range library and filtering
-- **Working title:** Persist per-range practice stats (type + storage foundation)
+- **Working title:** Record finished practice sessions into per-range stats
 
 ### Prompt
 
-You are implementing roadmap slice 13 of **v1.4 — Range library and filtering**. Slices 1–12
-finished every v1.4 feature that needs no practice history: search, the four metadata
-filters, name/recently-edited sorts, duplicate, archive (+ hide-by-default), and favorite
-(+ favorites-only). The features still missing from v1.4 — the **"Recently practiced"** and
-**"Accuracy"** sorts, and the **"Last practiced"** / **accuracy** fields on range cards —
-are all blocked on one thing the app does not yet have: it never remembers anything about a
-finished practice session. This slice adds that missing foundation — a persisted,
-per-range practice-stats record — and nothing else. It follows the project's established
-"data first, then behavior" rhythm (slice 9 added the archived flag before slice 10 used it;
-slice 11 added the favorite flag before slice 12 used it). **No UI is wired this slice:**
-recording at session end and displaying/sorting by these stats are later slices.
+You are implementing roadmap slice 14 of **v1.4 — Range library and filtering**. Slice 13
+added the persisted, per-range practice-stats foundation but deliberately wired no UI: it
+introduced `RangePracticeStats` (`src/types/practice.ts`) and
+`src/storage/practiceStatsStorage.ts` with `loadPracticeStats()` and
+`recordPracticeSession(rangeId, summary, timestamp?)`, and its prompt noted that "recording
+at session end ... come in later slices." This slice is that behavior step: actually call
+`recordPracticeSession` when a practice session ends, so finishing practice persists
+cumulative attempts and accuracy for the range. It unblocks the remaining v1.4 features —
+the **"Recently practiced"** and **"Accuracy"** sorts and the **"Last practiced"**/accuracy
+card fields — which are still later slices. This follows the project's "data first, then
+behavior" rhythm (slice 13 built the store; this slice writes to it). **No sort or
+card-display work this slice** — only the recording side-effect at session end.
 
 Context (read these before starting):
-- Practice scoring is pure and already produces session aggregates.
-  `src/domain/practice.ts` exposes `summarizePracticeAttempts(attempts)` returning a
-  `PracticeSessionSummary` (`src/types/practice.ts`): `{ totalQuestions, correctAnswers,
-  accuracyPercentage }`. `src/components/PracticeSession.tsx` holds these attempts in
-  component state only — its doc comment explicitly notes "nothing is persisted in this
-  slice." Do not change PracticeSession, App.tsx, or RangeLibrary this slice.
-- `src/storage/rangeStorage.ts` is the storage pattern to mirror: a single versioned
-  `localStorage` key (`export const STORAGE_KEY = 'poker-range-trainer.saved-ranges.v1'`),
-  a private `writeSavedRanges` doing `localStorage.setItem(KEY, JSON.stringify(...))`, and a
-  `loadSavedRanges()` that returns a safe default when the key is absent, the JSON is
-  corrupt (wrapped `JSON.parse` in try/catch), or the parsed value is the wrong shape, and
-  that **skips individual malformed entries** rather than discarding everything. Reuse this
-  exact defensive style (try/catch parse, shape guards, per-entry validation, skip-not-throw
-  on load).
-- Its tests in `src/storage/rangeStorage.test.ts` run under jsdom with
-  `beforeEach(() => localStorage.clear())` to isolate cases — copy that setup.
+- `src/storage/practiceStatsStorage.ts` exposes `recordPracticeSession(rangeId, summary:
+  Pick<PracticeSessionSummary, 'totalQuestions' | 'correctAnswers'>, timestamp?)`. It is
+  already a **no-op when `summary.totalQuestions <= 0`**, so ending a session with nothing
+  answered must record nothing — rely on that, don't re-guard it in the UI. It folds the
+  session cumulatively into the stored record and is already covered by
+  `practiceStatsStorage.test.ts`; do not change it.
+- `src/components/PracticeSession.tsx` holds the live session: it accumulates `attempts` in
+  state and already computes `const summary = summarizePracticeAttempts(attempts)` each
+  render (a `PracticeSessionSummary` from `src/types/practice.ts`). Its `onExit: () => void`
+  prop is fired by the "End Practice" button and is the session's only end trigger (practice
+  is an endless stream of hands). Its doc comment currently says "nothing is persisted in
+  this slice" — update that wording.
+- `src/App.tsx` is the storage orchestrator: every persistence call (`saveSavedRange`,
+  `deleteSavedRange`, favorite/archive toggles) lives in an App handler, not in a leaf
+  component. It tracks `const [practicingRange, setPracticingRange] = useState<SavedRange |
+  null>(null)`, renders `<PracticeSession range={practicingRange} onExit={handleEndPractice}
+  />`, and `handleEndPractice()` currently just does `setPracticingRange(null)`. Keep
+  `PracticeSession` persistence-free and record from App, consistent with that pattern.
+- `src/App.test.tsx` clears `localStorage` in `beforeEach`, imports storage helpers from
+  `./storage/...`, and its `describe('Practice mode', ...)` block saves a range named "Pairs"
+  (AA, KK), clicks "Practice range Pairs", and ends practice. Saved-range ids are generated
+  by App, so read the id back via `loadSavedRanges()[0].id`.
 
-Task — add the practice-stats type and its storage layer (no UI):
-- Type: in `src/types/practice.ts`, add and document an exported
-  `interface RangePracticeStats { rangeId: string; totalAttempts: number; correctAttempts:
-  number; lastPracticedAt: string }` (cumulative attempt counts across all sessions for that
-  range, plus the ISO-8601 timestamp of the most recent session). Note in the doc comment
-  that accuracy is derived later as `correctAttempts / totalAttempts` and that recording/
-  display come in later slices.
-- Storage: add a new file `src/storage/practiceStatsStorage.ts`, mirroring
-  `rangeStorage.ts`:
-  - `export const PRACTICE_STATS_STORAGE_KEY = 'poker-range-trainer.practice-stats.v1'`.
-  - `export function loadPracticeStats(): Record<string, RangePracticeStats>` — returns a map
-    keyed by `rangeId`. Empty object `{}` when the key is absent, the JSON is corrupt, or the
-    parsed value is not a non-null, non-array object. Validate each entry's value
-    independently (`rangeId` a non-empty string; `totalAttempts` and `correctAttempts` finite
-    numbers `>= 0`; `lastPracticedAt` a string) and **skip** malformed ones; build the
-    returned map keyed by each validated value's own `rangeId` so the map is always
-    self-consistent.
-  - `export function recordPracticeSession(rangeId: string, summary: Pick<
-    PracticeSessionSummary, 'totalQuestions' | 'correctAnswers'>, timestamp: string =
-    new Date().toISOString()): void` — folds one finished session into the stored record:
-    when `summary.totalQuestions <= 0` it is a **no-op** (an unanswered session never creates
-    or touches a record); otherwise it loads the map, adds `summary.totalQuestions` to
-    `totalAttempts` and `summary.correctAnswers` to `correctAttempts` (starting from 0 for a
-    range with no prior record), sets `lastPracticedAt` to `timestamp`, and writes the map
-    back through a private `writePracticeStats` helper.
-- Keep this module pure storage/side-effects only — no React, no DOM beyond `localStorage`,
-  and no poker math. Exported functions are exercised by the new tests, so they are not dead
-  code; do not wire them into any component yet.
+Task — record the session summary into stats when practice ends (record in App, keep the
+component pure):
+- In `src/components/PracticeSession.tsx`: change the `onExit` prop type to
+  `onExit: (summary: PracticeSessionSummary) => void` (import the type from
+  `../types/practice`), and have the "End Practice" button call `onExit(summary)` with the
+  already-computed `summary`. Update the doc comment that claims nothing is persisted (note
+  instead that the session summary is reported to the parent on exit, which persists it). Do
+  not import storage into this component.
+- In `src/App.tsx`: import `recordPracticeSession` from `./storage/practiceStatsStorage` and
+  the `PracticeSessionSummary` type from `./types/practice`. Change `handleEndPractice` to
+  accept the summary, call `recordPracticeSession(practicingRange.id, summary)` while
+  `practicingRange` is still set (guard against a null `practicingRange`), then
+  `setPracticingRange(null)`. No other behavior changes; the existing no-op-on-zero rule
+  means ending without answering records nothing.
 
-Tests to add (`src/storage/practiceStatsStorage.test.ts`, with `beforeEach(() =>
-localStorage.clear())`):
-- `loadPracticeStats`: returns `{}` when nothing is stored; returns `{}` when the stored JSON
-  is corrupt; returns `{}` when the stored value is not an object (e.g. an array or a
-  string); skips malformed entries while keeping valid ones; round-trips a value written by
-  `recordPracticeSession`.
-- `recordPracticeSession`: creates a new record for a first session (counts and
-  `lastPracticedAt` set from the summary + timestamp); folds a second session into the
-  existing record cumulatively (counts add up, `lastPracticedAt` advances to the newer
-  timestamp); records ranges independently (recording range B leaves range A untouched); is a
-  no-op when `totalQuestions` is 0 (no record is created, and an existing record is left
-  unchanged). Pass explicit `timestamp` strings for determinism.
+Tests to add/update:
+- `src/components/PracticeSession.test.tsx`: update the existing "calls onExit when End
+  Practice is clicked" test — `onExit` is now called with the session summary. Answer one
+  in-range hand (`sequenceRandom([0])` → "AA", click "In range"), then "End Practice", and
+  assert `onExit` was called once with
+  `expect.objectContaining({ totalQuestions: 1, correctAnswers: 1 })`. Add a case that ending
+  immediately (nothing answered) still calls `onExit` with `totalQuestions: 0`.
+- `src/App.test.tsx` (`Practice mode` block): add a test that saves "Pairs", starts practice,
+  answers one hand, clicks "End Practice", then asserts persistence via `loadPracticeStats()`
+  (import it from `./storage/practiceStatsStorage`): the entry keyed by
+  `loadSavedRanges()[0].id` has `totalAttempts: 1` (and `correctAttempts` matching the answer
+  given). Add a second case: starting practice and ending without answering leaves
+  `loadPracticeStats()` empty (`{}`), proving the zero-question no-op holds end to end.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -134,13 +129,14 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: only the `RangePracticeStats` type and the
-  `practiceStatsStorage.ts` read/record functions plus their tests. Do NOT touch
-  `PracticeSession.tsx`, `App.tsx`, or `RangeLibrary.tsx`, and do NOT add the
-  recently-practiced/accuracy sorts or the last-practiced/accuracy card fields yet — those
-  are the next slices, now unblocked by this one.
+- Stay within this slice: only wire `recordPracticeSession` into the practice end-of-session
+  flow (the `onExit` summary in `PracticeSession` + the `handleEndPractice` recording in
+  `App`) and its tests. Do NOT add the recently-practiced/accuracy sorts or the
+  last-practiced/accuracy card fields, and do NOT change `loadPracticeStats`,
+  `recordPracticeSession`, or `RangePracticeStats` — those are done. Those display/sort slices
+  come next, now unblocked.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: persist per-range practice stats`
+- `feat: record practice sessions into per-range stats`

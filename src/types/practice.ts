@@ -27,3 +27,25 @@ export interface PracticeSessionSummary {
   /** correctAnswers / totalQuestions * 100, or 0 when there are no attempts. */
   accuracyPercentage: number
 }
+
+/**
+ * Cumulative practice performance for one saved range, persisted across
+ * sessions.
+ *
+ * `totalAttempts` and `correctAttempts` sum every answered question across all
+ * practice sessions for `rangeId`; `lastPracticedAt` is the ISO-8601 timestamp
+ * of the most recent session folded in. Accuracy is derived later as
+ * `correctAttempts / totalAttempts` (guarding the zero-attempt case). This slice
+ * only defines and persists the record — recording it at session end and
+ * displaying/sorting by it come in later slices.
+ */
+export interface RangePracticeStats {
+  /** Id of the saved range these stats belong to. */
+  rangeId: string
+  /** Total answered questions across all sessions for this range. */
+  totalAttempts: number
+  /** Of those, how many were answered correctly. */
+  correctAttempts: number
+  /** ISO-8601 timestamp of the most recent practice session. */
+  lastPracticedAt: string
+}
