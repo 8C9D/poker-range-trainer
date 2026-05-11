@@ -5,15 +5,18 @@ import {
   summarizePracticeAttempts,
 } from '../domain/practice'
 import type { PokerHand } from '../domain/pokerHands'
-import type { PracticeAttempt } from '../types/practice'
+import type { PracticeAttempt, PracticeSessionSummary } from '../types/practice'
 import type { SavedRange } from '../types/range'
 import './PracticeSession.css'
 
 interface PracticeSessionProps {
   /** The saved range being practiced. */
   range: SavedRange
-  /** Leave practice and return to the editor/library view. */
-  onExit: () => void
+  /**
+   * Leave practice and return to the editor/library view, reporting the final
+   * session summary so the parent can persist it.
+   */
+  onExit: (summary: PracticeSessionSummary) => void
   /**
    * Source of randomness for drawing prompt hands. Defaults to `Math.random`;
    * injectable so tests can force a deterministic sequence of hands.
@@ -27,8 +30,8 @@ interface PracticeSessionProps {
  * feedback, and tracks running session stats.
  *
  * All scoring goes through the practice domain module so correctness logic is
- * never duplicated in the UI. Attempts live only in component state — nothing
- * is persisted in this slice.
+ * never duplicated in the UI. Attempts live only in component state; the final
+ * session summary is reported to the parent on exit, which persists it.
  */
 export function PracticeSession({ range, onExit, random = Math.random }: PracticeSessionProps) {
   const [currentHand, setCurrentHand] = useState<PokerHand>(() => getRandomPracticeHand(random))
@@ -56,7 +59,7 @@ export function PracticeSession({ range, onExit, random = Math.random }: Practic
     <section className="practice-session" aria-label="Practice session">
       <header className="practice-header">
         <h2>Practicing: {range.name}</h2>
-        <button type="button" onClick={onExit}>
+        <button type="button" onClick={() => onExit(summary)}>
           End Practice
         </button>
       </header>

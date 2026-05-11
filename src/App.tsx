@@ -11,7 +11,9 @@ import { setRangeFavorite } from './domain/rangeFavorite'
 import { calculateRangePercentage, countSelectedCombos } from './domain/rangeMath'
 import { mergeShortcutHands } from './domain/rangeShortcuts'
 import type { PokerHand } from './domain/pokerHands'
+import { recordPracticeSession } from './storage/practiceStatsStorage'
 import { deleteSavedRange, loadSavedRanges, saveSavedRange } from './storage/rangeStorage'
+import type { PracticeSessionSummary } from './types/practice'
 import type {
   ActionType,
   GameType,
@@ -236,7 +238,14 @@ function App() {
     setPracticingRange(range)
   }
 
-  function handleEndPractice() {
+  function handleEndPractice(summary: PracticeSessionSummary) {
+    // Persist the finished session into the range's cumulative stats before
+    // leaving practice, while the practiced range is still known.
+    // recordPracticeSession is a no-op when nothing was answered, so ending
+    // immediately records nothing.
+    if (practicingRange) {
+      recordPracticeSession(practicingRange.id, summary)
+    }
     setPracticingRange(null)
   }
 

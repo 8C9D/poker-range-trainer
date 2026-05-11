@@ -139,7 +139,22 @@ describe('PracticeSession', () => {
     expect(screen.queryByText('Correct!')).not.toBeInTheDocument()
   })
 
-  it('calls onExit when End Practice is clicked', async () => {
+  it('calls onExit with the session summary when End Practice is clicked', async () => {
+    const user = userEvent.setup()
+    const onExit = vi.fn()
+    // random() -> 0 selects "AA", which is in the range; answer it correctly.
+    render(<PracticeSession range={makeRange()} onExit={onExit} random={sequenceRandom([0])} />)
+
+    await user.click(screen.getByRole('button', { name: 'In range' }))
+    await user.click(screen.getByRole('button', { name: 'End Practice' }))
+
+    expect(onExit).toHaveBeenCalledOnce()
+    expect(onExit).toHaveBeenCalledWith(
+      expect.objectContaining({ totalQuestions: 1, correctAnswers: 1 }),
+    )
+  })
+
+  it('reports a zero-question summary when ending without answering', async () => {
     const user = userEvent.setup()
     const onExit = vi.fn()
     render(<PracticeSession range={makeRange()} onExit={onExit} random={sequenceRandom([0])} />)
@@ -147,5 +162,6 @@ describe('PracticeSession', () => {
     await user.click(screen.getByRole('button', { name: 'End Practice' }))
 
     expect(onExit).toHaveBeenCalledOnce()
+    expect(onExit).toHaveBeenCalledWith(expect.objectContaining({ totalQuestions: 0 }))
   })
 })

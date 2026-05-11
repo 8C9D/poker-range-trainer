@@ -48,80 +48,92 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 11 | Favorite / unfavorite a saved range (persisted flag) | v1.4 — Range library and filtering | 2026-06-05 |
 | 12 | Filter to favorited ranges only behind a "Favorites only" toggle | v1.4 — Range library and filtering | 2026-06-05 |
 | 13 | Persist per-range practice stats (type + storage foundation) | v1.4 — Range library and filtering | 2026-06-05 |
+| 14 | Record finished practice sessions into per-range stats | v1.4 — Range library and filtering | 2026-06-05 |
 
 ## Next slice
 
-- **Number:** 14
+- **Number:** 15
 - **Roadmap target:** v1.4 — Range library and filtering
-- **Working title:** Record finished practice sessions into per-range stats
+- **Working title:** Show per-range practice stats (last practiced + accuracy) on library cards
 
 ### Prompt
 
-You are implementing roadmap slice 14 of **v1.4 — Range library and filtering**. Slice 13
-added the persisted, per-range practice-stats foundation but deliberately wired no UI: it
-introduced `RangePracticeStats` (`src/types/practice.ts`) and
-`src/storage/practiceStatsStorage.ts` with `loadPracticeStats()` and
-`recordPracticeSession(rangeId, summary, timestamp?)`, and its prompt noted that "recording
-at session end ... come in later slices." This slice is that behavior step: actually call
-`recordPracticeSession` when a practice session ends, so finishing practice persists
-cumulative attempts and accuracy for the range. It unblocks the remaining v1.4 features —
-the **"Recently practiced"** and **"Accuracy"** sorts and the **"Last practiced"**/accuracy
-card fields — which are still later slices. This follows the project's "data first, then
-behavior" rhythm (slice 13 built the store; this slice writes to it). **No sort or
-card-display work this slice** — only the recording side-effect at session end.
+You are implementing roadmap slice 15 of **v1.4 — Range library and filtering**. The
+persisted practice-stats pipeline is now complete end to end: slice 13 built the store
+(`RangePracticeStats` in `src/types/practice.ts`; `loadPracticeStats()` /
+`recordPracticeSession()` in `src/storage/practiceStatsStorage.ts`) and slice 14 wired
+recording so finishing a practice session folds its attempts into the range's cumulative
+`totalAttempts`, `correctAttempts`, and `lastPracticedAt`. But nothing **shows** those stats
+yet. This slice is the display step: surface each range's accumulated practice performance on
+its library card — a **"Last practiced"** date and an **accuracy** percentage — following the
+project's "data → behavior → display" rhythm. v1.4's range cards call for "Last practiced" and
+"Accuracy" fields, and this delivers them. **No sorting this slice** — the "Recently
+practiced" and "Accuracy" *sorts* are the next two slices and stay out of scope here.
 
 Context (read these before starting):
-- `src/storage/practiceStatsStorage.ts` exposes `recordPracticeSession(rangeId, summary:
-  Pick<PracticeSessionSummary, 'totalQuestions' | 'correctAnswers'>, timestamp?)`. It is
-  already a **no-op when `summary.totalQuestions <= 0`**, so ending a session with nothing
-  answered must record nothing — rely on that, don't re-guard it in the UI. It folds the
-  session cumulatively into the stored record and is already covered by
-  `practiceStatsStorage.test.ts`; do not change it.
-- `src/components/PracticeSession.tsx` holds the live session: it accumulates `attempts` in
-  state and already computes `const summary = summarizePracticeAttempts(attempts)` each
-  render (a `PracticeSessionSummary` from `src/types/practice.ts`). Its `onExit: () => void`
-  prop is fired by the "End Practice" button and is the session's only end trigger (practice
-  is an endless stream of hands). Its doc comment currently says "nothing is persisted in
-  this slice" — update that wording.
-- `src/App.tsx` is the storage orchestrator: every persistence call (`saveSavedRange`,
-  `deleteSavedRange`, favorite/archive toggles) lives in an App handler, not in a leaf
-  component. It tracks `const [practicingRange, setPracticingRange] = useState<SavedRange |
-  null>(null)`, renders `<PracticeSession range={practicingRange} onExit={handleEndPractice}
-  />`, and `handleEndPractice()` currently just does `setPracticingRange(null)`. Keep
-  `PracticeSession` persistence-free and record from App, consistent with that pattern.
-- `src/App.test.tsx` clears `localStorage` in `beforeEach`, imports storage helpers from
-  `./storage/...`, and its `describe('Practice mode', ...)` block saves a range named "Pairs"
-  (AA, KK), clicks "Practice range Pairs", and ends practice. Saved-range ids are generated
-  by App, so read the id back via `loadSavedRanges()[0].id`.
+- `src/types/practice.ts` — `RangePracticeStats` has `rangeId`, `totalAttempts`,
+  `correctAttempts`, and `lastPracticedAt` (ISO-8601). Its doc comment already says accuracy
+  is "derived later as `correctAttempts / totalAttempts` (guarding the zero-attempt case)" —
+  that derivation is this slice's domain helper. Do not change this type.
+- `src/storage/practiceStatsStorage.ts` — `loadPracticeStats(): Record<string,
+  RangePracticeStats>` returns the stats map keyed by `rangeId` (empty `{}` when nothing is
+  stored). Do not change it.
+- `src/App.tsx` is the storage orchestrator and already holds `savedRanges` in state,
+  refreshing it via `setSavedRanges(loadSavedRanges())` after every mutation. It renders
+  `<RangeLibrary ranges={savedRanges} ... />` and, as of slice 14, records a finished session
+  in `handleEndPractice(summary)` via `recordPracticeSession(practicingRange.id, summary)`
+  before `setPracticingRange(null)`. This slice adds a sibling `practiceStats` state so the
+  freshly recorded numbers reach the library.
+- `src/components/RangeLibrary.tsx` renders each range as a card under
+  `<div className="range-item-info">`, with derived `combos`/`percentage` lines built from
+  domain helpers (`countSelectedCombos`, `calculateRangePercentage`) — the component owns no
+  math of its own. Add the practice-stats line the same way: derive via a domain helper, don't
+  inline the arithmetic. Existing badges/scenario/notes lines show how conditional card lines
+  are rendered (only when present).
+- `src/components/RangeLibrary.test.tsx` constructs the component directly and passes every
+  prop at ~20 call sites. To avoid churning all of them, make the new `practiceStats` prop
+  **optional with a `{}` default**, so existing renders compile and behave unchanged.
+- Existing domain modules (e.g. `src/domain/rangeFavorite.ts`, `rangeArchive.ts`) show the
+  one-module-per-concern + colocated-`.test.ts` convention to mirror for the new helper.
 
-Task — record the session summary into stats when practice ends (record in App, keep the
-component pure):
-- In `src/components/PracticeSession.tsx`: change the `onExit` prop type to
-  `onExit: (summary: PracticeSessionSummary) => void` (import the type from
-  `../types/practice`), and have the "End Practice" button call `onExit(summary)` with the
-  already-computed `summary`. Update the doc comment that claims nothing is persisted (note
-  instead that the session summary is reported to the parent on exit, which persists it). Do
-  not import storage into this component.
-- In `src/App.tsx`: import `recordPracticeSession` from `./storage/practiceStatsStorage` and
-  the `PracticeSessionSummary` type from `./types/practice`. Change `handleEndPractice` to
-  accept the summary, call `recordPracticeSession(practicingRange.id, summary)` while
-  `practicingRange` is still set (guard against a null `practicingRange`), then
-  `setPracticingRange(null)`. No other behavior changes; the existing no-op-on-zero rule
-  means ending without answering records nothing.
+Task — derive accuracy in the domain, thread the stats map through App, and render a
+last-practiced/accuracy line on each card:
+- Add `src/domain/practiceStats.ts` exporting
+  `practiceAccuracyPercentage(stats: RangePracticeStats): number` =
+  `totalAttempts === 0 ? 0 : (correctAttempts / totalAttempts) * 100`. Keep it pure (no React,
+  no storage), matching `summarizePracticeAttempts`'s zero-guard style. (A range that has been
+  recorded always has `totalAttempts > 0`, but guard zero anyway so the helper is total.)
+- In `src/App.tsx`: import `loadPracticeStats` from `./storage/practiceStatsStorage`; add
+  `const [practiceStats, setPracticeStats] = useState(() => loadPracticeStats())`. In
+  `handleEndPractice`, after `recordPracticeSession(...)`, refresh with
+  `setPracticeStats(loadPracticeStats())` (same refresh-after-write pattern as
+  `setSavedRanges(loadSavedRanges())`). Pass `practiceStats={practiceStats}` into
+  `<RangeLibrary>`.
+- In `src/components/RangeLibrary.tsx`: add an optional prop
+  `practiceStats?: Record<string, RangePracticeStats>` defaulting to `{}` (import the type
+  from `../types/practice`). For each card, look up `practiceStats[range.id]`; when present
+  (and `totalAttempts > 0`), render one line inside `range-item-info` — e.g. a
+  `<span className="range-item-practice">` reading
+  `Practiced {totalAttempts} · {practiceAccuracyPercentage(stats).toFixed(0)}% accuracy · last {date}`,
+  where `date = new Date(stats.lastPracticedAt).toLocaleDateString()`. Ranges with no recorded
+  stats render no such line (mirror the existing `scenarioParts`/`notes` conditional pattern).
+  Update the component doc comment to mention the practice-stats line. Do not add sorting.
 
 Tests to add/update:
-- `src/components/PracticeSession.test.tsx`: update the existing "calls onExit when End
-  Practice is clicked" test — `onExit` is now called with the session summary. Answer one
-  in-range hand (`sequenceRandom([0])` → "AA", click "In range"), then "End Practice", and
-  assert `onExit` was called once with
-  `expect.objectContaining({ totalQuestions: 1, correctAnswers: 1 })`. Add a case that ending
-  immediately (nothing answered) still calls `onExit` with `totalQuestions: 0`.
-- `src/App.test.tsx` (`Practice mode` block): add a test that saves "Pairs", starts practice,
-  answers one hand, clicks "End Practice", then asserts persistence via `loadPracticeStats()`
-  (import it from `./storage/practiceStatsStorage`): the entry keyed by
-  `loadSavedRanges()[0].id` has `totalAttempts: 1` (and `correctAttempts` matching the answer
-  given). Add a second case: starting practice and ending without answering leaves
-  `loadPracticeStats()` empty (`{}`), proving the zero-question no-op holds end to end.
+- `src/domain/practiceStats.test.ts`: cover `practiceAccuracyPercentage` — a perfect record
+  (e.g. 4/4 → 100), a partial record (e.g. 1/4 → 25), and the zero-attempt guard (0/0 → 0,
+  not `NaN`).
+- `src/components/RangeLibrary.test.tsx`: add a case rendering a range whose `id` has an entry
+  in a passed `practiceStats` map (e.g. `{ totalAttempts: 4, correctAttempts: 3,
+  lastPracticedAt: '2026-06-01T00:00:00.000Z', rangeId: 'r1' }`) and assert the card shows the
+  attempt count and `75% accuracy`. Add a case proving a range with no stats entry (and the
+  default-empty `practiceStats`) renders no practice line (query the `.range-item-practice`
+  class is absent).
+- `src/App.test.tsx` (`Practice mode` block): extend the end-to-end flow — after answering one
+  hand and clicking "End Practice", assert the returned library card now shows a practice-stats
+  line (e.g. `getByText(/100% accuracy/)` when the single answer was correct). Reuse the
+  read-the-prompt-hand-and-answer-truthfully approach already in that block so accuracy is
+  deterministic.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -129,14 +141,13 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: only wire `recordPracticeSession` into the practice end-of-session
-  flow (the `onExit` summary in `PracticeSession` + the `handleEndPractice` recording in
-  `App`) and its tests. Do NOT add the recently-practiced/accuracy sorts or the
-  last-practiced/accuracy card fields, and do NOT change `loadPracticeStats`,
-  `recordPracticeSession`, or `RangePracticeStats` — those are done. Those display/sort slices
-  come next, now unblocked.
+- Stay within this slice: only the accuracy domain helper, the App `practiceStats` state +
+  prop wiring, and the RangeLibrary card line (plus tests). Do NOT add the "Recently
+  practiced" or "Accuracy" *sorts* (next two slices), and do NOT change `RangePracticeStats`,
+  `loadPracticeStats`, or `recordPracticeSession` — those are done.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
-- Keep the change small and reversible.
+- Keep the change small and reversible; keep poker/stats derivation in `src/domain/`, not in
+  the component.
 
 Suggested commit message:
-- `feat: record practice sessions into per-range stats`
+- `feat: show per-range practice stats on library cards`

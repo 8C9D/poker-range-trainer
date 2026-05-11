@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
+import { loadPracticeStats } from './storage/practiceStatsStorage'
 import { loadSavedRanges } from './storage/rangeStorage'
 
 // Isolate persistence so each case starts from an empty library.
@@ -282,6 +283,48 @@ describe('Practice mode', () => {
     expect(screen.getByLabelText('Range name')).toBeInTheDocument()
     expect(within(library()).getByText('Pairs')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: /Practicing: Pairs/ })).not.toBeInTheDocument()
+  })
+
+  it('records a finished practice session into per-range stats', async () => {
+    const user = userEvent.setup()
+    const { container } = render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Pairs')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'KK' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    await user.click(screen.getByRole('button', { name: 'Practice range Pairs' }))
+
+    // App uses Math.random for the prompt, so read the shown hand and answer it
+    // truthfully to keep the recorded correct count deterministic.
+    const promptHand = container.querySelector('.practice-prompt-hand')?.textContent ?? ''
+    const inRange = promptHand === 'AA' || promptHand === 'KK'
+    await user.click(
+      screen.getByRole('button', { name: inRange ? 'In range' : 'Out of range' }),
+    )
+    await user.click(screen.getByRole('button', { name: 'End Practice' }))
+
+    const rangeId = loadSavedRanges()[0].id
+    expect(loadPracticeStats()[rangeId]).toEqual(
+      expect.objectContaining({ totalAttempts: 1, correctAttempts: 1 }),
+    )
+  })
+
+  it('records nothing when practice ends without any answers', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Pairs')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'KK' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    await user.click(screen.getByRole('button', { name: 'Practice range Pairs' }))
+    // End immediately, before answering a single hand.
+    await user.click(screen.getByRole('button', { name: 'End Practice' }))
+
+    expect(loadPracticeStats()).toEqual({})
   })
 })
 
