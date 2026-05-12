@@ -277,8 +277,9 @@ describe('Practice mode', () => {
     expect(screen.queryByLabelText('Range name')).not.toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Saved ranges' })).not.toBeInTheDocument()
 
-    // Ending practice returns to the editor/library view.
+    // Ending practice opens the review; dismissing it returns to the editor/library.
     await user.click(screen.getByRole('button', { name: 'End Practice' }))
+    await user.click(screen.getByRole('button', { name: 'Back to library' }))
 
     expect(screen.getByLabelText('Range name')).toBeInTheDocument()
     expect(within(library()).getByText('Pairs')).toBeInTheDocument()
@@ -304,6 +305,7 @@ describe('Practice mode', () => {
       screen.getByRole('button', { name: inRange ? 'In range' : 'Out of range' }),
     )
     await user.click(screen.getByRole('button', { name: 'End Practice' }))
+    await user.click(screen.getByRole('button', { name: 'Back to library' }))
 
     const rangeId = loadSavedRanges()[0].id
     expect(loadPracticeStats()[rangeId]).toEqual(
@@ -328,6 +330,7 @@ describe('Practice mode', () => {
     const inRange = promptHand === 'AA' || promptHand === 'KK'
     await user.click(screen.getByRole('button', { name: inRange ? 'In range' : 'Out of range' }))
     await user.click(screen.getByRole('button', { name: 'End Practice' }))
+    await user.click(screen.getByRole('button', { name: 'Back to library' }))
 
     // The library card now carries the cumulative practice line for this range.
     expect(within(library()).getByText(/Practiced 1.*100% accuracy/)).toBeInTheDocument()
@@ -343,8 +346,9 @@ describe('Practice mode', () => {
     await user.click(screen.getByRole('button', { name: 'Save Range' }))
 
     await user.click(screen.getByRole('button', { name: 'Practice range Pairs' }))
-    // End immediately, before answering a single hand.
+    // End immediately, before answering a single hand, then dismiss the review.
     await user.click(screen.getByRole('button', { name: 'End Practice' }))
+    await user.click(screen.getByRole('button', { name: 'Back to library' }))
 
     expect(loadPracticeStats()).toEqual({})
   })

@@ -52,102 +52,84 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 15 | Show per-range practice stats (last practiced + accuracy) on library cards | v1.4 — Range library and filtering | 2026-06-05 |
 | 16 | Sort saved ranges by recently practiced | v1.4 — Range library and filtering | 2026-06-05 |
 | 17 | Sort saved ranges by accuracy | v1.4 — Range library and filtering | 2026-06-05 |
+| 18 | Missing-hands review at the end of a practice session | v2 — Improved practice modes | 2026-06-05 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
 edited / recently practiced / accuracy sorts; duplicate, archive, and favorite;
 and range cards summarizing name, scenario, percent, last-practiced, and
-accuracy). The next roadmap target is **v2 — Improved practice modes**.
+accuracy).
+
+**v2 — Improved practice modes** is now underway. Slice 18 added practice mode 4
+("Missing hands review"): ending a session opens a review step that recaps the
+session stats and lists the mistakes — hands missed (in range, answered out) and
+hands wrongly included (out of range, answered in) — before the final summary is
+persisted on dismiss. Still to come in v2: mode 3 ("Build from memory"), mode 5
+("Timed drill"), and mode 6 ("Weakness-focused drill"). Mode 2 ("Pick the correct
+action") stays deferred until the multi-action range model arrives in v2.3. The
+next slice begins mode 3 with its pure range-comparison helper.
 
 ## Next slice
 
-- **Number:** 18
+- **Number:** 19
 - **Roadmap target:** v2 — Improved practice modes
-- **Working title:** Missing-hands review at the end of a practice session
+- **Working title:** Range-comparison helper for "build from memory" practice (domain foundation)
 
 ### Prompt
 
-You are implementing roadmap slice 18, the first slice of **v2 — Improved practice
-modes**. v1.4 is complete, so this slice opens v2.
+You are implementing roadmap slice 19, continuing **v2 — Improved practice modes**.
+Slice 18 delivered mode 4 (missing-hands review). This slice begins mode 3 ("Build
+from memory"), where the user will eventually see a scenario/range name, recreate the
+range on the 13×13 grid from memory, and have the app compare their answer to the
+saved range.
 
-Sequencing note (why this mode first): v2 lists six practice modes. Mode 1
-("In-range or out-of-range") is the existing v1 mode. Mode 2 ("Pick the correct
-action") needs a multi-action range data model that does not exist yet and is a
-much later roadmap item (v2.3), so it is intentionally deferred — do NOT build
-multi-action ranges in this slice. This slice instead delivers mode 4 ("Missing
-hands review"): a purely additive end-of-session recap over the attempts the
-existing binary in/out-of-range session already produces. It needs no new data
-model, no timer, and no new grid flow, making it the smallest safe first step into
-v2. (Modes 3 "Build from memory" and 5 "Timed drill" are good later slices.)
-
-What "missing hands review" means here: when the user ends a practice session, before
-returning to the library, show the hands they got wrong, split into two groups —
-hands they **forgot** (the hand was in range but they answered "out of range") and
-hands they **wrongly included** (the hand was out of range but they answered "in
-range"). When there were no mistakes (all correct, or no hands answered), show a
-positive "no mistakes" message instead. The final session summary is still reported
-to the parent for persistence, unchanged — only now it fires when the user dismisses
-the review rather than the instant they click "End Practice".
+Scope of THIS slice (foundation only): add the pure domain helper that compares a
+user-built set of hands against a target range and reports what they got right, what
+they missed, and what they added by mistake. Do NOT build the build-from-memory UI
+flow, a grid inside practice mode, or a practice-mode selector in this slice — those
+come in the next slice(s). This mirrors how slice 13 landed the per-range-stats
+foundation before its UI, and how slice 18 added a pure reducer first. Keeping the
+comparison pure and tested first makes the later UI slice small and low-risk.
 
 Context (read these before starting):
-- `src/domain/practice.ts` holds the pure practice logic: `isHandInRange`,
-  `createPracticeAttempt`, `summarizePracticeAttempts`, `getRandomPracticeHand`. The
-  new helper belongs here, beside `summarizePracticeAttempts`, since it is another
-  pure reduction over `PracticeAttempt[]`. It uses only built-ins — no React, no
-  Date, no random.
-- `src/types/practice.ts` — `PracticeAttempt` carries `hand`, `expectedInRange`,
-  `userAnsweredInRange`, `correct`, `timestamp`. A "forgot" mistake is
-  `expectedInRange === true && userAnsweredInRange === false`; a "wrongly included"
-  mistake is `expectedInRange === false && userAnsweredInRange === true`. Every
-  incorrect binary answer is exactly one of these two; correct attempts belong to
-  neither. `hand` is a `PokerHand` (from `src/domain/pokerHands.ts`).
-- `src/components/PracticeSession.tsx` owns session state: `currentHand`,
-  `currentAttempt`, and `attempts: PracticeAttempt[]`. "End Practice" currently calls
-  `onExit(summary)` directly. The `random` prop is injectable, so component tests can
-  force a deterministic sequence of prompt hands (see the existing
-  `PracticeSession.test.tsx` patterns) — use that to drive specific hands and answers
-  through the review.
-- `src/domain/practice.test.ts` and `src/components/PracticeSession.test.tsx` show the
-  established test patterns to mirror (deterministic `random`, scoring assertions,
-  the `onExit` summary contract).
+- `src/domain/practice.ts` holds the pure practice reducers (`isHandInRange`,
+  `createPracticeAttempt`, `summarizePracticeAttempts`, `reviewSessionMistakes`,
+  `getRandomPracticeHand`). The new helper belongs here, beside `reviewSessionMistakes`,
+  since it is another pure reduction over hands. It already imports `normalizeRangeHands`
+  from `./rangeMath` and `type PokerHand` from `./pokerHands` — no new imports needed.
+- `src/domain/rangeMath.ts` — `normalizeRangeHands(hands)` validates each hand (throwing
+  on an invalid one) and de-duplicates while preserving canonical 13×13 order. Use it to
+  normalize BOTH inputs so duplicates and input ordering never affect the comparison and
+  invalid hands are rejected the same way the rest of the domain rejects them.
+- `src/domain/pokerHands.ts` — `PokerHand` type, `ALL_HANDS` canonical ordering,
+  `isValidHand`.
+- `src/domain/practice.test.ts` and `src/domain/rangeMath.test.ts` show the established
+  pure-domain test patterns to mirror (including the invalid-hand `toThrow` assertions).
 
-Task — add the domain reducer, then surface a review step at session end:
+Task — add one pure domain function:
 - In `src/domain/practice.ts`, add
-  `reviewSessionMistakes(attempts: PracticeAttempt[]): { missed: PokerHand[]; wronglyIncluded: PokerHand[] }`.
-  `missed` = the hands of attempts where `expectedInRange && !userAnsweredInRange`;
-  `wronglyIncluded` = the hands of attempts where `!expectedInRange && userAnsweredInRange`.
-  De-duplicate each list by hand, preserving first-occurrence order (a hand can be
-  drawn and answered more than once in a session, but should appear at most once in
-  each review list). Correct attempts contribute to neither list; an empty input
-  yields `{ missed: [], wronglyIncluded: [] }`. Pure — no Date, no random. Add a doc
-  comment in the same style as `summarizePracticeAttempts`.
-- In `src/components/PracticeSession.tsx`, add a `reviewing` boolean state (default
-  false). Change "End Practice" to set `reviewing` true instead of calling `onExit`
-  immediately. When `reviewing` is true, render a review view (a new top-level render
-  branch within the session) that:
-  - shows the session summary (reuse the existing total / correct / accuracy display),
-  - lists the `missed` hands and the `wronglyIncluded` hands from
-    `reviewSessionMistakes(attempts)` under clear headings, and
-  - when both lists are empty, shows a positive "No mistakes — nice!" style message
-    instead of empty lists,
-  - has a button (e.g. "Back to library" / "Finish") that calls `onExit(summary)`.
-  Keep all scoring/summary logic in the domain module; the component only renders the
-  reducer's output. Update the component doc comment to describe the new review step.
+  `compareBuiltRange(target: PokerHand[], built: PokerHand[]): { correct: PokerHand[]; missed: PokerHand[]; extra: PokerHand[] }`.
+  Normalize both `target` and `built` with `normalizeRangeHands` first, then:
+  - `correct` = hands in both the normalized target and built sets,
+  - `missed` = hands in target but not in built,
+  - `extra` = hands in built but not in target.
+  Each list is in canonical hand order (a natural consequence of iterating the
+  normalized lists) and free of duplicates. Two empty inputs yield three empty arrays;
+  an exact match yields every target hand in `correct` with empty `missed`/`extra`.
+  Pure — no Date, no random. Add a doc comment in the same style as
+  `reviewSessionMistakes`.
 
-Tests to add/update:
-- `src/domain/practice.test.ts`: cover `reviewSessionMistakes` — puts a forgot hand
-  (in range, answered out) in `missed`; puts a wrongly-included hand (out of range,
-  answered in) in `wronglyIncluded`; excludes correct attempts from both; de-duplicates
-  a repeated mistaken hand while preserving first-occurrence order; and returns two
-  empty arrays for an empty input. Build `PracticeAttempt` objects directly (or via
-  `createPracticeAttempt`) as the existing tests do.
-- `src/components/PracticeSession.test.tsx`: drive a short session with an injected
-  `random` so specific hands are prompted, answer some incorrectly, click "End
-  Practice", and assert the review view lists the expected missed / wrongly-included
-  hands; then assert the dismiss button calls `onExit` with the summary. Add a second
-  case where every answer is correct (or there are no mistakes) and assert the
-  "no mistakes" message shows and no hand is listed. Mirror the existing
-  deterministic-`random` and `onExit` assertions.
+Tests to add (in `src/domain/practice.test.ts`):
+- a `describe('compareBuiltRange', ...)` block covering:
+  - an exact match → all target hands in `correct`, `missed` and `extra` empty;
+  - a missed hand (in target, not built) appears only in `missed`;
+  - an extra hand (in built, not target) appears only in `extra`;
+  - a mix (some correct, some missed, some extra) splits into the right lists;
+  - duplicates in either input do not produce duplicate output and do not change the
+    result;
+  - two empty inputs yield three empty arrays;
+  - an invalid hand in either input throws (mirror the `isHandInRange` invalid-hand
+    tests).
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -155,15 +137,12 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: only the `reviewSessionMistakes` reducer and the end-of-session
-  review view (plus tests). Do NOT add a practice-mode selector, multi-action ranges,
-  timers, cumulative cross-session per-hand stats, or a separate review page — those are
-  later slices/versions.
-- Do NOT change the `onExit(summary)` persistence contract beyond delaying the call to the
-  review's dismiss button; the reported summary stays the same.
+- Stay within this slice: ONLY the `compareBuiltRange` reducer and its tests. Do NOT add
+  the build-from-memory UI, a practice grid, a mode selector, timers, or weakness
+  tracking — those are later slices.
+- Keep the helper pure and in `src/domain/`; do not touch components in this slice.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
-- Keep poker/practice logic in `src/domain/`, not in the component; keep the change small
-  and reversible.
+- Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: review missed hands at end of practice session`
+- `feat: add range-comparison helper for build-from-memory practice`

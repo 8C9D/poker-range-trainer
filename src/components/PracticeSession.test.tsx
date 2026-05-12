@@ -139,7 +139,40 @@ describe('PracticeSession', () => {
     expect(screen.queryByText('Correct!')).not.toBeInTheDocument()
   })
 
-  it('calls onExit with the session summary when End Practice is clicked', async () => {
+  it('lists missed and wrongly-included hands in the end-of-session review', async () => {
+    const user = userEvent.setup()
+    const onExit = vi.fn()
+    // First hand "AA" (in range), then "22" (out of range) after Next.
+    render(
+      <PracticeSession range={makeRange()} onExit={onExit} random={sequenceRandom([0, 0.999])} />,
+    )
+
+    // "AA" is in range; answering "Out of range" forgets it (a miss).
+    await user.click(screen.getByRole('button', { name: 'Out of range' }))
+    await user.click(screen.getByRole('button', { name: 'Next hand' }))
+    // "22" is out of range; answering "In range" wrongly includes it.
+    await user.click(screen.getByRole('button', { name: 'In range' }))
+
+    await user.click(screen.getByRole('button', { name: 'End Practice' }))
+
+    // Each mistaken hand appears under the right heading in the review.
+    expect(
+      within(screen.getByRole('list', { name: 'Hands you missed' })).getByText('AA'),
+    ).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('list', { name: 'Hands you wrongly included' })).getByText('22'),
+    ).toBeInTheDocument()
+
+    // The summary is reported only once the review is dismissed.
+    expect(onExit).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Back to library' }))
+    expect(onExit).toHaveBeenCalledOnce()
+    expect(onExit).toHaveBeenCalledWith(
+      expect.objectContaining({ totalQuestions: 2, correctAnswers: 0 }),
+    )
+  })
+
+  it('shows a no-mistakes review, then reports the summary when dismissed', async () => {
     const user = userEvent.setup()
     const onExit = vi.fn()
     // random() -> 0 selects "AA", which is in the range; answer it correctly.
@@ -148,6 +181,13 @@ describe('PracticeSession', () => {
     await user.click(screen.getByRole('button', { name: 'In range' }))
     await user.click(screen.getByRole('button', { name: 'End Practice' }))
 
+    // No mistakes: the positive message shows and no hands are listed.
+    expect(screen.getByText(/No mistakes/)).toBeInTheDocument()
+    expect(screen.queryAllByRole('listitem')).toHaveLength(0)
+
+    // onExit fires only after dismissing the review.
+    expect(onExit).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Back to library' }))
     expect(onExit).toHaveBeenCalledOnce()
     expect(onExit).toHaveBeenCalledWith(
       expect.objectContaining({ totalQuestions: 1, correctAnswers: 1 }),
@@ -160,7 +200,10 @@ describe('PracticeSession', () => {
     render(<PracticeSession range={makeRange()} onExit={onExit} random={sequenceRandom([0])} />)
 
     await user.click(screen.getByRole('button', { name: 'End Practice' }))
+    // Nothing was answered, so there are no mistakes to review.
+    expect(screen.getByText(/No mistakes/)).toBeInTheDocument()
 
+    await user.click(screen.getByRole('button', { name: 'Back to library' }))
     expect(onExit).toHaveBeenCalledOnce()
     expect(onExit).toHaveBeenCalledWith(expect.objectContaining({ totalQuestions: 0 }))
   })

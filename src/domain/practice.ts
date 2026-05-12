@@ -69,6 +69,33 @@ export function summarizePracticeAttempts(
 }
 
 /**
+ * Split a session's mistakes into the two kinds, for an end-of-session review.
+ *
+ * `missed` lists hands that were in the range but answered "out of range"
+ * (forgotten); `wronglyIncluded` lists hands that were out of the range but
+ * answered "in range". Correct attempts satisfy neither condition and so
+ * contribute to neither list. Each list is de-duplicated by hand while
+ * preserving first-occurrence order, since a hand can be drawn and answered
+ * more than once in a session but should appear at most once per list. An empty
+ * input yields two empty lists.
+ */
+export function reviewSessionMistakes(attempts: PracticeAttempt[]): {
+  missed: PokerHand[]
+  wronglyIncluded: PokerHand[]
+} {
+  const missed: PokerHand[] = []
+  const wronglyIncluded: PokerHand[] = []
+  for (const { hand, expectedInRange, userAnsweredInRange } of attempts) {
+    if (expectedInRange && !userAnsweredInRange) {
+      if (!missed.includes(hand)) missed.push(hand)
+    } else if (!expectedInRange && userAnsweredInRange) {
+      if (!wronglyIncluded.includes(hand)) wronglyIncluded.push(hand)
+    }
+  }
+  return { missed, wronglyIncluded }
+}
+
+/**
  * Draw one of the 169 canonical starting hands at random.
  *
  * `random` defaults to `Math.random` but can be injected for deterministic

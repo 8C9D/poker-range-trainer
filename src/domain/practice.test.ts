@@ -4,6 +4,7 @@ import {
   isHandInRange,
   createPracticeAttempt,
   summarizePracticeAttempts,
+  reviewSessionMistakes,
   getRandomPracticeHand,
 } from './practice'
 import type { PracticeAttempt } from '../types/practice'
@@ -119,6 +120,47 @@ describe('summarizePracticeAttempts', () => {
 
   it('reports 0% when every answer is wrong', () => {
     expect(summarizePracticeAttempts([attempt(false)]).accuracyPercentage).toBe(0)
+  })
+})
+
+describe('reviewSessionMistakes', () => {
+  it('returns two empty arrays for an empty session', () => {
+    expect(reviewSessionMistakes([])).toEqual({ missed: [], wronglyIncluded: [] })
+  })
+
+  it('puts a forgotten hand (in range, answered out) in missed', () => {
+    // "AA" is in RANGE but answered "out of range".
+    const attempts = [createPracticeAttempt('AA', RANGE, false, 'T')]
+    expect(reviewSessionMistakes(attempts)).toEqual({ missed: ['AA'], wronglyIncluded: [] })
+  })
+
+  it('puts a wrongly-included hand (out of range, answered in) in wronglyIncluded', () => {
+    // "QQ" is not in RANGE but answered "in range".
+    const attempts = [createPracticeAttempt('QQ', RANGE, true, 'T')]
+    expect(reviewSessionMistakes(attempts)).toEqual({ missed: [], wronglyIncluded: ['QQ'] })
+  })
+
+  it('excludes correct attempts (true positive and true negative) from both lists', () => {
+    const attempts = [
+      createPracticeAttempt('AA', RANGE, true, 'T'), // in range, answered in
+      createPracticeAttempt('QQ', RANGE, false, 'T'), // out of range, answered out
+    ]
+    expect(reviewSessionMistakes(attempts)).toEqual({ missed: [], wronglyIncluded: [] })
+  })
+
+  it('de-duplicates repeated mistaken hands, preserving first-occurrence order', () => {
+    const attempts = [
+      createPracticeAttempt('KK', RANGE, false, 'T'), // missed
+      createPracticeAttempt('QQ', RANGE, true, 'T'), // wrongly included
+      createPracticeAttempt('AA', RANGE, false, 'T'), // missed
+      createPracticeAttempt('KK', RANGE, false, 'T'), // missed again (dup)
+      createPracticeAttempt('JJ', RANGE, true, 'T'), // wrongly included
+      createPracticeAttempt('QQ', RANGE, true, 'T'), // wrongly included again (dup)
+    ]
+    expect(reviewSessionMistakes(attempts)).toEqual({
+      missed: ['KK', 'AA'],
+      wronglyIncluded: ['QQ', 'JJ'],
+    })
   })
 })
 
