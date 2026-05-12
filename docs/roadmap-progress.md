@@ -51,78 +51,103 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 14 | Record finished practice sessions into per-range stats | v1.4 — Range library and filtering | 2026-06-05 |
 | 15 | Show per-range practice stats (last practiced + accuracy) on library cards | v1.4 — Range library and filtering | 2026-06-05 |
 | 16 | Sort saved ranges by recently practiced | v1.4 — Range library and filtering | 2026-06-05 |
+| 17 | Sort saved ranges by accuracy | v1.4 — Range library and filtering | 2026-06-05 |
+
+With slice 17 the **v1.4 — Range library and filtering** version is fully
+implemented (name search; position/action/stack/game filters; name / recently
+edited / recently practiced / accuracy sorts; duplicate, archive, and favorite;
+and range cards summarizing name, scenario, percent, last-practiced, and
+accuracy). The next roadmap target is **v2 — Improved practice modes**.
 
 ## Next slice
 
-- **Number:** 17
-- **Roadmap target:** v1.4 — Range library and filtering
-- **Working title:** Sort saved ranges by accuracy
+- **Number:** 18
+- **Roadmap target:** v2 — Improved practice modes
+- **Working title:** Missing-hands review at the end of a practice session
 
 ### Prompt
 
-You are implementing roadmap slice 17 of **v1.4 — Range library and filtering**. The
-library can already sort by "Name (A–Z)", "Recently edited", and "Recently practiced"
-(slices 6–7, 16). Each range carries cumulative practice stats that are persisted, threaded
-into `RangeLibrary` as the `practiceStats` prop, and shown on each card (slices 13–15). This
-slice adds the final **"Accuracy"** sort option from v1.4's "Sort by" list, ordering the
-filtered library by each range's cumulative practice accuracy (highest accuracy first), with
-never-practiced ranges sorting last. With this slice the v1.4 "Sort by" list (Recently
-edited, Recently practiced, Accuracy, Name) is complete.
+You are implementing roadmap slice 18, the first slice of **v2 — Improved practice
+modes**. v1.4 is complete, so this slice opens v2.
+
+Sequencing note (why this mode first): v2 lists six practice modes. Mode 1
+("In-range or out-of-range") is the existing v1 mode. Mode 2 ("Pick the correct
+action") needs a multi-action range data model that does not exist yet and is a
+much later roadmap item (v2.3), so it is intentionally deferred — do NOT build
+multi-action ranges in this slice. This slice instead delivers mode 4 ("Missing
+hands review"): a purely additive end-of-session recap over the attempts the
+existing binary in/out-of-range session already produces. It needs no new data
+model, no timer, and no new grid flow, making it the smallest safe first step into
+v2. (Modes 3 "Build from memory" and 5 "Timed drill" are good later slices.)
+
+What "missing hands review" means here: when the user ends a practice session, before
+returning to the library, show the hands they got wrong, split into two groups —
+hands they **forgot** (the hand was in range but they answered "out of range") and
+hands they **wrongly included** (the hand was out of range but they answered "in
+range"). When there were no mistakes (all correct, or no hands answered), show a
+positive "no mistakes" message instead. The final session summary is still reported
+to the parent for persistence, unchanged — only now it fires when the user dismisses
+the review rather than the instant they click "End Practice".
 
 Context (read these before starting):
-- `src/domain/rangeLibrary.ts` holds the existing sort helpers.
-  `sortRangesByLastPracticed` (slice 16) is the closest model: it `.slice()`-copies, takes
-  the `practiceStats` map keyed by range id as a second argument, looks up
-  `practiceStats[range.id]`, treats a missing entry as "never practiced" so it sorts last,
-  never mutates the input, and relies on stable sort for ties. The new helper follows the
-  same shape but sorts by a derived numeric accuracy rather than a timestamp string.
-- `src/domain/practiceStats.ts` — `practiceAccuracyPercentage(stats)` already derives
-  `correctAttempts / totalAttempts * 100` with a zero-attempt guard, but it requires a full
-  `RangePracticeStats`. To stay decoupled like `sortRangesByLastPracticed` (which typed its
-  map structurally), type the new helper's map parameter as the minimal shape it needs —
-  `Record<string, { totalAttempts: number; correctAttempts: number }>` — and compute accuracy
-  inline (the same one-line division with the zero guard) rather than coupling to the fuller
-  type. A never-practiced range is one with **no** stats entry **or** `totalAttempts === 0`;
-  map both to a sentinel below every real 0–100 accuracy (e.g. `-1`) so they sort last, and a
-  practiced 0%-accuracy range (real 0) still sorts above a never-practiced one.
-- `src/components/RangeLibrary.tsx` already receives `practiceStats` and owns the `sort`
-  state as a `'' | 'name' | 'recent' | 'practiced'` union, choosing the sort via a ternary
-  chain over `sortRangesByName` / `sortRangesByUpdatedAt` / `sortRangesByLastPracticed`.
-  Extend the union with an `'accuracy'` member, add an `<option value="accuracy">Accuracy
-  </option>` to the sort `<select>` (after "Recently practiced"), and call the new helper
-  (passing `practiceStats`) when `sort === 'accuracy'`. Keep the `onChange` cast in step with
-  the widened union.
-- `src/domain/rangeLibrary.test.ts` and `src/components/RangeLibrary.test.tsx` show the
-  established test patterns to mirror (the `sortRangesByLastPracticed` / "Recently practiced"
-  tests added in slice 16 are the closest analog).
+- `src/domain/practice.ts` holds the pure practice logic: `isHandInRange`,
+  `createPracticeAttempt`, `summarizePracticeAttempts`, `getRandomPracticeHand`. The
+  new helper belongs here, beside `summarizePracticeAttempts`, since it is another
+  pure reduction over `PracticeAttempt[]`. It uses only built-ins — no React, no
+  Date, no random.
+- `src/types/practice.ts` — `PracticeAttempt` carries `hand`, `expectedInRange`,
+  `userAnsweredInRange`, `correct`, `timestamp`. A "forgot" mistake is
+  `expectedInRange === true && userAnsweredInRange === false`; a "wrongly included"
+  mistake is `expectedInRange === false && userAnsweredInRange === true`. Every
+  incorrect binary answer is exactly one of these two; correct attempts belong to
+  neither. `hand` is a `PokerHand` (from `src/domain/pokerHands.ts`).
+- `src/components/PracticeSession.tsx` owns session state: `currentHand`,
+  `currentAttempt`, and `attempts: PracticeAttempt[]`. "End Practice" currently calls
+  `onExit(summary)` directly. The `random` prop is injectable, so component tests can
+  force a deterministic sequence of prompt hands (see the existing
+  `PracticeSession.test.tsx` patterns) — use that to drive specific hands and answers
+  through the review.
+- `src/domain/practice.test.ts` and `src/components/PracticeSession.test.tsx` show the
+  established test patterns to mirror (deterministic `random`, scoring assertions,
+  the `onExit` summary contract).
 
-Task — add the domain sort helper, then wire an "Accuracy" option into the library sort
-select:
-- In `src/domain/rangeLibrary.ts`, add
-  `sortRangesByAccuracy<T extends { id: string }>(ranges: T[], practiceStats:
-  Record<string, { totalAttempts: number; correctAttempts: number }>): T[]`. Return a
-  `.slice()` copy sorted by derived accuracy descending (highest first). Derive each range's
-  accuracy from `practiceStats[range.id]`: a missing entry or `totalAttempts === 0` maps to a
-  sentinel below every real accuracy (so never-practiced ranges sort last), otherwise
-  `correctAttempts / totalAttempts * 100`. Compare so higher accuracy comes first. Never
-  mutate the input; rely on stable sort for ties. Add a doc comment in the same style as
-  `sortRangesByLastPracticed`, calling out the never-practiced (missing / zero-attempt)
-  behavior.
-- In `src/components/RangeLibrary.tsx`: widen the `sort` state union to
-  `'' | 'name' | 'recent' | 'practiced' | 'accuracy'`; add the `Accuracy` option to the sort
-  select (after `Recently practiced`); and extend the sort selection so `sort === 'accuracy'`
-  returns `sortRangesByAccuracy(filtered, practiceStats)`. Update the component doc comment's
-  sort description to mention the new option.
+Task — add the domain reducer, then surface a review step at session end:
+- In `src/domain/practice.ts`, add
+  `reviewSessionMistakes(attempts: PracticeAttempt[]): { missed: PokerHand[]; wronglyIncluded: PokerHand[] }`.
+  `missed` = the hands of attempts where `expectedInRange && !userAnsweredInRange`;
+  `wronglyIncluded` = the hands of attempts where `!expectedInRange && userAnsweredInRange`.
+  De-duplicate each list by hand, preserving first-occurrence order (a hand can be
+  drawn and answered more than once in a session, but should appear at most once in
+  each review list). Correct attempts contribute to neither list; an empty input
+  yields `{ missed: [], wronglyIncluded: [] }`. Pure — no Date, no random. Add a doc
+  comment in the same style as `summarizePracticeAttempts`.
+- In `src/components/PracticeSession.tsx`, add a `reviewing` boolean state (default
+  false). Change "End Practice" to set `reviewing` true instead of calling `onExit`
+  immediately. When `reviewing` is true, render a review view (a new top-level render
+  branch within the session) that:
+  - shows the session summary (reuse the existing total / correct / accuracy display),
+  - lists the `missed` hands and the `wronglyIncluded` hands from
+    `reviewSessionMistakes(attempts)` under clear headings, and
+  - when both lists are empty, shows a positive "No mistakes — nice!" style message
+    instead of empty lists,
+  - has a button (e.g. "Back to library" / "Finish") that calls `onExit(summary)`.
+  Keep all scoring/summary logic in the domain module; the component only renders the
+  reducer's output. Update the component doc comment to describe the new review step.
 
 Tests to add/update:
-- `src/domain/rangeLibrary.test.ts`: cover `sortRangesByAccuracy` — orders practiced ranges
-  highest-accuracy first; places ranges with no `practiceStats` entry last; sorts a practiced
-  0%-accuracy range (totalAttempts > 0, correctAttempts 0) above a never-practiced one;
-  preserves input order for equal accuracy (stability); and does not mutate the input array.
-- `src/components/RangeLibrary.test.tsx`: add a case selecting "Accuracy" from the sort
-  select (passing a `practiceStats` map) and asserting the rendered `.range-item-name` order
-  is highest-accuracy first with the never-practiced range last. Mirror the existing
-  "reorders ... when Recently practiced is selected" test.
+- `src/domain/practice.test.ts`: cover `reviewSessionMistakes` — puts a forgot hand
+  (in range, answered out) in `missed`; puts a wrongly-included hand (out of range,
+  answered in) in `wronglyIncluded`; excludes correct attempts from both; de-duplicates
+  a repeated mistaken hand while preserving first-occurrence order; and returns two
+  empty arrays for an empty input. Build `PracticeAttempt` objects directly (or via
+  `createPracticeAttempt`) as the existing tests do.
+- `src/components/PracticeSession.test.tsx`: drive a short session with an injected
+  `random` so specific hands are prompted, answer some incorrectly, click "End
+  Practice", and assert the review view lists the expected missed / wrongly-included
+  hands; then assert the dismiss button calls `onExit` with the summary. Add a second
+  case where every answer is correct (or there are no mistakes) and assert the
+  "no mistakes" message shows and no hand is listed. Mirror the existing
+  deterministic-`random` and `onExit` assertions.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -130,11 +155,15 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: only the `sortRangesByAccuracy` helper and the "Accuracy" sort
-  wiring (plus tests). Do NOT change the stats type, storage, or the card display.
+- Stay within this slice: only the `reviewSessionMistakes` reducer and the end-of-session
+  review view (plus tests). Do NOT add a practice-mode selector, multi-action ranges,
+  timers, cumulative cross-session per-hand stats, or a separate review page — those are
+  later slices/versions.
+- Do NOT change the `onExit(summary)` persistence contract beyond delaying the call to the
+  review's dismiss button; the reported summary stays the same.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
-- Keep poker/library logic in `src/domain/`, not in the component; keep the change small and
-  reversible.
+- Keep poker/practice logic in `src/domain/`, not in the component; keep the change small
+  and reversible.
 
 Suggested commit message:
-- `feat: sort range library by accuracy`
+- `feat: review missed hands at end of practice session`

@@ -8,6 +8,7 @@ import {
   filterRangesByName,
   filterRangesByPosition,
   filterRangesByStackDepth,
+  sortRangesByAccuracy,
   sortRangesByLastPracticed,
   sortRangesByName,
   sortRangesByUpdatedAt,
@@ -606,5 +607,122 @@ describe('sortRangesByLastPracticed', () => {
   it('returns a fresh array rather than the original reference', () => {
     const input = [{ id: 'r1', name: 'Button' }]
     expect(sortRangesByLastPracticed(input, {})).not.toBe(input)
+  })
+})
+
+describe('sortRangesByAccuracy', () => {
+  it('sorts by derived accuracy descending — highest accuracy first', () => {
+    const ranges = [
+      { id: 'mid', name: 'Mid' },
+      { id: 'high', name: 'High' },
+      { id: 'low', name: 'Low' },
+    ]
+    const stats = {
+      mid: { totalAttempts: 4, correctAttempts: 2 }, // 50%
+      high: { totalAttempts: 4, correctAttempts: 3 }, // 75%
+      low: { totalAttempts: 4, correctAttempts: 1 }, // 25%
+    }
+    expect(sortRangesByAccuracy(ranges, stats)).toEqual([
+      { id: 'high', name: 'High' },
+      { id: 'mid', name: 'Mid' },
+      { id: 'low', name: 'Low' },
+    ])
+  })
+
+  it('places ranges with no practiceStats entry after every practiced range', () => {
+    const ranges = [
+      { id: 'never', name: 'Never practiced' },
+      { id: 'practiced', name: 'Practiced' },
+    ]
+    const stats = { practiced: { totalAttempts: 4, correctAttempts: 1 } } // 25%
+    // The practiced range comes first even though it is second in the input; the
+    // never-practiced one (no stats entry) sorts last.
+    expect(sortRangesByAccuracy(ranges, stats)).toEqual([
+      { id: 'practiced', name: 'Practiced' },
+      { id: 'never', name: 'Never practiced' },
+    ])
+  })
+
+  it('sorts a practiced 0%-accuracy range above a never-practiced one', () => {
+    const ranges = [
+      { id: 'never', name: 'Never practiced' },
+      { id: 'zero', name: 'Zero accuracy' },
+    ]
+    // 'zero' has attempts but no correct answers (real 0%); 'never' has no entry
+    // (sentinel below every real accuracy), so the practiced range sorts first.
+    const stats = { zero: { totalAttempts: 4, correctAttempts: 0 } }
+    expect(sortRangesByAccuracy(ranges, stats)).toEqual([
+      { id: 'zero', name: 'Zero accuracy' },
+      { id: 'never', name: 'Never practiced' },
+    ])
+  })
+
+  it('treats a zero-attempt entry the same as a missing one (sorts last)', () => {
+    const ranges = [
+      { id: 'empty', name: 'Empty entry' },
+      { id: 'practiced', name: 'Practiced' },
+    ]
+    // An entry with totalAttempts 0 is never-practiced, so it sorts after the
+    // practiced range despite having a stats entry.
+    const stats = {
+      empty: { totalAttempts: 0, correctAttempts: 0 },
+      practiced: { totalAttempts: 4, correctAttempts: 1 },
+    }
+    expect(sortRangesByAccuracy(ranges, stats)).toEqual([
+      { id: 'practiced', name: 'Practiced' },
+      { id: 'empty', name: 'Empty entry' },
+    ])
+  })
+
+  it('preserves input order for equal accuracy (stable)', () => {
+    // All three share 50% accuracy, so they must stay in input order.
+    const input = [
+      { id: 'a', name: 'a' },
+      { id: 'b', name: 'b' },
+      { id: 'c', name: 'c' },
+    ]
+    const stats = {
+      a: { totalAttempts: 2, correctAttempts: 1 },
+      b: { totalAttempts: 4, correctAttempts: 2 },
+      c: { totalAttempts: 6, correctAttempts: 3 },
+    }
+    expect(sortRangesByAccuracy(input, stats)).toEqual([
+      { id: 'a', name: 'a' },
+      { id: 'b', name: 'b' },
+      { id: 'c', name: 'c' },
+    ])
+  })
+
+  it('preserves input order among never-practiced ranges (stable)', () => {
+    // With an empty stats map every range maps to the sentinel, so order is unchanged.
+    const input = [
+      { id: 'a', name: 'a' },
+      { id: 'b', name: 'b' },
+      { id: 'c', name: 'c' },
+    ]
+    expect(sortRangesByAccuracy(input, {})).toEqual(input)
+  })
+
+  it('returns an empty array for an empty input', () => {
+    expect(sortRangesByAccuracy([], {})).toEqual([])
+  })
+
+  it('does not mutate the input array', () => {
+    const input = [
+      { id: 'low', name: 'Low' },
+      { id: 'high', name: 'High' },
+    ]
+    const stats = {
+      low: { totalAttempts: 4, correctAttempts: 1 },
+      high: { totalAttempts: 4, correctAttempts: 3 },
+    }
+    const snapshot = structuredClone(input)
+    sortRangesByAccuracy(input, stats)
+    expect(input).toEqual(snapshot)
+  })
+
+  it('returns a fresh array rather than the original reference', () => {
+    const input = [{ id: 'r1', name: 'Button' }]
+    expect(sortRangesByAccuracy(input, {})).not.toBe(input)
   })
 })

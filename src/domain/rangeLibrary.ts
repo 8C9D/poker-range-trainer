@@ -211,3 +211,34 @@ export function sortRangesByLastPracticed<T extends { id: string }>(
     return bAt.localeCompare(aAt)
   })
 }
+
+/**
+ * Return a copy of `ranges` sorted by cumulative practice accuracy, descending —
+ * highest accuracy first.
+ *
+ * Like {@link sortRangesByLastPracticed}, the value to sort by lives in a
+ * separate `practiceStats` map keyed by range id rather than on the range
+ * itself, so the helper takes that map and looks up `practiceStats[range.id]`.
+ * Accuracy is derived inline as `correctAttempts / totalAttempts * 100` (the
+ * same division as `practiceAccuracyPercentage`, kept here so the helper stays
+ * decoupled from the fuller `RangePracticeStats` shape). A range with **no**
+ * stats entry, or one whose `totalAttempts` is 0, has never really been
+ * practiced; both map to a sentinel below every real 0–100 accuracy (-1) so they
+ * sort after every practiced range, while a practiced 0%-accuracy range (real 0,
+ * with `totalAttempts > 0`) still sorts above them. Subtracting `a`'s accuracy
+ * from `b`'s yields highest first. `Array.prototype.sort` is stable, so ranges
+ * whose accuracies compare equal (including all never-practiced ranges) keep
+ * their input order. The input array is never mutated — a fresh, sorted array is
+ * always returned (the input is copied with `.slice()` before sorting).
+ */
+export function sortRangesByAccuracy<T extends { id: string }>(
+  ranges: T[],
+  practiceStats: Record<string, { totalAttempts: number; correctAttempts: number }>,
+): T[] {
+  const accuracyOf = (id: string): number => {
+    const stats = practiceStats[id]
+    if (!stats || stats.totalAttempts === 0) return -1
+    return (stats.correctAttempts / stats.totalAttempts) * 100
+  }
+  return ranges.slice().sort((a, b) => accuracyOf(b.id) - accuracyOf(a.id))
+}
