@@ -5,6 +5,7 @@ import {
   createPracticeAttempt,
   summarizePracticeAttempts,
   reviewSessionMistakes,
+  compareBuiltRange,
   getRandomPracticeHand,
 } from './practice'
 import type { PracticeAttempt } from '../types/practice'
@@ -161,6 +162,69 @@ describe('reviewSessionMistakes', () => {
       missed: ['KK', 'AA'],
       wronglyIncluded: ['QQ', 'JJ'],
     })
+  })
+})
+
+describe('compareBuiltRange', () => {
+  it('reports an exact match as all correct with nothing missed or extra', () => {
+    expect(compareBuiltRange(RANGE, RANGE)).toEqual({
+      correct: ['AA', 'AKs', 'AKo', 'KK'],
+      missed: [],
+      extra: [],
+    })
+  })
+
+  it('returns three empty arrays for two empty inputs', () => {
+    expect(compareBuiltRange([], [])).toEqual({ correct: [], missed: [], extra: [] })
+  })
+
+  it('puts a forgotten hand (in target, not built) only in missed', () => {
+    expect(compareBuiltRange(['AA', 'KK'], ['AA'])).toEqual({
+      correct: ['AA'],
+      missed: ['KK'],
+      extra: [],
+    })
+  })
+
+  it('puts an added hand (in built, not target) only in extra', () => {
+    expect(compareBuiltRange(['AA'], ['AA', 'QQ'])).toEqual({
+      correct: ['AA'],
+      missed: [],
+      extra: ['QQ'],
+    })
+  })
+
+  it('splits a mix of correct, missed, and extra hands into the right lists', () => {
+    // target: AA KK AKs ; built: AA AKs QQ -> KK missed, QQ extra
+    expect(compareBuiltRange(['AA', 'KK', 'AKs'], ['AA', 'AKs', 'QQ'])).toEqual({
+      correct: ['AA', 'AKs'],
+      missed: ['KK'],
+      extra: ['QQ'],
+    })
+  })
+
+  it('returns each list in canonical 13x13 order regardless of input order', () => {
+    expect(compareBuiltRange(['KK', 'AA', 'AKo'], ['AKo', 'AA', 'KK'])).toEqual({
+      correct: ['AA', 'AKo', 'KK'],
+      missed: [],
+      extra: [],
+    })
+  })
+
+  it('is unaffected by duplicates in either input and never emits duplicates', () => {
+    expect(compareBuiltRange(['AA', 'AA', 'KK'], ['AA', 'AA', 'QQ', 'QQ'])).toEqual({
+      correct: ['AA'],
+      missed: ['KK'],
+      extra: ['QQ'],
+    })
+  })
+
+  it('throws on an invalid hand in the target', () => {
+    expect(() => compareBuiltRange(['AA', 'ZZ'], ['AA'])).toThrow(/ZZ/)
+  })
+
+  it('throws on an invalid hand in the built range', () => {
+    expect(() => compareBuiltRange(['AA'], ['AA', 'ZZ'])).toThrow(/ZZ/)
   })
 })
 

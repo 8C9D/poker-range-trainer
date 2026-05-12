@@ -96,6 +96,35 @@ export function reviewSessionMistakes(attempts: PracticeAttempt[]): {
 }
 
 /**
+ * Compare a user-built set of hands against a target range, for "build from
+ * memory" practice (mode 3).
+ *
+ * Both inputs are normalized first (validated + de-duplicated + ordered), so
+ * duplicate entries and input ordering never change the result and an invalid
+ * hand is rejected the same way the rest of the domain rejects it. The result
+ * splits into three lists, each in canonical 13×13 order and free of
+ * duplicates: `correct` (in both target and built), `missed` (in target but
+ * not built — forgotten), and `extra` (in built but not target — added by
+ * mistake). Two empty inputs yield three empty lists; an exact match yields
+ * every target hand in `correct` with empty `missed` and `extra`. Throws if
+ * `target` or `built` contains an invalid hand.
+ */
+export function compareBuiltRange(
+  target: PokerHand[],
+  built: PokerHand[],
+): { correct: PokerHand[]; missed: PokerHand[]; extra: PokerHand[] } {
+  const normalizedTarget = normalizeRangeHands(target)
+  const normalizedBuilt = normalizeRangeHands(built)
+  const targetSet = new Set(normalizedTarget)
+  const builtSet = new Set(normalizedBuilt)
+  return {
+    correct: normalizedTarget.filter((hand) => builtSet.has(hand)),
+    missed: normalizedTarget.filter((hand) => !builtSet.has(hand)),
+    extra: normalizedBuilt.filter((hand) => !targetSet.has(hand)),
+  }
+}
+
+/**
  * Draw one of the 169 canonical starting hands at random.
  *
  * `random` defaults to `Math.random` but can be injected for deterministic

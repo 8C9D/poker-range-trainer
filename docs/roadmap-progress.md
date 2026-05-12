@@ -53,6 +53,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 16 | Sort saved ranges by recently practiced | v1.4 — Range library and filtering | 2026-06-05 |
 | 17 | Sort saved ranges by accuracy | v1.4 — Range library and filtering | 2026-06-05 |
 | 18 | Missing-hands review at the end of a practice session | v2 — Improved practice modes | 2026-06-05 |
+| 19 | Range-comparison helper for "build from memory" practice (domain foundation) | v2 — Improved practice modes | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -64,72 +65,104 @@ accuracy).
 ("Missing hands review"): ending a session opens a review step that recaps the
 session stats and lists the mistakes — hands missed (in range, answered out) and
 hands wrongly included (out of range, answered in) — before the final summary is
-persisted on dismiss. Still to come in v2: mode 3 ("Build from memory"), mode 5
-("Timed drill"), and mode 6 ("Weakness-focused drill"). Mode 2 ("Pick the correct
-action") stays deferred until the multi-action range model arrives in v2.3. The
-next slice begins mode 3 with its pure range-comparison helper.
+persisted on dismiss. Slice 19 began mode 3 ("Build from memory") with its pure
+domain foundation: `compareBuiltRange(target, built)` normalizes both inputs and
+splits them into `correct` / `missed` / `extra` lists in canonical order. Still to
+come in v2: the rest of mode 3 (the build-from-memory UI that uses
+`compareBuiltRange`), mode 5 ("Timed drill"), and mode 6 ("Weakness-focused
+drill"). Mode 2 ("Pick the correct action") stays deferred until the multi-action
+range model arrives in v2.3. The next slice builds the build-from-memory practice
+UI component on top of `compareBuiltRange`.
 
 ## Next slice
 
-- **Number:** 19
+- **Number:** 20
 - **Roadmap target:** v2 — Improved practice modes
-- **Working title:** Range-comparison helper for "build from memory" practice (domain foundation)
+- **Working title:** Build-from-memory practice component (mode 3 UI)
 
 ### Prompt
 
-You are implementing roadmap slice 19, continuing **v2 — Improved practice modes**.
-Slice 18 delivered mode 4 (missing-hands review). This slice begins mode 3 ("Build
-from memory"), where the user will eventually see a scenario/range name, recreate the
-range on the 13×13 grid from memory, and have the app compare their answer to the
-saved range.
+You are implementing roadmap slice 20, continuing **v2 — Improved practice modes**.
+Slice 19 delivered the pure domain foundation for mode 3 ("Build from memory"):
+`compareBuiltRange(target, built)` in `src/domain/practice.ts`, which normalizes both
+inputs and returns `{ correct, missed, extra }` lists in canonical order. This slice
+builds the build-from-memory practice **UI component** on top of that helper.
 
-Scope of THIS slice (foundation only): add the pure domain helper that compares a
-user-built set of hands against a target range and reports what they got right, what
-they missed, and what they added by mistake. Do NOT build the build-from-memory UI
-flow, a grid inside practice mode, or a practice-mode selector in this slice — those
-come in the next slice(s). This mirrors how slice 13 landed the per-range-stats
-foundation before its UI, and how slice 18 added a pure reducer first. Keeping the
-comparison pure and tested first makes the later UI slice small and low-risk.
+Scope of THIS slice: a new self-contained `BuildFromMemoryPractice` component that
+shows a saved range's name, lets the user recreate that range on a blank 13×13 grid
+from memory, and — on submit — uses `compareBuiltRange` to show what they got right,
+missed, and added by mistake. Do NOT wire it into `App` and do NOT add a
+practice-mode selector in this slice — routing the user to this component via a
+practice-mode picker is the NEXT slice (21). Keeping the component standalone and
+fully tested first (its test file imports and exercises it, so it is not dead code)
+makes the wiring slice small and low-risk, mirroring how slices 13/18/19 landed
+foundations before the UI that consumes them.
 
 Context (read these before starting):
-- `src/domain/practice.ts` holds the pure practice reducers (`isHandInRange`,
-  `createPracticeAttempt`, `summarizePracticeAttempts`, `reviewSessionMistakes`,
-  `getRandomPracticeHand`). The new helper belongs here, beside `reviewSessionMistakes`,
-  since it is another pure reduction over hands. It already imports `normalizeRangeHands`
-  from `./rangeMath` and `type PokerHand` from `./pokerHands` — no new imports needed.
-- `src/domain/rangeMath.ts` — `normalizeRangeHands(hands)` validates each hand (throwing
-  on an invalid one) and de-duplicates while preserving canonical 13×13 order. Use it to
-  normalize BOTH inputs so duplicates and input ordering never affect the comparison and
-  invalid hands are rejected the same way the rest of the domain rejects them.
-- `src/domain/pokerHands.ts` — `PokerHand` type, `ALL_HANDS` canonical ordering,
-  `isValidHand`.
-- `src/domain/practice.test.ts` and `src/domain/rangeMath.test.ts` show the established
-  pure-domain test patterns to mirror (including the invalid-hand `toThrow` assertions).
+- `src/domain/practice.ts` — `compareBuiltRange(target: PokerHand[], built:
+  PokerHand[]): { correct: PokerHand[]; missed: PokerHand[]; extra: PokerHand[] }`.
+  Call it as `compareBuiltRange(range.hands, builtHands)`. It normalizes/validates
+  internally, so just pass the saved range's hands and the user's selection.
+- `src/components/HandGrid.tsx` — a CONTROLLED 13×13 grid:
+  `<HandGrid selected={Set<PokerHand>} onSetSelected={(hand, shouldSelect) => …} />`.
+  It always renders all 169 hand labels but pre-selects nothing, so a fresh empty
+  `Set` is a blank grid — the saved range's membership is NOT revealed. Reuse it for
+  the build surface; do not build a second grid.
+- `src/components/PracticeSession.tsx` and `.css` — the existing mode-1 practice
+  component; mirror its structure (a `<section className="practice-session">`, a
+  header with the range name, an `onExit` prop, result lists rendered as `<ul>`s with
+  `aria-label`s). Reuse `PracticeSession.css` class names where they fit (e.g.
+  `practice-session`, `practice-header`, `practice-review`, `practice-review-group`,
+  `practice-review-heading`, `practice-review-hands`, `practice-review-actions`) and
+  add a small dedicated CSS file only if you need new classes.
+- `src/components/HandGrid.test.tsx` and `src/components/PracticeSession.test.tsx` —
+  the established React Testing Library patterns to mirror (cells are buttons whose
+  accessible name is the hand, e.g. `getByRole('button', { name: 'AA' })`, with
+  `aria-pressed` reflecting membership; `userEvent.setup()` + `user.click`; a local
+  stateful `Harness` is NOT needed here because the component owns its own selection
+  state).
+- `src/types/range.ts` — `SavedRange` (has `id`, `name`, `hands`, timestamps, optional
+  `metadata`).
 
-Task — add one pure domain function:
-- In `src/domain/practice.ts`, add
-  `compareBuiltRange(target: PokerHand[], built: PokerHand[]): { correct: PokerHand[]; missed: PokerHand[]; extra: PokerHand[] }`.
-  Normalize both `target` and `built` with `normalizeRangeHands` first, then:
-  - `correct` = hands in both the normalized target and built sets,
-  - `missed` = hands in target but not in built,
-  - `extra` = hands in built but not in target.
-  Each list is in canonical hand order (a natural consequence of iterating the
-  normalized lists) and free of duplicates. Two empty inputs yield three empty arrays;
-  an exact match yields every target hand in `correct` with empty `missed`/`extra`.
-  Pure — no Date, no random. Add a doc comment in the same style as
-  `reviewSessionMistakes`.
+Task — add one component (and its test + styles):
+- Create `src/components/BuildFromMemoryPractice.tsx` exporting
+  `BuildFromMemoryPractice({ range, onExit }: { range: SavedRange; onExit: () => void })`.
+  Behavior:
+  - Owns a `selected` state of type `Set<PokerHand>`, starting empty, updated through an
+    idempotent `setHandSelected(hand, shouldSelect)` exactly like `App`'s handler
+    (return the previous set when membership is unchanged).
+  - Owns a `checked` boolean (false until the user submits). While `checked` is false,
+    render: a header `Build from memory: {range.name}`, a short instruction (e.g.
+    "Recreate this range on the grid from memory, then check your answer."), the
+    `HandGrid` bound to `selected`, a live `{n} hands selected` count, a primary
+    "Check my range" button that sets `checked` to true, and a "Back to library" button
+    that calls `onExit`.
+  - When `checked` is true, compute `const { correct, missed, extra } =
+    compareBuiltRange(range.hands, Array.from(selected))` and render a results view:
+    a score line (e.g. `You got {correct.length} of {range.hands deduped length}
+    correct` — derive the target size from `correct.length + missed.length` so it is
+    always consistent with the comparison), then up to three labelled lists — Correct
+    (`correct`), Missed (`missed`), Added by mistake (`extra`) — each rendered only when
+    non-empty as a `<ul>` with a clear `aria-label`. If `missed` and `extra` are both
+    empty, show a success message (e.g. "Perfect — you rebuilt the range exactly!").
+    Provide a "Try again" button (clear `selected`, set `checked` back to false) and a
+    "Back to library" button (calls `onExit`).
+  - Keep all comparison logic in `compareBuiltRange`; the component must not re-derive
+    correct/missed/extra by hand. No randomness, no persistence, no timers.
+- Add `src/components/BuildFromMemoryPractice.css` only if you introduce new classes;
+  otherwise import `./PracticeSession.css`. Keep styling minimal and consistent.
 
-Tests to add (in `src/domain/practice.test.ts`):
-- a `describe('compareBuiltRange', ...)` block covering:
-  - an exact match → all target hands in `correct`, `missed` and `extra` empty;
-  - a missed hand (in target, not built) appears only in `missed`;
-  - an extra hand (in built, not target) appears only in `extra`;
-  - a mix (some correct, some missed, some extra) splits into the right lists;
-  - duplicates in either input do not produce duplicate output and do not change the
-    result;
-  - two empty inputs yield three empty arrays;
-  - an invalid hand in either input throws (mirror the `isHandInRange` invalid-hand
-    tests).
+Tests to add (`src/components/BuildFromMemoryPractice.test.tsx`, RTL, mirror the
+existing component tests):
+- renders the range name and the blank grid, and does NOT pre-select any hand (no cell
+  has `aria-pressed="true"` before the user clicks);
+- clicking grid cells updates the `{n} hands selected` count;
+- after building an EXACT match of a small known range and clicking "Check my range",
+  the success message shows and there are no Missed / Added-by-mistake lists;
+- after building a partial/incorrect range, "Check my range" shows the right hands under
+  Missed (in range, not built) and Added by mistake (built, not in range);
+- "Try again" returns to the build view with a cleared grid;
+- "Back to library" calls the `onExit` prop.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -137,12 +170,13 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: ONLY the `compareBuiltRange` reducer and its tests. Do NOT add
-  the build-from-memory UI, a practice grid, a mode selector, timers, or weakness
-  tracking — those are later slices.
-- Keep the helper pure and in `src/domain/`; do not touch components in this slice.
+- Stay within this slice: ONLY the `BuildFromMemoryPractice` component, its CSS (if
+  needed), and its test. Do NOT modify `App.tsx`, do NOT add a practice-mode selector,
+  and do NOT add timers or weakness tracking — those are later slices (21+).
+- UI in `src/components/`; reuse the existing `HandGrid` and the `compareBuiltRange`
+  domain helper — do not duplicate grid or comparison logic.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: add range-comparison helper for build-from-memory practice`
+- `feat: add build-from-memory practice component`
