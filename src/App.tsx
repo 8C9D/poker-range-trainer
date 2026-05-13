@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { BuildFromMemoryPractice } from './components/BuildFromMemoryPractice'
 import { HandGrid } from './components/HandGrid'
 import { PracticeSession } from './components/PracticeSession'
 import { RangeLibrary } from './components/RangeLibrary'
@@ -43,6 +44,9 @@ function App() {
   const [practiceStats, setPracticeStats] = useState(() => loadPracticeStats())
   // null = editor/library view; otherwise the saved range being practiced.
   const [practicingRange, setPracticingRange] = useState<SavedRange | null>(null)
+  // Which practice mode is active for `practicingRange`. null = the mode picker is
+  // showing (no mode chosen yet); chosen modes route to their components.
+  const [practiceMode, setPracticeMode] = useState<'recognize' | 'build' | null>(null)
   // Optional scenario metadata. '' means "unset" for the dropdowns; stackDepth
   // is raw input text ('' means no stack depth). These are descriptive only and
   // never affect the selected hands or notation.
@@ -238,36 +242,89 @@ function App() {
   }
 
   function handlePractice(range: SavedRange) {
+    // Start at the mode picker (no mode chosen yet) for the selected range.
     setPracticingRange(range)
+    setPracticeMode(null)
+  }
+
+  // Leave practice entirely, returning to the editor/library and resetting the
+  // mode so the next launch starts at the picker. Used by the picker's cancel,
+  // build-from-memory's exit, and (via handleEndPractice) recognition's exit.
+  function exitPractice() {
+    setPracticingRange(null)
+    setPracticeMode(null)
   }
 
   function handleEndPractice(summary: PracticeSessionSummary) {
     // Persist the finished session into the range's cumulative stats before
     // leaving practice, while the practiced range is still known.
     // recordPracticeSession is a no-op when nothing was answered, so ending
-    // immediately records nothing.
+    // immediately records nothing. Only recognition mode reports a summary;
+    // build-from-memory exits through exitPractice without recording stats.
     if (practicingRange) {
       recordPracticeSession(practicingRange.id, summary)
       // Refresh from storage so the library card reflects this session, mirroring
       // the setSavedRanges(loadSavedRanges()) refresh-after-write pattern.
       setPracticeStats(loadPracticeStats())
     }
-    setPracticingRange(null)
+    exitPractice()
+  }
+
+  let headerSubtitle: string
+  if (!practicingRange) {
+    headerSubtitle = "Click hands to build a Texas Hold'em preflop range."
+  } else if (practiceMode === 'recognize') {
+    headerSubtitle = 'Test your range recognition.'
+  } else if (practiceMode === 'build') {
+    headerSubtitle = 'Rebuild the range from memory.'
+  } else {
+    headerSubtitle = 'Choose how you want to practice.'
   }
 
   return (
     <main className="app">
       <header className="app-header">
         <h1>Poker Range Trainer</h1>
-        <p>
-          {practicingRange
-            ? 'Test your range recognition.'
-            : "Click hands to build a Texas Hold'em preflop range."}
-        </p>
+        <p>{headerSubtitle}</p>
       </header>
 
       {practicingRange ? (
-        <PracticeSession range={practicingRange} onExit={handleEndPractice} />
+        practiceMode === 'recognize' ? (
+          <PracticeSession range={practicingRange} onExit={handleEndPractice} />
+        ) : practiceMode === 'build' ? (
+          <BuildFromMemoryPractice range={practicingRange} onExit={exitPractice} />
+        ) : (
+          <section className="practice-session" aria-label="Choose practice mode">
+            <header className="practice-header">
+              <h2>Practice: {practicingRange.name}</h2>
+            </header>
+            <p className="practice-expected">
+              Recognize hands: say whether each random hand is in or out of the range.
+              Build from memory: rebuild the whole range on the grid, then check it.
+            </p>
+            <div className="practice-answers">
+              <button
+                type="button"
+                className="primary"
+                onClick={() => setPracticeMode('recognize')}
+              >
+                Recognize hands (in/out)
+              </button>
+              <button
+                type="button"
+                className="primary"
+                onClick={() => setPracticeMode('build')}
+              >
+                Build from memory
+              </button>
+            </div>
+            <div className="practice-review-actions">
+              <button type="button" onClick={exitPractice}>
+                Back to library
+              </button>
+            </div>
+          </section>
+        )
       ) : (
         <>
           <section className="range-editor" aria-label="Range editor">

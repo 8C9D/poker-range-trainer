@@ -269,6 +269,7 @@ describe('Practice mode', () => {
     await user.click(screen.getByRole('button', { name: 'Save Range' }))
 
     await user.click(screen.getByRole('button', { name: 'Practice range Pairs' }))
+    await user.click(screen.getByRole('button', { name: 'Recognize hands (in/out)' }))
 
     // The practice view replaces the editor and library.
     expect(screen.getByRole('heading', { name: /Practicing: Pairs/ })).toBeInTheDocument()
@@ -296,6 +297,7 @@ describe('Practice mode', () => {
     await user.click(screen.getByRole('button', { name: 'Save Range' }))
 
     await user.click(screen.getByRole('button', { name: 'Practice range Pairs' }))
+    await user.click(screen.getByRole('button', { name: 'Recognize hands (in/out)' }))
 
     // App uses Math.random for the prompt, so read the shown hand and answer it
     // truthfully to keep the recorded correct count deterministic.
@@ -323,6 +325,7 @@ describe('Practice mode', () => {
     await user.click(screen.getByRole('button', { name: 'Save Range' }))
 
     await user.click(screen.getByRole('button', { name: 'Practice range Pairs' }))
+    await user.click(screen.getByRole('button', { name: 'Recognize hands (in/out)' }))
 
     // Answer the shown hand truthfully so the single attempt is correct, making
     // the displayed accuracy a deterministic 100%.
@@ -346,11 +349,88 @@ describe('Practice mode', () => {
     await user.click(screen.getByRole('button', { name: 'Save Range' }))
 
     await user.click(screen.getByRole('button', { name: 'Practice range Pairs' }))
+    await user.click(screen.getByRole('button', { name: 'Recognize hands (in/out)' }))
     // End immediately, before answering a single hand, then dismiss the review.
     await user.click(screen.getByRole('button', { name: 'End Practice' }))
     await user.click(screen.getByRole('button', { name: 'Back to library' }))
 
     expect(loadPracticeStats()).toEqual({})
+  })
+
+  it('shows a practice-mode picker before any mode is chosen', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Pairs')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'KK' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    await user.click(screen.getByRole('button', { name: 'Practice range Pairs' }))
+
+    // The picker names the range and offers both modes, without starting either.
+    expect(screen.getByRole('heading', { name: 'Practice: Pairs' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Recognize hands (in/out)' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Build from memory' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'In range' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /Build from memory:/ })).not.toBeInTheDocument()
+  })
+
+  it('starts build-from-memory mode when chosen from the picker', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Pairs')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'KK' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    await user.click(screen.getByRole('button', { name: 'Practice range Pairs' }))
+    await user.click(screen.getByRole('button', { name: 'Build from memory' }))
+
+    expect(screen.getByRole('heading', { name: 'Build from memory: Pairs' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Check my range' })).toBeInTheDocument()
+    // Editor and library are hidden during practice.
+    expect(screen.queryByLabelText('Range name')).not.toBeInTheDocument()
+  })
+
+  it('returns to the editor/library when the picker is cancelled', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Pairs')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'KK' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    await user.click(screen.getByRole('button', { name: 'Practice range Pairs' }))
+    await user.click(screen.getByRole('button', { name: 'Back to library' }))
+
+    expect(screen.getByLabelText('Range name')).toBeInTheDocument()
+    expect(within(library()).getByText('Pairs')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Recognize hands (in/out)' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('returns to the picker on the next launch after a build-from-memory session', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Pairs')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'KK' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    // Enter build-from-memory, then leave it.
+    await user.click(screen.getByRole('button', { name: 'Practice range Pairs' }))
+    await user.click(screen.getByRole('button', { name: 'Build from memory' }))
+    await user.click(screen.getByRole('button', { name: 'Back to library' }))
+
+    // Launching again shows the picker again, not the previously chosen mode.
+    await user.click(screen.getByRole('button', { name: 'Practice range Pairs' }))
+    expect(screen.getByRole('button', { name: 'Recognize hands (in/out)' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Build from memory' })).toBeInTheDocument()
   })
 })
 
