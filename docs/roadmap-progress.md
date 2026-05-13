@@ -57,6 +57,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 20 | Build-from-memory practice component (mode 3 UI) | v2 — Improved practice modes | 2026-06-06 |
 | 21 | Practice-mode picker wiring build-from-memory into App | v2 — Improved practice modes | 2026-06-06 |
 | 22 | Timed-drill domain foundation (countdown math + durations) | v2 — Improved practice modes | 2026-06-06 |
+| 23 | Timed-drill practice component (mode 5 UI) | v2 — Improved practice modes | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -85,88 +86,81 @@ Mode 5 ("Timed drill") is now underway. Slice 22 added its pure domain foundatio
 `src/domain/timedDrill.ts`: `DRILL_DURATION_OPTIONS` ([30, 60, 120]s),
 `DEFAULT_DRILL_SECONDS` (60), and `getRemainingSeconds` / `isDrillOver` countdown math
 that takes the current time as a parameter (clamped, ceil-rounded, clock-skew safe).
+Slice 23 added the standalone `TimedDrillSession` component: a config → running →
+done flow that reuses recognition scoring (`createPracticeAttempt`,
+`summarizePracticeAttempts`) and drives the countdown off `getRemainingSeconds` plus a
+250ms interval (clock read only inside the interval to keep render pure; interval
+cleaned up on expiry/unmount). It reports a `PracticeSessionSummary` via `onExit`. It
+is fully tested (with Vitest fake timers + `fireEvent`, since userEvent deadlocks
+against fake timers) but not yet wired into `App`.
 
-Still to come in v2: the timed-drill component (mode 5 UI) and its picker wiring, then
-mode 6 ("Weakness-focused drill"). Mode 2 ("Pick the correct action") stays deferred
-until the multi-action range model arrives in v2.3. The next slice builds the
-timed-drill practice component on top of the recognition scoring helpers and the new
-countdown helpers.
+Still to come in v2: wiring the timed drill into the picker, then mode 6
+("Weakness-focused drill"). Mode 2 ("Pick the correct action") stays deferred until the
+multi-action range model arrives in v2.3. The next slice wires the timed drill into the
+practice-mode picker as a third mode, recording its summary into per-range stats (it is
+the same in/out recognition metric).
 
 ## Next slice
 
-- **Number:** 23
+- **Number:** 24
 - **Roadmap target:** v2 — Improved practice modes
-- **Working title:** Timed-drill practice component (mode 5 UI)
+- **Working title:** Wire the timed drill into the practice-mode picker
 
 ### Prompt
 
-You are implementing roadmap slice 23, continuing **v2 — Improved practice modes**.
-Slice 22 delivered the pure timed-drill domain foundation (`src/domain/timedDrill.ts`:
-`DRILL_DURATION_OPTIONS`, `DEFAULT_DRILL_SECONDS`, `getRemainingSeconds`,
-`isDrillOver`). This slice builds the timed-drill practice **UI component** (mode 5) on
-top of those helpers and the existing recognition scoring. Do NOT wire it into the
-picker yet — that is the NEXT slice (24). Keeping it standalone and fully tested first
-(its test file exercises it, so it is not dead code) mirrors how mode 3 landed (slice
-20 component, slice 21 wiring).
+You are implementing roadmap slice 24, continuing **v2 — Improved practice modes**.
+Slice 23 delivered the standalone, fully tested `TimedDrillSession` component (mode 5),
+which is not yet reachable by the user. This slice wires it into `App`'s practice-mode
+picker as a third mode, so clicking "Practice" → "Timed drill" launches it. Completing
+this slice fully delivers mode 5.
 
-Scope of THIS slice: a self-contained `TimedDrillSession` component that lets the user
-pick a duration, then answer in/out-of-range prompts as fast as they can until the
-countdown expires, then see a summary. No picker change, no App change.
+Scope of THIS slice: extend the `App` picker/routing only. No component changes.
 
 Context (read these before starting):
-- `src/components/PracticeSession.tsx` and `.css` — the recognition component to mirror
-  closely. Reuse its scoring approach: `createPracticeAttempt(hand, range.hands,
-  answeredInRange)`, accumulate `PracticeAttempt[]`, and `summarizePracticeAttempts`
-  for the final stats. Reuse `getRandomPracticeHand(random)` for prompts and an
-  injectable `random` prop defaulting to `Math.random` (see how `PracticeSession`
-  takes `random` and how `PracticeSession.test.tsx` builds a deterministic
-  `sequenceRandom`). Reuse `PracticeSession.css` classes (`practice-session`,
-  `practice-header`, `practice-stats`/`practice-stat`, `practice-prompt`*,
-  `practice-answers`/`.primary`, `practice-review`*) — no new CSS file unless needed.
-- `src/domain/timedDrill.ts` — `getRemainingSeconds(startMs, durationSeconds, nowMs)`
-  and `isDrillOver(...)` (pure; tested in slice 22). Use these for the countdown rather
-  than re-deriving time math; drive `nowMs` from `Date.now()` plus a `setInterval`.
-- `src/domain/practice.ts` — `createPracticeAttempt`, `summarizePracticeAttempts`,
-  `getRandomPracticeHand`.
-- `src/types/practice.ts` — `PracticeAttempt`, `PracticeSessionSummary`.
-- `src/types/range.ts` — `SavedRange`.
+- `src/App.tsx` — the practice picker added in slice 21. Relevant pieces:
+  - state `practiceMode: 'recognize' | 'build' | null` (extend this union with
+    `'timed'`).
+  - `handlePractice` sets `practicingRange` and `practiceMode = null` (picker shows).
+  - `exitPractice()` clears `practicingRange` and `practiceMode`.
+  - `handleEndPractice(summary)` records the summary into per-range stats
+    (`recordPracticeSession` + refresh) then calls `exitPractice()`. The timed drill is
+    the SAME in/out recognition metric, so it should record too — route the timed
+    drill's `onExit` to `handleEndPractice` (do NOT invent a separate stats path).
+  - The picker is the `practiceMode === null` branch: a `<section
+    aria-label="Choose practice mode">` with "Recognize hands (in/out)" and
+    "Build from memory" buttons (both setting `practiceMode`) plus a "Back to library"
+    cancel. Add a third button "Timed drill" that sets `practiceMode('timed')`.
+  - The routing is a nested ternary on `practiceMode`; add a `practiceMode === 'timed'`
+    branch rendering `<TimedDrillSession range={practicingRange}
+    onExit={handleEndPractice} />`.
+  - `headerSubtitle` switches on state; add a 'timed' case (short copy, e.g.
+    "Race the clock.").
+- `src/components/TimedDrillSession.tsx` — `TimedDrillSession({ range, onExit, random?
+  })`, `onExit: (summary: PracticeSessionSummary) => void`. Import it like
+  `BuildFromMemoryPractice` is imported.
+- `src/App.test.tsx` — the "Practice mode" describe block. Mirror its patterns. NOTE
+  the picker tests there assume exactly the existing buttons; keep them green and add
+  new coverage for the timed option.
 
-Task — add `src/components/TimedDrillSession.tsx` exporting
-`TimedDrillSession({ range, onExit, random = Math.random }: { range: SavedRange;
-onExit: (summary: PracticeSessionSummary) => void; random?: () => number })`:
-- Phase state `'config' | 'running' | 'done'`.
-- CONFIG: a header naming the range, one button per `DRILL_DURATION_OPTIONS` value
-  (label e.g. "30s" / "60s" / "120s") that starts the drill at that duration, and a
-  "Back to library" button that calls `onExit(summarizePracticeAttempts([]))` (a
-  zero summary; the wiring slice's recorder is a no-op for zero attempts).
-- RUNNING (on start): record `startMs = Date.now()` and the chosen duration; keep a
-  `nowMs` state updated by a `setInterval` (~250ms) so the countdown re-renders.
-  Display the remaining seconds via `getRemainingSeconds(startMs, duration, nowMs)`, a
-  running tally (answered / correct from the accumulated attempts), the current prompt
-  hand, and "In range" / "Out of range" buttons. Answering scores via
-  `createPracticeAttempt`, appends the attempt, and IMMEDIATELY advances to a new
-  `getRandomPracticeHand(random)` (timed mode shows no per-answer feedback pause — speed
-  matters). When `isDrillOver(startMs, duration, nowMs)` becomes true, stop accepting
-  answers and move to DONE. Clear the interval on expiry and on unmount (return a
-  cleanup from `useEffect`); do not accept answers once over.
-- DONE: show the final summary (total / correct / accuracy via
-  `summarizePracticeAttempts`), a "Back to library" button calling `onExit(summary)`,
-  and a "New drill" button returning to CONFIG (reset attempts/phase).
-- Keep all time math in `timedDrill.ts` and all scoring in `practice.ts`; the component
-  only orchestrates state, the interval, and rendering.
+Task — wire timed drill into `App`:
+- Add `'timed'` to the `practiceMode` union.
+- Add a "Timed drill" button to the picker (sets `practiceMode('timed')`).
+- Add the routing branch: `practiceMode === 'timed'` → `<TimedDrillSession
+  range={practicingRange} onExit={handleEndPractice} />` (records stats via the same
+  path recognition uses).
+- Add a 'timed' `headerSubtitle` case.
 
-Tests to add (`src/components/TimedDrillSession.test.tsx`, RTL + Vitest fake timers):
-- use `vi.useFakeTimers()` in `beforeEach` and `vi.useRealTimers()` in `afterEach`, and
-  set up userEvent with `userEvent.setup({ advanceTimers: vi.advanceTimersByTime })` so
-  clicks work under fake timers;
-- CONFIG shows the duration buttons and the range name; "Back to library" calls
-  `onExit` (summary with `totalQuestions: 0`);
-- starting a drill shows the countdown (e.g. "60" remaining) and the In/Out buttons;
-- answering a known in-range hand (use a `random` sequence to force the prompt) updates
-  the running correct tally and advances to the next prompt;
-- advancing time past the duration with `vi.advanceTimersByTime(...)` moves to the DONE
-  summary and the In/Out buttons disappear;
-- from DONE, "Back to library" calls `onExit` with the accumulated summary.
+Tests to add/update (`src/App.test.tsx`):
+- the picker now also shows a "Timed drill" button;
+- choosing "Timed drill" shows the timed-drill setup (e.g. the "30s"/"60s"/"120s"
+  duration buttons and a "Timed drill: <name>" heading);
+- (optional but preferred) finishing a timed drill records into per-range stats — you
+  can use Vitest fake timers + `fireEvent` (NOT userEvent, which deadlocks under fake
+  timers) to start a drill, answer the shown hand, advance past the duration, and assert
+  `loadPracticeStats()` updated. If this proves fiddly within App, at minimum assert the
+  timed-drill view is reachable and the existing recognition/stats tests still pass.
+- keep all existing picker tests passing (the cancel test, recognition test, build
+  test, and the mode-reset test).
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -174,14 +168,14 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: ONLY `TimedDrillSession.tsx`, its CSS (if needed), and its
-  test. Do NOT modify `App.tsx` or the picker (wiring is slice 24), and do NOT touch
-  `PracticeSession`/`BuildFromMemoryPractice`.
-- Reuse the `timedDrill` and `practice` domain helpers — do not duplicate time math or
-  scoring in the component.
-- Always clean up the interval (no leaked timers); guard against scoring after expiry.
+- Stay within this slice: only the picker/routing wiring in `App` and its tests. Do NOT
+  modify `TimedDrillSession`, `PracticeSession`, or `BuildFromMemoryPractice`.
+- Reuse `handleEndPractice` for the timed drill's exit so stats recording stays in one
+  place; do not duplicate the recording logic.
+- If a test mixes fake timers with clicks, use `fireEvent` (userEvent + fake timers
+  deadlocks in this project — see `TimedDrillSession.test.tsx`).
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: add timed-drill practice component`
+- `feat: add timed drill to the practice-mode picker`
