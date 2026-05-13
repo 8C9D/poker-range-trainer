@@ -56,6 +56,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 19 | Range-comparison helper for "build from memory" practice (domain foundation) | v2 — Improved practice modes | 2026-06-06 |
 | 20 | Build-from-memory practice component (mode 3 UI) | v2 — Improved practice modes | 2026-06-06 |
 | 21 | Practice-mode picker wiring build-from-memory into App | v2 — Improved practice modes | 2026-06-06 |
+| 22 | Timed-drill domain foundation (countdown math + durations) | v2 — Improved practice modes | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -80,71 +81,92 @@ with the mode reset on every exit. With that, **mode 3 is fully delivered**
 (comparison helper + component + picker wiring). Recognition still records per-range
 stats; build-from-memory deliberately does not (different metric shape).
 
-Still to come in v2: mode 5 ("Timed drill") and mode 6 ("Weakness-focused drill").
-Mode 2 ("Pick the correct action") stays deferred until the multi-action range model
-arrives in v2.3. The next slice begins mode 5 with its pure timed-drill domain
-foundation (countdown math + duration options), mirroring how mode 3 started with a
-pure helper before its UI.
+Mode 5 ("Timed drill") is now underway. Slice 22 added its pure domain foundation,
+`src/domain/timedDrill.ts`: `DRILL_DURATION_OPTIONS` ([30, 60, 120]s),
+`DEFAULT_DRILL_SECONDS` (60), and `getRemainingSeconds` / `isDrillOver` countdown math
+that takes the current time as a parameter (clamped, ceil-rounded, clock-skew safe).
+
+Still to come in v2: the timed-drill component (mode 5 UI) and its picker wiring, then
+mode 6 ("Weakness-focused drill"). Mode 2 ("Pick the correct action") stays deferred
+until the multi-action range model arrives in v2.3. The next slice builds the
+timed-drill practice component on top of the recognition scoring helpers and the new
+countdown helpers.
 
 ## Next slice
 
-- **Number:** 22
+- **Number:** 23
 - **Roadmap target:** v2 — Improved practice modes
-- **Working title:** Timed-drill domain foundation (countdown math + durations)
+- **Working title:** Timed-drill practice component (mode 5 UI)
 
 ### Prompt
 
-You are implementing roadmap slice 22, continuing **v2 — Improved practice modes**.
-Mode 3 ("Build from memory") is fully delivered (slices 19–21). This slice begins
-mode 5 ("Timed drill"), where the user answers as many in/out-of-range hands as
-possible before a countdown expires. Following the rhythm that worked for mode 3
-(pure helper in slice 19, component in 20, wiring in 21), THIS slice adds only the
-pure timed-drill domain foundation; the timed-drill component and its picker wiring
-are the next slices.
+You are implementing roadmap slice 23, continuing **v2 — Improved practice modes**.
+Slice 22 delivered the pure timed-drill domain foundation (`src/domain/timedDrill.ts`:
+`DRILL_DURATION_OPTIONS`, `DEFAULT_DRILL_SECONDS`, `getRemainingSeconds`,
+`isDrillOver`). This slice builds the timed-drill practice **UI component** (mode 5) on
+top of those helpers and the existing recognition scoring. Do NOT wire it into the
+picker yet — that is the NEXT slice (24). Keeping it standalone and fully tested first
+(its test file exercises it, so it is not dead code) mirrors how mode 3 landed (slice
+20 component, slice 21 wiring).
 
-Scope of THIS slice (foundation only): a new pure domain module for the countdown
-math and the selectable drill durations. Do NOT build the timed-drill UI, a timer
-component, `setInterval` logic, or any picker change in this slice — those come next.
-Keeping the time math pure and tested first keeps the later component slice small and
-lets the countdown be unit-tested without fake timers.
+Scope of THIS slice: a self-contained `TimedDrillSession` component that lets the user
+pick a duration, then answer in/out-of-range prompts as fast as they can until the
+countdown expires, then see a summary. No picker change, no App change.
 
 Context (read these before starting):
-- `src/domain/practice.ts` and `src/domain/rangeMath.ts` show the established
-  pure-domain module style (focused exported functions, a module doc comment, clamp
-  helpers, no React/DOM). Put the new module beside them in `src/domain/`.
-- `src/domain/practice.test.ts` shows the pure-domain test patterns to mirror
-  (descriptive `describe`/`it`, boundary cases, deterministic inputs — here pass
-  explicit epoch-millisecond numbers so no real clock is used).
-- Recognition scoring (`createPracticeAttempt`, `summarizePracticeAttempts`) already
-  exists and will be reused by the timed-drill COMPONENT later; this slice does not
-  touch it.
+- `src/components/PracticeSession.tsx` and `.css` — the recognition component to mirror
+  closely. Reuse its scoring approach: `createPracticeAttempt(hand, range.hands,
+  answeredInRange)`, accumulate `PracticeAttempt[]`, and `summarizePracticeAttempts`
+  for the final stats. Reuse `getRandomPracticeHand(random)` for prompts and an
+  injectable `random` prop defaulting to `Math.random` (see how `PracticeSession`
+  takes `random` and how `PracticeSession.test.tsx` builds a deterministic
+  `sequenceRandom`). Reuse `PracticeSession.css` classes (`practice-session`,
+  `practice-header`, `practice-stats`/`practice-stat`, `practice-prompt`*,
+  `practice-answers`/`.primary`, `practice-review`*) — no new CSS file unless needed.
+- `src/domain/timedDrill.ts` — `getRemainingSeconds(startMs, durationSeconds, nowMs)`
+  and `isDrillOver(...)` (pure; tested in slice 22). Use these for the countdown rather
+  than re-deriving time math; drive `nowMs` from `Date.now()` plus a `setInterval`.
+- `src/domain/practice.ts` — `createPracticeAttempt`, `summarizePracticeAttempts`,
+  `getRandomPracticeHand`.
+- `src/types/practice.ts` — `PracticeAttempt`, `PracticeSessionSummary`.
+- `src/types/range.ts` — `SavedRange`.
 
-Task — add one pure domain module `src/domain/timedDrill.ts`:
-- Export `DRILL_DURATION_OPTIONS: readonly number[]` — the selectable drill lengths in
-  seconds, `[30, 60, 120]`.
-- Export `DEFAULT_DRILL_SECONDS = 60` (must be one of the options).
-- Export `getRemainingSeconds(startEpochMs: number, durationSeconds: number,
-  nowEpochMs: number): number`:
-  - elapsed = `nowEpochMs - startEpochMs`; remaining seconds =
-    `Math.ceil((durationSeconds * 1000 - elapsed) / 1000)`, then clamp into the
-    integer range `[0, durationSeconds]`.
-  - At `nowEpochMs === startEpochMs` it returns `durationSeconds`; once elapsed ≥
-    duration it returns `0`; a `nowEpochMs` before `startEpochMs` (clock skew) still
-    clamps to `durationSeconds`, never above.
-- Export `isDrillOver(startEpochMs: number, durationSeconds: number, nowEpochMs:
-  number): boolean` = `getRemainingSeconds(...) === 0`.
-- Add a module doc comment in the same style as `practice.ts` (pure, UI-agnostic,
-  takes `nowEpochMs` explicitly so it is testable without a real clock).
+Task — add `src/components/TimedDrillSession.tsx` exporting
+`TimedDrillSession({ range, onExit, random = Math.random }: { range: SavedRange;
+onExit: (summary: PracticeSessionSummary) => void; random?: () => number })`:
+- Phase state `'config' | 'running' | 'done'`.
+- CONFIG: a header naming the range, one button per `DRILL_DURATION_OPTIONS` value
+  (label e.g. "30s" / "60s" / "120s") that starts the drill at that duration, and a
+  "Back to library" button that calls `onExit(summarizePracticeAttempts([]))` (a
+  zero summary; the wiring slice's recorder is a no-op for zero attempts).
+- RUNNING (on start): record `startMs = Date.now()` and the chosen duration; keep a
+  `nowMs` state updated by a `setInterval` (~250ms) so the countdown re-renders.
+  Display the remaining seconds via `getRemainingSeconds(startMs, duration, nowMs)`, a
+  running tally (answered / correct from the accumulated attempts), the current prompt
+  hand, and "In range" / "Out of range" buttons. Answering scores via
+  `createPracticeAttempt`, appends the attempt, and IMMEDIATELY advances to a new
+  `getRandomPracticeHand(random)` (timed mode shows no per-answer feedback pause — speed
+  matters). When `isDrillOver(startMs, duration, nowMs)` becomes true, stop accepting
+  answers and move to DONE. Clear the interval on expiry and on unmount (return a
+  cleanup from `useEffect`); do not accept answers once over.
+- DONE: show the final summary (total / correct / accuracy via
+  `summarizePracticeAttempts`), a "Back to library" button calling `onExit(summary)`,
+  and a "New drill" button returning to CONFIG (reset attempts/phase).
+- Keep all time math in `timedDrill.ts` and all scoring in `practice.ts`; the component
+  only orchestrates state, the interval, and rendering.
 
-Tests to add (`src/domain/timedDrill.test.ts`):
-- `DRILL_DURATION_OPTIONS` contains `DEFAULT_DRILL_SECONDS`;
-- at start (`now === start`) remaining equals the full duration;
-- partway through (e.g. 60s drill, 25s elapsed) remaining is the expected ceil value
-  (36) and counts down to 1 in the final whole second;
-- at and past expiry remaining is `0` and `isDrillOver` is `true`;
-- a `now` before `start` clamps remaining to the full duration (never above) and
-  `isDrillOver` is `false`;
-- `isDrillOver` is `false` while time remains and flips to `true` exactly at expiry.
+Tests to add (`src/components/TimedDrillSession.test.tsx`, RTL + Vitest fake timers):
+- use `vi.useFakeTimers()` in `beforeEach` and `vi.useRealTimers()` in `afterEach`, and
+  set up userEvent with `userEvent.setup({ advanceTimers: vi.advanceTimersByTime })` so
+  clicks work under fake timers;
+- CONFIG shows the duration buttons and the range name; "Back to library" calls
+  `onExit` (summary with `totalQuestions: 0`);
+- starting a drill shows the countdown (e.g. "60" remaining) and the In/Out buttons;
+- answering a known in-range hand (use a `random` sequence to force the prompt) updates
+  the running correct tally and advances to the next prompt;
+- advancing time past the duration with `vi.advanceTimersByTime(...)` moves to the DONE
+  summary and the In/Out buttons disappear;
+- from DONE, "Back to library" calls `onExit` with the accumulated summary.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -152,13 +174,14 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: ONLY `src/domain/timedDrill.ts` and its test. Do NOT add a
-  timed-drill component, timers/`setInterval`, or any change to `App`/the picker — those
-  are the next slices.
-- Keep the module pure and in `src/domain/`; take the current time as a parameter, do
-  not call `Date.now()` inside it.
+- Stay within this slice: ONLY `TimedDrillSession.tsx`, its CSS (if needed), and its
+  test. Do NOT modify `App.tsx` or the picker (wiring is slice 24), and do NOT touch
+  `PracticeSession`/`BuildFromMemoryPractice`.
+- Reuse the `timedDrill` and `practice` domain helpers — do not duplicate time math or
+  scoring in the component.
+- Always clean up the interval (no leaked timers); guard against scoring after expiry.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: add timed-drill countdown domain helpers`
+- `feat: add timed-drill practice component`
