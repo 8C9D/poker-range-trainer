@@ -59,6 +59,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 22 | Timed-drill domain foundation (countdown math + durations) | v2 — Improved practice modes | 2026-06-06 |
 | 23 | Timed-drill practice component (mode 5 UI) | v2 — Improved practice modes | 2026-06-06 |
 | 24 | Wire the timed drill into the practice-mode picker | v2 — Improved practice modes | 2026-06-06 |
+| 25 | Weakness-focused draw domain foundation (mode 6) | v2 — Improved practice modes | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -101,84 +102,89 @@ sessions record into the same per-range recognition stats. With that, **mode 5 i
 delivered** (countdown helpers + component + picker wiring). The picker now offers
 recognition, build-from-memory, and timed drill.
 
-Still to come in v2: mode 6 ("Weakness-focused drill"), which prioritizes hands the
-user keeps getting wrong. Mode 2 ("Pick the correct action") stays deferred until the
-multi-action range model arrives in v2.3. The next slice begins mode 6 with its pure
-domain foundation — an in-session weighted draw that biases prompts toward hands missed
-so far — mirroring how modes 3 and 5 started with a pure helper before the UI. (Note:
-this is an *in-session* weakness signal derived from the current session's attempts;
-cross-session per-hand accuracy tracking is the separate v2.1 mistake-tracking work.)
+Mode 6 ("Weakness-focused drill") is now underway. Slice 25 added its pure domain
+foundation, `src/domain/weaknessDrill.ts`: `WEAKNESS_MISTAKE_WEIGHT` (3),
+`buildWeaknessPool(attempts)` (each hand once plus extra copies per incorrect attempt),
+and `getWeaknessFocusedHand(attempts, random)` (a pool-weighted draw that is uniform
+with no mistakes and biases toward missed hands otherwise). This is an *in-session*
+weakness signal from the current session's attempts; cross-session per-hand accuracy
+tracking is the separate v2.1 work.
+
+Still to come in v2: the weakness-drill component and its picker wiring. Mode 2 ("Pick
+the correct action") stays deferred until the multi-action range model arrives in v2.3.
+The next slice builds the weakness-drill practice component on top of
+`getWeaknessFocusedHand` and the recognition scoring helpers.
 
 ## Next slice
 
-- **Number:** 25
+- **Number:** 26
 - **Roadmap target:** v2 — Improved practice modes
-- **Working title:** Weakness-focused draw domain foundation (mode 6)
+- **Working title:** Weakness-focused drill practice component (mode 6 UI)
 
 ### Prompt
 
-You are implementing roadmap slice 25, continuing **v2 — Improved practice modes**.
-Modes 3, 4, and 5 are delivered. This slice begins the final v2 mode, mode 6
-("Weakness-focused drill"), which prioritizes hands the user keeps getting wrong.
-Following the rhythm that worked for modes 3 and 5 (pure helper first, then component,
-then wiring), THIS slice adds ONLY the pure domain foundation: an in-session weighted
-draw that biases the next prompt toward hands missed so far. Do NOT build a component or
-touch the picker/App in this slice.
+You are implementing roadmap slice 26, continuing **v2 — Improved practice modes**.
+Slice 25 delivered the pure weakness-focused draw foundation
+(`src/domain/weaknessDrill.ts`: `getWeaknessFocusedHand(attempts, random)` and
+`buildWeaknessPool`). This slice builds the weakness-focused drill **UI component**
+(mode 6) on top of it and the existing recognition scoring. Do NOT wire it into the
+picker yet — that is the NEXT slice (27). Keep it standalone and fully tested first,
+mirroring how modes 3 and 5 landed (component, then wiring).
 
-Design note (scope): this is an *in-session* weakness signal computed from the current
-session's `PracticeAttempt[]` — every hand stays possible, but each incorrect attempt on
-a hand increases how often that hand is drawn. This is intentionally NOT the persisted,
-cross-session per-hand accuracy tracking, which is the separate **v2.1** mistake-tracking
-work; do not build persistence here.
+Scope of THIS slice: a self-contained `WeaknessFocusedDrill` component — a recognition
+loop (prompt → answer → immediate feedback → next) whose NEXT prompt is drawn with
+`getWeaknessFocusedHand(attempts)` so hands missed earlier this session resurface more
+often. Keep it focused: prompt + In/Out answer + per-answer feedback + running stats +
+"End practice" that reports the summary. It does NOT need the full end-of-session
+mistake-review screen (that is mode 4, already on `PracticeSession`); ending reports the
+summary directly via `onExit`.
 
 Context (read these before starting):
-- `src/domain/practice.ts` — `getRandomPracticeHand(random = Math.random)` shows the
-  prompt-draw idiom to mirror, including the `Math.min(len - 1, Math.floor(random() *
-  len))` clamp so an input of exactly 1 still yields a valid hand. The new draw reuses
-  this exact clamping idiom.
-- `src/domain/pokerHands.ts` — `ALL_HANDS` (the 169 canonical hands in order) and
-  `type PokerHand`.
-- `src/domain/timedDrill.ts` / `timedDrill.test.ts` — the per-mode pure-module + test
-  style to mirror (focused exports, module doc comment, deterministic inputs).
-- `src/types/practice.ts` — `PracticeAttempt` (has `hand` and `correct`).
+- `src/components/PracticeSession.tsx` and `.css` — mirror its recognition flow and
+  reuse its CSS classes (`practice-session`, `practice-header`, `practice-stats`/
+  `practice-stat`, `practice-prompt`*, `practice-answers`/`.primary`,
+  `practice-feedback`, `practice-result`/`.correct`/`.incorrect`, `practice-expected`).
+  Reuse its scoring: `createPracticeAttempt(hand, range.hands, answeredInRange)`,
+  accumulate `PracticeAttempt[]`, `summarizePracticeAttempts`. Note how it takes an
+  injectable `random` prop and how `PracticeSession.test.tsx` uses `sequenceRandom`.
+- `src/domain/weaknessDrill.ts` — `getWeaknessFocusedHand(attempts, random)`. Use it for
+  BOTH the initial prompt (`getWeaknessFocusedHand([], random)`) and each subsequent
+  prompt, passing the attempts accumulated so far so the weighting reflects this
+  session's mistakes. Do not re-derive the weighting in the component.
+- `src/domain/practice.ts` — `createPracticeAttempt`, `summarizePracticeAttempts`.
+- `src/types/practice.ts`, `src/types/range.ts` — `PracticeAttempt`,
+  `PracticeSessionSummary`, `SavedRange`.
 
-Task — add a new pure domain module `src/domain/weaknessDrill.ts`:
-- Export `WEAKNESS_MISTAKE_WEIGHT = 3` — extra pool copies added per incorrect attempt
-  on a hand.
-- Export `buildWeaknessPool(attempts: PracticeAttempt[], mistakeWeight =
-  WEAKNESS_MISTAKE_WEIGHT): PokerHand[]`:
-  - Count incorrect attempts (`!attempt.correct`) per hand.
-  - Return an array that, iterating `ALL_HANDS` in canonical order, contains each hand
-    once PLUS `mistakeWeight * (incorrect count for that hand)` extra copies. So with no
-    attempts the pool is exactly `ALL_HANDS` (length 169); a hand missed twice with the
-    default weight appears `1 + 3*2 = 7` times. Ignore the attempt's `hand` if it is not
-    a canonical hand is unnecessary — attempts always carry canonical hands — but only
-    count hands that appear in `ALL_HANDS` so a stray value never inflates the pool.
-- Export `getWeaknessFocusedHand(attempts: PracticeAttempt[], random: () => number =
-  Math.random, mistakeWeight = WEAKNESS_MISTAKE_WEIGHT): PokerHand`:
-  - Build the pool, then index it with `Math.min(pool.length - 1, Math.floor(random() *
-    pool.length))` (same clamp as `getRandomPracticeHand`). With no attempts this is a
-    uniform draw over all 169 hands; with mistakes, missed hands are proportionally more
-    likely.
-- Module doc comment in the `timedDrill.ts` style (pure; randomness/now injected;
-  explain the in-session weighting and that it is not persisted cross-session).
+Task — add `src/components/WeaknessFocusedDrill.tsx` exporting
+`WeaknessFocusedDrill({ range, onExit, random = Math.random }: { range: SavedRange;
+onExit: (summary: PracticeSessionSummary) => void; random?: () => number })`:
+- Header `Weakness drill: {range.name}` and an "End practice" button that calls
+  `onExit(summarizePracticeAttempts(attempts))`.
+- State: `currentHand` (init `getWeaknessFocusedHand([], random)`), `currentAttempt`
+  (null until answered), `attempts`.
+- Show running stats (total / correct / accuracy via `summarizePracticeAttempts`).
+- Prompt the current hand with In range / Out of range buttons. Answering scores via
+  `createPracticeAttempt`, stores the scored attempt (for feedback), and appends it to
+  `attempts`. Ignore extra clicks once answered (mirror `PracticeSession`'s guard).
+- After answering, show feedback (Correct!/Incorrect + the expected answer) and a
+  "Next hand" button that draws `getWeaknessFocusedHand(attempts, random)` using the
+  current attempts (which now include the just-answered one, so missed hands are
+  weighted up) and clears the feedback.
+- Keep the weighting in `getWeaknessFocusedHand` and scoring in `practice.ts`; the
+  component only orchestrates state and rendering. No timers, no persistence.
 
-Tests to add (`src/domain/weaknessDrill.test.ts`):
-- `buildWeaknessPool([])` equals `ALL_HANDS` (same length and contents/order).
-- a single incorrect attempt on a hand adds exactly `mistakeWeight` extra copies (e.g.
-  count occurrences of that hand in the pool === `1 + mistakeWeight`); a correct attempt
-  adds none.
-- multiple incorrect attempts on the same hand stack (`1 + mistakeWeight * n`), and the
-  pool length grows by `mistakeWeight * (total incorrect attempts)`.
-- `getWeaknessFocusedHand` with no attempts behaves like a uniform draw: `random => 0`
-  yields `ALL_HANDS[0]` ("AA") and `random => 0.999...`/`1` yields the last hand
-  (clamped), matching `getRandomPracticeHand`'s boundary behavior.
-- `getWeaknessFocusedHand` biases toward a missed hand: construct attempts where one
-  hand has many mistakes, and assert a `random` value lands on that hand where a uniform
-  draw would not (pick a deterministic `random` using the known pool layout), or simpler:
-  with a heavily-missed hand, assert the hand at the computed weighted index is that hand.
-- default RNG always returns a canonical hand (loop a handful of draws, assert each is in
-  `ALL_HANDS`).
+Tests to add (`src/components/WeaknessFocusedDrill.test.tsx`, RTL + userEvent — NO fake
+timers needed here):
+- shows the range name, the first prompt, and both answer buttons (force the prompt with
+  a `random` sequence; with no attempts the draw is uniform, so `() => 0` yields "AA");
+- answering updates the running stats and shows feedback with the expected answer;
+- "Next hand" advances to a new prompt and clears the feedback;
+- a missed hand is weighted up on the next draw: answer the first hand incorrectly, then
+  assert the next prompt is the missed hand for a `random` value that — given the now
+  heavier pool — lands on it (compute via `buildWeaknessPool`, or pick a `random`
+  sequence whose second value targets the missed hand's enlarged block; keep it
+  deterministic);
+- "End practice" calls `onExit` with the accumulated summary.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -186,11 +192,13 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: ONLY `src/domain/weaknessDrill.ts` and its test. Do NOT add a
-  component, modify `App`/the picker, or add persistence.
-- Keep it pure and in `src/domain/`; inject `random`, never call it at module scope.
+- Stay within this slice: ONLY `WeaknessFocusedDrill.tsx`, its CSS (if needed), and its
+  test. Do NOT modify `App.tsx`/the picker (wiring is slice 27) and do NOT modify
+  `PracticeSession`/`TimedDrillSession`/`BuildFromMemoryPractice`.
+- Reuse the `weaknessDrill` and `practice` domain helpers — no duplicated weighting or
+  scoring logic in the component.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: add weakness-focused draw domain helper`
+- `feat: add weakness-focused drill practice component`
