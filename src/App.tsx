@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { BuildFromMemoryPractice } from './components/BuildFromMemoryPractice'
 import { HandGrid } from './components/HandGrid'
 import { PracticeSession } from './components/PracticeSession'
+import { TimedDrillSession } from './components/TimedDrillSession'
 import { RangeLibrary } from './components/RangeLibrary'
 import { RangeMetadataEditor } from './components/RangeMetadataEditor'
 import { RangeNotation } from './components/RangeNotation'
@@ -46,7 +47,7 @@ function App() {
   const [practicingRange, setPracticingRange] = useState<SavedRange | null>(null)
   // Which practice mode is active for `practicingRange`. null = the mode picker is
   // showing (no mode chosen yet); chosen modes route to their components.
-  const [practiceMode, setPracticeMode] = useState<'recognize' | 'build' | null>(null)
+  const [practiceMode, setPracticeMode] = useState<'recognize' | 'build' | 'timed' | null>(null)
   // Optional scenario metadata. '' means "unset" for the dropdowns; stackDepth
   // is raw input text ('' means no stack depth). These are descriptive only and
   // never affect the selected hands or notation.
@@ -277,6 +278,8 @@ function App() {
     headerSubtitle = 'Test your range recognition.'
   } else if (practiceMode === 'build') {
     headerSubtitle = 'Rebuild the range from memory.'
+  } else if (practiceMode === 'timed') {
+    headerSubtitle = 'Race the clock.'
   } else {
     headerSubtitle = 'Choose how you want to practice.'
   }
@@ -293,6 +296,8 @@ function App() {
           <PracticeSession range={practicingRange} onExit={handleEndPractice} />
         ) : practiceMode === 'build' ? (
           <BuildFromMemoryPractice range={practicingRange} onExit={exitPractice} />
+        ) : practiceMode === 'timed' ? (
+          <TimedDrillSession range={practicingRange} onExit={handleEndPractice} />
         ) : (
           <section className="practice-session" aria-label="Choose practice mode">
             <header className="practice-header">
@@ -301,6 +306,7 @@ function App() {
             <p className="practice-expected">
               Recognize hands: say whether each random hand is in or out of the range.
               Build from memory: rebuild the whole range on the grid, then check it.
+              Timed drill: answer as many hands as you can before the clock runs out.
             </p>
             <div className="practice-answers">
               <button
@@ -316,6 +322,13 @@ function App() {
                 onClick={() => setPracticeMode('build')}
               >
                 Build from memory
+              </button>
+              <button
+                type="button"
+                className="primary"
+                onClick={() => setPracticeMode('timed')}
+              >
+                Timed drill
               </button>
             </div>
             <div className="practice-review-actions">

@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { render, screen, within, fireEvent, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
 import { loadPracticeStats } from './storage/practiceStatsStorage'
@@ -8,6 +8,12 @@ import { loadSavedRanges } from './storage/rangeStorage'
 // Isolate persistence so each case starts from an empty library.
 beforeEach(() => {
   localStorage.clear()
+})
+
+// A few timed-drill cases install fake timers; always restore real timers after
+// each test so other cases (which use userEvent) are unaffected.
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 function library() {
@@ -368,12 +374,65 @@ describe('Practice mode', () => {
 
     await user.click(screen.getByRole('button', { name: 'Practice range Pairs' }))
 
-    // The picker names the range and offers both modes, without starting either.
+    // The picker names the range and offers every mode, without starting any.
     expect(screen.getByRole('heading', { name: 'Practice: Pairs' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Recognize hands (in/out)' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Build from memory' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Timed drill' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'In range' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: /Build from memory:/ })).not.toBeInTheDocument()
+  })
+
+  it('starts the timed drill when chosen from the picker', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Pairs')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'KK' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    await user.click(screen.getByRole('button', { name: 'Practice range Pairs' }))
+    await user.click(screen.getByRole('button', { name: 'Timed drill' }))
+
+    // The timed-drill setup (config) shows the range name and duration choices.
+    // No drill is running yet, so no countdown interval starts.
+    expect(screen.getByRole('heading', { name: 'Timed drill: Pairs' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '30s' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '60s' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '120s' })).toBeInTheDocument()
+  })
+
+  it('records a finished timed drill into per-range stats', async () => {
+    // Fake timers + fireEvent: userEvent deadlocks against fake timers.
+    vi.useFakeTimers()
+    const { container } = render(<App />)
+
+    fireEvent.change(screen.getByLabelText('Range name'), { target: { value: 'Pairs' } })
+    fireEvent.click(screen.getByRole('button', { name: 'AA' }))
+    fireEvent.click(screen.getByRole('button', { name: 'KK' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Practice range Pairs' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Timed drill' }))
+    fireEvent.click(screen.getByRole('button', { name: '60s' }))
+
+    // The prompt hand is drawn with Math.random; answer it truthfully so the one
+    // recorded attempt is deterministically correct.
+    const promptHand = container.querySelector('.practice-prompt-hand')?.textContent ?? ''
+    const inRange = promptHand === 'AA' || promptHand === 'KK'
+    fireEvent.click(screen.getByRole('button', { name: inRange ? 'In range' : 'Out of range' }))
+
+    // Run out the clock, then leave the results to record the session.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(61_000)
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Back to library' }))
+
+    const rangeId = loadSavedRanges()[0].id
+    expect(loadPracticeStats()[rangeId]).toEqual(
+      expect.objectContaining({ totalAttempts: 1, correctAttempts: 1 }),
+    )
   })
 
   it('starts build-from-memory mode when chosen from the picker', async () => {

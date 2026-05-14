@@ -58,6 +58,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 21 | Practice-mode picker wiring build-from-memory into App | v2 — Improved practice modes | 2026-06-06 |
 | 22 | Timed-drill domain foundation (countdown math + durations) | v2 — Improved practice modes | 2026-06-06 |
 | 23 | Timed-drill practice component (mode 5 UI) | v2 — Improved practice modes | 2026-06-06 |
+| 24 | Wire the timed drill into the practice-mode picker | v2 — Improved practice modes | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -94,73 +95,90 @@ cleaned up on expiry/unmount). It reports a `PracticeSessionSummary` via `onExit
 is fully tested (with Vitest fake timers + `fireEvent`, since userEvent deadlocks
 against fake timers) but not yet wired into `App`.
 
-Still to come in v2: wiring the timed drill into the picker, then mode 6
-("Weakness-focused drill"). Mode 2 ("Pick the correct action") stays deferred until the
-multi-action range model arrives in v2.3. The next slice wires the timed drill into the
-practice-mode picker as a third mode, recording its summary into per-range stats (it is
-the same in/out recognition metric).
+Slice 24 wired the timed drill into the practice-mode picker as a third mode
+("Timed drill"), routing its `onExit` summary through `handleEndPractice` so timed
+sessions record into the same per-range recognition stats. With that, **mode 5 is fully
+delivered** (countdown helpers + component + picker wiring). The picker now offers
+recognition, build-from-memory, and timed drill.
+
+Still to come in v2: mode 6 ("Weakness-focused drill"), which prioritizes hands the
+user keeps getting wrong. Mode 2 ("Pick the correct action") stays deferred until the
+multi-action range model arrives in v2.3. The next slice begins mode 6 with its pure
+domain foundation — an in-session weighted draw that biases prompts toward hands missed
+so far — mirroring how modes 3 and 5 started with a pure helper before the UI. (Note:
+this is an *in-session* weakness signal derived from the current session's attempts;
+cross-session per-hand accuracy tracking is the separate v2.1 mistake-tracking work.)
 
 ## Next slice
 
-- **Number:** 24
+- **Number:** 25
 - **Roadmap target:** v2 — Improved practice modes
-- **Working title:** Wire the timed drill into the practice-mode picker
+- **Working title:** Weakness-focused draw domain foundation (mode 6)
 
 ### Prompt
 
-You are implementing roadmap slice 24, continuing **v2 — Improved practice modes**.
-Slice 23 delivered the standalone, fully tested `TimedDrillSession` component (mode 5),
-which is not yet reachable by the user. This slice wires it into `App`'s practice-mode
-picker as a third mode, so clicking "Practice" → "Timed drill" launches it. Completing
-this slice fully delivers mode 5.
+You are implementing roadmap slice 25, continuing **v2 — Improved practice modes**.
+Modes 3, 4, and 5 are delivered. This slice begins the final v2 mode, mode 6
+("Weakness-focused drill"), which prioritizes hands the user keeps getting wrong.
+Following the rhythm that worked for modes 3 and 5 (pure helper first, then component,
+then wiring), THIS slice adds ONLY the pure domain foundation: an in-session weighted
+draw that biases the next prompt toward hands missed so far. Do NOT build a component or
+touch the picker/App in this slice.
 
-Scope of THIS slice: extend the `App` picker/routing only. No component changes.
+Design note (scope): this is an *in-session* weakness signal computed from the current
+session's `PracticeAttempt[]` — every hand stays possible, but each incorrect attempt on
+a hand increases how often that hand is drawn. This is intentionally NOT the persisted,
+cross-session per-hand accuracy tracking, which is the separate **v2.1** mistake-tracking
+work; do not build persistence here.
 
 Context (read these before starting):
-- `src/App.tsx` — the practice picker added in slice 21. Relevant pieces:
-  - state `practiceMode: 'recognize' | 'build' | null` (extend this union with
-    `'timed'`).
-  - `handlePractice` sets `practicingRange` and `practiceMode = null` (picker shows).
-  - `exitPractice()` clears `practicingRange` and `practiceMode`.
-  - `handleEndPractice(summary)` records the summary into per-range stats
-    (`recordPracticeSession` + refresh) then calls `exitPractice()`. The timed drill is
-    the SAME in/out recognition metric, so it should record too — route the timed
-    drill's `onExit` to `handleEndPractice` (do NOT invent a separate stats path).
-  - The picker is the `practiceMode === null` branch: a `<section
-    aria-label="Choose practice mode">` with "Recognize hands (in/out)" and
-    "Build from memory" buttons (both setting `practiceMode`) plus a "Back to library"
-    cancel. Add a third button "Timed drill" that sets `practiceMode('timed')`.
-  - The routing is a nested ternary on `practiceMode`; add a `practiceMode === 'timed'`
-    branch rendering `<TimedDrillSession range={practicingRange}
-    onExit={handleEndPractice} />`.
-  - `headerSubtitle` switches on state; add a 'timed' case (short copy, e.g.
-    "Race the clock.").
-- `src/components/TimedDrillSession.tsx` — `TimedDrillSession({ range, onExit, random?
-  })`, `onExit: (summary: PracticeSessionSummary) => void`. Import it like
-  `BuildFromMemoryPractice` is imported.
-- `src/App.test.tsx` — the "Practice mode" describe block. Mirror its patterns. NOTE
-  the picker tests there assume exactly the existing buttons; keep them green and add
-  new coverage for the timed option.
+- `src/domain/practice.ts` — `getRandomPracticeHand(random = Math.random)` shows the
+  prompt-draw idiom to mirror, including the `Math.min(len - 1, Math.floor(random() *
+  len))` clamp so an input of exactly 1 still yields a valid hand. The new draw reuses
+  this exact clamping idiom.
+- `src/domain/pokerHands.ts` — `ALL_HANDS` (the 169 canonical hands in order) and
+  `type PokerHand`.
+- `src/domain/timedDrill.ts` / `timedDrill.test.ts` — the per-mode pure-module + test
+  style to mirror (focused exports, module doc comment, deterministic inputs).
+- `src/types/practice.ts` — `PracticeAttempt` (has `hand` and `correct`).
 
-Task — wire timed drill into `App`:
-- Add `'timed'` to the `practiceMode` union.
-- Add a "Timed drill" button to the picker (sets `practiceMode('timed')`).
-- Add the routing branch: `practiceMode === 'timed'` → `<TimedDrillSession
-  range={practicingRange} onExit={handleEndPractice} />` (records stats via the same
-  path recognition uses).
-- Add a 'timed' `headerSubtitle` case.
+Task — add a new pure domain module `src/domain/weaknessDrill.ts`:
+- Export `WEAKNESS_MISTAKE_WEIGHT = 3` — extra pool copies added per incorrect attempt
+  on a hand.
+- Export `buildWeaknessPool(attempts: PracticeAttempt[], mistakeWeight =
+  WEAKNESS_MISTAKE_WEIGHT): PokerHand[]`:
+  - Count incorrect attempts (`!attempt.correct`) per hand.
+  - Return an array that, iterating `ALL_HANDS` in canonical order, contains each hand
+    once PLUS `mistakeWeight * (incorrect count for that hand)` extra copies. So with no
+    attempts the pool is exactly `ALL_HANDS` (length 169); a hand missed twice with the
+    default weight appears `1 + 3*2 = 7` times. Ignore the attempt's `hand` if it is not
+    a canonical hand is unnecessary — attempts always carry canonical hands — but only
+    count hands that appear in `ALL_HANDS` so a stray value never inflates the pool.
+- Export `getWeaknessFocusedHand(attempts: PracticeAttempt[], random: () => number =
+  Math.random, mistakeWeight = WEAKNESS_MISTAKE_WEIGHT): PokerHand`:
+  - Build the pool, then index it with `Math.min(pool.length - 1, Math.floor(random() *
+    pool.length))` (same clamp as `getRandomPracticeHand`). With no attempts this is a
+    uniform draw over all 169 hands; with mistakes, missed hands are proportionally more
+    likely.
+- Module doc comment in the `timedDrill.ts` style (pure; randomness/now injected;
+  explain the in-session weighting and that it is not persisted cross-session).
 
-Tests to add/update (`src/App.test.tsx`):
-- the picker now also shows a "Timed drill" button;
-- choosing "Timed drill" shows the timed-drill setup (e.g. the "30s"/"60s"/"120s"
-  duration buttons and a "Timed drill: <name>" heading);
-- (optional but preferred) finishing a timed drill records into per-range stats — you
-  can use Vitest fake timers + `fireEvent` (NOT userEvent, which deadlocks under fake
-  timers) to start a drill, answer the shown hand, advance past the duration, and assert
-  `loadPracticeStats()` updated. If this proves fiddly within App, at minimum assert the
-  timed-drill view is reachable and the existing recognition/stats tests still pass.
-- keep all existing picker tests passing (the cancel test, recognition test, build
-  test, and the mode-reset test).
+Tests to add (`src/domain/weaknessDrill.test.ts`):
+- `buildWeaknessPool([])` equals `ALL_HANDS` (same length and contents/order).
+- a single incorrect attempt on a hand adds exactly `mistakeWeight` extra copies (e.g.
+  count occurrences of that hand in the pool === `1 + mistakeWeight`); a correct attempt
+  adds none.
+- multiple incorrect attempts on the same hand stack (`1 + mistakeWeight * n`), and the
+  pool length grows by `mistakeWeight * (total incorrect attempts)`.
+- `getWeaknessFocusedHand` with no attempts behaves like a uniform draw: `random => 0`
+  yields `ALL_HANDS[0]` ("AA") and `random => 0.999...`/`1` yields the last hand
+  (clamped), matching `getRandomPracticeHand`'s boundary behavior.
+- `getWeaknessFocusedHand` biases toward a missed hand: construct attempts where one
+  hand has many mistakes, and assert a `random` value lands on that hand where a uniform
+  draw would not (pick a deterministic `random` using the known pool layout), or simpler:
+  with a heavily-missed hand, assert the hand at the computed weighted index is that hand.
+- default RNG always returns a canonical hand (loop a handful of draws, assert each is in
+  `ALL_HANDS`).
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -168,14 +186,11 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: only the picker/routing wiring in `App` and its tests. Do NOT
-  modify `TimedDrillSession`, `PracticeSession`, or `BuildFromMemoryPractice`.
-- Reuse `handleEndPractice` for the timed drill's exit so stats recording stays in one
-  place; do not duplicate the recording logic.
-- If a test mixes fake timers with clicks, use `fireEvent` (userEvent + fake timers
-  deadlocks in this project — see `TimedDrillSession.test.tsx`).
+- Stay within this slice: ONLY `src/domain/weaknessDrill.ts` and its test. Do NOT add a
+  component, modify `App`/the picker, or add persistence.
+- Keep it pure and in `src/domain/`; inject `random`, never call it at module scope.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: add timed drill to the practice-mode picker`
+- `feat: add weakness-focused draw domain helper`
