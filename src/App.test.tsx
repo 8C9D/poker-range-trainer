@@ -379,6 +379,7 @@ describe('Practice mode', () => {
     expect(screen.getByRole('button', { name: 'Recognize hands (in/out)' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Build from memory' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Timed drill' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Weakness drill' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'In range' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: /Build from memory:/ })).not.toBeInTheDocument()
   })
@@ -490,6 +491,47 @@ describe('Practice mode', () => {
     await user.click(screen.getByRole('button', { name: 'Practice range Pairs' }))
     expect(screen.getByRole('button', { name: 'Recognize hands (in/out)' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Build from memory' })).toBeInTheDocument()
+  })
+
+  it('starts the weakness drill when chosen from the picker', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Pairs')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'KK' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    await user.click(screen.getByRole('button', { name: 'Practice range Pairs' }))
+    await user.click(screen.getByRole('button', { name: 'Weakness drill' }))
+
+    expect(screen.getByRole('heading', { name: 'Weakness drill: Pairs' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'In range' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Out of range' })).toBeInTheDocument()
+  })
+
+  it('records a finished weakness drill into per-range stats', async () => {
+    const user = userEvent.setup()
+    const { container } = render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Pairs')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'KK' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    await user.click(screen.getByRole('button', { name: 'Practice range Pairs' }))
+    await user.click(screen.getByRole('button', { name: 'Weakness drill' }))
+
+    // Answer the shown hand truthfully so the single attempt is deterministically correct.
+    const promptHand = container.querySelector('.practice-prompt-hand')?.textContent ?? ''
+    const inRange = promptHand === 'AA' || promptHand === 'KK'
+    await user.click(screen.getByRole('button', { name: inRange ? 'In range' : 'Out of range' }))
+    await user.click(screen.getByRole('button', { name: 'End practice' }))
+
+    const rangeId = loadSavedRanges()[0].id
+    expect(loadPracticeStats()[rangeId]).toEqual(
+      expect.objectContaining({ totalAttempts: 1, correctAttempts: 1 }),
+    )
   })
 })
 

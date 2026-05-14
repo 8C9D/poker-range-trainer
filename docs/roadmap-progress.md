@@ -61,6 +61,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 24 | Wire the timed drill into the practice-mode picker | v2 — Improved practice modes | 2026-06-06 |
 | 25 | Weakness-focused draw domain foundation (mode 6) | v2 — Improved practice modes | 2026-06-06 |
 | 26 | Weakness-focused drill practice component (mode 6 UI) | v2 — Improved practice modes | 2026-06-06 |
+| 27 | Wire the weakness drill into the practice-mode picker | v2 — Improved practice modes | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -111,75 +112,92 @@ with no mistakes and biases toward missed hands otherwise). This is an *in-sessi
 weakness signal from the current session's attempts; cross-session per-hand accuracy
 tracking is the separate v2.1 work.
 
-Slice 26 added the standalone `WeaknessFocusedDrill` component: a recognition loop
-(prompt → answer → feedback → next) whose next prompt is drawn with
-`getWeaknessFocusedHand(attempts)`, so missed hands resurface; it reports a summary via
-`onExit`. It is fully tested but not yet wired into `App`.
+Slice 26 added the standalone `WeaknessFocusedDrill` component, and slice 27 wired it
+into the picker as a fourth mode ("Weakness drill"), routing its `onExit` through
+`handleEndPractice` so it records into per-range stats.
 
-Still to come in v2: wiring the weakness drill into the picker — the LAST piece of v2.
-After that, **v2 is complete** and the roadmap moves to **v2.1 — Mistake tracking and
-review**. Mode 2 ("Pick the correct action") stays deferred until the multi-action range
-model arrives in v2.3. The next slice wires the weakness drill into the practice-mode
-picker as a fourth mode, recording its summary into per-range stats (same recognition
-metric).
+**v2 — Improved practice modes is now COMPLETE.** The practice-mode picker offers
+recognition (mode 1), build-from-memory (mode 3), timed drill (mode 5), and weakness
+drill (mode 6); mode 4 (missing-hands review) lives on the recognition session. Mode 2
+("Pick the correct action") remains intentionally deferred to **v2.3**'s multi-action
+range model (per the roadmap and finish-v2 scope).
+
+The roadmap now moves to **v2.1 — Mistake tracking and review** (track per-hand accuracy
+/ false positives / false negatives per range; review mistakes; "practice mistakes only"
+mode; heatmap overlay; session history; range-specific performance page). The next slice
+begins v2.1 with its pure domain foundation: aggregating a session's attempts into
+per-hand accuracy stats, mirroring how each prior feature began with a pure, tested
+helper.
 
 ## Next slice
 
-- **Number:** 27
-- **Roadmap target:** v2 — Improved practice modes
-- **Working title:** Wire the weakness drill into the picker (completes v2)
+- **Number:** 28
+- **Roadmap target:** v2.1 — Mistake tracking and review
+- **Working title:** Per-hand accuracy aggregation (v2.1 domain foundation)
 
 ### Prompt
 
-You are implementing roadmap slice 27, continuing **v2 — Improved practice modes**.
-Slice 26 delivered the standalone, tested `WeaknessFocusedDrill` component (mode 6),
-not yet reachable by the user. This slice wires it into `App`'s practice-mode picker as
-a fourth mode. Completing this slice **completes v2** — the next slice begins
-**v2.1 — Mistake tracking and review**.
+You are implementing roadmap slice 28, beginning **v2.1 — Mistake tracking and review**.
+v2 is complete. v2.1 adds per-hand mistake tracking (per-hand accuracy, false positives,
+false negatives), session review, a "practice mistakes only" mode, a heatmap overlay, a
+session history, and a range-specific performance page. Following the established rhythm,
+THIS slice adds ONLY the pure domain foundation that the later v2.1 UI/storage slices
+build on: aggregating a session's `PracticeAttempt[]` into per-hand accuracy stats.
 
-Scope of THIS slice: extend the `App` picker/routing only. No component changes. This is
-the exact same wiring shape used for the timed drill in slice 24 — follow that pattern.
+Scope of THIS slice (foundation only): one pure aggregation function + its result type.
+Do NOT add persistence, a performance page, a heatmap, a "mistakes only" mode, or any
+component in this slice — those are later v2.1 slices.
 
 Context (read these before starting):
-- `src/App.tsx` — practice picker. Relevant pieces:
-  - state `practiceMode: 'recognize' | 'build' | 'timed' | null` (extend with
-    `'weakness'`).
-  - `handleEndPractice(summary)` records the summary into per-range stats then exits.
-    The weakness drill is the SAME in/out recognition metric, so route its `onExit` to
-    `handleEndPractice` (do NOT add a separate stats path).
-  - the picker (`practiceMode === null` branch) has buttons for the three current modes
-    plus a "Back to library" cancel. Add a fourth button "Weakness drill" that sets
-    `practiceMode('weakness')`. Also extend the picker's description paragraph with a
-    one-line note on the weakness mode.
-  - the routing nested-ternary on `practiceMode`; add a `practiceMode === 'weakness'`
-    branch rendering `<WeaknessFocusedDrill range={practicingRange}
-    onExit={handleEndPractice} />`.
-  - `headerSubtitle` switch; add a 'weakness' case (short copy, e.g.
-    "Drill your weak spots.").
-- `src/components/WeaknessFocusedDrill.tsx` — `WeaknessFocusedDrill({ range, onExit,
-  random? })`, `onExit: (summary: PracticeSessionSummary) => void`. Import it like the
-  other practice components.
-- `src/App.test.tsx` — the "Practice mode" describe block and its picker tests. Mirror
-  the timed-drill wiring tests added in slice 24.
+- `src/domain/practice.ts` — already has `reviewSessionMistakes(attempts)` (splits a
+  session into `missed` / `wronglyIncluded` hand LISTS) and `summarizePracticeAttempts`.
+  The new function generalizes the mistake split into per-hand COUNTS. Add it here beside
+  `reviewSessionMistakes`. It imports `type PokerHand` from `./pokerHands` already.
+- `src/types/practice.ts` — `PracticeAttempt` (`hand`, `expectedInRange`,
+  `userAnsweredInRange`, `correct`). Add the new result type here next to
+  `PracticeSessionSummary`/`RangePracticeStats`.
+- A false positive = out of range (`!expectedInRange`) but answered in range
+  (`userAnsweredInRange`); a false negative = in range (`expectedInRange`) but answered
+  out (`!userAnsweredInRange`). Note: `falsePositives + falseNegatives === attempts -
+  correct` per hand (every incorrect attempt is exactly one of the two).
+- `src/domain/practice.test.ts` — mirror its pure-domain test patterns (the
+  `reviewSessionMistakes` and `summarizePracticeAttempts` describes are the closest
+  models).
 
-Task — wire the weakness drill into `App`:
-- Add `'weakness'` to the `practiceMode` union.
-- Add a "Weakness drill" button to the picker (sets `practiceMode('weakness')`) and a
-  short description line.
-- Add the routing branch: `practiceMode === 'weakness'` → `<WeaknessFocusedDrill
-  range={practicingRange} onExit={handleEndPractice} />`.
-- Add a 'weakness' `headerSubtitle` case.
+Task — add the type and one pure function:
+- In `src/types/practice.ts`, add:
+  ```ts
+  export interface HandAccuracyStat {
+    hand: PokerHand           // canonical hand
+    attempts: number          // times this hand was answered this session
+    correct: number           // of those, how many were correct
+    falsePositives: number    // out of range, answered "in range"
+    falseNegatives: number    // in range, answered "out of range"
+  }
+  ```
+  (import `PokerHand` is already present in that file.)
+- In `src/domain/practice.ts`, add
+  `summarizeHandAccuracy(attempts: PracticeAttempt[]): HandAccuracyStat[]`:
+  - Tally per hand: `attempts`, `correct`, `falsePositives`, `falseNegatives` using the
+    definitions above.
+  - Return one `HandAccuracyStat` per hand that has at least one attempt, in canonical
+    13×13 order (reuse `ALL_HANDS` for ordering, as `getRandomPracticeHand` already
+    imports it; do not include hands with zero attempts).
+  - Pure — no Date, no random. Doc comment in the same style as `reviewSessionMistakes`,
+    noting the canonical ordering and that hands without attempts are omitted.
 
-Tests to add/update (`src/App.test.tsx`):
-- the picker now also shows a "Weakness drill" button (extend the existing
-  "shows a practice-mode picker" assertions);
-- choosing "Weakness drill" shows the weakness-drill view (heading
-  "Weakness drill: <name>" and the In range / Out of range buttons);
-- (preferred) finishing a weakness drill records into per-range stats — userEvent works
-  here (no fake timers needed): start it, read the shown `.practice-prompt-hand`, answer
-  truthfully, "End practice", then assert `loadPracticeStats()` updated (mirror the
-  recognition stats test);
-- keep ALL existing picker tests green (cancel, recognition, build, timed, mode-reset).
+Tests to add (`src/domain/practice.test.ts`, new `describe('summarizeHandAccuracy', …)`):
+- an empty session yields `[]`;
+- a single correct attempt yields one stat with `attempts: 1, correct: 1,
+  falsePositives: 0, falseNegatives: 0`;
+- a false positive (out of range, answered in) and a false negative (in range, answered
+  out) are each counted in the right field with `correct: 0`;
+- repeated attempts on the same hand accumulate into one stat (e.g. two correct + one
+  false negative → `attempts: 3, correct: 2, falseNegatives: 1`);
+- multiple distinct hands are returned in canonical order (e.g. attempts on "KK" then
+  "AA" come back as `["AA", "KK"]`);
+- invariant: for every returned stat, `falsePositives + falseNegatives === attempts -
+  correct`.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -187,12 +205,11 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: only the picker/routing wiring in `App` and its tests. Do NOT
-  modify any practice component.
-- Reuse `handleEndPractice` for the weakness drill's exit so stats recording stays in
-  one place.
+- Stay within this slice: ONLY the `HandAccuracyStat` type and the
+  `summarizeHandAccuracy` function plus tests. No persistence, no UI, no new mode.
+- Keep the helper pure and in `src/domain/`; keep the type in `src/types/`.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: add weakness drill to the practice-mode picker`
+- `feat: add per-hand accuracy aggregation for mistake tracking`
