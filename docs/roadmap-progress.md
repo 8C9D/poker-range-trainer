@@ -60,6 +60,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 23 | Timed-drill practice component (mode 5 UI) | v2 — Improved practice modes | 2026-06-06 |
 | 24 | Wire the timed drill into the practice-mode picker | v2 — Improved practice modes | 2026-06-06 |
 | 25 | Weakness-focused draw domain foundation (mode 6) | v2 — Improved practice modes | 2026-06-06 |
+| 26 | Weakness-focused drill practice component (mode 6 UI) | v2 — Improved practice modes | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -110,81 +111,75 @@ with no mistakes and biases toward missed hands otherwise). This is an *in-sessi
 weakness signal from the current session's attempts; cross-session per-hand accuracy
 tracking is the separate v2.1 work.
 
-Still to come in v2: the weakness-drill component and its picker wiring. Mode 2 ("Pick
-the correct action") stays deferred until the multi-action range model arrives in v2.3.
-The next slice builds the weakness-drill practice component on top of
-`getWeaknessFocusedHand` and the recognition scoring helpers.
+Slice 26 added the standalone `WeaknessFocusedDrill` component: a recognition loop
+(prompt → answer → feedback → next) whose next prompt is drawn with
+`getWeaknessFocusedHand(attempts)`, so missed hands resurface; it reports a summary via
+`onExit`. It is fully tested but not yet wired into `App`.
+
+Still to come in v2: wiring the weakness drill into the picker — the LAST piece of v2.
+After that, **v2 is complete** and the roadmap moves to **v2.1 — Mistake tracking and
+review**. Mode 2 ("Pick the correct action") stays deferred until the multi-action range
+model arrives in v2.3. The next slice wires the weakness drill into the practice-mode
+picker as a fourth mode, recording its summary into per-range stats (same recognition
+metric).
 
 ## Next slice
 
-- **Number:** 26
+- **Number:** 27
 - **Roadmap target:** v2 — Improved practice modes
-- **Working title:** Weakness-focused drill practice component (mode 6 UI)
+- **Working title:** Wire the weakness drill into the picker (completes v2)
 
 ### Prompt
 
-You are implementing roadmap slice 26, continuing **v2 — Improved practice modes**.
-Slice 25 delivered the pure weakness-focused draw foundation
-(`src/domain/weaknessDrill.ts`: `getWeaknessFocusedHand(attempts, random)` and
-`buildWeaknessPool`). This slice builds the weakness-focused drill **UI component**
-(mode 6) on top of it and the existing recognition scoring. Do NOT wire it into the
-picker yet — that is the NEXT slice (27). Keep it standalone and fully tested first,
-mirroring how modes 3 and 5 landed (component, then wiring).
+You are implementing roadmap slice 27, continuing **v2 — Improved practice modes**.
+Slice 26 delivered the standalone, tested `WeaknessFocusedDrill` component (mode 6),
+not yet reachable by the user. This slice wires it into `App`'s practice-mode picker as
+a fourth mode. Completing this slice **completes v2** — the next slice begins
+**v2.1 — Mistake tracking and review**.
 
-Scope of THIS slice: a self-contained `WeaknessFocusedDrill` component — a recognition
-loop (prompt → answer → immediate feedback → next) whose NEXT prompt is drawn with
-`getWeaknessFocusedHand(attempts)` so hands missed earlier this session resurface more
-often. Keep it focused: prompt + In/Out answer + per-answer feedback + running stats +
-"End practice" that reports the summary. It does NOT need the full end-of-session
-mistake-review screen (that is mode 4, already on `PracticeSession`); ending reports the
-summary directly via `onExit`.
+Scope of THIS slice: extend the `App` picker/routing only. No component changes. This is
+the exact same wiring shape used for the timed drill in slice 24 — follow that pattern.
 
 Context (read these before starting):
-- `src/components/PracticeSession.tsx` and `.css` — mirror its recognition flow and
-  reuse its CSS classes (`practice-session`, `practice-header`, `practice-stats`/
-  `practice-stat`, `practice-prompt`*, `practice-answers`/`.primary`,
-  `practice-feedback`, `practice-result`/`.correct`/`.incorrect`, `practice-expected`).
-  Reuse its scoring: `createPracticeAttempt(hand, range.hands, answeredInRange)`,
-  accumulate `PracticeAttempt[]`, `summarizePracticeAttempts`. Note how it takes an
-  injectable `random` prop and how `PracticeSession.test.tsx` uses `sequenceRandom`.
-- `src/domain/weaknessDrill.ts` — `getWeaknessFocusedHand(attempts, random)`. Use it for
-  BOTH the initial prompt (`getWeaknessFocusedHand([], random)`) and each subsequent
-  prompt, passing the attempts accumulated so far so the weighting reflects this
-  session's mistakes. Do not re-derive the weighting in the component.
-- `src/domain/practice.ts` — `createPracticeAttempt`, `summarizePracticeAttempts`.
-- `src/types/practice.ts`, `src/types/range.ts` — `PracticeAttempt`,
-  `PracticeSessionSummary`, `SavedRange`.
+- `src/App.tsx` — practice picker. Relevant pieces:
+  - state `practiceMode: 'recognize' | 'build' | 'timed' | null` (extend with
+    `'weakness'`).
+  - `handleEndPractice(summary)` records the summary into per-range stats then exits.
+    The weakness drill is the SAME in/out recognition metric, so route its `onExit` to
+    `handleEndPractice` (do NOT add a separate stats path).
+  - the picker (`practiceMode === null` branch) has buttons for the three current modes
+    plus a "Back to library" cancel. Add a fourth button "Weakness drill" that sets
+    `practiceMode('weakness')`. Also extend the picker's description paragraph with a
+    one-line note on the weakness mode.
+  - the routing nested-ternary on `practiceMode`; add a `practiceMode === 'weakness'`
+    branch rendering `<WeaknessFocusedDrill range={practicingRange}
+    onExit={handleEndPractice} />`.
+  - `headerSubtitle` switch; add a 'weakness' case (short copy, e.g.
+    "Drill your weak spots.").
+- `src/components/WeaknessFocusedDrill.tsx` — `WeaknessFocusedDrill({ range, onExit,
+  random? })`, `onExit: (summary: PracticeSessionSummary) => void`. Import it like the
+  other practice components.
+- `src/App.test.tsx` — the "Practice mode" describe block and its picker tests. Mirror
+  the timed-drill wiring tests added in slice 24.
 
-Task — add `src/components/WeaknessFocusedDrill.tsx` exporting
-`WeaknessFocusedDrill({ range, onExit, random = Math.random }: { range: SavedRange;
-onExit: (summary: PracticeSessionSummary) => void; random?: () => number })`:
-- Header `Weakness drill: {range.name}` and an "End practice" button that calls
-  `onExit(summarizePracticeAttempts(attempts))`.
-- State: `currentHand` (init `getWeaknessFocusedHand([], random)`), `currentAttempt`
-  (null until answered), `attempts`.
-- Show running stats (total / correct / accuracy via `summarizePracticeAttempts`).
-- Prompt the current hand with In range / Out of range buttons. Answering scores via
-  `createPracticeAttempt`, stores the scored attempt (for feedback), and appends it to
-  `attempts`. Ignore extra clicks once answered (mirror `PracticeSession`'s guard).
-- After answering, show feedback (Correct!/Incorrect + the expected answer) and a
-  "Next hand" button that draws `getWeaknessFocusedHand(attempts, random)` using the
-  current attempts (which now include the just-answered one, so missed hands are
-  weighted up) and clears the feedback.
-- Keep the weighting in `getWeaknessFocusedHand` and scoring in `practice.ts`; the
-  component only orchestrates state and rendering. No timers, no persistence.
+Task — wire the weakness drill into `App`:
+- Add `'weakness'` to the `practiceMode` union.
+- Add a "Weakness drill" button to the picker (sets `practiceMode('weakness')`) and a
+  short description line.
+- Add the routing branch: `practiceMode === 'weakness'` → `<WeaknessFocusedDrill
+  range={practicingRange} onExit={handleEndPractice} />`.
+- Add a 'weakness' `headerSubtitle` case.
 
-Tests to add (`src/components/WeaknessFocusedDrill.test.tsx`, RTL + userEvent — NO fake
-timers needed here):
-- shows the range name, the first prompt, and both answer buttons (force the prompt with
-  a `random` sequence; with no attempts the draw is uniform, so `() => 0` yields "AA");
-- answering updates the running stats and shows feedback with the expected answer;
-- "Next hand" advances to a new prompt and clears the feedback;
-- a missed hand is weighted up on the next draw: answer the first hand incorrectly, then
-  assert the next prompt is the missed hand for a `random` value that — given the now
-  heavier pool — lands on it (compute via `buildWeaknessPool`, or pick a `random`
-  sequence whose second value targets the missed hand's enlarged block; keep it
-  deterministic);
-- "End practice" calls `onExit` with the accumulated summary.
+Tests to add/update (`src/App.test.tsx`):
+- the picker now also shows a "Weakness drill" button (extend the existing
+  "shows a practice-mode picker" assertions);
+- choosing "Weakness drill" shows the weakness-drill view (heading
+  "Weakness drill: <name>" and the In range / Out of range buttons);
+- (preferred) finishing a weakness drill records into per-range stats — userEvent works
+  here (no fake timers needed): start it, read the shown `.practice-prompt-hand`, answer
+  truthfully, "End practice", then assert `loadPracticeStats()` updated (mirror the
+  recognition stats test);
+- keep ALL existing picker tests green (cancel, recognition, build, timed, mode-reset).
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -192,13 +187,12 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: ONLY `WeaknessFocusedDrill.tsx`, its CSS (if needed), and its
-  test. Do NOT modify `App.tsx`/the picker (wiring is slice 27) and do NOT modify
-  `PracticeSession`/`TimedDrillSession`/`BuildFromMemoryPractice`.
-- Reuse the `weaknessDrill` and `practice` domain helpers — no duplicated weighting or
-  scoring logic in the component.
+- Stay within this slice: only the picker/routing wiring in `App` and its tests. Do NOT
+  modify any practice component.
+- Reuse `handleEndPractice` for the weakness drill's exit so stats recording stays in
+  one place.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: add weakness-focused drill practice component`
+- `feat: add weakness drill to the practice-mode picker`
