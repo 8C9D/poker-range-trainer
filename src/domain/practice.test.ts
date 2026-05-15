@@ -5,6 +5,7 @@ import {
   createPracticeAttempt,
   summarizePracticeAttempts,
   reviewSessionMistakes,
+  summarizeHandAccuracy,
   compareBuiltRange,
   getRandomPracticeHand,
 } from './practice'
@@ -162,6 +163,64 @@ describe('reviewSessionMistakes', () => {
       missed: ['KK', 'AA'],
       wronglyIncluded: ['QQ', 'JJ'],
     })
+  })
+})
+
+describe('summarizeHandAccuracy', () => {
+  it('returns an empty array for an empty session', () => {
+    expect(summarizeHandAccuracy([])).toEqual([])
+  })
+
+  it('counts a single correct attempt', () => {
+    const attempts = [createPracticeAttempt('AA', RANGE, true, 'T')]
+    expect(summarizeHandAccuracy(attempts)).toEqual([
+      { hand: 'AA', attempts: 1, correct: 1, falsePositives: 0, falseNegatives: 0 },
+    ])
+  })
+
+  it('counts a false positive (out of range, answered "in range")', () => {
+    const attempts = [createPracticeAttempt('QQ', RANGE, true, 'T')]
+    expect(summarizeHandAccuracy(attempts)).toEqual([
+      { hand: 'QQ', attempts: 1, correct: 0, falsePositives: 1, falseNegatives: 0 },
+    ])
+  })
+
+  it('counts a false negative (in range, answered "out of range")', () => {
+    const attempts = [createPracticeAttempt('AA', RANGE, false, 'T')]
+    expect(summarizeHandAccuracy(attempts)).toEqual([
+      { hand: 'AA', attempts: 1, correct: 0, falsePositives: 0, falseNegatives: 1 },
+    ])
+  })
+
+  it('accumulates repeated attempts on the same hand into one stat', () => {
+    const attempts = [
+      createPracticeAttempt('AA', RANGE, true, 'T'),
+      createPracticeAttempt('AA', RANGE, true, 'T'),
+      createPracticeAttempt('AA', RANGE, false, 'T'), // false negative
+    ]
+    expect(summarizeHandAccuracy(attempts)).toEqual([
+      { hand: 'AA', attempts: 3, correct: 2, falsePositives: 0, falseNegatives: 1 },
+    ])
+  })
+
+  it('returns multiple hands in canonical order', () => {
+    const attempts = [
+      createPracticeAttempt('KK', RANGE, true, 'T'),
+      createPracticeAttempt('AA', RANGE, true, 'T'),
+    ]
+    expect(summarizeHandAccuracy(attempts).map((stat) => stat.hand)).toEqual(['AA', 'KK'])
+  })
+
+  it('keeps falsePositives + falseNegatives === attempts - correct for every hand', () => {
+    const attempts = [
+      createPracticeAttempt('QQ', RANGE, true, 'T'), // false positive
+      createPracticeAttempt('QQ', RANGE, false, 'T'), // correct (true negative)
+      createPracticeAttempt('AA', RANGE, false, 'T'), // false negative
+      createPracticeAttempt('AA', RANGE, true, 'T'), // correct (true positive)
+    ]
+    for (const stat of summarizeHandAccuracy(attempts)) {
+      expect(stat.falsePositives + stat.falseNegatives).toBe(stat.attempts - stat.correct)
+    }
   })
 })
 

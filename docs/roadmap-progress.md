@@ -62,6 +62,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 25 | Weakness-focused draw domain foundation (mode 6) | v2 — Improved practice modes | 2026-06-06 |
 | 26 | Weakness-focused drill practice component (mode 6 UI) | v2 — Improved practice modes | 2026-06-06 |
 | 27 | Wire the weakness drill into the practice-mode picker | v2 — Improved practice modes | 2026-06-06 |
+| 28 | Per-hand accuracy aggregation (v2.1 domain foundation) | v2.1 — Mistake tracking and review | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -122,82 +123,82 @@ drill (mode 6); mode 4 (missing-hands review) lives on the recognition session. 
 ("Pick the correct action") remains intentionally deferred to **v2.3**'s multi-action
 range model (per the roadmap and finish-v2 scope).
 
-The roadmap now moves to **v2.1 — Mistake tracking and review** (track per-hand accuracy
-/ false positives / false negatives per range; review mistakes; "practice mistakes only"
-mode; heatmap overlay; session history; range-specific performance page). The next slice
-begins v2.1 with its pure domain foundation: aggregating a session's attempts into
-per-hand accuracy stats, mirroring how each prior feature began with a pure, tested
-helper.
+**v2.1 — Mistake tracking and review** is now underway. Slice 28 added the pure domain
+foundation: the `HandAccuracyStat` type (`hand`, `attempts`, `correct`,
+`falsePositives`, `falseNegatives`) and `summarizeHandAccuracy(attempts)` in
+`src/domain/practice.ts`, which tallies a session's attempts per hand in canonical order
+(every incorrect attempt is exactly one of FP/FN, so `falsePositives + falseNegatives ===
+attempts - correct`).
+
+Still to come in v2.1: persist per-hand accuracy across sessions (storage + recording);
+a range-specific performance page; a heatmap overlay on the grid; a "practice mistakes
+only" mode; and session history. The next slice adds the per-hand-accuracy storage
+foundation (load + record-a-session), mirroring how slice 13 added per-range stats
+storage before its UI; wiring the recording into the end-of-session flow follows in the
+slice after.
 
 ## Next slice
 
-- **Number:** 28
+- **Number:** 29
 - **Roadmap target:** v2.1 — Mistake tracking and review
-- **Working title:** Per-hand accuracy aggregation (v2.1 domain foundation)
+- **Working title:** Per-hand accuracy storage foundation (persist + record)
 
 ### Prompt
 
-You are implementing roadmap slice 28, beginning **v2.1 — Mistake tracking and review**.
-v2 is complete. v2.1 adds per-hand mistake tracking (per-hand accuracy, false positives,
-false negatives), session review, a "practice mistakes only" mode, a heatmap overlay, a
-session history, and a range-specific performance page. Following the established rhythm,
-THIS slice adds ONLY the pure domain foundation that the later v2.1 UI/storage slices
-build on: aggregating a session's `PracticeAttempt[]` into per-hand accuracy stats.
+You are implementing roadmap slice 29, continuing **v2.1 — Mistake tracking and review**.
+Slice 28 added the pure per-hand aggregation (`HandAccuracyStat` + `summarizeHandAccuracy`).
+This slice adds the LOCAL PERSISTENCE for cumulative per-hand accuracy across sessions, so
+later slices (performance page, heatmap, "practice mistakes only") can read it. This
+mirrors how slice 13 landed the per-range stats storage before its UI.
 
-Scope of THIS slice (foundation only): one pure aggregation function + its result type.
-Do NOT add persistence, a performance page, a heatmap, a "mistakes only" mode, or any
-component in this slice — those are later v2.1 slices.
+Scope of THIS slice (storage foundation only): a new storage module that loads cumulative
+per-hand accuracy and folds one finished session into it, plus tests. Do NOT wire it into
+`App`/the end-of-session flow yet (that needs the practice components to surface per-hand
+data and is the NEXT slice), and do NOT build any UI.
 
 Context (read these before starting):
-- `src/domain/practice.ts` — already has `reviewSessionMistakes(attempts)` (splits a
-  session into `missed` / `wronglyIncluded` hand LISTS) and `summarizePracticeAttempts`.
-  The new function generalizes the mistake split into per-hand COUNTS. Add it here beside
-  `reviewSessionMistakes`. It imports `type PokerHand` from `./pokerHands` already.
-- `src/types/practice.ts` — `PracticeAttempt` (`hand`, `expectedInRange`,
-  `userAnsweredInRange`, `correct`). Add the new result type here next to
-  `PracticeSessionSummary`/`RangePracticeStats`.
-- A false positive = out of range (`!expectedInRange`) but answered in range
-  (`userAnsweredInRange`); a false negative = in range (`expectedInRange`) but answered
-  out (`!userAnsweredInRange`). Note: `falsePositives + falseNegatives === attempts -
-  correct` per hand (every incorrect attempt is exactly one of the two).
-- `src/domain/practice.test.ts` — mirror its pure-domain test patterns (the
-  `reviewSessionMistakes` and `summarizePracticeAttempts` describes are the closest
-  models).
+- `src/storage/practiceStatsStorage.ts` — THE pattern to mirror exactly: a single
+  versioned `localStorage` key, a `parse…`/validate helper that returns `null` for
+  malformed entries, a `write…` serializer, a `load…` that returns `{}` on
+  missing/corrupt/non-object JSON and skips malformed entries, and a `record…` that folds
+  one session in (no-op when there is nothing to record). Match its structure, naming,
+  doc-comment style, and defensive validation.
+- `src/storage/practiceStatsStorage.test.ts` — mirror its test patterns (clear
+  `localStorage` in `beforeEach`; cover load-empty, round-trip, corrupt JSON, malformed
+  entries skipped, recording folds/accumulates, and the no-op case).
+- `src/types/practice.ts` — `HandAccuracyStat` (from slice 28: `hand`, `attempts`,
+  `correct`, `falsePositives`, `falseNegatives`). The persisted shape is per range, a map
+  of hand → cumulative `HandAccuracyStat`.
 
-Task — add the type and one pure function:
-- In `src/types/practice.ts`, add:
-  ```ts
-  export interface HandAccuracyStat {
-    hand: PokerHand           // canonical hand
-    attempts: number          // times this hand was answered this session
-    correct: number           // of those, how many were correct
-    falsePositives: number    // out of range, answered "in range"
-    falseNegatives: number    // in range, answered "out of range"
-  }
-  ```
-  (import `PokerHand` is already present in that file.)
-- In `src/domain/practice.ts`, add
-  `summarizeHandAccuracy(attempts: PracticeAttempt[]): HandAccuracyStat[]`:
-  - Tally per hand: `attempts`, `correct`, `falsePositives`, `falseNegatives` using the
-    definitions above.
-  - Return one `HandAccuracyStat` per hand that has at least one attempt, in canonical
-    13×13 order (reuse `ALL_HANDS` for ordering, as `getRandomPracticeHand` already
-    imports it; do not include hands with zero attempts).
-  - Pure — no Date, no random. Doc comment in the same style as `reviewSessionMistakes`,
-    noting the canonical ordering and that hands without attempts are omitted.
+Task:
+- In `src/types/practice.ts`, add a small alias for readability:
+  `export type RangeHandAccuracy = Record<PokerHand, HandAccuracyStat>` (cumulative
+  per-hand stats for one range, keyed by hand).
+- Create `src/storage/handAccuracyStorage.ts`:
+  - `export const HAND_ACCURACY_STORAGE_KEY = 'poker-range-trainer.hand-accuracy.v1'`.
+  - `loadHandAccuracy(): Record<string, RangeHandAccuracy>` — outer key is `rangeId`.
+    Return `{}` on missing/corrupt/non-object JSON. Validate each inner `HandAccuracyStat`
+    (a non-null object with a non-empty string `hand` and the four counts being
+    non-negative finite numbers); skip malformed hand entries, and skip a range entry that
+    ends up with no valid hands. Re-key the inner maps by each stat's own `hand` so the
+    structure is self-consistent (like `loadPracticeStats` re-keys by `rangeId`).
+  - `recordHandAccuracy(rangeId: string, handStats: HandAccuracyStat[], )` — fold a
+    finished session's per-hand stats (the output of `summarizeHandAccuracy`) into the
+    stored cumulative map for `rangeId`: for each stat, add its counts onto the prior
+    entry for that hand (starting from zeros when absent). An empty `handStats` array is a
+    no-op (never creates a record). Persist via a private `writeHandAccuracy` serializer.
+- Keep it side-effect-only with all reads/writes funneled through the exported functions,
+  exactly like `practiceStatsStorage.ts`.
 
-Tests to add (`src/domain/practice.test.ts`, new `describe('summarizeHandAccuracy', …)`):
-- an empty session yields `[]`;
-- a single correct attempt yields one stat with `attempts: 1, correct: 1,
-  falsePositives: 0, falseNegatives: 0`;
-- a false positive (out of range, answered in) and a false negative (in range, answered
-  out) are each counted in the right field with `correct: 0`;
-- repeated attempts on the same hand accumulate into one stat (e.g. two correct + one
-  false negative → `attempts: 3, correct: 2, falseNegatives: 1`);
-- multiple distinct hands are returned in canonical order (e.g. attempts on "KK" then
-  "AA" come back as `["AA", "KK"]`);
-- invariant: for every returned stat, `falsePositives + falseNegatives === attempts -
-  correct`.
+Tests to add (`src/storage/handAccuracyStorage.test.ts`):
+- `loadHandAccuracy()` is `{}` when nothing is stored and when the stored JSON is corrupt;
+- `recordHandAccuracy` then `loadHandAccuracy` round-trips one range's per-hand stats;
+- recording a second session accumulates onto the first (counts add per hand; new hands
+  are added);
+- an empty `handStats` array records nothing (no key created);
+- a malformed stored entry (e.g. a hand stat missing a count or with a negative count) is
+  skipped on load without discarding the valid entries;
+- recording is isolated per `rangeId` (two ranges don't interfere).
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -205,11 +206,11 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: ONLY the `HandAccuracyStat` type and the
-  `summarizeHandAccuracy` function plus tests. No persistence, no UI, no new mode.
-- Keep the helper pure and in `src/domain/`; keep the type in `src/types/`.
+- Stay within this slice: ONLY the `RangeHandAccuracy` alias, `handAccuracyStorage.ts`,
+  and its test. Do NOT modify `App`, the practice components, or add UI.
+- Storage logic in `src/storage/`; type in `src/types/`. Mirror `practiceStatsStorage`.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: add per-hand accuracy aggregation for mistake tracking`
+- `feat: persist cumulative per-hand accuracy stats`

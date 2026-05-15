@@ -1,6 +1,6 @@
 import { ALL_HANDS, isValidHand, type PokerHand } from './pokerHands'
 import { normalizeRangeHands } from './rangeMath'
-import type { PracticeAttempt, PracticeSessionSummary } from '../types/practice'
+import type { HandAccuracyStat, PracticeAttempt, PracticeSessionSummary } from '../types/practice'
 
 /**
  * Pure domain logic for practicing a saved preflop range: deciding whether a
@@ -93,6 +93,35 @@ export function reviewSessionMistakes(attempts: PracticeAttempt[]): {
     }
   }
   return { missed, wronglyIncluded }
+}
+
+/**
+ * Aggregate a session's attempts into per-hand accuracy stats, for v2.1 mistake
+ * tracking.
+ *
+ * For each hand answered at least once, tallies total `attempts`, `correct`
+ * answers, `falsePositives` (out of range, answered "in range"), and
+ * `falseNegatives` (in range, answered "out of range"). Hands never answered are
+ * omitted. The result is in canonical 13×13 order. Pure — no Date, no random.
+ */
+export function summarizeHandAccuracy(attempts: PracticeAttempt[]): HandAccuracyStat[] {
+  const byHand = new Map<PokerHand, HandAccuracyStat>()
+  for (const { hand, expectedInRange, userAnsweredInRange, correct } of attempts) {
+    let stat = byHand.get(hand)
+    if (!stat) {
+      stat = { hand, attempts: 0, correct: 0, falsePositives: 0, falseNegatives: 0 }
+      byHand.set(hand, stat)
+    }
+    stat.attempts += 1
+    if (correct) {
+      stat.correct += 1
+    } else if (!expectedInRange && userAnsweredInRange) {
+      stat.falsePositives += 1
+    } else if (expectedInRange && !userAnsweredInRange) {
+      stat.falseNegatives += 1
+    }
+  }
+  return ALL_HANDS.filter((hand) => byHand.has(hand)).map((hand) => byHand.get(hand)!)
 }
 
 /**

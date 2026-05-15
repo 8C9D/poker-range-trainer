@@ -49,3 +49,23 @@ export interface RangePracticeStats {
   /** ISO-8601 timestamp of the most recent practice session. */
   lastPracticedAt: string
 }
+
+/**
+ * Per-hand accuracy breakdown for a set of practice attempts, used by v2.1
+ * mistake tracking (per-hand accuracy, heatmap overlay, performance page).
+ *
+ * Every incorrect attempt on a hand is exactly one of the two error kinds, so
+ * `falsePositives + falseNegatives === attempts - correct`.
+ */
+export interface HandAccuracyStat {
+  /** The canonical starting hand these counts are for (e.g. "AA", "AKs"). */
+  hand: PokerHand
+  /** Times this hand was answered. */
+  attempts: number
+  /** Of those, how many were answered correctly. */
+  correct: number
+  /** Incorrect answers where the hand was out of range but answered "in range". */
+  falsePositives: number
+  /** Incorrect answers where the hand was in range but answered "out of range". */
+  falseNegatives: number
+}
