@@ -63,6 +63,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 26 | Weakness-focused drill practice component (mode 6 UI) | v2 — Improved practice modes | 2026-06-06 |
 | 27 | Wire the weakness drill into the practice-mode picker | v2 — Improved practice modes | 2026-06-06 |
 | 28 | Per-hand accuracy aggregation (v2.1 domain foundation) | v2.1 — Mistake tracking and review | 2026-06-06 |
+| 29 | Per-hand accuracy storage foundation (persist + record) | v2.1 — Mistake tracking and review | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -130,75 +131,89 @@ foundation: the `HandAccuracyStat` type (`hand`, `attempts`, `correct`,
 (every incorrect attempt is exactly one of FP/FN, so `falsePositives + falseNegatives ===
 attempts - correct`).
 
-Still to come in v2.1: persist per-hand accuracy across sessions (storage + recording);
-a range-specific performance page; a heatmap overlay on the grid; a "practice mistakes
-only" mode; and session history. The next slice adds the per-hand-accuracy storage
-foundation (load + record-a-session), mirroring how slice 13 added per-range stats
-storage before its UI; wiring the recording into the end-of-session flow follows in the
-slice after.
+Slice 29 added the persistence: `src/storage/handAccuracyStorage.ts`
+(`loadHandAccuracy`, `recordHandAccuracy`) plus the `RangeHandAccuracy` type alias,
+mirroring `practiceStatsStorage` (single versioned key, defensive validation, fold-a-
+session recording). It is tested directly but not yet called from the app.
+
+Still to come in v2.1: wire the recording into the end-of-session flow; a range-specific
+performance page; a heatmap overlay on the grid; a "practice mistakes only" mode; and
+session history. The next slice wires per-hand recording in — the recognition-style
+practice components (recognize/timed/weakness) will surface their session `attempts` to
+`App` on exit, and `App` will record BOTH the per-range summary and the per-hand accuracy
+from those attempts.
 
 ## Next slice
 
-- **Number:** 29
+- **Number:** 30
 - **Roadmap target:** v2.1 — Mistake tracking and review
-- **Working title:** Per-hand accuracy storage foundation (persist + record)
+- **Working title:** Record per-hand accuracy at end of session (wiring)
 
 ### Prompt
 
-You are implementing roadmap slice 29, continuing **v2.1 — Mistake tracking and review**.
-Slice 28 added the pure per-hand aggregation (`HandAccuracyStat` + `summarizeHandAccuracy`).
-This slice adds the LOCAL PERSISTENCE for cumulative per-hand accuracy across sessions, so
-later slices (performance page, heatmap, "practice mistakes only") can read it. This
-mirrors how slice 13 landed the per-range stats storage before its UI.
+You are implementing roadmap slice 30, continuing **v2.1 — Mistake tracking and review**.
+Slices 28–29 delivered `summarizeHandAccuracy(attempts)` and the per-hand accuracy
+storage (`recordHandAccuracy` / `loadHandAccuracy`). This slice WIRES recording into the
+end-of-session flow so finishing a recognition-style session persists per-hand accuracy
+(in addition to the per-range summary already recorded). After this slice the data is
+captured; the performance page / heatmap that READ it are later slices.
 
-Scope of THIS slice (storage foundation only): a new storage module that loads cumulative
-per-hand accuracy and folds one finished session into it, plus tests. Do NOT wire it into
-`App`/the end-of-session flow yet (that needs the practice components to surface per-hand
-data and is the NEXT slice), and do NOT build any UI.
+Scope of THIS slice: change the recognition-style practice components to report their
+session `attempts` on exit, and have `App` derive and record both the per-range summary
+and the per-hand accuracy. Do NOT build any UI that reads per-hand stats yet.
+
+Key idea: today the recognition-style `onExit` passes a `PracticeSessionSummary`. Change
+it to pass the raw `attempts: PracticeAttempt[]` so `App` is the single place that derives
+everything it persists (summary via `summarizePracticeAttempts`, per-hand via
+`summarizeHandAccuracy`). Build-from-memory's `onExit()` (no args) and the picker's cancel
+are UNCHANGED.
 
 Context (read these before starting):
-- `src/storage/practiceStatsStorage.ts` — THE pattern to mirror exactly: a single
-  versioned `localStorage` key, a `parse…`/validate helper that returns `null` for
-  malformed entries, a `write…` serializer, a `load…` that returns `{}` on
-  missing/corrupt/non-object JSON and skips malformed entries, and a `record…` that folds
-  one session in (no-op when there is nothing to record). Match its structure, naming,
-  doc-comment style, and defensive validation.
-- `src/storage/practiceStatsStorage.test.ts` — mirror its test patterns (clear
-  `localStorage` in `beforeEach`; cover load-empty, round-trip, corrupt JSON, malformed
-  entries skipped, recording folds/accumulates, and the no-op case).
-- `src/types/practice.ts` — `HandAccuracyStat` (from slice 28: `hand`, `attempts`,
-  `correct`, `falsePositives`, `falseNegatives`). The persisted shape is per range, a map
-  of hand → cumulative `HandAccuracyStat`.
+- `src/App.tsx` — `handleEndPractice(summary)` currently calls
+  `recordPracticeSession(practicingRange.id, summary)` + `setPracticeStats(...)` then
+  `exitPractice()`. It is wired to `PracticeSession`, `TimedDrillSession`, and
+  `WeaknessFocusedDrill` (recognize/timed/weakness). Build uses `exitPractice` directly.
+- `src/components/PracticeSession.tsx` — `onExit: (summary: PracticeSessionSummary) =>
+  void`; called as `onExit(summary)` from the review "Back to library". It has `attempts`
+  in state.
+- `src/components/TimedDrillSession.tsx` — `onExit(summary)`; config cancel calls
+  `onExit(summarizePracticeAttempts([]))`, done calls `onExit(summary)`. It has `attempts`.
+- `src/components/WeaknessFocusedDrill.tsx` — `onExit(summary)` from "End practice". It has
+  `attempts`.
+- `src/domain/practice.ts` — `summarizePracticeAttempts`, `summarizeHandAccuracy`.
+- `src/storage/handAccuracyStorage.ts` — `recordHandAccuracy(rangeId, handStats)`.
+- `src/types/practice.ts` — `PracticeAttempt`.
 
 Task:
-- In `src/types/practice.ts`, add a small alias for readability:
-  `export type RangeHandAccuracy = Record<PokerHand, HandAccuracyStat>` (cumulative
-  per-hand stats for one range, keyed by hand).
-- Create `src/storage/handAccuracyStorage.ts`:
-  - `export const HAND_ACCURACY_STORAGE_KEY = 'poker-range-trainer.hand-accuracy.v1'`.
-  - `loadHandAccuracy(): Record<string, RangeHandAccuracy>` — outer key is `rangeId`.
-    Return `{}` on missing/corrupt/non-object JSON. Validate each inner `HandAccuracyStat`
-    (a non-null object with a non-empty string `hand` and the four counts being
-    non-negative finite numbers); skip malformed hand entries, and skip a range entry that
-    ends up with no valid hands. Re-key the inner maps by each stat's own `hand` so the
-    structure is self-consistent (like `loadPracticeStats` re-keys by `rangeId`).
-  - `recordHandAccuracy(rangeId: string, handStats: HandAccuracyStat[], )` — fold a
-    finished session's per-hand stats (the output of `summarizeHandAccuracy`) into the
-    stored cumulative map for `rangeId`: for each stat, add its counts onto the prior
-    entry for that hand (starting from zeros when absent). An empty `handStats` array is a
-    no-op (never creates a record). Persist via a private `writeHandAccuracy` serializer.
-- Keep it side-effect-only with all reads/writes funneled through the exported functions,
-  exactly like `practiceStatsStorage.ts`.
+- Change the three recognition-style components' `onExit` to
+  `onExit: (attempts: PracticeAttempt[]) => void`, and update each call site to pass the
+  session's `attempts` array (timed config cancel passes `[]`; you can drop the now-unused
+  `summarizePracticeAttempts([])` call there — keep `summarizePracticeAttempts` if still
+  used for the on-screen summary display, which it is in the running/done views). Update
+  the prop doc comments accordingly. Do NOT change BuildFromMemoryPractice.
+- In `src/App.tsx`, change `handleEndPractice` to accept `attempts: PracticeAttempt[]`:
+  - `const summary = summarizePracticeAttempts(attempts)`,
+  - `recordPracticeSession(practicingRange.id, summary)` (unchanged behavior; still a
+    no-op for zero attempts),
+  - `recordHandAccuracy(practicingRange.id, summarizeHandAccuracy(attempts))` (no-op for
+    empty attempts),
+  - `setPracticeStats(loadPracticeStats())` as today, then `exitPractice()`.
+  - Add the needed imports (`summarizePracticeAttempts`, `summarizeHandAccuracy`,
+    `recordHandAccuracy`, and `type PracticeAttempt`). Keep routing the three components'
+    `onExit` to `handleEndPractice`.
 
-Tests to add (`src/storage/handAccuracyStorage.test.ts`):
-- `loadHandAccuracy()` is `{}` when nothing is stored and when the stored JSON is corrupt;
-- `recordHandAccuracy` then `loadHandAccuracy` round-trips one range's per-hand stats;
-- recording a second session accumulates onto the first (counts add per hand; new hands
-  are added);
-- an empty `handStats` array records nothing (no key created);
-- a malformed stored entry (e.g. a hand stat missing a count or with a negative count) is
-  skipped on load without discarding the valid entries;
-- recording is isolated per `rangeId` (two ranges don't interfere).
+Tests to update/add:
+- `src/components/PracticeSession.test.tsx`, `TimedDrillSession.test.tsx`,
+  `WeaknessFocusedDrill.test.tsx` — any assertion that `onExit` was called with a summary
+  object must change to expect the `attempts` array (e.g. `expect(onExit).toHaveBeenCalled
+  With(expect.arrayContaining([...]))` or assert the array length / that each element is a
+  scored attempt). Keep every other assertion.
+- `src/App.test.tsx` — the existing recognition/timed/weakness stats tests must still pass
+  (per-range stats still recorded). ADD at least one assertion that per-hand accuracy is
+  persisted after a finished session: import `loadHandAccuracy` from
+  `'./storage/handAccuracyStorage'`, finish a session answering the shown hand truthfully,
+  and assert `loadHandAccuracy()[rangeId]` contains that hand with the expected counts.
+  (Recognition mode with userEvent is easiest; reuse the `.practice-prompt-hand` read.)
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -206,11 +221,13 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: ONLY the `RangeHandAccuracy` alias, `handAccuracyStorage.ts`,
-  and its test. Do NOT modify `App`, the practice components, or add UI.
-- Storage logic in `src/storage/`; type in `src/types/`. Mirror `practiceStatsStorage`.
+- Stay within this slice: the `onExit` contract change for the three recognition-style
+  components, the `App` recording wiring, and the affected tests. Do NOT build the
+  performance page, heatmap, or "mistakes only" mode (later slices). Do NOT change
+  `BuildFromMemoryPractice` or the picker.
+- Keep recording centralized in `App` (don't call storage from components).
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: persist cumulative per-hand accuracy stats`
+- `feat: record per-hand accuracy when a practice session ends`

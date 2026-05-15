@@ -69,3 +69,6 @@ export interface HandAccuracyStat {
   /** Incorrect answers where the hand was in range but answered "out of range". */
   falseNegatives: number
 }
+
+/** Cumulative per-hand accuracy for one range, keyed by hand. */
+export type RangeHandAccuracy = Record<PokerHand, HandAccuracyStat>
