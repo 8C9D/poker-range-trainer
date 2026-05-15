@@ -46,14 +46,14 @@ describe('TimedDrillSession', () => {
     expect(screen.queryByRole('button', { name: 'In range' })).not.toBeInTheDocument()
   })
 
-  it('exits config with a zero summary', () => {
+  it('exits config with an empty attempts list', () => {
     const onExit = vi.fn()
     render(<TimedDrillSession range={makeRange()} onExit={onExit} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Back to library' }))
 
     expect(onExit).toHaveBeenCalledTimes(1)
-    expect(onExit).toHaveBeenCalledWith(expect.objectContaining({ totalQuestions: 0 }))
+    expect(onExit).toHaveBeenCalledWith([])
   })
 
   it('starts a drill and shows the countdown and answer buttons', () => {
@@ -107,21 +107,21 @@ describe('TimedDrillSession', () => {
     expect(screen.getByRole('button', { name: 'New drill' })).toBeInTheDocument()
   })
 
-  it('reports the accumulated summary when leaving the results view', async () => {
+  it('reports the accumulated attempts when leaving the results view', async () => {
     const onExit = vi.fn()
     render(
       <TimedDrillSession range={makeRange()} onExit={onExit} random={sequenceRandom([0])} />,
     )
 
     fireEvent.click(screen.getByRole('button', { name: '60s' }))
-    fireEvent.click(screen.getByRole('button', { name: 'In range' }))
+    fireEvent.click(screen.getByRole('button', { name: 'In range' })) // answer "AA" correctly
     await act(async () => {
       await vi.advanceTimersByTimeAsync(61_000)
     })
     fireEvent.click(screen.getByRole('button', { name: 'Back to library' }))
 
-    expect(onExit).toHaveBeenCalledWith(
-      expect.objectContaining({ totalQuestions: 1, correctAnswers: 1 }),
-    )
+    const reported = onExit.mock.calls[0][0]
+    expect(reported).toHaveLength(1)
+    expect(reported[0]).toMatchObject({ hand: 'AA', correct: true })
   })
 })

@@ -6,7 +6,7 @@ import {
 } from '../domain/practice'
 import { DRILL_DURATION_OPTIONS, getRemainingSeconds } from '../domain/timedDrill'
 import type { PokerHand } from '../domain/pokerHands'
-import type { PracticeAttempt, PracticeSessionSummary } from '../types/practice'
+import type { PracticeAttempt } from '../types/practice'
 import type { SavedRange } from '../types/range'
 import './PracticeSession.css'
 
@@ -14,11 +14,11 @@ interface TimedDrillSessionProps {
   /** The saved range being drilled. */
   range: SavedRange
   /**
-   * Leave the drill and return to the editor/library, reporting the final
-   * session summary so the parent can persist it (zero attempts is reported as
-   * an all-zero summary, which the recorder treats as a no-op).
+   * Leave the drill and return to the editor/library, reporting the session's
+   * scored attempts so the parent can derive and persist both the per-range
+   * summary and per-hand accuracy (an empty array is a no-op for the recorder).
    */
-  onExit: (summary: PracticeSessionSummary) => void
+  onExit: (attempts: PracticeAttempt[]) => void
   /**
    * Source of randomness for drawing prompt hands. Defaults to `Math.random`;
    * injectable so tests can force a deterministic sequence of hands.
@@ -108,7 +108,7 @@ export function TimedDrillSession({ range, onExit, random = Math.random }: Timed
           ))}
         </div>
         <div className="practice-review-actions">
-          <button type="button" onClick={() => onExit(summary)}>
+          <button type="button" onClick={() => onExit(attempts)}>
             Back to library
           </button>
         </div>
@@ -133,7 +133,7 @@ export function TimedDrillSession({ range, onExit, random = Math.random }: Timed
           <button type="button" className="primary" onClick={newDrill}>
             New drill
           </button>
-          <button type="button" onClick={() => onExit(summary)}>
+          <button type="button" onClick={() => onExit(attempts)}>
             Back to library
           </button>
         </div>

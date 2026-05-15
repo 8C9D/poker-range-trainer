@@ -99,7 +99,7 @@ describe('WeaknessFocusedDrill', () => {
     expect(screen.getByText('KK')).toBeInTheDocument()
   })
 
-  it('reports the session summary on "End practice"', async () => {
+  it('reports the session attempts on "End practice"', async () => {
     const user = userEvent.setup()
     const onExit = vi.fn()
     render(<WeaknessFocusedDrill range={makeRange()} onExit={onExit} random={sequenceRandom([0])} />)
@@ -107,8 +107,8 @@ describe('WeaknessFocusedDrill', () => {
     await user.click(screen.getByRole('button', { name: 'In range' })) // answer "AA" correctly
     await user.click(screen.getByRole('button', { name: 'End practice' }))
 
-    expect(onExit).toHaveBeenCalledWith(
-      expect.objectContaining({ totalQuestions: 1, correctAnswers: 1 }),
-    )
+    const reported = onExit.mock.calls[0][0]
+    expect(reported).toHaveLength(1)
+    expect(reported[0]).toMatchObject({ hand: 'AA', correct: true })
   })
 })

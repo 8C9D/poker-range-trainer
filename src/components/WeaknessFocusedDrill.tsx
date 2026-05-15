@@ -2,15 +2,18 @@ import { useState } from 'react'
 import { createPracticeAttempt, summarizePracticeAttempts } from '../domain/practice'
 import { getWeaknessFocusedHand } from '../domain/weaknessDrill'
 import type { PokerHand } from '../domain/pokerHands'
-import type { PracticeAttempt, PracticeSessionSummary } from '../types/practice'
+import type { PracticeAttempt } from '../types/practice'
 import type { SavedRange } from '../types/range'
 import './PracticeSession.css'
 
 interface WeaknessFocusedDrillProps {
   /** The saved range being drilled. */
   range: SavedRange
-  /** Leave the drill, reporting the final summary so the parent can persist it. */
-  onExit: (summary: PracticeSessionSummary) => void
+  /**
+   * Leave the drill, reporting the session's scored attempts so the parent can
+   * derive and persist both the per-range summary and per-hand accuracy.
+   */
+  onExit: (attempts: PracticeAttempt[]) => void
   /**
    * Source of randomness for drawing prompt hands. Defaults to `Math.random`;
    * injectable so tests can force a deterministic sequence of hands.
@@ -61,7 +64,7 @@ export function WeaknessFocusedDrill({
     <section className="practice-session" aria-label="Weakness drill">
       <header className="practice-header">
         <h2>Weakness drill: {range.name}</h2>
-        <button type="button" onClick={() => onExit(summary)}>
+        <button type="button" onClick={() => onExit(attempts)}>
           End practice
         </button>
       </header>

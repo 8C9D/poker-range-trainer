@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { PracticeSession } from './PracticeSession'
+import type { PracticeAttempt } from '../types/practice'
 import type { SavedRange } from '../types/range'
 
 function makeRange(overrides: Partial<SavedRange> = {}): SavedRange {
@@ -167,12 +168,13 @@ describe('PracticeSession', () => {
     expect(onExit).not.toHaveBeenCalled()
     await user.click(screen.getByRole('button', { name: 'Back to library' }))
     expect(onExit).toHaveBeenCalledOnce()
-    expect(onExit).toHaveBeenCalledWith(
-      expect.objectContaining({ totalQuestions: 2, correctAnswers: 0 }),
-    )
+    // The raw attempts are reported so the parent can derive summary + per-hand accuracy.
+    const reported = onExit.mock.calls[0][0] as PracticeAttempt[]
+    expect(reported.map((attempt) => attempt.hand)).toEqual(['AA', '22'])
+    expect(reported.every((attempt) => !attempt.correct)).toBe(true)
   })
 
-  it('shows a no-mistakes review, then reports the summary when dismissed', async () => {
+  it('shows a no-mistakes review, then reports the attempts when dismissed', async () => {
     const user = userEvent.setup()
     const onExit = vi.fn()
     // random() -> 0 selects "AA", which is in the range; answer it correctly.
@@ -189,12 +191,12 @@ describe('PracticeSession', () => {
     expect(onExit).not.toHaveBeenCalled()
     await user.click(screen.getByRole('button', { name: 'Back to library' }))
     expect(onExit).toHaveBeenCalledOnce()
-    expect(onExit).toHaveBeenCalledWith(
-      expect.objectContaining({ totalQuestions: 1, correctAnswers: 1 }),
-    )
+    const reported = onExit.mock.calls[0][0]
+    expect(reported).toHaveLength(1)
+    expect(reported[0]).toMatchObject({ hand: 'AA', correct: true })
   })
 
-  it('reports a zero-question summary when ending without answering', async () => {
+  it('reports an empty attempts list when ending without answering', async () => {
     const user = userEvent.setup()
     const onExit = vi.fn()
     render(<PracticeSession range={makeRange()} onExit={onExit} random={sequenceRandom([0])} />)
@@ -205,6 +207,6 @@ describe('PracticeSession', () => {
 
     await user.click(screen.getByRole('button', { name: 'Back to library' }))
     expect(onExit).toHaveBeenCalledOnce()
-    expect(onExit).toHaveBeenCalledWith(expect.objectContaining({ totalQuestions: 0 }))
+    expect(onExit).toHaveBeenCalledWith([])
   })
 })

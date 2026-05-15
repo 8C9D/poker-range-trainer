@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, within, fireEvent, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
+import { loadHandAccuracy } from './storage/handAccuracyStorage'
 import { loadPracticeStats } from './storage/practiceStatsStorage'
 import { loadSavedRanges } from './storage/rangeStorage'
 
@@ -319,6 +320,14 @@ describe('Practice mode', () => {
     expect(loadPracticeStats()[rangeId]).toEqual(
       expect.objectContaining({ totalAttempts: 1, correctAttempts: 1 }),
     )
+    // The same session also records per-hand accuracy for the answered hand.
+    expect(loadHandAccuracy()[rangeId][promptHand]).toEqual({
+      hand: promptHand,
+      attempts: 1,
+      correct: 1,
+      falsePositives: 0,
+      falseNegatives: 0,
+    })
   })
 
   it('shows the recorded practice stats on the library card after ending a session', async () => {

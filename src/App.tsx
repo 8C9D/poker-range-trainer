@@ -11,12 +11,14 @@ import { RangeShortcuts } from './components/RangeShortcuts'
 import { setRangeArchived } from './domain/rangeArchive'
 import { duplicateRange } from './domain/rangeDuplication'
 import { setRangeFavorite } from './domain/rangeFavorite'
+import { summarizeHandAccuracy, summarizePracticeAttempts } from './domain/practice'
 import { calculateRangePercentage, countSelectedCombos } from './domain/rangeMath'
 import { mergeShortcutHands } from './domain/rangeShortcuts'
 import type { PokerHand } from './domain/pokerHands'
+import { recordHandAccuracy } from './storage/handAccuracyStorage'
 import { loadPracticeStats, recordPracticeSession } from './storage/practiceStatsStorage'
 import { deleteSavedRange, loadSavedRanges, saveSavedRange } from './storage/rangeStorage'
-import type { PracticeSessionSummary } from './types/practice'
+import type { PracticeAttempt } from './types/practice'
 import type {
   ActionType,
   GameType,
@@ -259,14 +261,16 @@ function App() {
     setPracticeMode(null)
   }
 
-  function handleEndPractice(summary: PracticeSessionSummary) {
+  function handleEndPractice(attempts: PracticeAttempt[]) {
     // Persist the finished session into the range's cumulative stats before
-    // leaving practice, while the practiced range is still known.
-    // recordPracticeSession is a no-op when nothing was answered, so ending
-    // immediately records nothing. Only recognition mode reports a summary;
-    // build-from-memory exits through exitPractice without recording stats.
+    // leaving practice, while the practiced range is still known. App is the
+    // single place that derives what it persists from the raw attempts: the
+    // per-range summary and the per-hand accuracy. Both recorders are no-ops when
+    // nothing was answered, so ending immediately records nothing.
+    // Build-from-memory exits through exitPractice without recording stats.
     if (practicingRange) {
-      recordPracticeSession(practicingRange.id, summary)
+      recordPracticeSession(practicingRange.id, summarizePracticeAttempts(attempts))
+      recordHandAccuracy(practicingRange.id, summarizeHandAccuracy(attempts))
       // Refresh from storage so the library card reflects this session, mirroring
       // the setSavedRanges(loadSavedRanges()) refresh-after-write pattern.
       setPracticeStats(loadPracticeStats())

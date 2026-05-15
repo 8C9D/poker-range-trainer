@@ -6,7 +6,7 @@ import {
   summarizePracticeAttempts,
 } from '../domain/practice'
 import type { PokerHand } from '../domain/pokerHands'
-import type { PracticeAttempt, PracticeSessionSummary } from '../types/practice'
+import type { PracticeAttempt } from '../types/practice'
 import type { SavedRange } from '../types/range'
 import './PracticeSession.css'
 
@@ -14,10 +14,11 @@ interface PracticeSessionProps {
   /** The saved range being practiced. */
   range: SavedRange
   /**
-   * Leave practice and return to the editor/library view, reporting the final
-   * session summary so the parent can persist it.
+   * Leave practice and return to the editor/library view, reporting the session's
+   * scored attempts so the parent can derive and persist both the per-range
+   * summary and per-hand accuracy.
    */
-  onExit: (summary: PracticeSessionSummary) => void
+  onExit: (attempts: PracticeAttempt[]) => void
   /**
    * Source of randomness for drawing prompt hands. Defaults to `Math.random`;
    * injectable so tests can force a deterministic sequence of hands.
@@ -111,7 +112,7 @@ export function PracticeSession({ range, onExit, random = Math.random }: Practic
         )}
 
         <div className="practice-review-actions">
-          <button type="button" onClick={() => onExit(summary)}>
+          <button type="button" onClick={() => onExit(attempts)}>
             Back to library
           </button>
         </div>

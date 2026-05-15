@@ -64,6 +64,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 27 | Wire the weakness drill into the practice-mode picker | v2 — Improved practice modes | 2026-06-06 |
 | 28 | Per-hand accuracy aggregation (v2.1 domain foundation) | v2.1 — Mistake tracking and review | 2026-06-06 |
 | 29 | Per-hand accuracy storage foundation (persist + record) | v2.1 — Mistake tracking and review | 2026-06-06 |
+| 30 | Record per-hand accuracy at end of session (wiring) | v2.1 — Mistake tracking and review | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -136,84 +137,66 @@ Slice 29 added the persistence: `src/storage/handAccuracyStorage.ts`
 mirroring `practiceStatsStorage` (single versioned key, defensive validation, fold-a-
 session recording). It is tested directly but not yet called from the app.
 
-Still to come in v2.1: wire the recording into the end-of-session flow; a range-specific
-performance page; a heatmap overlay on the grid; a "practice mistakes only" mode; and
-session history. The next slice wires per-hand recording in — the recognition-style
-practice components (recognize/timed/weakness) will surface their session `attempts` to
-`App` on exit, and `App` will record BOTH the per-range summary and the per-hand accuracy
-from those attempts.
+Slice 30 wired the recording in: the recognition-style components (recognize/timed/
+weakness) now report their raw session `attempts` via `onExit`, and `App.handleEndPractice`
+derives and persists BOTH the per-range summary (`recordPracticeSession`) and the per-hand
+accuracy (`recordHandAccuracy(summarizeHandAccuracy(attempts))`). Build-from-memory and the
+picker cancel are unchanged. Per-hand mistake data is now captured every session.
+
+Still to come in v2.1: surface the data — a range-specific performance view, a heatmap
+overlay on the grid, a "practice mistakes only" mode, and session history. The next slice
+adds the pure presentation helpers (per-hand accuracy rate + a weakest-first ranking) that
+those views read, keeping the later UI slices small.
 
 ## Next slice
 
-- **Number:** 30
+- **Number:** 31
 - **Roadmap target:** v2.1 — Mistake tracking and review
-- **Working title:** Record per-hand accuracy at end of session (wiring)
+- **Working title:** Per-hand accuracy presentation helpers (rate + weakest-first ranking)
 
 ### Prompt
 
-You are implementing roadmap slice 30, continuing **v2.1 — Mistake tracking and review**.
-Slices 28–29 delivered `summarizeHandAccuracy(attempts)` and the per-hand accuracy
-storage (`recordHandAccuracy` / `loadHandAccuracy`). This slice WIRES recording into the
-end-of-session flow so finishing a recognition-style session persists per-hand accuracy
-(in addition to the per-range summary already recorded). After this slice the data is
-captured; the performance page / heatmap that READ it are later slices.
+You are implementing roadmap slice 31, continuing **v2.1 — Mistake tracking and review**.
+Per-hand accuracy is now aggregated (slice 28) and persisted every session (slices
+29–30). This slice adds the pure PRESENTATION helpers the upcoming v2.1 views (range
+performance page, heatmap overlay) will use to turn cumulative `RangeHandAccuracy` into
+display-ready, ranked data. Following the established rhythm, this is a pure-domain slice;
+the views that consume these helpers are the next slices.
 
-Scope of THIS slice: change the recognition-style practice components to report their
-session `attempts` on exit, and have `App` derive and record both the per-range summary
-and the per-hand accuracy. Do NOT build any UI that reads per-hand stats yet.
-
-Key idea: today the recognition-style `onExit` passes a `PracticeSessionSummary`. Change
-it to pass the raw `attempts: PracticeAttempt[]` so `App` is the single place that derives
-everything it persists (summary via `summarizePracticeAttempts`, per-hand via
-`summarizeHandAccuracy`). Build-from-memory's `onExit()` (no args) and the picker's cancel
-are UNCHANGED.
+Scope of THIS slice (foundation only): two pure functions + tests. No UI, no storage
+changes.
 
 Context (read these before starting):
-- `src/App.tsx` — `handleEndPractice(summary)` currently calls
-  `recordPracticeSession(practicingRange.id, summary)` + `setPracticeStats(...)` then
-  `exitPractice()`. It is wired to `PracticeSession`, `TimedDrillSession`, and
-  `WeaknessFocusedDrill` (recognize/timed/weakness). Build uses `exitPractice` directly.
-- `src/components/PracticeSession.tsx` — `onExit: (summary: PracticeSessionSummary) =>
-  void`; called as `onExit(summary)` from the review "Back to library". It has `attempts`
-  in state.
-- `src/components/TimedDrillSession.tsx` — `onExit(summary)`; config cancel calls
-  `onExit(summarizePracticeAttempts([]))`, done calls `onExit(summary)`. It has `attempts`.
-- `src/components/WeaknessFocusedDrill.tsx` — `onExit(summary)` from "End practice". It has
-  `attempts`.
-- `src/domain/practice.ts` — `summarizePracticeAttempts`, `summarizeHandAccuracy`.
-- `src/storage/handAccuracyStorage.ts` — `recordHandAccuracy(rangeId, handStats)`.
-- `src/types/practice.ts` — `PracticeAttempt`.
+- `src/types/practice.ts` — `HandAccuracyStat` (`hand`, `attempts`, `correct`,
+  `falsePositives`, `falseNegatives`) and `RangeHandAccuracy = Record<PokerHand,
+  HandAccuracyStat>` (cumulative per-hand stats for one range, keyed by hand).
+- `src/domain/practice.ts` — has `summarizeHandAccuracy`, `summarizePracticeAttempts`
+  (whose `accuracyPercentage` is `correct/total*100`, 0 when total is 0 — match that
+  convention), and imports `ALL_HANDS` + `type PokerHand`. Add the new helpers here.
+- `src/domain/practice.test.ts` — mirror its pure-domain test patterns.
 
-Task:
-- Change the three recognition-style components' `onExit` to
-  `onExit: (attempts: PracticeAttempt[]) => void`, and update each call site to pass the
-  session's `attempts` array (timed config cancel passes `[]`; you can drop the now-unused
-  `summarizePracticeAttempts([])` call there — keep `summarizePracticeAttempts` if still
-  used for the on-screen summary display, which it is in the running/done views). Update
-  the prop doc comments accordingly. Do NOT change BuildFromMemoryPractice.
-- In `src/App.tsx`, change `handleEndPractice` to accept `attempts: PracticeAttempt[]`:
-  - `const summary = summarizePracticeAttempts(attempts)`,
-  - `recordPracticeSession(practicingRange.id, summary)` (unchanged behavior; still a
-    no-op for zero attempts),
-  - `recordHandAccuracy(practicingRange.id, summarizeHandAccuracy(attempts))` (no-op for
-    empty attempts),
-  - `setPracticeStats(loadPracticeStats())` as today, then `exitPractice()`.
-  - Add the needed imports (`summarizePracticeAttempts`, `summarizeHandAccuracy`,
-    `recordHandAccuracy`, and `type PracticeAttempt`). Keep routing the three components'
-    `onExit` to `handleEndPractice`.
+Task — add two pure functions to `src/domain/practice.ts`:
+- `handAccuracyRate(stat: HandAccuracyStat): number` — `stat.correct / stat.attempts *
+  100`, or `0` when `attempts === 0` (never NaN), matching `summarizePracticeAttempts`'s
+  accuracy convention. Doc comment in the same style.
+- `rankHandAccuracy(rangeStats: RangeHandAccuracy): HandAccuracyStat[]` — return the
+  range's per-hand stats (those with `attempts > 0`) sorted WEAKEST-FIRST so the worst
+  hands surface for review:
+  1. ascending `handAccuracyRate` (lower accuracy first),
+  2. tiebreak by MORE `attempts` first (a 0%-of-10 hand outranks a 0%-of-1 hand),
+  3. final tiebreak by canonical 13×13 order (reuse `ALL_HANDS`) for stable, deterministic
+     output.
+  Do not mutate the input. Doc comment explaining the ordering.
 
-Tests to update/add:
-- `src/components/PracticeSession.test.tsx`, `TimedDrillSession.test.tsx`,
-  `WeaknessFocusedDrill.test.tsx` — any assertion that `onExit` was called with a summary
-  object must change to expect the `attempts` array (e.g. `expect(onExit).toHaveBeenCalled
-  With(expect.arrayContaining([...]))` or assert the array length / that each element is a
-  scored attempt). Keep every other assertion.
-- `src/App.test.tsx` — the existing recognition/timed/weakness stats tests must still pass
-  (per-range stats still recorded). ADD at least one assertion that per-hand accuracy is
-  persisted after a finished session: import `loadHandAccuracy` from
-  `'./storage/handAccuracyStorage'`, finish a session answering the shown hand truthfully,
-  and assert `loadHandAccuracy()[rangeId]` contains that hand with the expected counts.
-  (Recognition mode with userEvent is easiest; reuse the `.practice-prompt-hand` read.)
+Tests to add (`src/domain/practice.test.ts`, new describes):
+- `handAccuracyRate`: 0 attempts → 0 (not NaN); 3/4 → 75; 0/5 → 0; 2/2 → 100.
+- `rankHandAccuracy`:
+  - empty map → `[]`;
+  - lower-accuracy hands come before higher-accuracy ones;
+  - equal accuracy → the hand with more attempts comes first;
+  - equal accuracy AND equal attempts → canonical order (e.g. "AA" before "KK");
+  - only includes hands with `attempts > 0`;
+  - does not mutate the input object.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -221,13 +204,11 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: the `onExit` contract change for the three recognition-style
-  components, the `App` recording wiring, and the affected tests. Do NOT build the
-  performance page, heatmap, or "mistakes only" mode (later slices). Do NOT change
-  `BuildFromMemoryPractice` or the picker.
-- Keep recording centralized in `App` (don't call storage from components).
+- Stay within this slice: ONLY `handAccuracyRate` and `rankHandAccuracy` plus tests. No
+  UI, no storage changes, no new mode.
+- Keep the helpers pure and in `src/domain/`.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: record per-hand accuracy when a practice session ends`
+- `feat: add per-hand accuracy rate and weakest-first ranking helpers`
