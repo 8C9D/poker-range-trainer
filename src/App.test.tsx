@@ -544,6 +544,54 @@ describe('Practice mode', () => {
   })
 })
 
+describe('Range performance view', () => {
+  it('opens the performance view from a library card and returns on close', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Pairs')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    await user.click(screen.getByRole('button', { name: 'View stats for Pairs' }))
+
+    // With no practice yet, the view shows the empty state and hides editor/library.
+    expect(screen.getByRole('heading', { name: 'Performance: Pairs' })).toBeInTheDocument()
+    expect(screen.getByText(/No practice data yet/)).toBeInTheDocument()
+    expect(screen.queryByLabelText('Range name')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Back to library' }))
+
+    expect(screen.getByLabelText('Range name')).toBeInTheDocument()
+    expect(within(library()).getByText('Pairs')).toBeInTheDocument()
+  })
+
+  it('shows a per-hand row after practicing the range', async () => {
+    const user = userEvent.setup()
+    const { container } = render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Pairs')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'KK' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    // Practice one hand (recognition), answering truthfully.
+    await user.click(screen.getByRole('button', { name: 'Practice range Pairs' }))
+    await user.click(screen.getByRole('button', { name: 'Recognize hands (in/out)' }))
+    const promptHand = container.querySelector('.practice-prompt-hand')?.textContent ?? ''
+    const inRange = promptHand === 'AA' || promptHand === 'KK'
+    await user.click(screen.getByRole('button', { name: inRange ? 'In range' : 'Out of range' }))
+    await user.click(screen.getByRole('button', { name: 'End Practice' }))
+    await user.click(screen.getByRole('button', { name: 'Back to library' }))
+
+    // The performance view now has a per-hand row for the practiced hand.
+    await user.click(screen.getByRole('button', { name: 'View stats for Pairs' }))
+    const table = screen.getByRole('table', { name: 'Per-hand accuracy' })
+    expect(within(table).getByText(promptHand)).toBeInTheDocument()
+    expect(within(table).getByText('100%')).toBeInTheDocument()
+  })
+})
+
 describe('Range shortcuts', () => {
   it('renders the range shortcut section', () => {
     render(<App />)

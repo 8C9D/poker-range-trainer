@@ -7,6 +7,7 @@ import { WeaknessFocusedDrill } from './components/WeaknessFocusedDrill'
 import { RangeLibrary } from './components/RangeLibrary'
 import { RangeMetadataEditor } from './components/RangeMetadataEditor'
 import { RangeNotation } from './components/RangeNotation'
+import { RangePerformance } from './components/RangePerformance'
 import { RangeShortcuts } from './components/RangeShortcuts'
 import { setRangeArchived } from './domain/rangeArchive'
 import { duplicateRange } from './domain/rangeDuplication'
@@ -15,7 +16,7 @@ import { summarizeHandAccuracy, summarizePracticeAttempts } from './domain/pract
 import { calculateRangePercentage, countSelectedCombos } from './domain/rangeMath'
 import { mergeShortcutHands } from './domain/rangeShortcuts'
 import type { PokerHand } from './domain/pokerHands'
-import { recordHandAccuracy } from './storage/handAccuracyStorage'
+import { loadHandAccuracy, recordHandAccuracy } from './storage/handAccuracyStorage'
 import { loadPracticeStats, recordPracticeSession } from './storage/practiceStatsStorage'
 import { deleteSavedRange, loadSavedRanges, saveSavedRange } from './storage/rangeStorage'
 import type { PracticeAttempt } from './types/practice'
@@ -46,6 +47,12 @@ function App() {
   // Cumulative per-range practice stats, refreshed after each finished session
   // so the library cards reflect the latest accuracy/last-practiced numbers.
   const [practiceStats, setPracticeStats] = useState(() => loadPracticeStats())
+  // Cumulative per-hand accuracy, refreshed after each session so the performance
+  // view shows the latest numbers.
+  const [handAccuracy, setHandAccuracy] = useState(() => loadHandAccuracy())
+  // null = editor/library view; otherwise the saved range whose performance view
+  // is open.
+  const [performanceRange, setPerformanceRange] = useState<SavedRange | null>(null)
   // null = editor/library view; otherwise the saved range being practiced.
   const [practicingRange, setPracticingRange] = useState<SavedRange | null>(null)
   // Which practice mode is active for `practicingRange`. null = the mode picker is
@@ -271,26 +278,36 @@ function App() {
     if (practicingRange) {
       recordPracticeSession(practicingRange.id, summarizePracticeAttempts(attempts))
       recordHandAccuracy(practicingRange.id, summarizeHandAccuracy(attempts))
-      // Refresh from storage so the library card reflects this session, mirroring
-      // the setSavedRanges(loadSavedRanges()) refresh-after-write pattern.
+      // Refresh from storage so the library card and performance view reflect this
+      // session, mirroring the setSavedRanges(loadSavedRanges()) refresh-after-write
+      // pattern.
       setPracticeStats(loadPracticeStats())
+      setHandAccuracy(loadHandAccuracy())
     }
     exitPractice()
   }
 
+  function handleViewPerformance(range: SavedRange) {
+    setPerformanceRange(range)
+  }
+
   let headerSubtitle: string
-  if (!practicingRange) {
-    headerSubtitle = "Click hands to build a Texas Hold'em preflop range."
-  } else if (practiceMode === 'recognize') {
-    headerSubtitle = 'Test your range recognition.'
-  } else if (practiceMode === 'build') {
-    headerSubtitle = 'Rebuild the range from memory.'
-  } else if (practiceMode === 'timed') {
-    headerSubtitle = 'Race the clock.'
-  } else if (practiceMode === 'weakness') {
-    headerSubtitle = 'Drill your weak spots.'
+  if (practicingRange) {
+    if (practiceMode === 'recognize') {
+      headerSubtitle = 'Test your range recognition.'
+    } else if (practiceMode === 'build') {
+      headerSubtitle = 'Rebuild the range from memory.'
+    } else if (practiceMode === 'timed') {
+      headerSubtitle = 'Race the clock.'
+    } else if (practiceMode === 'weakness') {
+      headerSubtitle = 'Drill your weak spots.'
+    } else {
+      headerSubtitle = 'Choose how you want to practice.'
+    }
+  } else if (performanceRange) {
+    headerSubtitle = 'Review your per-hand accuracy.'
   } else {
-    headerSubtitle = 'Choose how you want to practice.'
+    headerSubtitle = "Click hands to build a Texas Hold'em preflop range."
   }
 
   return (
@@ -357,6 +374,12 @@ function App() {
             </div>
           </section>
         )
+      ) : performanceRange ? (
+        <RangePerformance
+          range={performanceRange}
+          accuracy={handAccuracy[performanceRange.id] ?? {}}
+          onClose={() => setPerformanceRange(null)}
+        />
       ) : (
         <>
           <section className="range-editor" aria-label="Range editor">
@@ -431,6 +454,7 @@ function App() {
             onDuplicate={handleDuplicate}
             onFavorite={handleFavorite}
             onArchive={handleArchive}
+            onViewPerformance={handleViewPerformance}
           />
         </>
       )}

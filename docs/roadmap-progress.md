@@ -67,6 +67,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 30 | Record per-hand accuracy at end of session (wiring) | v2.1 — Mistake tracking and review | 2026-06-06 |
 | 31 | Per-hand accuracy presentation helpers (rate + ranking) | v2.1 — Mistake tracking and review | 2026-06-06 |
 | 32 | Range performance view component (weakest-hands table) | v2.1 — Mistake tracking and review | 2026-06-06 |
+| 33 | Open the performance view from a library card (wiring) | v2.1 — Mistake tracking and review | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -154,69 +155,55 @@ Slice 32 added the standalone `RangePerformance` component: a weakest-first per-
 (hand, accuracy %, attempts, missed, wrongly-included) from `rankHandAccuracy`, with an
 empty state. It is fully tested but not yet reachable.
 
-Still to come in v2.1: wire the performance view into the library; a heatmap overlay on
-the grid; a "practice mistakes only" mode; and session history. The next slice wires
-`RangePerformance` in — a library card gets a "Stats" action that opens the view for that
-range, reading the persisted per-hand accuracy (`loadHandAccuracy`).
+Slice 33 wired it in: each library card has a "Stats" action (`View stats for {name}`)
+that opens `RangePerformance` for that range; `App` keeps a `handAccuracy` state
+(`loadHandAccuracy`, refreshed after each session) and renders the view with that range's
+per-hand map. The per-hand performance page is now reachable and live.
+
+Still to come in v2.1: a heatmap overlay on the range grid; a "practice mistakes only"
+mode; and session history. The next slice adds the pure `accuracyHeatLevel` helper that
+buckets a hand's accuracy into untested/low/medium/high for the upcoming heatmap, keeping
+the heatmap component slice small.
 
 ## Next slice
 
-- **Number:** 33
+- **Number:** 34
 - **Roadmap target:** v2.1 — Mistake tracking and review
-- **Working title:** Open the performance view from a library card (wiring)
+- **Working title:** Accuracy heat-level helper (heatmap foundation)
 
 ### Prompt
 
-You are implementing roadmap slice 33, continuing **v2.1 — Mistake tracking and review**.
-Slice 32 built the standalone `RangePerformance` component. This slice makes it reachable:
-a "Stats" action on each library card opens the per-hand performance view for that range,
-reading the persisted per-hand accuracy.
+You are implementing roadmap slice 34, continuing **v2.1 — Mistake tracking and review**.
+The per-hand performance page (slices 28–33) is live. Next up is the "heatmap overlay on
+the range grid" v2.1 feature. Following the established rhythm, THIS slice adds ONLY the
+pure helper that buckets a hand's accuracy into a heat level; the read-only heatmap grid
+component and its integration into the performance view are the next slices.
 
-Scope of THIS slice: wire `RangePerformance` into `App` and add the card action in
-`RangeLibrary`. No changes to the performance component itself or to practice flows.
+Scope of THIS slice (foundation only): one pure function + a small exported type + tests.
+No component, no UI.
 
 Context (read these before starting):
-- `src/App.tsx` — top-level view switching. `practicingRange` selects the practice views;
-  otherwise the editor/library renders. It already keeps `practiceStats` in state via
-  `loadPracticeStats()` and refreshes it after a session. Add a parallel `handAccuracy`
-  state from `loadHandAccuracy()` (import from `./storage/handAccuracyStorage`) and refresh
-  it in `handleEndPractice` right where `setPracticeStats(loadPracticeStats())` runs (so a
-  freshly finished session shows up). Add a `performanceRange: SavedRange | null` state and
-  a handler `handleViewPerformance(range)` that sets it; render `RangePerformance` when it
-  is non-null.
-  - View precedence: `practicingRange` first (unchanged), then `performanceRange` →
-    `<RangePerformance range={performanceRange} accuracy={handAccuracy[performanceRange.id]
-    ?? {}} onClose={() => setPerformanceRange(null)} />`, else the editor/library `<>...</>`.
-  - Give the header a sensible subtitle while viewing performance (e.g. "Review your
-    per-hand accuracy.").
-- `src/components/RangeLibrary.tsx` — renders each saved range as a card with action
-  buttons (`onLoad`, `onPractice`, `onDuplicate`, `onFavorite`, `onArchive`, `onDelete`),
-  each with an accessible name like `Practice range {name}`. Add an `onViewPerformance:
-  (range: SavedRange) => void` prop and a "Stats" button per card with aria-label
-  `View stats for {range.name}`, following the existing button pattern. Pass it through
-  from `App`.
-- `src/storage/handAccuracyStorage.ts` — `loadHandAccuracy()`.
-- `src/components/RangeLibrary.test.tsx` and `src/App.test.tsx` — mirror existing patterns
-  (the `onPractice` / "Practice range …" wiring is the closest model).
+- `src/domain/practice.ts` — has `handAccuracyRate(stat)` (accuracy %, 0 when no
+  attempts). Add the new helper here beside it. Imports `type PokerHand` from
+  `./pokerHands` already.
+- `src/types/practice.ts` — `HandAccuracyStat` (`hand`, `attempts`, `correct`,
+  `falsePositives`, `falseNegatives`).
+- `src/domain/practice.test.ts` — mirror its pure-domain test patterns.
 
-Task:
-- `RangeLibrary`: add the `onViewPerformance` prop and the per-card "Stats" button
-  (aria-label `View stats for {name}`), wired to call `onViewPerformance(range)`.
-- `App`: add `handAccuracy` state (load + refresh after sessions), `performanceRange`
-  state + `handleViewPerformance`, render `RangePerformance` per the precedence above, pass
-  `onViewPerformance={handleViewPerformance}` to `RangeLibrary`, and add the header
-  subtitle case.
+Task — add to `src/domain/practice.ts`:
+- `export type HeatLevel = 'untested' | 'low' | 'medium' | 'high'`.
+- `accuracyHeatLevel(stat: HandAccuracyStat | undefined): HeatLevel`:
+  - `'untested'` when `stat` is `undefined` or `stat.attempts === 0` (so hands never
+    practiced read as untested),
+  - otherwise bucket by `handAccuracyRate(stat)`: `< 50` → `'low'`, `< 80` → `'medium'`,
+    `>= 80` → `'high'`.
+  - Pure; doc comment in the same style noting the thresholds and the untested case.
 
-Tests to add/update:
-- `src/components/RangeLibrary.test.tsx` — a "Stats" button exists per card and clicking it
-  calls `onViewPerformance` with the range (add an `onViewPerformance` to that test file's
-  render helper / default props so existing tests keep compiling).
-- `src/App.test.tsx` — after saving a range, clicking its "Stats" button shows the
-  performance view (`Performance: <name>` heading); with no practice data it shows the
-  empty state; "Back to library" returns to the editor/library. (Optionally: practice the
-  range first, then open Stats and assert a per-hand row appears — reuse the recognition
-  flow + `.practice-prompt-hand` read.) Keep all existing library/practice tests green
-  (add the new required prop wherever `RangeLibrary` is rendered directly, if any).
+Tests to add (`src/domain/practice.test.ts`, new `describe('accuracyHeatLevel', …)`):
+- `undefined` → `'untested'`; a stat with `attempts: 0` → `'untested'`;
+- 0% and 49% → `'low'`; exactly 50% and 79% → `'medium'`; exactly 80% and 100% → `'high'`
+  (cover the 50 and 80 boundaries explicitly using attempts/correct that hit those rates,
+  e.g. 1/2 = 50, 4/5 = 80, 3/4 = 75).
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -224,12 +211,11 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: the `App` wiring + `RangeLibrary` card action + tests. Do NOT
-  modify `RangePerformance`, practice components, or the picker.
-- Read persisted accuracy through `loadHandAccuracy`; keep storage access in `App`
-  (components stay prop-fed).
+- Stay within this slice: ONLY the `HeatLevel` type, `accuracyHeatLevel`, and tests. No UI,
+  no storage, no new mode.
+- Keep it pure and in `src/domain/`.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: open the range performance view from a library card`
+- `feat: add accuracy heat-level helper for the range heatmap`
