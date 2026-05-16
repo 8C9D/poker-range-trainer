@@ -1,0 +1,29 @@
+.hand-accuracy-table {
+  width: 100%;
+  margin-top: 16px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.hand-accuracy-table th,
+.hand-accuracy-table td {
+  padding: 6px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.hand-accuracy-table th {
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.hand-accuracy-table td:first-child {
+  font-family: var(--mono);
+  color: var(--text-h);
+}
+
+.range-performance-empty {
+  margin: 24px 0;
+  font-size: 15px;
+  color: var(--text);
+}

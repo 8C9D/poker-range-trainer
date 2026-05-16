@@ -66,6 +66,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 29 | Per-hand accuracy storage foundation (persist + record) | v2.1 — Mistake tracking and review | 2026-06-06 |
 | 30 | Record per-hand accuracy at end of session (wiring) | v2.1 — Mistake tracking and review | 2026-06-06 |
 | 31 | Per-hand accuracy presentation helpers (rate + ranking) | v2.1 — Mistake tracking and review | 2026-06-06 |
+| 32 | Range performance view component (weakest-hands table) | v2.1 — Mistake tracking and review | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -149,67 +150,73 @@ Slice 31 added the pure presentation helpers in `src/domain/practice.ts`:
 `rankHandAccuracy(rangeStats)` (weakest-first: ascending accuracy, then more attempts,
 then canonical order).
 
-Still to come in v2.1: surface the data — a range-specific performance view, a heatmap
-overlay on the grid, a "practice mistakes only" mode, and session history. The next slice
-builds the standalone `RangePerformance` component (weakest-first per-hand table from
-`rankHandAccuracy`); wiring it into the library so a card can open it follows in the slice
-after.
+Slice 32 added the standalone `RangePerformance` component: a weakest-first per-hand table
+(hand, accuracy %, attempts, missed, wrongly-included) from `rankHandAccuracy`, with an
+empty state. It is fully tested but not yet reachable.
+
+Still to come in v2.1: wire the performance view into the library; a heatmap overlay on
+the grid; a "practice mistakes only" mode; and session history. The next slice wires
+`RangePerformance` in — a library card gets a "Stats" action that opens the view for that
+range, reading the persisted per-hand accuracy (`loadHandAccuracy`).
 
 ## Next slice
 
-- **Number:** 32
+- **Number:** 33
 - **Roadmap target:** v2.1 — Mistake tracking and review
-- **Working title:** Range performance view component (weakest-hands table)
+- **Working title:** Open the performance view from a library card (wiring)
 
 ### Prompt
 
-You are implementing roadmap slice 32, continuing **v2.1 — Mistake tracking and review**.
-The per-hand data is aggregated, persisted, and rankable (slices 28–31). This slice builds
-the range-specific PERFORMANCE VIEW component that displays it. Do NOT wire it into the
-library/`App` yet — that is the NEXT slice (33). Keep it standalone and fully tested first
-(its test exercises it), mirroring the component-then-wiring rhythm used throughout v2.
+You are implementing roadmap slice 33, continuing **v2.1 — Mistake tracking and review**.
+Slice 32 built the standalone `RangePerformance` component. This slice makes it reachable:
+a "Stats" action on each library card opens the per-hand performance view for that range,
+reading the persisted per-hand accuracy.
 
-Scope of THIS slice: a self-contained `RangePerformance` component that takes a range and
-its cumulative per-hand accuracy and renders a weakest-first table plus an empty state.
+Scope of THIS slice: wire `RangePerformance` into `App` and add the card action in
+`RangeLibrary`. No changes to the performance component itself or to practice flows.
 
 Context (read these before starting):
-- `src/domain/practice.ts` — `rankHandAccuracy(rangeStats)` (weakest-first
-  `HandAccuracyStat[]`) and `handAccuracyRate(stat)` (accuracy %). Use these; do not
-  re-rank or recompute accuracy in the component.
-- `src/types/practice.ts` — `RangeHandAccuracy = Record<PokerHand, HandAccuracyStat>`
-  (cumulative per-hand stats for one range; may be empty `{}`), `HandAccuracyStat`.
-- `src/types/range.ts` — `SavedRange`.
-- `src/components/PracticeSession.css` — reuse classes for layout (`practice-session`,
-  `practice-header`, `practice-review`*; the review-hands list styling). Add a small
-  `RangePerformance.css` ONLY if you need new classes (e.g. a simple table); keep styling
-  minimal and consistent with the app.
-- `src/components/RangeLibrary.test.tsx` / `PracticeSession.test.tsx` — RTL patterns to
-  mirror (render, `getByRole`, `within`, accessible names/labels).
+- `src/App.tsx` — top-level view switching. `practicingRange` selects the practice views;
+  otherwise the editor/library renders. It already keeps `practiceStats` in state via
+  `loadPracticeStats()` and refreshes it after a session. Add a parallel `handAccuracy`
+  state from `loadHandAccuracy()` (import from `./storage/handAccuracyStorage`) and refresh
+  it in `handleEndPractice` right where `setPracticeStats(loadPracticeStats())` runs (so a
+  freshly finished session shows up). Add a `performanceRange: SavedRange | null` state and
+  a handler `handleViewPerformance(range)` that sets it; render `RangePerformance` when it
+  is non-null.
+  - View precedence: `practicingRange` first (unchanged), then `performanceRange` →
+    `<RangePerformance range={performanceRange} accuracy={handAccuracy[performanceRange.id]
+    ?? {}} onClose={() => setPerformanceRange(null)} />`, else the editor/library `<>...</>`.
+  - Give the header a sensible subtitle while viewing performance (e.g. "Review your
+    per-hand accuracy.").
+- `src/components/RangeLibrary.tsx` — renders each saved range as a card with action
+  buttons (`onLoad`, `onPractice`, `onDuplicate`, `onFavorite`, `onArchive`, `onDelete`),
+  each with an accessible name like `Practice range {name}`. Add an `onViewPerformance:
+  (range: SavedRange) => void` prop and a "Stats" button per card with aria-label
+  `View stats for {range.name}`, following the existing button pattern. Pass it through
+  from `App`.
+- `src/storage/handAccuracyStorage.ts` — `loadHandAccuracy()`.
+- `src/components/RangeLibrary.test.tsx` and `src/App.test.tsx` — mirror existing patterns
+  (the `onPractice` / "Practice range …" wiring is the closest model).
 
-Task — add `src/components/RangePerformance.tsx` exporting
-`RangePerformance({ range, accuracy, onClose }: { range: SavedRange; accuracy:
-RangeHandAccuracy; onClose: () => void })`:
-- Header `Performance: {range.name}` and a "Back to library" button calling `onClose`.
-- Compute `const ranked = rankHandAccuracy(accuracy)`.
-- If `ranked` is empty, show an empty state (e.g. "No practice data yet — practice this
-  range to see per-hand accuracy.").
-- Otherwise render a table/list of the ranked hands (weakest first). For each hand show:
-  the hand, its accuracy via `handAccuracyRate(stat)` (e.g. `42%` using `.toFixed(0)`),
-  `attempts`, and the mistake split (`falseNegatives` as "missed", `falsePositives` as
-  "wrongly included"). Use a real `<table>` with a header row, or a list with clearly
-  labelled fields; give the table/list an `aria-label` like "Per-hand accuracy" so tests
-  can target it. Keep it readable for 50+ rows.
-- Pure presentation: no storage reads, no Date, no random — all data comes via props and
-  the domain helpers.
+Task:
+- `RangeLibrary`: add the `onViewPerformance` prop and the per-card "Stats" button
+  (aria-label `View stats for {name}`), wired to call `onViewPerformance(range)`.
+- `App`: add `handAccuracy` state (load + refresh after sessions), `performanceRange`
+  state + `handleViewPerformance`, render `RangePerformance` per the precedence above, pass
+  `onViewPerformance={handleViewPerformance}` to `RangeLibrary`, and add the header
+  subtitle case.
 
-Tests to add (`src/components/RangePerformance.test.tsx`, RTL):
-- shows the range name and the empty state when `accuracy` is `{}`;
-- renders one row per hand with attempts, showing each hand and its accuracy %, with
-  weakest hands first (construct an `accuracy` map with a 0% and a 100% hand and assert
-  the row order);
-- shows the missed / wrongly-included counts for a hand (build a stat with known
-  `falseNegatives`/`falsePositives`);
-- "Back to library" calls `onClose`.
+Tests to add/update:
+- `src/components/RangeLibrary.test.tsx` — a "Stats" button exists per card and clicking it
+  calls `onViewPerformance` with the range (add an `onViewPerformance` to that test file's
+  render helper / default props so existing tests keep compiling).
+- `src/App.test.tsx` — after saving a range, clicking its "Stats" button shows the
+  performance view (`Performance: <name>` heading); with no practice data it shows the
+  empty state; "Back to library" returns to the editor/library. (Optionally: practice the
+  range first, then open Stats and assert a per-hand row appears — reuse the recognition
+  flow + `.practice-prompt-hand` read.) Keep all existing library/practice tests green
+  (add the new required prop wherever `RangeLibrary` is rendered directly, if any).
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -217,11 +224,12 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: ONLY `RangePerformance.tsx`, its CSS (if needed), and its test.
-  Do NOT modify `App.tsx`, `RangeLibrary`, or any practice component (wiring is slice 33).
-- Reuse `rankHandAccuracy` / `handAccuracyRate`; no duplicated ranking/accuracy logic.
+- Stay within this slice: the `App` wiring + `RangeLibrary` card action + tests. Do NOT
+  modify `RangePerformance`, practice components, or the picker.
+- Read persisted accuracy through `loadHandAccuracy`; keep storage access in `App`
+  (components stay prop-fed).
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: add range performance view component`
+- `feat: open the range performance view from a library card`
