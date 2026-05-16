@@ -157,6 +157,24 @@ export function rankHandAccuracy(rangeStats: RangeHandAccuracy): HandAccuracySta
     })
 }
 
+/** Coarse accuracy band for a hand, for the range heatmap overlay. */
+export type HeatLevel = 'untested' | 'low' | 'medium' | 'high'
+
+/**
+ * Bucket a hand's accuracy into a heat level for the range heatmap.
+ *
+ * `'untested'` when the hand has no attempts (or no stat at all); otherwise by
+ * `handAccuracyRate`: below 50% is `'low'`, 50–79% is `'medium'`, and 80%+ is
+ * `'high'`. Pure.
+ */
+export function accuracyHeatLevel(stat: HandAccuracyStat | undefined): HeatLevel {
+  if (!stat || stat.attempts === 0) return 'untested'
+  const rate = handAccuracyRate(stat)
+  if (rate < 50) return 'low'
+  if (rate < 80) return 'medium'
+  return 'high'
+}
+
 /**
  * Compare a user-built set of hands against a target range, for "build from
  * memory" practice (mode 3).

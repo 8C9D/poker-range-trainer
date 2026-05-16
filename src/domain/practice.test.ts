@@ -8,6 +8,7 @@ import {
   summarizeHandAccuracy,
   handAccuracyRate,
   rankHandAccuracy,
+  accuracyHeatLevel,
   compareBuiltRange,
   getRandomPracticeHand,
 } from './practice'
@@ -297,6 +298,36 @@ describe('rankHandAccuracy', () => {
     const snapshot = JSON.parse(JSON.stringify(input))
     rankHandAccuracy(input)
     expect(input).toEqual(snapshot)
+  })
+})
+
+describe('accuracyHeatLevel', () => {
+  const stat = (attempts: number, correct: number): HandAccuracyStat => ({
+    hand: 'AA',
+    attempts,
+    correct,
+    falsePositives: 0,
+    falseNegatives: 0,
+  })
+
+  it('is "untested" for no stat or zero attempts', () => {
+    expect(accuracyHeatLevel(undefined)).toBe('untested')
+    expect(accuracyHeatLevel(stat(0, 0))).toBe('untested')
+  })
+
+  it('is "low" below 50% accuracy', () => {
+    expect(accuracyHeatLevel(stat(5, 0))).toBe('low') // 0%
+    expect(accuracyHeatLevel(stat(100, 49))).toBe('low') // 49%
+  })
+
+  it('is "medium" from 50% up to 80%', () => {
+    expect(accuracyHeatLevel(stat(2, 1))).toBe('medium') // 50%
+    expect(accuracyHeatLevel(stat(4, 3))).toBe('medium') // 75%
+  })
+
+  it('is "high" at 80% and above', () => {
+    expect(accuracyHeatLevel(stat(5, 4))).toBe('high') // 80%
+    expect(accuracyHeatLevel(stat(2, 2))).toBe('high') // 100%
   })
 })
 
