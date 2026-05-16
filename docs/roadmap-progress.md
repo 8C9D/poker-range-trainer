@@ -65,6 +65,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 28 | Per-hand accuracy aggregation (v2.1 domain foundation) | v2.1 — Mistake tracking and review | 2026-06-06 |
 | 29 | Per-hand accuracy storage foundation (persist + record) | v2.1 — Mistake tracking and review | 2026-06-06 |
 | 30 | Record per-hand accuracy at end of session (wiring) | v2.1 — Mistake tracking and review | 2026-06-06 |
+| 31 | Per-hand accuracy presentation helpers (rate + ranking) | v2.1 — Mistake tracking and review | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -143,60 +144,72 @@ derives and persists BOTH the per-range summary (`recordPracticeSession`) and th
 accuracy (`recordHandAccuracy(summarizeHandAccuracy(attempts))`). Build-from-memory and the
 picker cancel are unchanged. Per-hand mistake data is now captured every session.
 
+Slice 31 added the pure presentation helpers in `src/domain/practice.ts`:
+`handAccuracyRate(stat)` (correct/attempts %, 0 when none) and
+`rankHandAccuracy(rangeStats)` (weakest-first: ascending accuracy, then more attempts,
+then canonical order).
+
 Still to come in v2.1: surface the data — a range-specific performance view, a heatmap
 overlay on the grid, a "practice mistakes only" mode, and session history. The next slice
-adds the pure presentation helpers (per-hand accuracy rate + a weakest-first ranking) that
-those views read, keeping the later UI slices small.
+builds the standalone `RangePerformance` component (weakest-first per-hand table from
+`rankHandAccuracy`); wiring it into the library so a card can open it follows in the slice
+after.
 
 ## Next slice
 
-- **Number:** 31
+- **Number:** 32
 - **Roadmap target:** v2.1 — Mistake tracking and review
-- **Working title:** Per-hand accuracy presentation helpers (rate + weakest-first ranking)
+- **Working title:** Range performance view component (weakest-hands table)
 
 ### Prompt
 
-You are implementing roadmap slice 31, continuing **v2.1 — Mistake tracking and review**.
-Per-hand accuracy is now aggregated (slice 28) and persisted every session (slices
-29–30). This slice adds the pure PRESENTATION helpers the upcoming v2.1 views (range
-performance page, heatmap overlay) will use to turn cumulative `RangeHandAccuracy` into
-display-ready, ranked data. Following the established rhythm, this is a pure-domain slice;
-the views that consume these helpers are the next slices.
+You are implementing roadmap slice 32, continuing **v2.1 — Mistake tracking and review**.
+The per-hand data is aggregated, persisted, and rankable (slices 28–31). This slice builds
+the range-specific PERFORMANCE VIEW component that displays it. Do NOT wire it into the
+library/`App` yet — that is the NEXT slice (33). Keep it standalone and fully tested first
+(its test exercises it), mirroring the component-then-wiring rhythm used throughout v2.
 
-Scope of THIS slice (foundation only): two pure functions + tests. No UI, no storage
-changes.
+Scope of THIS slice: a self-contained `RangePerformance` component that takes a range and
+its cumulative per-hand accuracy and renders a weakest-first table plus an empty state.
 
 Context (read these before starting):
-- `src/types/practice.ts` — `HandAccuracyStat` (`hand`, `attempts`, `correct`,
-  `falsePositives`, `falseNegatives`) and `RangeHandAccuracy = Record<PokerHand,
-  HandAccuracyStat>` (cumulative per-hand stats for one range, keyed by hand).
-- `src/domain/practice.ts` — has `summarizeHandAccuracy`, `summarizePracticeAttempts`
-  (whose `accuracyPercentage` is `correct/total*100`, 0 when total is 0 — match that
-  convention), and imports `ALL_HANDS` + `type PokerHand`. Add the new helpers here.
-- `src/domain/practice.test.ts` — mirror its pure-domain test patterns.
+- `src/domain/practice.ts` — `rankHandAccuracy(rangeStats)` (weakest-first
+  `HandAccuracyStat[]`) and `handAccuracyRate(stat)` (accuracy %). Use these; do not
+  re-rank or recompute accuracy in the component.
+- `src/types/practice.ts` — `RangeHandAccuracy = Record<PokerHand, HandAccuracyStat>`
+  (cumulative per-hand stats for one range; may be empty `{}`), `HandAccuracyStat`.
+- `src/types/range.ts` — `SavedRange`.
+- `src/components/PracticeSession.css` — reuse classes for layout (`practice-session`,
+  `practice-header`, `practice-review`*; the review-hands list styling). Add a small
+  `RangePerformance.css` ONLY if you need new classes (e.g. a simple table); keep styling
+  minimal and consistent with the app.
+- `src/components/RangeLibrary.test.tsx` / `PracticeSession.test.tsx` — RTL patterns to
+  mirror (render, `getByRole`, `within`, accessible names/labels).
 
-Task — add two pure functions to `src/domain/practice.ts`:
-- `handAccuracyRate(stat: HandAccuracyStat): number` — `stat.correct / stat.attempts *
-  100`, or `0` when `attempts === 0` (never NaN), matching `summarizePracticeAttempts`'s
-  accuracy convention. Doc comment in the same style.
-- `rankHandAccuracy(rangeStats: RangeHandAccuracy): HandAccuracyStat[]` — return the
-  range's per-hand stats (those with `attempts > 0`) sorted WEAKEST-FIRST so the worst
-  hands surface for review:
-  1. ascending `handAccuracyRate` (lower accuracy first),
-  2. tiebreak by MORE `attempts` first (a 0%-of-10 hand outranks a 0%-of-1 hand),
-  3. final tiebreak by canonical 13×13 order (reuse `ALL_HANDS`) for stable, deterministic
-     output.
-  Do not mutate the input. Doc comment explaining the ordering.
+Task — add `src/components/RangePerformance.tsx` exporting
+`RangePerformance({ range, accuracy, onClose }: { range: SavedRange; accuracy:
+RangeHandAccuracy; onClose: () => void })`:
+- Header `Performance: {range.name}` and a "Back to library" button calling `onClose`.
+- Compute `const ranked = rankHandAccuracy(accuracy)`.
+- If `ranked` is empty, show an empty state (e.g. "No practice data yet — practice this
+  range to see per-hand accuracy.").
+- Otherwise render a table/list of the ranked hands (weakest first). For each hand show:
+  the hand, its accuracy via `handAccuracyRate(stat)` (e.g. `42%` using `.toFixed(0)`),
+  `attempts`, and the mistake split (`falseNegatives` as "missed", `falsePositives` as
+  "wrongly included"). Use a real `<table>` with a header row, or a list with clearly
+  labelled fields; give the table/list an `aria-label` like "Per-hand accuracy" so tests
+  can target it. Keep it readable for 50+ rows.
+- Pure presentation: no storage reads, no Date, no random — all data comes via props and
+  the domain helpers.
 
-Tests to add (`src/domain/practice.test.ts`, new describes):
-- `handAccuracyRate`: 0 attempts → 0 (not NaN); 3/4 → 75; 0/5 → 0; 2/2 → 100.
-- `rankHandAccuracy`:
-  - empty map → `[]`;
-  - lower-accuracy hands come before higher-accuracy ones;
-  - equal accuracy → the hand with more attempts comes first;
-  - equal accuracy AND equal attempts → canonical order (e.g. "AA" before "KK");
-  - only includes hands with `attempts > 0`;
-  - does not mutate the input object.
+Tests to add (`src/components/RangePerformance.test.tsx`, RTL):
+- shows the range name and the empty state when `accuracy` is `{}`;
+- renders one row per hand with attempts, showing each hand and its accuracy %, with
+  weakest hands first (construct an `accuracy` map with a 0% and a 100% hand and assert
+  the row order);
+- shows the missed / wrongly-included counts for a hand (build a stat with known
+  `falseNegatives`/`falsePositives`);
+- "Back to library" calls `onClose`.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -204,11 +217,11 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: ONLY `handAccuracyRate` and `rankHandAccuracy` plus tests. No
-  UI, no storage changes, no new mode.
-- Keep the helpers pure and in `src/domain/`.
+- Stay within this slice: ONLY `RangePerformance.tsx`, its CSS (if needed), and its test.
+  Do NOT modify `App.tsx`, `RangeLibrary`, or any practice component (wiring is slice 33).
+- Reuse `rankHandAccuracy` / `handAccuracyRate`; no duplicated ranking/accuracy logic.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: add per-hand accuracy rate and weakest-first ranking helpers`
+- `feat: add range performance view component`

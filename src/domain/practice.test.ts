@@ -6,10 +6,12 @@ import {
   summarizePracticeAttempts,
   reviewSessionMistakes,
   summarizeHandAccuracy,
+  handAccuracyRate,
+  rankHandAccuracy,
   compareBuiltRange,
   getRandomPracticeHand,
 } from './practice'
-import type { PracticeAttempt } from '../types/practice'
+import type { HandAccuracyStat, PracticeAttempt } from '../types/practice'
 
 const RANGE = ['AA', 'KK', 'AKs', 'AKo']
 
@@ -221,6 +223,80 @@ describe('summarizeHandAccuracy', () => {
     for (const stat of summarizeHandAccuracy(attempts)) {
       expect(stat.falsePositives + stat.falseNegatives).toBe(stat.attempts - stat.correct)
     }
+  })
+})
+
+describe('handAccuracyRate', () => {
+  const stat = (attempts: number, correct: number): HandAccuracyStat => ({
+    hand: 'AA',
+    attempts,
+    correct,
+    falsePositives: 0,
+    falseNegatives: 0,
+  })
+
+  it('is 0 for a hand with no attempts (never NaN)', () => {
+    expect(handAccuracyRate(stat(0, 0))).toBe(0)
+  })
+
+  it('computes correct/attempts as a percentage', () => {
+    expect(handAccuracyRate(stat(4, 3))).toBe(75)
+    expect(handAccuracyRate(stat(5, 0))).toBe(0)
+    expect(handAccuracyRate(stat(2, 2))).toBe(100)
+  })
+})
+
+describe('rankHandAccuracy', () => {
+  const stat = (hand: string, attempts: number, correct: number): HandAccuracyStat => ({
+    hand,
+    attempts,
+    correct,
+    falsePositives: 0,
+    falseNegatives: attempts - correct,
+  })
+
+  it('returns an empty array for an empty map', () => {
+    expect(rankHandAccuracy({})).toEqual([])
+  })
+
+  it('orders lower-accuracy hands first', () => {
+    const ranked = rankHandAccuracy({
+      AA: stat('AA', 4, 4), // 100%
+      KK: stat('KK', 4, 1), // 25%
+      QQ: stat('QQ', 4, 2), // 50%
+    })
+    expect(ranked.map((s) => s.hand)).toEqual(['KK', 'QQ', 'AA'])
+  })
+
+  it('breaks an accuracy tie by more attempts first', () => {
+    const ranked = rankHandAccuracy({
+      AA: stat('AA', 1, 0), // 0% of 1
+      KK: stat('KK', 10, 0), // 0% of 10
+    })
+    expect(ranked.map((s) => s.hand)).toEqual(['KK', 'AA'])
+  })
+
+  it('breaks an accuracy-and-attempts tie by canonical order', () => {
+    const ranked = rankHandAccuracy({
+      KK: stat('KK', 2, 1),
+      AA: stat('AA', 2, 1),
+    })
+    expect(ranked.map((s) => s.hand)).toEqual(['AA', 'KK'])
+  })
+
+  it('excludes hands with no attempts', () => {
+    const ranked = rankHandAccuracy({
+      AA: stat('AA', 0, 0),
+      KK: stat('KK', 2, 1),
+    })
+    expect(ranked.map((s) => s.hand)).toEqual(['KK'])
+  })
+
+  it('does not mutate the input', () => {
+    const input = { AA: stat('AA', 2, 1), KK: stat('KK', 4, 1) }
+    const snapshot = JSON.parse(JSON.stringify(input))
+    rankHandAccuracy(input)
+    expect(input).toEqual(snapshot)
   })
 })
 

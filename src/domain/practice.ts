@@ -1,6 +1,11 @@
 import { ALL_HANDS, isValidHand, type PokerHand } from './pokerHands'
 import { normalizeRangeHands } from './rangeMath'
-import type { HandAccuracyStat, PracticeAttempt, PracticeSessionSummary } from '../types/practice'
+import type {
+  HandAccuracyStat,
+  PracticeAttempt,
+  PracticeSessionSummary,
+  RangeHandAccuracy,
+} from '../types/practice'
 
 /**
  * Pure domain logic for practicing a saved preflop range: deciding whether a
@@ -122,6 +127,34 @@ export function summarizeHandAccuracy(attempts: PracticeAttempt[]): HandAccuracy
     }
   }
   return ALL_HANDS.filter((hand) => byHand.has(hand)).map((hand) => byHand.get(hand)!)
+}
+
+/**
+ * A hand's accuracy as a percentage (0–100): `correct / attempts * 100`, or 0
+ * when there are no attempts (never NaN). Matches the accuracy convention of
+ * `summarizePracticeAttempts`.
+ */
+export function handAccuracyRate(stat: HandAccuracyStat): number {
+  return stat.attempts === 0 ? 0 : (stat.correct / stat.attempts) * 100
+}
+
+/**
+ * Rank a range's cumulative per-hand stats weakest-first, so the hands most in
+ * need of review surface at the top. Includes only hands with at least one
+ * attempt and sorts by: ascending accuracy rate, then more attempts first (a
+ * 0%-of-10 hand outranks a 0%-of-1 hand), then canonical 13×13 order for a
+ * stable, deterministic result. Does not mutate the input.
+ */
+export function rankHandAccuracy(rangeStats: RangeHandAccuracy): HandAccuracyStat[] {
+  const order = new Map(ALL_HANDS.map((hand, index) => [hand, index]))
+  return Object.values(rangeStats)
+    .filter((stat) => stat.attempts > 0)
+    .sort((a, b) => {
+      const rateDiff = handAccuracyRate(a) - handAccuracyRate(b)
+      if (rateDiff !== 0) return rateDiff
+      if (a.attempts !== b.attempts) return b.attempts - a.attempts
+      return (order.get(a.hand) ?? 0) - (order.get(b.hand) ?? 0)
+    })
 }
 
 /**
