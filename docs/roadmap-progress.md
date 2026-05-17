@@ -71,6 +71,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 34 | Accuracy heat-level helper (heatmap foundation) | v2.1 — Mistake tracking and review | 2026-06-06 |
 | 35 | Range accuracy heatmap (component + performance-view integration) | v2.1 — Mistake tracking and review | 2026-06-06 |
 | 36 | Mistake-pool and restricted-draw helpers (mistakes-only foundation) | v2.1 — Mistake tracking and review | 2026-06-06 |
+| 37 | PracticeSession optional hand pool (restrict prompts to a subset) | v2.1 — Mistake tracking and review | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -175,59 +176,89 @@ Slice 36 added the mistakes-only domain foundation in `src/domain/practice.ts`:
 `handsWithMistakes(rangeStats)` (hands with any recorded error, canonical order) and
 `getRandomHandFrom(pool, random)` (draw a prompt from a restricted, non-empty pool).
 
-Still to come in v2.1: the "practice mistakes only" UI (two slices — make `PracticeSession`
-able to draw from a restricted pool, then wire a "Practice mistakes" entry from the
-performance view) and session history. The next slice adds an optional `handPool` prop to
-`PracticeSession` so recognition can be restricted to a given set of hands (default
-behavior unchanged).
+Slice 37 added the optional `handPool` prop to `PracticeSession`: when provided (non-empty)
+recognition draws prompts only from that subset via `getRandomHandFrom`; default behavior
+(full 169-hand draw) is unchanged.
 
-NOTE ON CADENCE: slices 19–36 are done this finish-v2 run (18 so far). After slice 38 the
-run reaches **20 slices** — the skill's safety checkpoint — so the loop should pause there,
-report progress, and ask before continuing.
+Still to come in v2.1: wire the "Practice mistakes" entry (the last piece of the
+mistakes-only mode) and session history. The next slice adds a "Practice mistakes" button
+to the performance view that launches a recognition session restricted to
+`handsWithMistakes` for the range.
+
+NOTE ON CADENCE: slices 19–37 are done this finish-v2 run (19 so far). Slice 38 is the
+**20th** slice — the skill's safety checkpoint — so after it completes the loop should
+pause, report progress, and ask the user before continuing into the rest of v2.1
+(session history) and v2.2/v2.3.
 
 ## Next slice
 
-- **Number:** 37
+- **Number:** 38
 - **Roadmap target:** v2.1 — Mistake tracking and review
-- **Working title:** PracticeSession optional hand pool (restrict prompts to a subset)
+- **Working title:** "Practice mistakes" entry from the performance view (completes mistakes-only)
 
 ### Prompt
 
-You are implementing roadmap slice 37, continuing **v2.1 — Mistake tracking and review**.
-Slice 36 added `handsWithMistakes` and `getRandomHandFrom`. This slice makes
-`PracticeSession` able to draw its prompts from a restricted pool, so the upcoming
-"practice mistakes only" entry (next slice) can reuse recognition over just the mistake
-hands. Do NOT wire the entry point yet — that is slice 38.
+You are implementing roadmap slice 38, continuing **v2.1 — Mistake tracking and review**.
+Everything for "practice mistakes only" exists except the entry point: `handsWithMistakes`
+(slice 36) and `PracticeSession`'s `handPool` prop (slice 37). This slice adds a "Practice
+mistakes" button to the performance view that launches a recognition session restricted to
+that range's mistake hands. Completing this delivers the "practice mistakes only" feature.
 
-Scope of THIS slice: add an optional `handPool` prop to `PracticeSession` and use it for
-prompt draws; default behavior (full 169-hand draw) is unchanged. No App/picker changes.
+(Reminder: this is the 20th slice of the finish-v2 run — the safety checkpoint. After it
+validates, commits, and pushes, PAUSE and report; ask the user before continuing.)
+
+Scope of THIS slice: a button in `RangePerformance` + the launch wiring in `App`. No
+changes to `PracticeSession`/domain.
 
 Context (read these before starting):
-- `src/components/PracticeSession.tsx` — recognition component. It draws the initial hand
-  with `useState<PokerHand>(() => getRandomPracticeHand(random))` and the next hand in
-  `nextHand()` with `getRandomPracticeHand(random)`. It takes `range`, `onExit(attempts)`,
-  and `random = Math.random`.
-- `src/domain/practice.ts` — `getRandomPracticeHand(random)` (full set) and
-  `getRandomHandFrom(pool, random)` (restricted, non-empty pool) from slice 36.
-- `src/components/PracticeSession.test.tsx` — RTL patterns + `sequenceRandom` helper.
+- `src/components/RangePerformance.tsx` — receives `range`, `accuracy: RangeHandAccuracy`,
+  `onClose`. It already imports from `../domain/practice`. Add `handsWithMistakes` to that
+  import to compute the mistake set.
+- `src/domain/practice.ts` — `handsWithMistakes(accuracy)` → `PokerHand[]`.
+- `src/App.tsx` — owns practice launch. Relevant: `practicingRange`, `practiceMode`
+  (`'recognize' | 'build' | 'timed' | 'weakness' | null`), `handAccuracy` state,
+  `performanceRange` state, `handleEndPractice(attempts)`, `exitPractice()`, and the render
+  precedence `practicingRange ? (…modes…) : performanceRange ? (<RangePerformance/>) :
+  (<>editor/library</>)`. The recognition branch renders `<PracticeSession range
+  onExit={handleEndPractice} />`.
+- `src/components/PracticeSession.tsx` — now accepts `handPool?: PokerHand[]`.
+- `src/types/practice.ts` / `pokerHands.ts` — `PokerHand`.
 
-Task — in `src/components/PracticeSession.tsx`:
-- Add an optional prop `handPool?: PokerHand[]` with a doc comment: when provided (and
-  non-empty), prompts are drawn only from these hands; otherwise all 169 hands are used.
-- Add a single private draw helper, e.g.
-  `const drawHand = () => (handPool && handPool.length > 0 ? getRandomHandFrom(handPool,
-  random) : getRandomPracticeHand(random))`, and use it for BOTH the initial `useState`
-  lazy initializer and `nextHand()`. (Guarding on `length > 0` keeps an accidental empty
-  pool from breaking draws — it falls back to the full set.)
-- Import `getRandomHandFrom`. Keep everything else (scoring, review, onExit contract)
-  unchanged.
+Task:
+- `RangePerformance.tsx`: compute `const mistakes = handsWithMistakes(accuracy)`. Add an
+  `onPracticeMistakes: () => void` prop. When `mistakes.length > 0`, render a "Practice
+  mistakes" button (e.g. in the header beside "Back to library") that calls
+  `onPracticeMistakes`; when there are no mistakes, do not render it. (The empty-state
+  branch never shows it.)
+- `App.tsx`:
+  - Add state `practiceHandPool: PokerHand[] | null` (null = full set). Import
+    `handsWithMistakes` and `type PokerHand` (PokerHand is already imported).
+  - `handlePractice(range)` (the normal picker launch) must also `setPracticeHandPool(null)`.
+  - `exitPractice()` must also `setPracticeHandPool(null)`.
+  - Add `handlePracticeMistakes()`: if `performanceRange`, compute `const pool =
+    handsWithMistakes(handAccuracy[performanceRange.id] ?? {})`; if `pool.length === 0`
+    return; else `setPracticingRange(performanceRange)`, `setPracticeMode('recognize')`,
+    `setPracticeHandPool(pool)`, `setPerformanceRange(null)` (go straight into recognition,
+    skipping the picker).
+  - In the recognition render branch, pass `handPool={practiceHandPool ?? undefined}` to
+    `<PracticeSession>`.
+  - Pass `onPracticeMistakes={handlePracticeMistakes}` to `<RangePerformance>`.
+  - Optional: when `practiceHandPool` is non-null, set a header subtitle like "Drill the
+    hands you keep missing." (otherwise the existing recognition subtitle).
+- Update `RangePerformance.test.tsx` render calls to pass the new required
+  `onPracticeMistakes` prop (add it to every render), and add tests: the button shows when
+  there are mistakes and is absent when there are none / in the empty state; clicking it
+  calls `onPracticeMistakes`.
 
-Tests to add (`src/components/PracticeSession.test.tsx`):
-- existing tests must still pass (no `handPool` → unchanged behavior);
-- with `handPool={['AA', 'KK']}` and a `random` sequence, the initial prompt and the
-  prompt after "Next hand" are both drawn from the pool (e.g. `random => 0` → "AA",
-  `random => 0.999` → "KK"); assert the shown hand is one of the pool hands across a draw
-  and the next draw.
+Tests to add (`src/App.test.tsx`):
+- Make a deterministic single mistake, then drill it: save a range (e.g. hands AA, KK),
+  Practice → Recognize, read `.practice-prompt-hand`, answer it WRONG (click the opposite
+  of the truth) so that hand becomes the only mistake, End Practice, Back to library. Open
+  "View stats for <name>", click "Practice mistakes", and assert recognition started (In
+  range / Out of range buttons) with the prompt hand equal to the single mistaken hand
+  (`.practice-prompt-hand` text === that hand, since the pool has exactly one hand).
+- Keep all existing tests green (add the new `onPracticeMistakes` prop wherever
+  `RangePerformance` is rendered directly).
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -235,12 +266,12 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: ONLY the `handPool` prop + draw helper in `PracticeSession` and
-  its tests. Do NOT modify `App`, the picker, or other practice components; do NOT wire the
-  mistakes-only entry (slice 38).
-- Reuse the domain draw helpers; no duplicated draw math in the component.
+- Stay within this slice: the `RangePerformance` button + `App` launch wiring + tests. Do
+  NOT modify `PracticeSession` or domain helpers.
+- Reuse `handsWithMistakes` + the existing `handPool` prop + `handleEndPractice` recording.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
+- After this slice: STOP at the 20-slice safety checkpoint and report; do not auto-continue.
 
 Suggested commit message:
-- `feat: let PracticeSession draw prompts from a restricted hand pool`
+- `feat: practice only the hands you keep missing from the performance view`

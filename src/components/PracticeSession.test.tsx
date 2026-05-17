@@ -209,4 +209,22 @@ describe('PracticeSession', () => {
     expect(onExit).toHaveBeenCalledOnce()
     expect(onExit).toHaveBeenCalledWith([])
   })
+
+  it('draws prompts only from handPool when one is provided', async () => {
+    const user = userEvent.setup()
+    // From the pool: random 0 -> "AA" (pool[0]), random 0.999 -> "KK" (pool[1]).
+    render(
+      <PracticeSession
+        range={makeRange()}
+        onExit={vi.fn()}
+        random={sequenceRandom([0, 0.999])}
+        handPool={['AA', 'KK']}
+      />,
+    )
+
+    expect(screen.getByText('AA')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'In range' }))
+    await user.click(screen.getByRole('button', { name: 'Next hand' }))
+    expect(screen.getByText('KK')).toBeInTheDocument()
+  })
 })

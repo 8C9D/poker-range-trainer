@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import {
   createPracticeAttempt,
+  getRandomHandFrom,
   getRandomPracticeHand,
   reviewSessionMistakes,
   summarizePracticeAttempts,
@@ -24,6 +25,11 @@ interface PracticeSessionProps {
    * injectable so tests can force a deterministic sequence of hands.
    */
   random?: () => number
+  /**
+   * When provided and non-empty, prompts are drawn only from these hands (e.g.
+   * a "practice mistakes only" subset); otherwise all 169 starting hands are used.
+   */
+  handPool?: PokerHand[]
 }
 
 /**
@@ -39,8 +45,17 @@ interface PracticeSessionProps {
  * component state; the final session summary is reported to the parent when the
  * user dismisses the review, which persists it.
  */
-export function PracticeSession({ range, onExit, random = Math.random }: PracticeSessionProps) {
-  const [currentHand, setCurrentHand] = useState<PokerHand>(() => getRandomPracticeHand(random))
+export function PracticeSession({
+  range,
+  onExit,
+  random = Math.random,
+  handPool,
+}: PracticeSessionProps) {
+  // Draw from the restricted pool when one is given (and non-empty); otherwise
+  // from all 169 hands. An empty pool falls back to the full set so draws never break.
+  const drawHand = () =>
+    handPool && handPool.length > 0 ? getRandomHandFrom(handPool, random) : getRandomPracticeHand(random)
+  const [currentHand, setCurrentHand] = useState<PokerHand>(drawHand)
   // The scored attempt for the current hand once answered; null while unanswered.
   const [currentAttempt, setCurrentAttempt] = useState<PracticeAttempt | null>(null)
   const [attempts, setAttempts] = useState<PracticeAttempt[]>([])
@@ -59,7 +74,7 @@ export function PracticeSession({ range, onExit, random = Math.random }: Practic
   }
 
   function nextHand() {
-    setCurrentHand(getRandomPracticeHand(random))
+    setCurrentHand(drawHand())
     setCurrentAttempt(null)
   }
 
