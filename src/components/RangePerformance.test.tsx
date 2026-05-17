@@ -29,11 +29,15 @@ function dataRows() {
 
 describe('RangePerformance', () => {
   it('shows the range name and an empty state when there is no data', () => {
-    render(<RangePerformance range={makeRange({ name: 'BTN' })} accuracy={{}} onClose={vi.fn()} />)
+    const { container } = render(
+      <RangePerformance range={makeRange({ name: 'BTN' })} accuracy={{}} onClose={vi.fn()} />,
+    )
 
     expect(screen.getByRole('heading', { name: /Performance: BTN/ })).toBeInTheDocument()
     expect(screen.getByText(/No practice data yet/)).toBeInTheDocument()
     expect(screen.queryByRole('table', { name: 'Per-hand accuracy' })).not.toBeInTheDocument()
+    // No heatmap in the empty state.
+    expect(container.querySelector('.hand-heatmap')).toBeNull()
   })
 
   it('lists hands weakest-first with accuracy and attempts', () => {
@@ -41,7 +45,12 @@ describe('RangePerformance', () => {
       AA: stat('AA', { attempts: 4, correct: 4 }), // 100%
       KK: stat('KK', { attempts: 4, correct: 1, falseNegatives: 3 }), // 25%
     }
-    render(<RangePerformance range={makeRange()} accuracy={accuracy} onClose={vi.fn()} />)
+    const { container } = render(
+      <RangePerformance range={makeRange()} accuracy={accuracy} onClose={vi.fn()} />,
+    )
+
+    // The heatmap is shown alongside the table when there is data.
+    expect(container.querySelector('.hand-heatmap')).not.toBeNull()
 
     const rows = dataRows()
     expect(within(rows[0]).getByText('KK')).toBeInTheDocument()

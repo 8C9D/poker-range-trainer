@@ -1,0 +1,60 @@
+.hand-heatmap {
+  display: grid;
+  grid-template-columns: repeat(13, 1fr);
+  gap: 2px;
+  max-width: 600px;
+  margin: 12px 0;
+  user-select: none;
+}
+
+.heat-cell {
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: clamp(8px, 1.4vw, 12px);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+.heat-cell.heat-untested {
+  color: var(--text);
+  background: var(--code-bg);
+}
+
+.heat-cell.heat-low {
+  color: #fff;
+  background: #cf222e;
+  border-color: #cf222e;
+}
+
+.heat-cell.heat-medium {
+  color: #3d2c00;
+  background: #d4a72c;
+  border-color: #d4a72c;
+}
+
+.heat-cell.heat-high {
+  color: #fff;
+  background: #1a7f37;
+  border-color: #1a7f37;
+}
+
+@media (prefers-color-scheme: dark) {
+  .heat-cell.heat-low {
+    background: #da3633;
+    border-color: #da3633;
+  }
+
+  .heat-cell.heat-medium {
+    color: #1c1400;
+    background: #bb8009;
+    border-color: #bb8009;
+  }
+
+  .heat-cell.heat-high {
+    background: #238636;
+    border-color: #238636;
+  }
+}

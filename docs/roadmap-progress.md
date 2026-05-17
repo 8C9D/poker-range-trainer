@@ -69,6 +69,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 32 | Range performance view component (weakest-hands table) | v2.1 — Mistake tracking and review | 2026-06-06 |
 | 33 | Open the performance view from a library card (wiring) | v2.1 — Mistake tracking and review | 2026-06-06 |
 | 34 | Accuracy heat-level helper (heatmap foundation) | v2.1 — Mistake tracking and review | 2026-06-06 |
+| 35 | Range accuracy heatmap (component + performance-view integration) | v2.1 — Mistake tracking and review | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -165,68 +166,63 @@ Slice 34 added the pure `accuracyHeatLevel(stat)` helper (+ `HeatLevel` type) in
 `src/domain/practice.ts`: untested when no attempts, else low (<50%) / medium (50–79%) /
 high (80%+).
 
-Still to come in v2.1: the heatmap overlay itself, a "practice mistakes only" mode, and
-session history. The next slice adds the read-only `HandHeatmap` 13×13 grid (cells colored
-by `accuracyHeatLevel`) AND surfaces it in `RangePerformance` (the wire is one line, so
-component + integration land together here rather than as a dead-code component slice).
+Slice 35 added the read-only `HandHeatmap` 13×13 grid (cells colored by
+`accuracyHeatLevel`, with `data-heat` for tests) and surfaced it in `RangePerformance`
+above the table when there is data.
+
+Still to come in v2.1: a "practice mistakes only" mode and session history. The next slice
+adds that mode's pure domain foundation — `handsWithMistakes(rangeStats)` (the hands with
+recorded errors) and `getRandomHandFrom(pool, random)` (drawing a prompt from a restricted
+pool) — before the UI that drills only those hands.
 
 ## Next slice
 
-- **Number:** 35
+- **Number:** 36
 - **Roadmap target:** v2.1 — Mistake tracking and review
-- **Working title:** Range accuracy heatmap (grid component + performance-view integration)
+- **Working title:** "Practice mistakes only" domain foundation (mistake pool + pool draw)
 
 ### Prompt
 
-You are implementing roadmap slice 35, continuing **v2.1 — Mistake tracking and review**.
-The `accuracyHeatLevel` helper landed in slice 34. This slice delivers the "heatmap
-overlay on the range grid": a read-only 13×13 grid whose cells are colored by per-hand
-accuracy, surfaced inside the existing `RangePerformance` view. The integration is a
-single element, so the component and its wiring land together (not a dead-code slice).
+You are implementing roadmap slice 36, continuing **v2.1 — Mistake tracking and review**.
+The next v2.1 feature is the "practice mistakes only" mode: a recognition session that
+prompts ONLY the hands the user has previously gotten wrong for a range (from persisted
+per-hand accuracy). Following the established rhythm, THIS slice adds only the pure domain
+foundation: which hands count as mistakes, and how to draw a prompt from a restricted
+pool. The UI (a `PracticeSession` restricted to that pool) and its entry point are the
+next slices.
 
-Scope of THIS slice: a new read-only `HandHeatmap` component + showing it in
-`RangePerformance` when there is data. Do NOT touch the interactive `HandGrid`, practice
-flows, or storage.
+Scope of THIS slice (foundation only): two pure functions + tests. No UI, no storage
+changes.
 
 Context (read these before starting):
-- `src/domain/pokerHands.ts` — `generateHandMatrix()` / `ALL_HANDS` (canonical 13×13
-  order), `type PokerHand`.
-- `src/components/HandGrid.tsx` and `HandGrid.css` — the interactive grid; mirror its
-  13×13 CSS-grid layout approach for the heatmap, but the heatmap is READ-ONLY (plain
-  `<div>` cells, NOT buttons — do not reuse `HandCell`). Build a small `HandHeatmap.css`.
-- `src/domain/practice.ts` — `accuracyHeatLevel(stat)` and `HeatLevel`.
-- `src/types/practice.ts` — `RangeHandAccuracy = Record<PokerHand, HandAccuracyStat>`.
-- `src/components/RangePerformance.tsx` — already receives `accuracy: RangeHandAccuracy`
-  and renders the weakest-first table (or an empty state when `rankHandAccuracy` is empty).
-- `src/components/HandGrid.test.tsx` — RTL patterns for grid rendering to mirror.
+- `src/domain/practice.ts` — has `getRandomPracticeHand(random)` (draws from `ALL_HANDS`
+  with the `Math.min(len - 1, Math.floor(random() * len))` clamp), `summarizeHandAccuracy`,
+  `rankHandAccuracy`, and imports `ALL_HANDS` + `type PokerHand`. Add the new helpers here.
+- `src/types/practice.ts` — `RangeHandAccuracy = Record<PokerHand, HandAccuracyStat>`,
+  `HandAccuracyStat` (`falsePositives`, `falseNegatives`).
+- `src/domain/practice.test.ts` — mirror its pure-domain test patterns.
 
-Task:
-- Create `src/components/HandHeatmap.tsx` exporting `HandHeatmap({ accuracy }: { accuracy:
-  RangeHandAccuracy })`:
-  - Render all 169 hands (from `generateHandMatrix().flat()`, built once at module load
-    like `HandGrid`) as read-only cells in a `<div className="hand-heatmap"
-    aria-label="Accuracy heatmap">`.
-  - Each cell: `<div className={`heat-cell heat-${level}`} data-heat={level}
-    title={...}>{hand}</div>` where `level = accuracyHeatLevel(accuracy[hand])`. The
-    `data-heat` attribute makes the level queryable in tests; the `title` can show the hand
-    and its accuracy/attempts for hover (optional but nice).
-  - Pure presentation; no interactivity, no storage, no Date/random.
-- Add `src/components/HandHeatmap.css`: a 13-column CSS grid (mirror `HandGrid.css`
-  sizing) and four heat colors — `heat-untested` (neutral/gray), `heat-low` (red),
-  `heat-medium` (amber), `heat-high` (green) — using the app's CSS variables where
-  sensible and readable in light/dark.
-- In `src/components/RangePerformance.tsx`, render `<HandHeatmap accuracy={accuracy} />`
-  in the non-empty branch (when `ranked.length > 0`), above the table, under a small
-  heading or caption. Leave the empty state unchanged.
+Task — add two pure functions to `src/domain/practice.ts`:
+- `handsWithMistakes(rangeStats: RangeHandAccuracy): PokerHand[]` — the hands the user has
+  gotten wrong at least once: those whose `falsePositives + falseNegatives > 0`. Return in
+  canonical 13×13 order (filter `ALL_HANDS`). Hands with attempts but no errors, and hands
+  with no stats, are excluded. Doc comment in the same style.
+- `getRandomHandFrom(pool: PokerHand[], random: () => number = Math.random): PokerHand` —
+  draw one hand from `pool` using the SAME clamp idiom as `getRandomPracticeHand`
+  (`Math.min(pool.length - 1, Math.floor(random() * pool.length))`). Document that `pool`
+  must be non-empty (the caller guarantees this — the mistakes-only entry is only offered
+  when `handsWithMistakes` is non-empty). Doc comment in the same style.
 
-Tests:
-- `src/components/HandHeatmap.test.tsx` (new): renders 169 cells; a hand with high accuracy
-  has `data-heat="high"`, a low one `"low"`, and a hand absent from `accuracy` is
-  `"untested"` (use `screen.getByText('AA').getAttribute('data-heat')` style assertions);
-  the region has the `Accuracy heatmap` label.
-- `src/components/RangePerformance.test.tsx` (update): when there is data, the heatmap
-  (`aria-label="Accuracy heatmap"`) is shown alongside the table; the empty-state case
-  still shows no heatmap.
+Tests to add (`src/domain/practice.test.ts`, new describes):
+- `handsWithMistakes`:
+  - empty map → `[]`;
+  - includes a hand with `falseNegatives > 0` and a hand with `falsePositives > 0`;
+  - excludes a hand with attempts but zero errors (all correct);
+  - returns hands in canonical order (e.g. attempts on "KK" and "AA" → `["AA", "KK"]`).
+- `getRandomHandFrom`:
+  - `random => 0` returns the first pool entry; `random => 0.999`/`1` returns the last
+    (clamped); a mid value indexes the expected entry;
+  - works for a single-element pool (always returns it).
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -234,12 +230,11 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: `HandHeatmap` (+ css + test) and the `RangePerformance`
-  integration (+ its test). Do NOT modify `HandGrid`/`HandCell`, practice components, or
-  storage.
-- Reuse `accuracyHeatLevel`; no duplicated bucketing in the component.
+- Stay within this slice: ONLY `handsWithMistakes` and `getRandomHandFrom` plus tests. No
+  UI, no storage, no new mode wiring.
+- Keep the helpers pure and in `src/domain/`.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: add per-hand accuracy heatmap to the performance view`
+- `feat: add mistake-pool and restricted-draw helpers for mistakes-only practice`

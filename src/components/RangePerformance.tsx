@@ -1,6 +1,7 @@
 import { handAccuracyRate, rankHandAccuracy } from '../domain/practice'
 import type { RangeHandAccuracy } from '../types/practice'
 import type { SavedRange } from '../types/range'
+import { HandHeatmap } from './HandHeatmap'
 import './PracticeSession.css'
 import './RangePerformance.css'
 
@@ -36,7 +37,10 @@ export function RangePerformance({ range, accuracy, onClose }: RangePerformanceP
           No practice data yet — practice this range to see per-hand accuracy.
         </p>
       ) : (
-        <table className="hand-accuracy-table" aria-label="Per-hand accuracy">
+        <>
+          <h3 className="practice-review-heading">Accuracy heatmap</h3>
+          <HandHeatmap accuracy={accuracy} />
+          <table className="hand-accuracy-table" aria-label="Per-hand accuracy">
           <thead>
             <tr>
               <th scope="col">Hand</th>
@@ -57,7 +61,8 @@ export function RangePerformance({ range, accuracy, onClose }: RangePerformanceP
               </tr>
             ))}
           </tbody>
-        </table>
+          </table>
+        </>
       )}
     </section>
   )
