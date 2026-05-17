@@ -1,4 +1,4 @@
-import { handAccuracyRate, rankHandAccuracy } from '../domain/practice'
+import { handAccuracyRate, handsWithMistakes, rankHandAccuracy } from '../domain/practice'
 import type { RangeHandAccuracy } from '../types/practice'
 import type { SavedRange } from '../types/range'
 import { HandHeatmap } from './HandHeatmap'
@@ -12,6 +12,8 @@ interface RangePerformanceProps {
   accuracy: RangeHandAccuracy
   /** Return to the library view. */
   onClose: () => void
+  /** Start a recognition session restricted to this range's mistaken hands. */
+  onPracticeMistakes: () => void
 }
 
 /**
@@ -20,13 +22,24 @@ interface RangePerformanceProps {
  * with. Ranking and accuracy come from the `rankHandAccuracy` / `handAccuracyRate`
  * domain helpers; this component is pure presentation fed by props.
  */
-export function RangePerformance({ range, accuracy, onClose }: RangePerformanceProps) {
+export function RangePerformance({
+  range,
+  accuracy,
+  onClose,
+  onPracticeMistakes,
+}: RangePerformanceProps) {
   const ranked = rankHandAccuracy(accuracy)
+  const hasMistakes = handsWithMistakes(accuracy).length > 0
 
   return (
     <section className="practice-session" aria-label="Range performance">
       <header className="practice-header">
         <h2>Performance: {range.name}</h2>
+        {hasMistakes && (
+          <button type="button" className="primary" onClick={onPracticeMistakes}>
+            Practice mistakes
+          </button>
+        )}
         <button type="button" onClick={onClose}>
           Back to library
         </button>

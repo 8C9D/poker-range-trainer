@@ -12,7 +12,7 @@ import { RangeShortcuts } from './components/RangeShortcuts'
 import { setRangeArchived } from './domain/rangeArchive'
 import { duplicateRange } from './domain/rangeDuplication'
 import { setRangeFavorite } from './domain/rangeFavorite'
-import { summarizeHandAccuracy, summarizePracticeAttempts } from './domain/practice'
+import { handsWithMistakes, summarizeHandAccuracy, summarizePracticeAttempts } from './domain/practice'
 import { calculateRangePercentage, countSelectedCombos } from './domain/rangeMath'
 import { mergeShortcutHands } from './domain/rangeShortcuts'
 import type { PokerHand } from './domain/pokerHands'
@@ -55,6 +55,9 @@ function App() {
   const [performanceRange, setPerformanceRange] = useState<SavedRange | null>(null)
   // null = editor/library view; otherwise the saved range being practiced.
   const [practicingRange, setPracticingRange] = useState<SavedRange | null>(null)
+  // When non-null, recognition practice is restricted to these hands (the
+  // "practice mistakes only" pool); null means the full 169-hand set.
+  const [practiceHandPool, setPracticeHandPool] = useState<PokerHand[] | null>(null)
   // Which practice mode is active for `practicingRange`. null = the mode picker is
   // showing (no mode chosen yet); chosen modes route to their components.
   const [practiceMode, setPracticeMode] = useState<
@@ -255,17 +258,32 @@ function App() {
   }
 
   function handlePractice(range: SavedRange) {
-    // Start at the mode picker (no mode chosen yet) for the selected range.
+    // Start at the mode picker (no mode chosen yet) for the selected range, over
+    // the full hand set.
     setPracticingRange(range)
     setPracticeMode(null)
+    setPracticeHandPool(null)
   }
 
   // Leave practice entirely, returning to the editor/library and resetting the
-  // mode so the next launch starts at the picker. Used by the picker's cancel,
-  // build-from-memory's exit, and (via handleEndPractice) recognition's exit.
+  // mode and hand pool so the next launch starts clean. Used by the picker's
+  // cancel, build-from-memory's exit, and (via handleEndPractice) recognition's exit.
   function exitPractice() {
     setPracticingRange(null)
     setPracticeMode(null)
+    setPracticeHandPool(null)
+  }
+
+  function handlePracticeMistakes() {
+    // Launch recognition restricted to the range's mistaken hands, straight past
+    // the mode picker. Guarded so an empty pool never starts an unwinnable drill.
+    if (!performanceRange) return
+    const pool = handsWithMistakes(handAccuracy[performanceRange.id] ?? {})
+    if (pool.length === 0) return
+    setPracticingRange(performanceRange)
+    setPracticeMode('recognize')
+    setPracticeHandPool(pool)
+    setPerformanceRange(null)
   }
 
   function handleEndPractice(attempts: PracticeAttempt[]) {
@@ -294,7 +312,9 @@ function App() {
   let headerSubtitle: string
   if (practicingRange) {
     if (practiceMode === 'recognize') {
-      headerSubtitle = 'Test your range recognition.'
+      headerSubtitle = practiceHandPool
+        ? 'Drill the hands you keep missing.'
+        : 'Test your range recognition.'
     } else if (practiceMode === 'build') {
       headerSubtitle = 'Rebuild the range from memory.'
     } else if (practiceMode === 'timed') {
@@ -319,7 +339,11 @@ function App() {
 
       {practicingRange ? (
         practiceMode === 'recognize' ? (
-          <PracticeSession range={practicingRange} onExit={handleEndPractice} />
+          <PracticeSession
+            range={practicingRange}
+            onExit={handleEndPractice}
+            handPool={practiceHandPool ?? undefined}
+          />
         ) : practiceMode === 'build' ? (
           <BuildFromMemoryPractice range={practicingRange} onExit={exitPractice} />
         ) : practiceMode === 'timed' ? (
@@ -379,6 +403,7 @@ function App() {
           range={performanceRange}
           accuracy={handAccuracy[performanceRange.id] ?? {}}
           onClose={() => setPerformanceRange(null)}
+          onPracticeMistakes={handlePracticeMistakes}
         />
       ) : (
         <>

@@ -590,6 +590,33 @@ describe('Range performance view', () => {
     expect(within(table).getByText(promptHand)).toBeInTheDocument()
     expect(within(table).getByText('100%')).toBeInTheDocument()
   })
+
+  it('drills only the missed hands via "Practice mistakes"', async () => {
+    const user = userEvent.setup()
+    const { container } = render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Pairs')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'KK' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    // Recognition: answer the shown hand WRONG so it becomes the single mistake.
+    await user.click(screen.getByRole('button', { name: 'Practice range Pairs' }))
+    await user.click(screen.getByRole('button', { name: 'Recognize hands (in/out)' }))
+    const missedHand = container.querySelector('.practice-prompt-hand')?.textContent ?? ''
+    const inRange = missedHand === 'AA' || missedHand === 'KK'
+    await user.click(screen.getByRole('button', { name: inRange ? 'Out of range' : 'In range' }))
+    await user.click(screen.getByRole('button', { name: 'End Practice' }))
+    await user.click(screen.getByRole('button', { name: 'Back to library' }))
+
+    // Drill the mistakes: the only mistake is `missedHand`, so (pool of one) it
+    // must be the prompt.
+    await user.click(screen.getByRole('button', { name: 'View stats for Pairs' }))
+    await user.click(screen.getByRole('button', { name: 'Practice mistakes' }))
+
+    expect(screen.getByRole('button', { name: 'In range' })).toBeInTheDocument()
+    expect(container.querySelector('.practice-prompt-hand')?.textContent).toBe(missedHand)
+  })
 })
 
 describe('Range shortcuts', () => {

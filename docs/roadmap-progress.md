@@ -72,6 +72,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 35 | Range accuracy heatmap (component + performance-view integration) | v2.1 — Mistake tracking and review | 2026-06-06 |
 | 36 | Mistake-pool and restricted-draw helpers (mistakes-only foundation) | v2.1 — Mistake tracking and review | 2026-06-06 |
 | 37 | PracticeSession optional hand pool (restrict prompts to a subset) | v2.1 — Mistake tracking and review | 2026-06-06 |
+| 38 | "Practice mistakes" entry from the performance view (mistakes-only mode) | v2.1 — Mistake tracking and review | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -180,85 +181,90 @@ Slice 37 added the optional `handPool` prop to `PracticeSession`: when provided 
 recognition draws prompts only from that subset via `getRandomHandFrom`; default behavior
 (full 169-hand draw) is unchanged.
 
-Still to come in v2.1: wire the "Practice mistakes" entry (the last piece of the
-mistakes-only mode) and session history. The next slice adds a "Practice mistakes" button
-to the performance view that launches a recognition session restricted to
-`handsWithMistakes` for the range.
+Slice 38 wired the "Practice mistakes" button into the performance view: when a range has
+recorded mistakes, the button launches a recognition session restricted to
+`handsWithMistakes` (via `App`'s `practiceHandPool` state and `PracticeSession`'s
+`handPool` prop), skipping the mode picker. **The "practice mistakes only" mode is now
+complete.**
 
-NOTE ON CADENCE: slices 19–37 are done this finish-v2 run (19 so far). Slice 38 is the
-**20th** slice — the skill's safety checkpoint — so after it completes the loop should
-pause, report progress, and ask the user before continuing into the rest of v2.1
-(session history) and v2.2/v2.3.
+v2.1 status: per-hand accuracy tracking (FP/FN), the range performance page, the heatmap
+overlay, mistake review (mode 4 + performance view), and "practice mistakes only" are all
+done. The one remaining v2.1 feature is **session history** (a log of finished sessions
+over time). The next slice begins it with the storage foundation.
+
+NOTE ON CADENCE: slices 19–38 are done this finish-v2 run — that is **20 slices**, the
+skill's safety checkpoint. The run is PAUSED here pending the user's go-ahead before
+continuing into session history (slice 39+), then v2.2 (spaced repetition) and v2.3
+(multi-action ranges).
 
 ## Next slice
 
-- **Number:** 38
+- **Number:** 39
 - **Roadmap target:** v2.1 — Mistake tracking and review
-- **Working title:** "Practice mistakes" entry from the performance view (completes mistakes-only)
+- **Working title:** Session history storage foundation (append + load finished sessions)
 
 ### Prompt
 
-You are implementing roadmap slice 38, continuing **v2.1 — Mistake tracking and review**.
-Everything for "practice mistakes only" exists except the entry point: `handsWithMistakes`
-(slice 36) and `PracticeSession`'s `handPool` prop (slice 37). This slice adds a "Practice
-mistakes" button to the performance view that launches a recognition session restricted to
-that range's mistake hands. Completing this delivers the "practice mistakes only" feature.
+You are implementing roadmap slice 39, continuing **v2.1 — Mistake tracking and review**.
+The only v2.1 feature left is **session history**: a log of finished practice sessions over
+time, per range. Following the established rhythm, THIS slice adds the storage foundation
+only (a type + an append-only log store + tests); recording at session end and the history
+UI are later slices.
 
-(Reminder: this is the 20th slice of the finish-v2 run — the safety checkpoint. After it
-validates, commits, and pushes, PAUSE and report; ask the user before continuing.)
-
-Scope of THIS slice: a button in `RangePerformance` + the launch wiring in `App`. No
-changes to `PracticeSession`/domain.
+Scope of THIS slice (storage foundation only): a `PracticeSessionRecord` type + a
+`sessionHistoryStorage.ts` module (append a finished session, load the log) + tests. Do NOT
+wire it into the end-of-session flow or build UI yet.
 
 Context (read these before starting):
-- `src/components/RangePerformance.tsx` — receives `range`, `accuracy: RangeHandAccuracy`,
-  `onClose`. It already imports from `../domain/practice`. Add `handsWithMistakes` to that
-  import to compute the mistake set.
-- `src/domain/practice.ts` — `handsWithMistakes(accuracy)` → `PokerHand[]`.
-- `src/App.tsx` — owns practice launch. Relevant: `practicingRange`, `practiceMode`
-  (`'recognize' | 'build' | 'timed' | 'weakness' | null`), `handAccuracy` state,
-  `performanceRange` state, `handleEndPractice(attempts)`, `exitPractice()`, and the render
-  precedence `practicingRange ? (…modes…) : performanceRange ? (<RangePerformance/>) :
-  (<>editor/library</>)`. The recognition branch renders `<PracticeSession range
-  onExit={handleEndPractice} />`.
-- `src/components/PracticeSession.tsx` — now accepts `handPool?: PokerHand[]`.
-- `src/types/practice.ts` / `pokerHands.ts` — `PokerHand`.
+- `src/storage/practiceStatsStorage.ts` — THE pattern to mirror: a single versioned
+  `localStorage` key, a `parse…`/validate helper returning `null` for malformed entries, a
+  `write…` serializer, a `load…` returning a safe default on missing/corrupt/wrong-shape
+  JSON and skipping malformed entries, and a `record…` that writes. Match its structure,
+  naming, doc-comment style, and defensive validation. NOTE: unlike the per-range stats map
+  (keyed by id), session history is an append-only LIST per range, so the stored shape is
+  `Record<string /* rangeId */, PracticeSessionRecord[]>` (or a flat array — pick the
+  per-range map for easy lookup on the performance page, and document the choice).
+- `src/storage/practiceStatsStorage.test.ts` — mirror its test patterns (clear
+  `localStorage` in `beforeEach`; cover load-empty, round-trip, corrupt JSON, malformed
+  entries skipped, append/accumulate, isolation per range).
+- `src/types/practice.ts` — add the new type next to `RangePracticeStats`. A finished
+  session record should capture at least: `rangeId: string`, `playedAt: string` (ISO-8601),
+  `totalQuestions: number`, `correctAnswers: number`. (Keep it summary-shaped, matching
+  `PracticeSessionSummary` fields plus rangeId + timestamp; do not store per-attempt data.)
 
 Task:
-- `RangePerformance.tsx`: compute `const mistakes = handsWithMistakes(accuracy)`. Add an
-  `onPracticeMistakes: () => void` prop. When `mistakes.length > 0`, render a "Practice
-  mistakes" button (e.g. in the header beside "Back to library") that calls
-  `onPracticeMistakes`; when there are no mistakes, do not render it. (The empty-state
-  branch never shows it.)
-- `App.tsx`:
-  - Add state `practiceHandPool: PokerHand[] | null` (null = full set). Import
-    `handsWithMistakes` and `type PokerHand` (PokerHand is already imported).
-  - `handlePractice(range)` (the normal picker launch) must also `setPracticeHandPool(null)`.
-  - `exitPractice()` must also `setPracticeHandPool(null)`.
-  - Add `handlePracticeMistakes()`: if `performanceRange`, compute `const pool =
-    handsWithMistakes(handAccuracy[performanceRange.id] ?? {})`; if `pool.length === 0`
-    return; else `setPracticingRange(performanceRange)`, `setPracticeMode('recognize')`,
-    `setPracticeHandPool(pool)`, `setPerformanceRange(null)` (go straight into recognition,
-    skipping the picker).
-  - In the recognition render branch, pass `handPool={practiceHandPool ?? undefined}` to
-    `<PracticeSession>`.
-  - Pass `onPracticeMistakes={handlePracticeMistakes}` to `<RangePerformance>`.
-  - Optional: when `practiceHandPool` is non-null, set a header subtitle like "Drill the
-    hands you keep missing." (otherwise the existing recognition subtitle).
-- Update `RangePerformance.test.tsx` render calls to pass the new required
-  `onPracticeMistakes` prop (add it to every render), and add tests: the button shows when
-  there are mistakes and is absent when there are none / in the empty state; clicking it
-  calls `onPracticeMistakes`.
+- In `src/types/practice.ts`, add:
+  ```ts
+  export interface PracticeSessionRecord {
+    rangeId: string
+    playedAt: string        // ISO-8601
+    totalQuestions: number
+    correctAnswers: number
+  }
+  ```
+- Create `src/storage/sessionHistoryStorage.ts`:
+  - `export const SESSION_HISTORY_STORAGE_KEY = 'poker-range-trainer.session-history.v1'`.
+  - `loadSessionHistory(): Record<string, PracticeSessionRecord[]>` — outer key `rangeId`,
+    value the list of that range's finished sessions in insertion order (oldest→newest).
+    Return `{}` on missing/corrupt/non-object JSON; validate each record (non-empty string
+    `rangeId`, non-negative-finite `totalQuestions`/`correctAnswers`, string `playedAt`),
+    skip malformed records, drop a range whose list ends up empty, and re-key each list by
+    each record's own `rangeId`.
+  - `recordPracticeSessionHistory(rangeId, summary: Pick<PracticeSessionSummary,
+    'totalQuestions' | 'correctAnswers'>, playedAt = new Date().toISOString())` — append one
+    record to that range's list. A session with `summary.totalQuestions <= 0` is a no-op
+    (consistent with `recordPracticeSession`). Persist via a private `write…` serializer.
+- Side-effect-only, all reads/writes funneled through the exported functions, mirroring
+  `practiceStatsStorage.ts`.
 
-Tests to add (`src/App.test.tsx`):
-- Make a deterministic single mistake, then drill it: save a range (e.g. hands AA, KK),
-  Practice → Recognize, read `.practice-prompt-hand`, answer it WRONG (click the opposite
-  of the truth) so that hand becomes the only mistake, End Practice, Back to library. Open
-  "View stats for <name>", click "Practice mistakes", and assert recognition started (In
-  range / Out of range buttons) with the prompt hand equal to the single mistaken hand
-  (`.practice-prompt-hand` text === that hand, since the pool has exactly one hand).
-- Keep all existing tests green (add the new `onPracticeMistakes` prop wherever
-  `RangePerformance` is rendered directly).
+Tests to add (`src/storage/sessionHistoryStorage.test.ts`):
+- `loadSessionHistory()` is `{}` when empty and when JSON is corrupt;
+- recording then loading round-trips a record;
+- a second session for the same range appends (list length 2, oldest-first order
+  preserved);
+- a `totalQuestions: 0` summary records nothing;
+- recording is isolated per `rangeId`;
+- a malformed stored record is skipped without discarding valid ones.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -266,12 +272,11 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: the `RangePerformance` button + `App` launch wiring + tests. Do
-  NOT modify `PracticeSession` or domain helpers.
-- Reuse `handsWithMistakes` + the existing `handPool` prop + `handleEndPractice` recording.
+- Stay within this slice: ONLY the `PracticeSessionRecord` type and
+  `sessionHistoryStorage.ts` + its test. Do NOT modify `App`/components or wire recording.
+- Storage in `src/storage/`; type in `src/types/`. Mirror `practiceStatsStorage`.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
-- After this slice: STOP at the 20-slice safety checkpoint and report; do not auto-continue.
 
 Suggested commit message:
-- `feat: practice only the hands you keep missing from the performance view`
+- `feat: persist a per-range practice session history log`

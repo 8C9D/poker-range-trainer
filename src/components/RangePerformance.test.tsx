@@ -30,7 +30,7 @@ function dataRows() {
 describe('RangePerformance', () => {
   it('shows the range name and an empty state when there is no data', () => {
     const { container } = render(
-      <RangePerformance range={makeRange({ name: 'BTN' })} accuracy={{}} onClose={vi.fn()} />,
+      <RangePerformance range={makeRange({ name: 'BTN' })} accuracy={{}} onClose={vi.fn()} onPracticeMistakes={vi.fn()} />,
     )
 
     expect(screen.getByRole('heading', { name: /Performance: BTN/ })).toBeInTheDocument()
@@ -46,7 +46,7 @@ describe('RangePerformance', () => {
       KK: stat('KK', { attempts: 4, correct: 1, falseNegatives: 3 }), // 25%
     }
     const { container } = render(
-      <RangePerformance range={makeRange()} accuracy={accuracy} onClose={vi.fn()} />,
+      <RangePerformance range={makeRange()} accuracy={accuracy} onClose={vi.fn()} onPracticeMistakes={vi.fn()} />,
     )
 
     // The heatmap is shown alongside the table when there is data.
@@ -63,7 +63,7 @@ describe('RangePerformance', () => {
     const accuracy: RangeHandAccuracy = {
       QQ: stat('QQ', { attempts: 5, correct: 2, falseNegatives: 2, falsePositives: 1 }),
     }
-    render(<RangePerformance range={makeRange()} accuracy={accuracy} onClose={vi.fn()} />)
+    render(<RangePerformance range={makeRange()} accuracy={accuracy} onClose={vi.fn()} onPracticeMistakes={vi.fn()} />)
 
     const [row] = dataRows()
     expect(within(row).getByText('QQ')).toBeInTheDocument()
@@ -76,10 +76,56 @@ describe('RangePerformance', () => {
   it('calls onClose when "Back to library" is clicked', async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()
-    render(<RangePerformance range={makeRange()} accuracy={{}} onClose={onClose} />)
+    render(
+      <RangePerformance
+        range={makeRange()}
+        accuracy={{}}
+        onClose={onClose}
+        onPracticeMistakes={vi.fn()}
+      />,
+    )
 
     await user.click(screen.getByRole('button', { name: 'Back to library' }))
 
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows "Practice mistakes" only when the range has mistakes', () => {
+    const { rerender } = render(
+      <RangePerformance
+        range={makeRange()}
+        accuracy={{ AA: stat('AA', { attempts: 3, correct: 3 }) }} // no mistakes
+        onClose={vi.fn()}
+        onPracticeMistakes={vi.fn()}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: 'Practice mistakes' })).not.toBeInTheDocument()
+
+    rerender(
+      <RangePerformance
+        range={makeRange()}
+        accuracy={{ AA: stat('AA', { attempts: 3, correct: 1, falseNegatives: 2 }) }}
+        onClose={vi.fn()}
+        onPracticeMistakes={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'Practice mistakes' })).toBeInTheDocument()
+  })
+
+  it('calls onPracticeMistakes when "Practice mistakes" is clicked', async () => {
+    const user = userEvent.setup()
+    const onPracticeMistakes = vi.fn()
+    render(
+      <RangePerformance
+        range={makeRange()}
+        accuracy={{ KK: stat('KK', { attempts: 4, correct: 1, falseNegatives: 3 }) }}
+        onClose={vi.fn()}
+        onPracticeMistakes={onPracticeMistakes}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Practice mistakes' }))
+
+    expect(onPracticeMistakes).toHaveBeenCalledTimes(1)
   })
 })
