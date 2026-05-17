@@ -9,8 +9,10 @@ import {
   handAccuracyRate,
   rankHandAccuracy,
   accuracyHeatLevel,
+  handsWithMistakes,
   compareBuiltRange,
   getRandomPracticeHand,
+  getRandomHandFrom,
 } from './practice'
 import type { HandAccuracyStat, PracticeAttempt } from '../types/practice'
 
@@ -331,6 +333,45 @@ describe('accuracyHeatLevel', () => {
   })
 })
 
+describe('handsWithMistakes', () => {
+  const stat = (hand: string, over: Partial<HandAccuracyStat> = {}): HandAccuracyStat => ({
+    hand,
+    attempts: 1,
+    correct: 1,
+    falsePositives: 0,
+    falseNegatives: 0,
+    ...over,
+  })
+
+  it('returns an empty array for an empty map', () => {
+    expect(handsWithMistakes({})).toEqual([])
+  })
+
+  it('includes hands with false negatives or false positives', () => {
+    const result = handsWithMistakes({
+      AA: stat('AA', { attempts: 2, correct: 1, falseNegatives: 1 }),
+      KK: stat('KK', { attempts: 2, correct: 1, falsePositives: 1 }),
+    })
+    expect(result).toEqual(['AA', 'KK'])
+  })
+
+  it('excludes hands answered only correctly', () => {
+    const result = handsWithMistakes({
+      AA: stat('AA', { attempts: 3, correct: 3 }),
+      KK: stat('KK', { attempts: 1, correct: 0, falseNegatives: 1 }),
+    })
+    expect(result).toEqual(['KK'])
+  })
+
+  it('returns mistaken hands in canonical order', () => {
+    const result = handsWithMistakes({
+      KK: stat('KK', { attempts: 1, correct: 0, falseNegatives: 1 }),
+      AA: stat('AA', { attempts: 1, correct: 0, falsePositives: 1 }),
+    })
+    expect(result).toEqual(['AA', 'KK'])
+  })
+})
+
 describe('compareBuiltRange', () => {
   it('reports an exact match as all correct with nothing missed or extra', () => {
     expect(compareBuiltRange(RANGE, RANGE)).toEqual({
@@ -419,5 +460,31 @@ describe('getRandomPracticeHand', () => {
     for (let i = 0; i < 100; i += 1) {
       expect(ALL_HANDS).toContain(getRandomPracticeHand())
     }
+  })
+})
+
+describe('getRandomHandFrom', () => {
+  const pool = ['AA', 'KK', 'QQ', 'JJ']
+
+  it('returns the first pool entry when random() is 0', () => {
+    expect(getRandomHandFrom(pool, () => 0)).toBe('AA')
+  })
+
+  it('indexes the expected pool entry for a mid value', () => {
+    // floor(0.5 * 4) = 2 -> "QQ".
+    expect(getRandomHandFrom(pool, () => 0.5)).toBe('QQ')
+  })
+
+  it('returns the last pool entry for a near-1 value', () => {
+    expect(getRandomHandFrom(pool, () => 0.999)).toBe('JJ')
+  })
+
+  it('clamps an out-of-range random() of exactly 1 to the last entry', () => {
+    expect(getRandomHandFrom(pool, () => 1)).toBe('JJ')
+  })
+
+  it('always returns the only entry for a single-element pool', () => {
+    expect(getRandomHandFrom(['AA'], () => 0)).toBe('AA')
+    expect(getRandomHandFrom(['AA'], () => 0.999)).toBe('AA')
   })
 })

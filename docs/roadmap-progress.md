@@ -70,6 +70,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 33 | Open the performance view from a library card (wiring) | v2.1 — Mistake tracking and review | 2026-06-06 |
 | 34 | Accuracy heat-level helper (heatmap foundation) | v2.1 — Mistake tracking and review | 2026-06-06 |
 | 35 | Range accuracy heatmap (component + performance-view integration) | v2.1 — Mistake tracking and review | 2026-06-06 |
+| 36 | Mistake-pool and restricted-draw helpers (mistakes-only foundation) | v2.1 — Mistake tracking and review | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -170,59 +171,63 @@ Slice 35 added the read-only `HandHeatmap` 13×13 grid (cells colored by
 `accuracyHeatLevel`, with `data-heat` for tests) and surfaced it in `RangePerformance`
 above the table when there is data.
 
-Still to come in v2.1: a "practice mistakes only" mode and session history. The next slice
-adds that mode's pure domain foundation — `handsWithMistakes(rangeStats)` (the hands with
-recorded errors) and `getRandomHandFrom(pool, random)` (drawing a prompt from a restricted
-pool) — before the UI that drills only those hands.
+Slice 36 added the mistakes-only domain foundation in `src/domain/practice.ts`:
+`handsWithMistakes(rangeStats)` (hands with any recorded error, canonical order) and
+`getRandomHandFrom(pool, random)` (draw a prompt from a restricted, non-empty pool).
+
+Still to come in v2.1: the "practice mistakes only" UI (two slices — make `PracticeSession`
+able to draw from a restricted pool, then wire a "Practice mistakes" entry from the
+performance view) and session history. The next slice adds an optional `handPool` prop to
+`PracticeSession` so recognition can be restricted to a given set of hands (default
+behavior unchanged).
+
+NOTE ON CADENCE: slices 19–36 are done this finish-v2 run (18 so far). After slice 38 the
+run reaches **20 slices** — the skill's safety checkpoint — so the loop should pause there,
+report progress, and ask before continuing.
 
 ## Next slice
 
-- **Number:** 36
+- **Number:** 37
 - **Roadmap target:** v2.1 — Mistake tracking and review
-- **Working title:** "Practice mistakes only" domain foundation (mistake pool + pool draw)
+- **Working title:** PracticeSession optional hand pool (restrict prompts to a subset)
 
 ### Prompt
 
-You are implementing roadmap slice 36, continuing **v2.1 — Mistake tracking and review**.
-The next v2.1 feature is the "practice mistakes only" mode: a recognition session that
-prompts ONLY the hands the user has previously gotten wrong for a range (from persisted
-per-hand accuracy). Following the established rhythm, THIS slice adds only the pure domain
-foundation: which hands count as mistakes, and how to draw a prompt from a restricted
-pool. The UI (a `PracticeSession` restricted to that pool) and its entry point are the
-next slices.
+You are implementing roadmap slice 37, continuing **v2.1 — Mistake tracking and review**.
+Slice 36 added `handsWithMistakes` and `getRandomHandFrom`. This slice makes
+`PracticeSession` able to draw its prompts from a restricted pool, so the upcoming
+"practice mistakes only" entry (next slice) can reuse recognition over just the mistake
+hands. Do NOT wire the entry point yet — that is slice 38.
 
-Scope of THIS slice (foundation only): two pure functions + tests. No UI, no storage
-changes.
+Scope of THIS slice: add an optional `handPool` prop to `PracticeSession` and use it for
+prompt draws; default behavior (full 169-hand draw) is unchanged. No App/picker changes.
 
 Context (read these before starting):
-- `src/domain/practice.ts` — has `getRandomPracticeHand(random)` (draws from `ALL_HANDS`
-  with the `Math.min(len - 1, Math.floor(random() * len))` clamp), `summarizeHandAccuracy`,
-  `rankHandAccuracy`, and imports `ALL_HANDS` + `type PokerHand`. Add the new helpers here.
-- `src/types/practice.ts` — `RangeHandAccuracy = Record<PokerHand, HandAccuracyStat>`,
-  `HandAccuracyStat` (`falsePositives`, `falseNegatives`).
-- `src/domain/practice.test.ts` — mirror its pure-domain test patterns.
+- `src/components/PracticeSession.tsx` — recognition component. It draws the initial hand
+  with `useState<PokerHand>(() => getRandomPracticeHand(random))` and the next hand in
+  `nextHand()` with `getRandomPracticeHand(random)`. It takes `range`, `onExit(attempts)`,
+  and `random = Math.random`.
+- `src/domain/practice.ts` — `getRandomPracticeHand(random)` (full set) and
+  `getRandomHandFrom(pool, random)` (restricted, non-empty pool) from slice 36.
+- `src/components/PracticeSession.test.tsx` — RTL patterns + `sequenceRandom` helper.
 
-Task — add two pure functions to `src/domain/practice.ts`:
-- `handsWithMistakes(rangeStats: RangeHandAccuracy): PokerHand[]` — the hands the user has
-  gotten wrong at least once: those whose `falsePositives + falseNegatives > 0`. Return in
-  canonical 13×13 order (filter `ALL_HANDS`). Hands with attempts but no errors, and hands
-  with no stats, are excluded. Doc comment in the same style.
-- `getRandomHandFrom(pool: PokerHand[], random: () => number = Math.random): PokerHand` —
-  draw one hand from `pool` using the SAME clamp idiom as `getRandomPracticeHand`
-  (`Math.min(pool.length - 1, Math.floor(random() * pool.length))`). Document that `pool`
-  must be non-empty (the caller guarantees this — the mistakes-only entry is only offered
-  when `handsWithMistakes` is non-empty). Doc comment in the same style.
+Task — in `src/components/PracticeSession.tsx`:
+- Add an optional prop `handPool?: PokerHand[]` with a doc comment: when provided (and
+  non-empty), prompts are drawn only from these hands; otherwise all 169 hands are used.
+- Add a single private draw helper, e.g.
+  `const drawHand = () => (handPool && handPool.length > 0 ? getRandomHandFrom(handPool,
+  random) : getRandomPracticeHand(random))`, and use it for BOTH the initial `useState`
+  lazy initializer and `nextHand()`. (Guarding on `length > 0` keeps an accidental empty
+  pool from breaking draws — it falls back to the full set.)
+- Import `getRandomHandFrom`. Keep everything else (scoring, review, onExit contract)
+  unchanged.
 
-Tests to add (`src/domain/practice.test.ts`, new describes):
-- `handsWithMistakes`:
-  - empty map → `[]`;
-  - includes a hand with `falseNegatives > 0` and a hand with `falsePositives > 0`;
-  - excludes a hand with attempts but zero errors (all correct);
-  - returns hands in canonical order (e.g. attempts on "KK" and "AA" → `["AA", "KK"]`).
-- `getRandomHandFrom`:
-  - `random => 0` returns the first pool entry; `random => 0.999`/`1` returns the last
-    (clamped); a mid value indexes the expected entry;
-  - works for a single-element pool (always returns it).
+Tests to add (`src/components/PracticeSession.test.tsx`):
+- existing tests must still pass (no `handPool` → unchanged behavior);
+- with `handPool={['AA', 'KK']}` and a `random` sequence, the initial prompt and the
+  prompt after "Next hand" are both drawn from the pool (e.g. `random => 0` → "AA",
+  `random => 0.999` → "KK"); assert the shown hand is one of the pool hands across a draw
+  and the next draw.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -230,11 +235,12 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: ONLY `handsWithMistakes` and `getRandomHandFrom` plus tests. No
-  UI, no storage, no new mode wiring.
-- Keep the helpers pure and in `src/domain/`.
+- Stay within this slice: ONLY the `handPool` prop + draw helper in `PracticeSession` and
+  its tests. Do NOT modify `App`, the picker, or other practice components; do NOT wire the
+  mistakes-only entry (slice 38).
+- Reuse the domain draw helpers; no duplicated draw math in the component.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: add mistake-pool and restricted-draw helpers for mistakes-only practice`
+- `feat: let PracticeSession draw prompts from a restricted hand pool`

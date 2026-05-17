@@ -176,6 +176,19 @@ export function accuracyHeatLevel(stat: HandAccuracyStat | undefined): HeatLevel
 }
 
 /**
+ * The hands the user has gotten wrong at least once for a range: those with any
+ * recorded error (`falsePositives + falseNegatives > 0`), in canonical 13×13
+ * order. Hands answered only correctly, and hands with no stats, are excluded.
+ * This is the prompt pool for "practice mistakes only".
+ */
+export function handsWithMistakes(rangeStats: RangeHandAccuracy): PokerHand[] {
+  return ALL_HANDS.filter((hand) => {
+    const stat = rangeStats[hand]
+    return stat !== undefined && stat.falsePositives + stat.falseNegatives > 0
+  })
+}
+
+/**
  * Compare a user-built set of hands against a target range, for "build from
  * memory" practice (mode 3).
  *
@@ -214,4 +227,19 @@ export function compareBuiltRange(
 export function getRandomPracticeHand(random: () => number = Math.random): PokerHand {
   const index = Math.min(ALL_HANDS.length - 1, Math.floor(random() * ALL_HANDS.length))
   return ALL_HANDS[index]
+}
+
+/**
+ * Draw one hand at random from a restricted `pool` (e.g. the mistakes-only
+ * prompt set). Uses the same clamp as `getRandomPracticeHand` so an input of
+ * exactly 1 still yields a valid hand. `pool` must be non-empty — the caller
+ * guarantees this (the mistakes-only entry is only offered when there are
+ * mistakes to drill).
+ */
+export function getRandomHandFrom(
+  pool: PokerHand[],
+  random: () => number = Math.random,
+): PokerHand {
+  const index = Math.min(pool.length - 1, Math.floor(random() * pool.length))
+  return pool[index]
 }
