@@ -18,6 +18,7 @@ import { mergeShortcutHands } from './domain/rangeShortcuts'
 import type { PokerHand } from './domain/pokerHands'
 import { loadHandAccuracy, recordHandAccuracy } from './storage/handAccuracyStorage'
 import { loadPracticeStats, recordPracticeSession } from './storage/practiceStatsStorage'
+import { recordPracticeSessionHistory } from './storage/sessionHistoryStorage'
 import { deleteSavedRange, loadSavedRanges, saveSavedRange } from './storage/rangeStorage'
 import type { PracticeAttempt } from './types/practice'
 import type {
@@ -294,8 +295,10 @@ function App() {
     // nothing was answered, so ending immediately records nothing.
     // Build-from-memory exits through exitPractice without recording stats.
     if (practicingRange) {
-      recordPracticeSession(practicingRange.id, summarizePracticeAttempts(attempts))
+      const summary = summarizePracticeAttempts(attempts)
+      recordPracticeSession(practicingRange.id, summary)
       recordHandAccuracy(practicingRange.id, summarizeHandAccuracy(attempts))
+      recordPracticeSessionHistory(practicingRange.id, summary)
       // Refresh from storage so the library card and performance view reflect this
       // session, mirroring the setSavedRanges(loadSavedRanges()) refresh-after-write
       // pattern.

@@ -74,6 +74,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 37 | PracticeSession optional hand pool (restrict prompts to a subset) | v2.1 — Mistake tracking and review | 2026-06-06 |
 | 38 | "Practice mistakes" entry from the performance view (mistakes-only mode) | v2.1 — Mistake tracking and review | 2026-06-06 |
 | 39 | Session history storage foundation (append + load) | v2.1 — Mistake tracking and review | 2026-06-06 |
+| 40 | Record finished sessions into the history log (wiring) | v2.1 — Mistake tracking and review | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -193,9 +194,10 @@ overlay, mistake review (mode 4 + performance view), and "practice mistakes only
 done. The remaining v2.1 feature is **session history**. Slice 39 added its storage
 foundation: the `PracticeSessionRecord` type and `src/storage/sessionHistoryStorage.ts`
 (`loadSessionHistory`, `recordPracticeSessionHistory` — an append-only per-range log,
-oldest-first, mirroring `practiceStatsStorage`'s defensive validation). The next slice
-records a finished session into that log at session end; a later slice surfaces it in the
-performance view.
+oldest-first, mirroring `practiceStatsStorage`'s defensive validation). Slice 40 wired the recording: `App.handleEndPractice` now appends a
+`recordPracticeSessionHistory(id, summary)` alongside the per-range and per-hand recorders
+(summary computed once and shared). The next slice surfaces the log in the performance view
+as a session timeline — the last piece of v2.1.
 
 NOTE ON CADENCE: the user approved continuing the run past the 20-slice checkpoint (after
 slice 38). The loop resumed at slice 39 and continues through v2.1 → v2.2 → v2.3; the next
@@ -204,46 +206,55 @@ v3, whichever comes first.
 
 ## Next slice
 
-- **Number:** 40
+- **Number:** 41
 - **Roadmap target:** v2.1 — Mistake tracking and review
-- **Working title:** Record session history at end of session (wiring)
+- **Working title:** Session history timeline in the performance view (completes v2.1)
 
 ### Prompt
 
-You are implementing roadmap slice 40, continuing **v2.1 — Mistake tracking and review**.
-Slice 39 added the session-history storage (`recordPracticeSessionHistory` /
-`loadSessionHistory`). This slice records a finished session into that log at session end,
-alongside the per-range summary and per-hand accuracy already recorded. After this the data
-is captured; the history UI in the performance view is the next slice.
+You are implementing roadmap slice 41, continuing **v2.1 — Mistake tracking and review**.
+The session-history log is persisted (slice 39) and recorded each session (slice 40). This
+slice surfaces it in the `RangePerformance` view as a session timeline. Completing this
+**completes v2.1**; the next slice begins **v2.2 — Spaced repetition system**.
 
-Scope of THIS slice: a one-line recording addition in `App.handleEndPractice` + a test. No
-UI, no new state needed (the performance view reads the log fresh in the next slice).
+Scope of THIS slice: pass each range's history into `RangePerformance` from `App` and
+render it; small App state + a component section + tests.
 
 Context (read these before starting):
-- `src/App.tsx` — `handleEndPractice(attempts)` already does, when `practicingRange` is
-  set: `recordPracticeSession(id, summarizePracticeAttempts(attempts))`,
-  `recordHandAccuracy(id, summarizeHandAccuracy(attempts))`, then refreshes
-  `practiceStats`/`handAccuracy` and calls `exitPractice()`. Add
-  `recordPracticeSessionHistory(practicingRange.id, summary)` using the SAME summary
-  (compute `const summary = summarizePracticeAttempts(attempts)` once and reuse it for both
-  `recordPracticeSession` and the history record to avoid recomputing). It is a no-op for a
-  zero-question session, like the other recorders.
-- `src/storage/sessionHistoryStorage.ts` — `recordPracticeSessionHistory(rangeId, summary,
-  playedAt?)`, `loadSessionHistory()`.
-- `src/App.test.tsx` — the recognition stats test (`records a finished practice session
-  into per-range stats`) is the closest model; it already imports the storage loaders and
-  reads `.practice-prompt-hand`.
+- `src/storage/sessionHistoryStorage.ts` — `loadSessionHistory(): Record<string,
+  PracticeSessionRecord[]>` (oldest-first per range).
+- `src/types/practice.ts` — `PracticeSessionRecord` (`rangeId`, `playedAt` ISO-8601,
+  `totalQuestions`, `correctAnswers`).
+- `src/App.tsx` — already keeps `handAccuracy` state (loaded via `loadHandAccuracy`,
+  refreshed in `handleEndPractice`) and renders `<RangePerformance range
+  accuracy={handAccuracy[id] ?? {}} onClose onPracticeMistakes />`. Mirror that for history:
+  add a `sessionHistory` state from `loadSessionHistory()`, refresh it in
+  `handleEndPractice` next to `setHandAccuracy(...)`, and pass `history={sessionHistory[
+  performanceRange.id] ?? []}` to `RangePerformance`.
+- `src/components/RangePerformance.tsx` — currently shows an empty state when
+  `rankHandAccuracy` is empty, else a heatmap + per-hand table. Add a `history:
+  PracticeSessionRecord[]` prop and render a session timeline section when
+  `history.length > 0`, after the table. Show each session newest-first (reverse a copy —
+  do NOT mutate the prop) with its date (`new Date(playedAt).toLocaleDateString()`), score
+  (`{correctAnswers}/{totalQuestions}`), and accuracy %
+  (`Math.round(correctAnswers / totalQuestions * 100)` — records always have
+  `totalQuestions > 0`). Use a `<table>` or list with an `aria-label` like "Session history".
+  Reuse existing CSS (e.g. the `.hand-accuracy-table` styling) where it fits.
+- `src/components/RangePerformance.test.tsx` — add the new required `history` prop to every
+  render (default `history={[]}`); mirror existing table/region assertions.
 
 Task:
-- In `src/App.tsx`, import `recordPracticeSessionHistory` from
-  `./storage/sessionHistoryStorage`. In `handleEndPractice`, compute the summary once and
-  call `recordPracticeSessionHistory(practicingRange.id, summary)` in the same `if
-  (practicingRange)` block as the other recorders. Do NOT change the build-from-memory or
-  picker paths.
-- In `src/App.test.tsx`, add (or extend an existing recognition-session test) an assertion
-  that after finishing a session, `loadSessionHistory()[rangeId]` has one record with the
-  expected `totalQuestions`/`correctAnswers` (import `loadSessionHistory` from
-  `./storage/sessionHistoryStorage`).
+- `RangePerformance`: add the `history` prop and the "Session history" section (newest
+  first; date, score, accuracy). Empty/`[]` history → no section.
+- `App`: add `sessionHistory` state (load + refresh in `handleEndPractice`), pass `history`
+  to `RangePerformance`.
+
+Tests:
+- `RangePerformance.test.tsx`: with a `history` of two records, the "Session history"
+  region shows both, newest first; with `history={[]}`, no such region. Add `history` to all
+  existing renders so they keep compiling.
+- `App.test.tsx`: after finishing a session and opening "View stats", the session-history
+  section shows a row (reuse the recognition flow). Keep existing tests green.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -251,11 +262,11 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: the recording call in `App` + a test. Do NOT build the history UI
-  (next slice) or change components/domain.
-- Reuse the single computed `summary`; keep recording centralized in `handleEndPractice`.
+- Stay within this slice: the `RangePerformance` history section + `App` wiring + tests. Do
+  NOT change practice flows, storage, or domain. Do NOT mutate the `history` prop (reverse a
+  copy for newest-first).
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: record finished sessions into the session history log`
+- `feat: show a session history timeline in the performance view`

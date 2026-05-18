@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import App from './App'
 import { loadHandAccuracy } from './storage/handAccuracyStorage'
 import { loadPracticeStats } from './storage/practiceStatsStorage'
+import { loadSessionHistory } from './storage/sessionHistoryStorage'
 import { loadSavedRanges } from './storage/rangeStorage'
 
 // Isolate persistence so each case starts from an empty library.
@@ -328,6 +329,10 @@ describe('Practice mode', () => {
       falsePositives: 0,
       falseNegatives: 0,
     })
+    // ...and appends a session-history record.
+    expect(loadSessionHistory()[rangeId]).toEqual([
+      expect.objectContaining({ rangeId, totalQuestions: 1, correctAnswers: 1 }),
+    ])
   })
 
   it('shows the recorded practice stats on the library card after ending a session', async () => {
