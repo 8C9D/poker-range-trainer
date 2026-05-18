@@ -594,6 +594,9 @@ describe('Range performance view', () => {
     const table = screen.getByRole('table', { name: 'Per-hand accuracy' })
     expect(within(table).getByText(promptHand)).toBeInTheDocument()
     expect(within(table).getByText('100%')).toBeInTheDocument()
+    // ...and the session-history timeline shows the finished session.
+    const historyTable = screen.getByRole('table', { name: 'Session history' })
+    expect(within(historyTable).getByText('1/1')).toBeInTheDocument()
   })
 
   it('drills only the missed hands via "Practice mistakes"', async () => {

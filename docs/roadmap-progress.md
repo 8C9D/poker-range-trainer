@@ -75,6 +75,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 38 | "Practice mistakes" entry from the performance view (mistakes-only mode) | v2.1 — Mistake tracking and review | 2026-06-06 |
 | 39 | Session history storage foundation (append + load) | v2.1 — Mistake tracking and review | 2026-06-06 |
 | 40 | Record finished sessions into the history log (wiring) | v2.1 — Mistake tracking and review | 2026-06-06 |
+| 41 | Session history timeline in the performance view | v2.1 — Mistake tracking and review | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -189,72 +190,99 @@ recorded mistakes, the button launches a recognition session restricted to
 `handPool` prop), skipping the mode picker. **The "practice mistakes only" mode is now
 complete.**
 
-v2.1 status: per-hand accuracy tracking (FP/FN), the range performance page, the heatmap
-overlay, mistake review (mode 4 + performance view), and "practice mistakes only" are all
-done. The remaining v2.1 feature is **session history**. Slice 39 added its storage
-foundation: the `PracticeSessionRecord` type and `src/storage/sessionHistoryStorage.ts`
-(`loadSessionHistory`, `recordPracticeSessionHistory` — an append-only per-range log,
-oldest-first, mirroring `practiceStatsStorage`'s defensive validation). Slice 40 wired the recording: `App.handleEndPractice` now appends a
-`recordPracticeSessionHistory(id, summary)` alongside the per-range and per-hand recorders
-(summary computed once and shared). The next slice surfaces the log in the performance view
-as a session timeline — the last piece of v2.1.
+Slice 41 surfaced the session-history log in `RangePerformance` as a newest-first
+"Session history" table (date, score, accuracy), fed by an `App` `sessionHistory` state
+(refreshed after each session).
 
-NOTE ON CADENCE: the user approved continuing the run past the 20-slice checkpoint (after
-slice 38). The loop resumed at slice 39 and continues through v2.1 → v2.2 → v2.3; the next
-safety pause is after ~20 more slices (≈ slice 58) or when the queued slice crosses into
-v3, whichever comes first.
+**v2.1 — Mistake tracking and review is now COMPLETE**: per-hand accuracy tracking with
+false-positive/false-negative counts, the range-specific performance page, the heatmap
+overlay, mistake review (mode 4 + performance view), "practice mistakes only", and session
+history are all delivered.
+
+The roadmap now moves to **v2.2 — Spaced repetition system** (each range gets a review
+state; performance sets the next review date; a daily "due today" queue; streaks; review
+history). The next slice begins v2.2 with its pure scheduling foundation: a
+`RangeReviewState` and a `scheduleNextReview` function.
+
+NOTE ON CADENCE: the user approved continuing past the first 20-slice checkpoint (after
+slice 38). The loop resumed at slice 39 and continues through v2.2 → v2.3; the next safety
+pause is after ~20 slices in this continuation (≈ slice 58) or when the queued slice
+crosses into v3, whichever comes first.
 
 ## Next slice
 
-- **Number:** 41
-- **Roadmap target:** v2.1 — Mistake tracking and review
-- **Working title:** Session history timeline in the performance view (completes v2.1)
+- **Number:** 42
+- **Roadmap target:** v2.2 — Spaced repetition system
+- **Working title:** Spaced-repetition scheduling foundation (review state + scheduler)
 
 ### Prompt
 
-You are implementing roadmap slice 41, continuing **v2.1 — Mistake tracking and review**.
-The session-history log is persisted (slice 39) and recorded each session (slice 40). This
-slice surfaces it in the `RangePerformance` view as a session timeline. Completing this
-**completes v2.1**; the next slice begins **v2.2 — Spaced repetition system**.
+You are implementing roadmap slice 42, beginning **v2.2 — Spaced repetition system**. v2.1
+is complete. v2.2 schedules range review automatically: each range gets a review state,
+practice performance sets the next review date, weak ranges come up sooner, and there is a
+daily "due today" queue with streaks. Following the established rhythm, THIS slice adds ONLY
+the pure scheduling foundation (a type + a scheduler + a due check); persistence, recording,
+the due-today queue, and streaks are later slices.
 
-Scope of THIS slice: pass each range's history into `RangePerformance` from `App` and
-render it; small App state + a component section + tests.
+Scope of THIS slice (foundation only): a new pure domain module + tests. No storage, no UI.
 
 Context (read these before starting):
-- `src/storage/sessionHistoryStorage.ts` — `loadSessionHistory(): Record<string,
-  PracticeSessionRecord[]>` (oldest-first per range).
-- `src/types/practice.ts` — `PracticeSessionRecord` (`rangeId`, `playedAt` ISO-8601,
-  `totalQuestions`, `correctAnswers`).
-- `src/App.tsx` — already keeps `handAccuracy` state (loaded via `loadHandAccuracy`,
-  refreshed in `handleEndPractice`) and renders `<RangePerformance range
-  accuracy={handAccuracy[id] ?? {}} onClose onPracticeMistakes />`. Mirror that for history:
-  add a `sessionHistory` state from `loadSessionHistory()`, refresh it in
-  `handleEndPractice` next to `setHandAccuracy(...)`, and pass `history={sessionHistory[
-  performanceRange.id] ?? []}` to `RangePerformance`.
-- `src/components/RangePerformance.tsx` — currently shows an empty state when
-  `rankHandAccuracy` is empty, else a heatmap + per-hand table. Add a `history:
-  PracticeSessionRecord[]` prop and render a session timeline section when
-  `history.length > 0`, after the table. Show each session newest-first (reverse a copy —
-  do NOT mutate the prop) with its date (`new Date(playedAt).toLocaleDateString()`), score
-  (`{correctAnswers}/{totalQuestions}`), and accuracy %
-  (`Math.round(correctAnswers / totalQuestions * 100)` — records always have
-  `totalQuestions > 0`). Use a `<table>` or list with an `aria-label` like "Session history".
-  Reuse existing CSS (e.g. the `.hand-accuracy-table` styling) where it fits.
-- `src/components/RangePerformance.test.tsx` — add the new required `history` prop to every
-  render (default `history={[]}`); mirror existing table/region assertions.
+- `docs/roadmap.md` v2.2 — suggests `RangeReviewState { rangeId, ease, intervalDays, dueAt,
+  lastReviewedAt }` and simple rules: high accuracy → increase interval; medium → keep
+  similar; low → reset to review tomorrow. Use accuracy thresholds consistent with the rest
+  of the app: low `< 50`, medium `50–79`, high `>= 80` (same buckets as `accuracyHeatLevel`).
+- `src/domain/timedDrill.ts` — the per-feature pure-module + test style to mirror (focused
+  exports, module doc comment, time taken as a parameter — here `reviewedAt`/`now` are
+  passed in, never `Date.now()` inside).
+- `src/domain/practice.ts` `summarizePracticeAttempts` returns `accuracyPercentage` (0–100)
+  — the scheduler takes that number, not raw attempts.
+- `src/types/practice.ts` — add the `RangeReviewState` type here (next to the other v2.x
+  types).
 
 Task:
-- `RangePerformance`: add the `history` prop and the "Session history" section (newest
-  first; date, score, accuracy). Empty/`[]` history → no section.
-- `App`: add `sessionHistory` state (load + refresh in `handleEndPractice`), pass `history`
-  to `RangePerformance`.
+- In `src/types/practice.ts`, add:
+  ```ts
+  export interface RangeReviewState {
+    rangeId: string
+    ease: number          // multiplier for spacing; higher = longer gaps
+    intervalDays: number  // days until the next review
+    dueAt: string         // ISO-8601 date/time the range is next due
+    lastReviewedAt: string // ISO-8601 of the most recent review
+  }
+  ```
+- Create `src/domain/spacedRepetition.ts`:
+  - Constants: `DEFAULT_EASE = 2.5`, `MIN_EASE = 1.3`, `FIRST_INTERVAL_DAYS = 1`,
+    `DAY_MS = 86_400_000`.
+  - `scheduleNextReview(prev: RangeReviewState | undefined, accuracyPercentage: number,
+    reviewedAt: string): RangeReviewState` — pure:
+    - `rangeId` carries over from `prev` when present (otherwise the caller supplies it via
+      `prev`; document that for a brand-new range the caller passes a `prev` with the
+      desired `rangeId`, `ease: DEFAULT_EASE`, `intervalDays: 0`, and any timestamps — i.e.
+      `prev` is required to know the id). To keep the signature simple, REQUIRE `prev`
+      (a seed state) and read `prev.rangeId`/`prev.ease`/`prev.intervalDays`.
+    - low (`< 50`): `ease = max(MIN_EASE, prev.ease - 0.2)`, `intervalDays = 1`.
+    - medium (`50–79`): `ease = prev.ease`, `intervalDays = max(1, prev.intervalDays)`.
+    - high (`>= 80`): `ease = prev.ease + 0.1`, `intervalDays = prev.intervalDays <= 0 ?
+      FIRST_INTERVAL_DAYS : Math.round(prev.intervalDays * prev.ease)`.
+    - `lastReviewedAt = reviewedAt`; `dueAt = new Date(new Date(reviewedAt).getTime() +
+      intervalDays * DAY_MS).toISOString()`.
+  - `isReviewDue(state: RangeReviewState, now: string): boolean` —
+    `new Date(now).getTime() >= new Date(state.dueAt).getTime()`.
+  - `seedReviewState(rangeId: string): RangeReviewState` — a convenience that returns a
+    brand-new state (`ease: DEFAULT_EASE`, `intervalDays: 0`, `dueAt`/`lastReviewedAt` as
+    the empty string `''`) so callers/tests can create the first `prev`. Document that a
+    `dueAt` of `''` parses to an invalid date and `isReviewDue` treats it as not due
+    (guard: if `state.dueAt === ''` return `false`).
+  - Module doc comment in the `timedDrill.ts` style (pure; timestamps injected).
 
-Tests:
-- `RangePerformance.test.tsx`: with a `history` of two records, the "Session history"
-  region shows both, newest first; with `history={[]}`, no such region. Add `history` to all
-  existing renders so they keep compiling.
-- `App.test.tsx`: after finishing a session and opening "View stats", the session-history
-  section shows a row (reuse the recognition flow). Keep existing tests green.
+Tests to add (`src/domain/spacedRepetition.test.ts`):
+- low accuracy resets `intervalDays` to 1 and lowers `ease` (clamped at `MIN_EASE`);
+- medium keeps `ease` and keeps interval ≥ 1 (e.g. seed interval 0 → 1; interval 6 → 6);
+- high on a fresh seed (interval 0) sets interval to `FIRST_INTERVAL_DAYS` and raises ease;
+- high on an existing interval multiplies by ease and rounds (e.g. interval 6, ease 2.5 →
+  15) and `dueAt` = `reviewedAt + intervalDays` days (assert the ISO string);
+- `isReviewDue` is true when `now >= dueAt`, false before, and false for a seed with
+  `dueAt === ''`.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -262,11 +290,11 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: the `RangePerformance` history section + `App` wiring + tests. Do
-  NOT change practice flows, storage, or domain. Do NOT mutate the `history` prop (reverse a
-  copy for newest-first).
+- Stay within this slice: ONLY `RangeReviewState`, `spacedRepetition.ts`, and its test. No
+  storage, no UI, no recording wiring.
+- Keep it pure and in `src/domain/`; take timestamps as parameters (no `Date.now()` inside).
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: show a session history timeline in the performance view`
+- `feat: add spaced-repetition review scheduling helpers`

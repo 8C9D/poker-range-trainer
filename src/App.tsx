@@ -18,7 +18,7 @@ import { mergeShortcutHands } from './domain/rangeShortcuts'
 import type { PokerHand } from './domain/pokerHands'
 import { loadHandAccuracy, recordHandAccuracy } from './storage/handAccuracyStorage'
 import { loadPracticeStats, recordPracticeSession } from './storage/practiceStatsStorage'
-import { recordPracticeSessionHistory } from './storage/sessionHistoryStorage'
+import { loadSessionHistory, recordPracticeSessionHistory } from './storage/sessionHistoryStorage'
 import { deleteSavedRange, loadSavedRanges, saveSavedRange } from './storage/rangeStorage'
 import type { PracticeAttempt } from './types/practice'
 import type {
@@ -51,6 +51,9 @@ function App() {
   // Cumulative per-hand accuracy, refreshed after each session so the performance
   // view shows the latest numbers.
   const [handAccuracy, setHandAccuracy] = useState(() => loadHandAccuracy())
+  // Per-range session history, refreshed after each session so the performance
+  // view's timeline shows the latest sessions.
+  const [sessionHistory, setSessionHistory] = useState(() => loadSessionHistory())
   // null = editor/library view; otherwise the saved range whose performance view
   // is open.
   const [performanceRange, setPerformanceRange] = useState<SavedRange | null>(null)
@@ -304,6 +307,7 @@ function App() {
       // pattern.
       setPracticeStats(loadPracticeStats())
       setHandAccuracy(loadHandAccuracy())
+      setSessionHistory(loadSessionHistory())
     }
     exitPractice()
   }
@@ -405,6 +409,7 @@ function App() {
         <RangePerformance
           range={performanceRange}
           accuracy={handAccuracy[performanceRange.id] ?? {}}
+          history={sessionHistory[performanceRange.id] ?? []}
           onClose={() => setPerformanceRange(null)}
           onPracticeMistakes={handlePracticeMistakes}
         />
