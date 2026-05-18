@@ -72,3 +72,20 @@ export interface HandAccuracyStat {
 
 /** Cumulative per-hand accuracy for one range, keyed by hand. */
 export type RangeHandAccuracy = Record<PokerHand, HandAccuracyStat>
+
+/**
+ * One finished practice session, logged for the v2.1 session-history view.
+ *
+ * Summary-shaped (no per-attempt data): the practiced range, when it finished,
+ * and how it went.
+ */
+export interface PracticeSessionRecord {
+  /** Id of the saved range that was practiced. */
+  rangeId: string
+  /** ISO-8601 timestamp of when the session finished. */
+  playedAt: string
+  /** Number of questions answered in the session. */
+  totalQuestions: number
+  /** Of those, how many were answered correctly. */
+  correctAnswers: number
+}

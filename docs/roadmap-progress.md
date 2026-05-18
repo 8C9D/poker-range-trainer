@@ -73,6 +73,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 36 | Mistake-pool and restricted-draw helpers (mistakes-only foundation) | v2.1 — Mistake tracking and review | 2026-06-06 |
 | 37 | PracticeSession optional hand pool (restrict prompts to a subset) | v2.1 — Mistake tracking and review | 2026-06-06 |
 | 38 | "Practice mistakes" entry from the performance view (mistakes-only mode) | v2.1 — Mistake tracking and review | 2026-06-06 |
+| 39 | Session history storage foundation (append + load) | v2.1 — Mistake tracking and review | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -189,82 +190,60 @@ complete.**
 
 v2.1 status: per-hand accuracy tracking (FP/FN), the range performance page, the heatmap
 overlay, mistake review (mode 4 + performance view), and "practice mistakes only" are all
-done. The one remaining v2.1 feature is **session history** (a log of finished sessions
-over time). The next slice begins it with the storage foundation.
+done. The remaining v2.1 feature is **session history**. Slice 39 added its storage
+foundation: the `PracticeSessionRecord` type and `src/storage/sessionHistoryStorage.ts`
+(`loadSessionHistory`, `recordPracticeSessionHistory` — an append-only per-range log,
+oldest-first, mirroring `practiceStatsStorage`'s defensive validation). The next slice
+records a finished session into that log at session end; a later slice surfaces it in the
+performance view.
 
-NOTE ON CADENCE: slices 19–38 are done this finish-v2 run — that is **20 slices**, the
-skill's safety checkpoint. The run is PAUSED here pending the user's go-ahead before
-continuing into session history (slice 39+), then v2.2 (spaced repetition) and v2.3
-(multi-action ranges).
+NOTE ON CADENCE: the user approved continuing the run past the 20-slice checkpoint (after
+slice 38). The loop resumed at slice 39 and continues through v2.1 → v2.2 → v2.3; the next
+safety pause is after ~20 more slices (≈ slice 58) or when the queued slice crosses into
+v3, whichever comes first.
 
 ## Next slice
 
-- **Number:** 39
+- **Number:** 40
 - **Roadmap target:** v2.1 — Mistake tracking and review
-- **Working title:** Session history storage foundation (append + load finished sessions)
+- **Working title:** Record session history at end of session (wiring)
 
 ### Prompt
 
-You are implementing roadmap slice 39, continuing **v2.1 — Mistake tracking and review**.
-The only v2.1 feature left is **session history**: a log of finished practice sessions over
-time, per range. Following the established rhythm, THIS slice adds the storage foundation
-only (a type + an append-only log store + tests); recording at session end and the history
-UI are later slices.
+You are implementing roadmap slice 40, continuing **v2.1 — Mistake tracking and review**.
+Slice 39 added the session-history storage (`recordPracticeSessionHistory` /
+`loadSessionHistory`). This slice records a finished session into that log at session end,
+alongside the per-range summary and per-hand accuracy already recorded. After this the data
+is captured; the history UI in the performance view is the next slice.
 
-Scope of THIS slice (storage foundation only): a `PracticeSessionRecord` type + a
-`sessionHistoryStorage.ts` module (append a finished session, load the log) + tests. Do NOT
-wire it into the end-of-session flow or build UI yet.
+Scope of THIS slice: a one-line recording addition in `App.handleEndPractice` + a test. No
+UI, no new state needed (the performance view reads the log fresh in the next slice).
 
 Context (read these before starting):
-- `src/storage/practiceStatsStorage.ts` — THE pattern to mirror: a single versioned
-  `localStorage` key, a `parse…`/validate helper returning `null` for malformed entries, a
-  `write…` serializer, a `load…` returning a safe default on missing/corrupt/wrong-shape
-  JSON and skipping malformed entries, and a `record…` that writes. Match its structure,
-  naming, doc-comment style, and defensive validation. NOTE: unlike the per-range stats map
-  (keyed by id), session history is an append-only LIST per range, so the stored shape is
-  `Record<string /* rangeId */, PracticeSessionRecord[]>` (or a flat array — pick the
-  per-range map for easy lookup on the performance page, and document the choice).
-- `src/storage/practiceStatsStorage.test.ts` — mirror its test patterns (clear
-  `localStorage` in `beforeEach`; cover load-empty, round-trip, corrupt JSON, malformed
-  entries skipped, append/accumulate, isolation per range).
-- `src/types/practice.ts` — add the new type next to `RangePracticeStats`. A finished
-  session record should capture at least: `rangeId: string`, `playedAt: string` (ISO-8601),
-  `totalQuestions: number`, `correctAnswers: number`. (Keep it summary-shaped, matching
-  `PracticeSessionSummary` fields plus rangeId + timestamp; do not store per-attempt data.)
+- `src/App.tsx` — `handleEndPractice(attempts)` already does, when `practicingRange` is
+  set: `recordPracticeSession(id, summarizePracticeAttempts(attempts))`,
+  `recordHandAccuracy(id, summarizeHandAccuracy(attempts))`, then refreshes
+  `practiceStats`/`handAccuracy` and calls `exitPractice()`. Add
+  `recordPracticeSessionHistory(practicingRange.id, summary)` using the SAME summary
+  (compute `const summary = summarizePracticeAttempts(attempts)` once and reuse it for both
+  `recordPracticeSession` and the history record to avoid recomputing). It is a no-op for a
+  zero-question session, like the other recorders.
+- `src/storage/sessionHistoryStorage.ts` — `recordPracticeSessionHistory(rangeId, summary,
+  playedAt?)`, `loadSessionHistory()`.
+- `src/App.test.tsx` — the recognition stats test (`records a finished practice session
+  into per-range stats`) is the closest model; it already imports the storage loaders and
+  reads `.practice-prompt-hand`.
 
 Task:
-- In `src/types/practice.ts`, add:
-  ```ts
-  export interface PracticeSessionRecord {
-    rangeId: string
-    playedAt: string        // ISO-8601
-    totalQuestions: number
-    correctAnswers: number
-  }
-  ```
-- Create `src/storage/sessionHistoryStorage.ts`:
-  - `export const SESSION_HISTORY_STORAGE_KEY = 'poker-range-trainer.session-history.v1'`.
-  - `loadSessionHistory(): Record<string, PracticeSessionRecord[]>` — outer key `rangeId`,
-    value the list of that range's finished sessions in insertion order (oldest→newest).
-    Return `{}` on missing/corrupt/non-object JSON; validate each record (non-empty string
-    `rangeId`, non-negative-finite `totalQuestions`/`correctAnswers`, string `playedAt`),
-    skip malformed records, drop a range whose list ends up empty, and re-key each list by
-    each record's own `rangeId`.
-  - `recordPracticeSessionHistory(rangeId, summary: Pick<PracticeSessionSummary,
-    'totalQuestions' | 'correctAnswers'>, playedAt = new Date().toISOString())` — append one
-    record to that range's list. A session with `summary.totalQuestions <= 0` is a no-op
-    (consistent with `recordPracticeSession`). Persist via a private `write…` serializer.
-- Side-effect-only, all reads/writes funneled through the exported functions, mirroring
-  `practiceStatsStorage.ts`.
-
-Tests to add (`src/storage/sessionHistoryStorage.test.ts`):
-- `loadSessionHistory()` is `{}` when empty and when JSON is corrupt;
-- recording then loading round-trips a record;
-- a second session for the same range appends (list length 2, oldest-first order
-  preserved);
-- a `totalQuestions: 0` summary records nothing;
-- recording is isolated per `rangeId`;
-- a malformed stored record is skipped without discarding valid ones.
+- In `src/App.tsx`, import `recordPracticeSessionHistory` from
+  `./storage/sessionHistoryStorage`. In `handleEndPractice`, compute the summary once and
+  call `recordPracticeSessionHistory(practicingRange.id, summary)` in the same `if
+  (practicingRange)` block as the other recorders. Do NOT change the build-from-memory or
+  picker paths.
+- In `src/App.test.tsx`, add (or extend an existing recognition-session test) an assertion
+  that after finishing a session, `loadSessionHistory()[rangeId]` has one record with the
+  expected `totalQuestions`/`correctAnswers` (import `loadSessionHistory` from
+  `./storage/sessionHistoryStorage`).
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -272,11 +251,11 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: ONLY the `PracticeSessionRecord` type and
-  `sessionHistoryStorage.ts` + its test. Do NOT modify `App`/components or wire recording.
-- Storage in `src/storage/`; type in `src/types/`. Mirror `practiceStatsStorage`.
+- Stay within this slice: the recording call in `App` + a test. Do NOT build the history UI
+  (next slice) or change components/domain.
+- Reuse the single computed `summary`; keep recording centralized in `handleEndPractice`.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: persist a per-range practice session history log`
+- `feat: record finished sessions into the session history log`
