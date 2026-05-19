@@ -77,6 +77,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 40 | Record finished sessions into the history log (wiring) | v2.1 — Mistake tracking and review | 2026-06-06 |
 | 41 | Session history timeline in the performance view | v2.1 — Mistake tracking and review | 2026-06-06 |
 | 42 | Spaced-repetition scheduling foundation (review state + scheduler) | v2.2 — Spaced repetition system | 2026-06-06 |
+| 43 | Review-state storage foundation (load + upsert) | v2.2 — Spaced repetition system | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -203,10 +204,12 @@ history are all delivered.
 **v2.2 — Spaced repetition system** is now underway. Slice 42 added the pure scheduling
 foundation: the `RangeReviewState` type and `src/domain/spacedRepetition.ts`
 (`seedReviewState`, `scheduleNextReview` — low resets to 1 day + lowers ease, medium holds,
-high grows interval by ease — and `isReviewDue`; all timestamps injected). Still to come in
-v2.2: persist review state, update it at session end, a "due today" queue, streaks, and
-review history. The next slice adds the review-state storage (load + upsert), mirroring
-`practiceStatsStorage`.
+high grows interval by ease — and `isReviewDue`; all timestamps injected). Slice 43 added the persistence: `src/storage/reviewStateStorage.ts` (`loadReviewStates`,
+`saveReviewState` upsert), mirroring `practiceStatsStorage`.
+
+Still to come in v2.2: update the review state at session end, a "due today" queue, streaks,
+and review history. The next slice wires the update — `App.handleEndPractice` will advance
+the practiced range's review state via `scheduleNextReview` and `saveReviewState`.
 
 NOTE ON CADENCE: the user approved continuing past the first 20-slice checkpoint (after
 slice 38). The loop resumed at slice 39 and continues through v2.2 → v2.3; the next safety
@@ -215,50 +218,50 @@ crosses into v3, whichever comes first.
 
 ## Next slice
 
-- **Number:** 43
+- **Number:** 44
 - **Roadmap target:** v2.2 — Spaced repetition system
-- **Working title:** Review-state storage foundation (load + upsert)
+- **Working title:** Advance review state at end of session (wiring)
 
 ### Prompt
 
-You are implementing roadmap slice 43, continuing **v2.2 — Spaced repetition system**.
-Slice 42 added the pure scheduler (`scheduleNextReview`, `seedReviewState`, `isReviewDue`).
-This slice adds the LOCAL PERSISTENCE for each range's `RangeReviewState`, so the next slice
-can update it at session end and a later slice can build the "due today" queue. Following
-the established rhythm, this is the storage foundation only; recording and UI are later.
+You are implementing roadmap slice 44, continuing **v2.2 — Spaced repetition system**.
+Slice 42 added the scheduler and slice 43 the review-state storage. This slice updates a
+range's review state whenever a session finishes, so the schedule actually advances. After
+this the data is captured; the "due today" queue UI is the next slice.
 
-Scope of THIS slice (storage foundation only): a storage module that loads all review
-states and upserts one, plus tests. Do NOT wire it into the end-of-session flow or build UI.
+Scope of THIS slice: advance + persist the review state in `App.handleEndPractice` + a test.
+No UI.
 
 Context (read these before starting):
-- `src/storage/practiceStatsStorage.ts` — THE pattern to mirror exactly (single versioned
-  key, `parse…`/validate helper returning `null` for malformed entries, `write…`
-  serializer, `load…` returning `{}` on missing/corrupt/non-object JSON and skipping
-  malformed entries re-keyed by each entry's own id). Match its structure, naming,
-  doc-comment style, and defensive validation.
-- `src/storage/practiceStatsStorage.test.ts` — mirror its test patterns.
-- `src/types/practice.ts` — `RangeReviewState` (`rangeId`, `ease`, `intervalDays`, `dueAt`,
-  `lastReviewedAt`).
+- `src/App.tsx` — `handleEndPractice(attempts)` already, when `practicingRange` is set,
+  computes `const summary = summarizePracticeAttempts(attempts)` and records per-range
+  stats, per-hand accuracy, and session history, then refreshes those states and calls
+  `exitPractice()`. Add the review-state update in that same block.
+- `src/domain/spacedRepetition.ts` — `scheduleNextReview(prev, accuracyPercentage,
+  reviewedAt)` and `seedReviewState(rangeId)`.
+- `src/storage/reviewStateStorage.ts` — `loadReviewStates()`, `saveReviewState(state)`.
+- `src/types/practice.ts` — `PracticeSessionSummary.accuracyPercentage`.
+- `src/App.test.tsx` — the recognition stats test already imports the storage loaders and
+  reads `.practice-prompt-hand`; mirror it.
 
-Task — create `src/storage/reviewStateStorage.ts`:
-- `export const REVIEW_STATE_STORAGE_KEY = 'poker-range-trainer.review-state.v1'`.
-- `loadReviewStates(): Record<string, RangeReviewState>` — keyed by `rangeId`. Return `{}`
-  on missing/corrupt/non-object JSON. Validate each entry: non-empty string `rangeId`,
-  finite `ease` and `intervalDays` that are `>= 0`, string `dueAt` and `lastReviewedAt`;
-  skip malformed entries and re-key by each entry's own `rangeId` (like
-  `loadPracticeStats`).
-- `saveReviewState(state: RangeReviewState): void` — upsert: load the map, set
-  `map[state.rangeId] = state`, write. (No no-op guard needed; callers pass a real state.)
-- Side-effect-only, all reads/writes funneled through the exported functions, with a private
-  `writeReviewStates` serializer.
-
-Tests to add (`src/storage/reviewStateStorage.test.ts`):
-- `loadReviewStates()` is `{}` when empty and when JSON is corrupt;
-- `saveReviewState` then `loadReviewStates` round-trips a state;
-- saving the same `rangeId` again overwrites (upsert), not duplicates;
-- states are isolated per `rangeId`;
-- a malformed stored entry (e.g. missing `rangeId`, non-numeric `ease`, negative
-  `intervalDays`) is skipped on load without discarding valid ones.
+Task:
+- In `src/App.tsx`, import `scheduleNextReview` + `seedReviewState` from
+  `./domain/spacedRepetition` and `loadReviewStates` + `saveReviewState` from
+  `./storage/reviewStateStorage`. In `handleEndPractice`, inside the `if (practicingRange)`
+  block (reusing the existing `summary`):
+  - `const reviewedAt = new Date().toISOString()` (an event handler — `new Date()` is fine,
+    matching `handleSave`),
+  - `const prevReview = loadReviewStates()[practicingRange.id] ??
+    seedReviewState(practicingRange.id)`,
+  - `saveReviewState(scheduleNextReview(prevReview, summary.accuracyPercentage, reviewedAt))`.
+  - Keep this alongside the other recorders; do NOT change build-from-memory or the picker.
+  - (No App state for review needed yet — the due-today UI in the next slice will read it.)
+- In `src/App.test.tsx`, add an assertion (extend the recognition stats test, or add a new
+  one) that after finishing a session, `loadReviewStates()[rangeId]` exists with the
+  expected scheduling. A single truthful answer is 100% accuracy → a strong first review →
+  `intervalDays: 1`; assert `expect(loadReviewStates()[rangeId]).toEqual(
+  expect.objectContaining({ rangeId, intervalDays: 1 }))` and that `lastReviewedAt` is a
+  non-empty string. Import `loadReviewStates` from `./storage/reviewStateStorage`.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -266,11 +269,11 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: ONLY `reviewStateStorage.ts` + its test. Do NOT modify
-  `App`/components or wire recording.
-- Storage in `src/storage/`. Mirror `practiceStatsStorage`.
+- Stay within this slice: the review-state update in `App.handleEndPractice` + a test. Do
+  NOT build the due-today queue (next slice) or change components/domain.
+- Reuse the existing `summary`; keep the update centralized in `handleEndPractice`.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: persist per-range spaced-repetition review state`
+- `feat: advance a range's review schedule when a session ends`
