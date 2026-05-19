@@ -78,6 +78,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 41 | Session history timeline in the performance view | v2.1 — Mistake tracking and review | 2026-06-06 |
 | 42 | Spaced-repetition scheduling foundation (review state + scheduler) | v2.2 — Spaced repetition system | 2026-06-06 |
 | 43 | Review-state storage foundation (load + upsert) | v2.2 — Spaced repetition system | 2026-06-06 |
+| 44 | Advance review state at end of session (wiring) | v2.2 — Spaced repetition system | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -207,9 +208,13 @@ foundation: the `RangeReviewState` type and `src/domain/spacedRepetition.ts`
 high grows interval by ease — and `isReviewDue`; all timestamps injected). Slice 43 added the persistence: `src/storage/reviewStateStorage.ts` (`loadReviewStates`,
 `saveReviewState` upsert), mirroring `practiceStatsStorage`.
 
-Still to come in v2.2: update the review state at session end, a "due today" queue, streaks,
-and review history. The next slice wires the update — `App.handleEndPractice` will advance
-the practiced range's review state via `scheduleNextReview` and `saveReviewState`.
+Slice 44 wired the update: `App.handleEndPractice` now advances the practiced range's review
+state (`loadReviewStates` → `scheduleNextReview(prev ?? seed, summary.accuracyPercentage,
+reviewedAt)` → `saveReviewState`) alongside the other recorders. Schedules now advance every
+session.
+
+Still to come in v2.2: a "due today" queue/page, streaks, and review history. The next slice
+adds the pure `selectDueRanges` helper (which ranges are due now), before the due-today UI.
 
 NOTE ON CADENCE: the user approved continuing past the first 20-slice checkpoint (after
 slice 38). The loop resumed at slice 39 and continues through v2.2 → v2.3; the next safety
@@ -218,50 +223,42 @@ crosses into v3, whichever comes first.
 
 ## Next slice
 
-- **Number:** 44
+- **Number:** 45
 - **Roadmap target:** v2.2 — Spaced repetition system
-- **Working title:** Advance review state at end of session (wiring)
+- **Working title:** Due-ranges selector (which ranges are due for review)
 
 ### Prompt
 
-You are implementing roadmap slice 44, continuing **v2.2 — Spaced repetition system**.
-Slice 42 added the scheduler and slice 43 the review-state storage. This slice updates a
-range's review state whenever a session finishes, so the schedule actually advances. After
-this the data is captured; the "due today" queue UI is the next slice.
+You are implementing roadmap slice 45, continuing **v2.2 — Spaced repetition system**.
+Review state is scheduled (slice 42), persisted (43), and updated each session (44). Next is
+the "due today" queue. Following the established rhythm, THIS slice adds the pure selector
+that picks which ranges are due now; the due-today UI is the next slice.
 
-Scope of THIS slice: advance + persist the review state in `App.handleEndPractice` + a test.
-No UI.
+Scope of THIS slice (foundation only): one pure function + tests. No storage, no UI.
 
 Context (read these before starting):
-- `src/App.tsx` — `handleEndPractice(attempts)` already, when `practicingRange` is set,
-  computes `const summary = summarizePracticeAttempts(attempts)` and records per-range
-  stats, per-hand accuracy, and session history, then refreshes those states and calls
-  `exitPractice()`. Add the review-state update in that same block.
-- `src/domain/spacedRepetition.ts` — `scheduleNextReview(prev, accuracyPercentage,
-  reviewedAt)` and `seedReviewState(rangeId)`.
-- `src/storage/reviewStateStorage.ts` — `loadReviewStates()`, `saveReviewState(state)`.
-- `src/types/practice.ts` — `PracticeSessionSummary.accuracyPercentage`.
-- `src/App.test.tsx` — the recognition stats test already imports the storage loaders and
-  reads `.practice-prompt-hand`; mirror it.
+- `src/domain/spacedRepetition.ts` — has `isReviewDue(state, now)`. Add the selector here.
+  It imports `RangeReviewState`; you'll also need `SavedRange` from `../types/range`.
+- `src/types/range.ts` — `SavedRange` (`id`, …).
+- `src/types/practice.ts` — `RangeReviewState`.
+- `src/domain/spacedRepetition.test.ts` — mirror its pure-domain test patterns.
 
-Task:
-- In `src/App.tsx`, import `scheduleNextReview` + `seedReviewState` from
-  `./domain/spacedRepetition` and `loadReviewStates` + `saveReviewState` from
-  `./storage/reviewStateStorage`. In `handleEndPractice`, inside the `if (practicingRange)`
-  block (reusing the existing `summary`):
-  - `const reviewedAt = new Date().toISOString()` (an event handler — `new Date()` is fine,
-    matching `handleSave`),
-  - `const prevReview = loadReviewStates()[practicingRange.id] ??
-    seedReviewState(practicingRange.id)`,
-  - `saveReviewState(scheduleNextReview(prevReview, summary.accuracyPercentage, reviewedAt))`.
-  - Keep this alongside the other recorders; do NOT change build-from-memory or the picker.
-  - (No App state for review needed yet — the due-today UI in the next slice will read it.)
-- In `src/App.test.tsx`, add an assertion (extend the recognition stats test, or add a new
-  one) that after finishing a session, `loadReviewStates()[rangeId]` exists with the
-  expected scheduling. A single truthful answer is 100% accuracy → a strong first review →
-  `intervalDays: 1`; assert `expect(loadReviewStates()[rangeId]).toEqual(
-  expect.objectContaining({ rangeId, intervalDays: 1 }))` and that `lastReviewedAt` is a
-  non-empty string. Import `loadReviewStates` from `./storage/reviewStateStorage`.
+Task — add to `src/domain/spacedRepetition.ts`:
+- `selectDueRanges(ranges: SavedRange[], reviewStates: Record<string, RangeReviewState>,
+  now: string): SavedRange[]` — return the subset of `ranges` that are due for review now,
+  preserving input order. A range is DUE when it has no review state yet (never reviewed →
+  due to start its schedule) OR its state `isReviewDue(state, now)`. Do not mutate inputs.
+  Document the "never-reviewed counts as due" rule and that the caller is responsible for any
+  pre-filtering (e.g. excluding archived ranges).
+
+Tests to add (`src/domain/spacedRepetition.test.ts`, new `describe('selectDueRanges', …)`):
+- empty `ranges` → `[]`;
+- a range with NO review state is included (due);
+- a range whose state is due (`dueAt <= now`) is included; one not yet due (`dueAt > now`)
+  is excluded;
+- input order is preserved;
+- (build minimal `SavedRange` objects inline — only `id` matters here; you can cast small
+  literals `as SavedRange` or include the required fields).
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -269,11 +266,10 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: the review-state update in `App.handleEndPractice` + a test. Do
-  NOT build the due-today queue (next slice) or change components/domain.
-- Reuse the existing `summary`; keep the update centralized in `handleEndPractice`.
+- Stay within this slice: ONLY `selectDueRanges` + tests. No storage, no UI.
+- Keep it pure and in `src/domain/`; take `now` as a parameter.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: advance a range's review schedule when a session ends`
+- `feat: add a selector for ranges due for review`

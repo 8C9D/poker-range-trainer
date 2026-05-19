@@ -13,11 +13,13 @@ import { setRangeArchived } from './domain/rangeArchive'
 import { duplicateRange } from './domain/rangeDuplication'
 import { setRangeFavorite } from './domain/rangeFavorite'
 import { handsWithMistakes, summarizeHandAccuracy, summarizePracticeAttempts } from './domain/practice'
+import { scheduleNextReview, seedReviewState } from './domain/spacedRepetition'
 import { calculateRangePercentage, countSelectedCombos } from './domain/rangeMath'
 import { mergeShortcutHands } from './domain/rangeShortcuts'
 import type { PokerHand } from './domain/pokerHands'
 import { loadHandAccuracy, recordHandAccuracy } from './storage/handAccuracyStorage'
 import { loadPracticeStats, recordPracticeSession } from './storage/practiceStatsStorage'
+import { loadReviewStates, saveReviewState } from './storage/reviewStateStorage'
 import { loadSessionHistory, recordPracticeSessionHistory } from './storage/sessionHistoryStorage'
 import { deleteSavedRange, loadSavedRanges, saveSavedRange } from './storage/rangeStorage'
 import type { PracticeAttempt } from './types/practice'
@@ -302,6 +304,11 @@ function App() {
       recordPracticeSession(practicingRange.id, summary)
       recordHandAccuracy(practicingRange.id, summarizeHandAccuracy(attempts))
       recordPracticeSessionHistory(practicingRange.id, summary)
+      // Advance the spaced-repetition schedule from this session's accuracy.
+      const reviewedAt = new Date().toISOString()
+      const prevReview =
+        loadReviewStates()[practicingRange.id] ?? seedReviewState(practicingRange.id)
+      saveReviewState(scheduleNextReview(prevReview, summary.accuracyPercentage, reviewedAt))
       // Refresh from storage so the library card and performance view reflect this
       // session, mirroring the setSavedRanges(loadSavedRanges()) refresh-after-write
       // pattern.

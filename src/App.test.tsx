@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import App from './App'
 import { loadHandAccuracy } from './storage/handAccuracyStorage'
 import { loadPracticeStats } from './storage/practiceStatsStorage'
+import { loadReviewStates } from './storage/reviewStateStorage'
 import { loadSessionHistory } from './storage/sessionHistoryStorage'
 import { loadSavedRanges } from './storage/rangeStorage'
 
@@ -333,6 +334,11 @@ describe('Practice mode', () => {
     expect(loadSessionHistory()[rangeId]).toEqual([
       expect.objectContaining({ rangeId, totalQuestions: 1, correctAnswers: 1 }),
     ])
+    // ...and advances the spaced-repetition schedule (a strong first review → 1-day interval).
+    expect(loadReviewStates()[rangeId]).toEqual(
+      expect.objectContaining({ rangeId, intervalDays: 1 }),
+    )
+    expect(loadReviewStates()[rangeId].lastReviewedAt).not.toBe('')
   })
 
   it('shows the recorded practice stats on the library card after ending a session', async () => {
