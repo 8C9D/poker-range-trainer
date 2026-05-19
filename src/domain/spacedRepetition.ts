@@ -1,4 +1,5 @@
 import type { RangeReviewState } from '../types/practice'
+import type { SavedRange } from '../types/range'
 
 /**
  * Pure spaced-repetition scheduling for range review (v2.2).
@@ -63,4 +64,21 @@ export function scheduleNextReview(
 export function isReviewDue(state: RangeReviewState, now: string): boolean {
   if (state.dueAt === '') return false
   return new Date(now).getTime() >= new Date(state.dueAt).getTime()
+}
+
+/**
+ * The subset of `ranges` due for review at `now`, in input order. A range counts
+ * as due when it has no review state yet (never reviewed → due to start its
+ * schedule) or its state `isReviewDue`. Pure — inputs are not mutated, and the
+ * caller is responsible for any pre-filtering (e.g. excluding archived ranges).
+ */
+export function selectDueRanges(
+  ranges: SavedRange[],
+  reviewStates: Record<string, RangeReviewState>,
+  now: string,
+): SavedRange[] {
+  return ranges.filter((range) => {
+    const state = reviewStates[range.id]
+    return state === undefined || isReviewDue(state, now)
+  })
 }

@@ -79,6 +79,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 42 | Spaced-repetition scheduling foundation (review state + scheduler) | v2.2 — Spaced repetition system | 2026-06-06 |
 | 43 | Review-state storage foundation (load + upsert) | v2.2 — Spaced repetition system | 2026-06-06 |
 | 44 | Advance review state at end of session (wiring) | v2.2 — Spaced repetition system | 2026-06-06 |
+| 45 | Due-ranges selector (which ranges are due for review) | v2.2 — Spaced repetition system | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -213,8 +214,12 @@ state (`loadReviewStates` → `scheduleNextReview(prev ?? seed, summary.accuracy
 reviewedAt)` → `saveReviewState`) alongside the other recorders. Schedules now advance every
 session.
 
-Still to come in v2.2: a "due today" queue/page, streaks, and review history. The next slice
-adds the pure `selectDueRanges` helper (which ranges are due now), before the due-today UI.
+Slice 45 added the pure `selectDueRanges(ranges, reviewStates, now)` selector (never-reviewed
+ranges count as due; preserves order).
+
+Still to come in v2.2: the "due today" queue UI, streaks, and review history. The next slice
+adds the standalone `DueToday` component (lists due ranges with a Practice action); wiring it
+into `App` behind a header "Review" entry follows.
 
 NOTE ON CADENCE: the user approved continuing past the first 20-slice checkpoint (after
 slice 38). The loop resumed at slice 39 and continues through v2.2 → v2.3; the next safety
@@ -223,42 +228,45 @@ crosses into v3, whichever comes first.
 
 ## Next slice
 
-- **Number:** 45
+- **Number:** 46
 - **Roadmap target:** v2.2 — Spaced repetition system
-- **Working title:** Due-ranges selector (which ranges are due for review)
+- **Working title:** Due-today review queue component
 
 ### Prompt
 
-You are implementing roadmap slice 45, continuing **v2.2 — Spaced repetition system**.
-Review state is scheduled (slice 42), persisted (43), and updated each session (44). Next is
-the "due today" queue. Following the established rhythm, THIS slice adds the pure selector
-that picks which ranges are due now; the due-today UI is the next slice.
+You are implementing roadmap slice 46, continuing **v2.2 — Spaced repetition system**.
+`selectDueRanges` (slice 45) can pick the due ranges. This slice builds the "due today"
+review-queue UI component. Do NOT wire it into `App` yet — that is the next slice. Keep it
+standalone and fully tested first.
 
-Scope of THIS slice (foundation only): one pure function + tests. No storage, no UI.
+Scope of THIS slice: a self-contained `DueToday` component listing due ranges with a
+Practice action + an empty state. No App changes.
 
 Context (read these before starting):
-- `src/domain/spacedRepetition.ts` — has `isReviewDue(state, now)`. Add the selector here.
-  It imports `RangeReviewState`; you'll also need `SavedRange` from `../types/range`.
-- `src/types/range.ts` — `SavedRange` (`id`, …).
-- `src/types/practice.ts` — `RangeReviewState`.
-- `src/domain/spacedRepetition.test.ts` — mirror its pure-domain test patterns.
+- `src/types/range.ts` — `SavedRange` (`id`, `name`, …).
+- `src/components/PracticeSession.css` — reuse `practice-session`, `practice-header`, and
+  the `practice-answers`/`.primary` button styling; add a tiny `DueToday.css` only if you
+  need new classes (e.g. a list). `src/components/RangeLibrary.tsx` shows the card-list +
+  accessible-button-name idiom (`Practice range {name}`) to mirror.
+- `src/components/RangeLibrary.test.tsx` — RTL patterns to mirror.
 
-Task — add to `src/domain/spacedRepetition.ts`:
-- `selectDueRanges(ranges: SavedRange[], reviewStates: Record<string, RangeReviewState>,
-  now: string): SavedRange[]` — return the subset of `ranges` that are due for review now,
-  preserving input order. A range is DUE when it has no review state yet (never reviewed →
-  due to start its schedule) OR its state `isReviewDue(state, now)`. Do not mutate inputs.
-  Document the "never-reviewed counts as due" rule and that the caller is responsible for any
-  pre-filtering (e.g. excluding archived ranges).
+Task — create `src/components/DueToday.tsx` exporting
+`DueToday({ dueRanges, onPractice, onClose }: { dueRanges: SavedRange[]; onPractice:
+(range: SavedRange) => void; onClose: () => void })`:
+- A header "Due for review" (optionally with the count, e.g. `Due for review (3)`) and a
+  "Back to library" button calling `onClose`.
+- If `dueRanges` is empty, show an empty state (e.g. "Nothing due for review right now —
+  great work!").
+- Otherwise render a list (`<ul>`), one item per range showing its name and a "Practice"
+  button with aria-label `Practice range {name}` calling `onPractice(range)`.
+- Pure presentation fed by props; no storage, no Date, no domain selection (the caller
+  passes the already-selected due ranges).
 
-Tests to add (`src/domain/spacedRepetition.test.ts`, new `describe('selectDueRanges', …)`):
-- empty `ranges` → `[]`;
-- a range with NO review state is included (due);
-- a range whose state is due (`dueAt <= now`) is included; one not yet due (`dueAt > now`)
-  is excluded;
-- input order is preserved;
-- (build minimal `SavedRange` objects inline — only `id` matters here; you can cast small
-  literals `as SavedRange` or include the required fields).
+Tests to add (`src/components/DueToday.test.tsx`, RTL):
+- empty `dueRanges` → shows the empty state and no list items;
+- with two due ranges, both names render and each has a `Practice range {name}` button;
+- clicking a range's Practice button calls `onPractice` with that range;
+- "Back to library" calls `onClose`.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -266,10 +274,11 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: ONLY `selectDueRanges` + tests. No storage, no UI.
-- Keep it pure and in `src/domain/`; take `now` as a parameter.
+- Stay within this slice: ONLY `DueToday.tsx`, its CSS (if needed), and its test. Do NOT
+  modify `App` or wire it in (next slice), and do NOT call `selectDueRanges`/storage in the
+  component (the caller supplies `dueRanges`).
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: add a selector for ranges due for review`
+- `feat: add a due-today review queue component`

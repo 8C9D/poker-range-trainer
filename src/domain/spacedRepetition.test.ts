@@ -6,8 +6,10 @@ import {
   seedReviewState,
   scheduleNextReview,
   isReviewDue,
+  selectDueRanges,
 } from './spacedRepetition'
 import type { RangeReviewState } from '../types/practice'
+import type { SavedRange } from '../types/range'
 
 const REVIEWED_AT = '2026-01-01T00:00:00.000Z'
 
@@ -82,5 +84,34 @@ describe('isReviewDue', () => {
 
   it('is false for a never-scheduled seed state', () => {
     expect(isReviewDue(seedReviewState('r1'), '2030-01-01T00:00:00.000Z')).toBe(false)
+  })
+})
+
+describe('selectDueRanges', () => {
+  const NOW = '2026-01-10T00:00:00.000Z'
+
+  function range(id: string): SavedRange {
+    return { id, name: id, hands: ['AA'], createdAt: NOW, updatedAt: NOW }
+  }
+
+  function reviewState(rangeId: string, dueAt: string): RangeReviewState {
+    return { rangeId, ease: DEFAULT_EASE, intervalDays: 1, dueAt, lastReviewedAt: NOW }
+  }
+
+  it('returns an empty array when there are no ranges', () => {
+    expect(selectDueRanges([], {}, NOW)).toEqual([])
+  })
+
+  it('counts a never-reviewed range (no state) as due', () => {
+    expect(selectDueRanges([range('fresh')], {}, NOW).map((r) => r.id)).toEqual(['fresh'])
+  })
+
+  it('includes due ranges, excludes not-yet-due ones, and preserves order', () => {
+    const states = {
+      due: reviewState('due', '2026-01-05T00:00:00.000Z'), // past due
+      future: reviewState('future', '2026-01-20T00:00:00.000Z'), // not due yet
+    }
+    const result = selectDueRanges([range('due'), range('future'), range('fresh')], states, NOW)
+    expect(result.map((r) => r.id)).toEqual(['due', 'fresh'])
   })
 })
