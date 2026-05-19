@@ -89,3 +89,20 @@ export interface PracticeSessionRecord {
   /** Of those, how many were answered correctly. */
   correctAnswers: number
 }
+
+/**
+ * Spaced-repetition review state for one range (v2.2). Practice performance
+ * advances `ease`/`intervalDays` and sets the next `dueAt`.
+ */
+export interface RangeReviewState {
+  /** Id of the saved range this review state belongs to. */
+  rangeId: string
+  /** Spacing multiplier; higher means longer gaps between reviews. */
+  ease: number
+  /** Days from the last review until the next one. */
+  intervalDays: number
+  /** ISO-8601 date/time the range is next due for review ('' = never scheduled). */
+  dueAt: string
+  /** ISO-8601 timestamp of the most recent review ('' = never reviewed). */
+  lastReviewedAt: string
+}

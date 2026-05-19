@@ -76,6 +76,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 39 | Session history storage foundation (append + load) | v2.1 — Mistake tracking and review | 2026-06-06 |
 | 40 | Record finished sessions into the history log (wiring) | v2.1 — Mistake tracking and review | 2026-06-06 |
 | 41 | Session history timeline in the performance view | v2.1 — Mistake tracking and review | 2026-06-06 |
+| 42 | Spaced-repetition scheduling foundation (review state + scheduler) | v2.2 — Spaced repetition system | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -199,10 +200,13 @@ false-positive/false-negative counts, the range-specific performance page, the h
 overlay, mistake review (mode 4 + performance view), "practice mistakes only", and session
 history are all delivered.
 
-The roadmap now moves to **v2.2 — Spaced repetition system** (each range gets a review
-state; performance sets the next review date; a daily "due today" queue; streaks; review
-history). The next slice begins v2.2 with its pure scheduling foundation: a
-`RangeReviewState` and a `scheduleNextReview` function.
+**v2.2 — Spaced repetition system** is now underway. Slice 42 added the pure scheduling
+foundation: the `RangeReviewState` type and `src/domain/spacedRepetition.ts`
+(`seedReviewState`, `scheduleNextReview` — low resets to 1 day + lowers ease, medium holds,
+high grows interval by ease — and `isReviewDue`; all timestamps injected). Still to come in
+v2.2: persist review state, update it at session end, a "due today" queue, streaks, and
+review history. The next slice adds the review-state storage (load + upsert), mirroring
+`practiceStatsStorage`.
 
 NOTE ON CADENCE: the user approved continuing past the first 20-slice checkpoint (after
 slice 38). The loop resumed at slice 39 and continues through v2.2 → v2.3; the next safety
@@ -211,78 +215,50 @@ crosses into v3, whichever comes first.
 
 ## Next slice
 
-- **Number:** 42
+- **Number:** 43
 - **Roadmap target:** v2.2 — Spaced repetition system
-- **Working title:** Spaced-repetition scheduling foundation (review state + scheduler)
+- **Working title:** Review-state storage foundation (load + upsert)
 
 ### Prompt
 
-You are implementing roadmap slice 42, beginning **v2.2 — Spaced repetition system**. v2.1
-is complete. v2.2 schedules range review automatically: each range gets a review state,
-practice performance sets the next review date, weak ranges come up sooner, and there is a
-daily "due today" queue with streaks. Following the established rhythm, THIS slice adds ONLY
-the pure scheduling foundation (a type + a scheduler + a due check); persistence, recording,
-the due-today queue, and streaks are later slices.
+You are implementing roadmap slice 43, continuing **v2.2 — Spaced repetition system**.
+Slice 42 added the pure scheduler (`scheduleNextReview`, `seedReviewState`, `isReviewDue`).
+This slice adds the LOCAL PERSISTENCE for each range's `RangeReviewState`, so the next slice
+can update it at session end and a later slice can build the "due today" queue. Following
+the established rhythm, this is the storage foundation only; recording and UI are later.
 
-Scope of THIS slice (foundation only): a new pure domain module + tests. No storage, no UI.
+Scope of THIS slice (storage foundation only): a storage module that loads all review
+states and upserts one, plus tests. Do NOT wire it into the end-of-session flow or build UI.
 
 Context (read these before starting):
-- `docs/roadmap.md` v2.2 — suggests `RangeReviewState { rangeId, ease, intervalDays, dueAt,
-  lastReviewedAt }` and simple rules: high accuracy → increase interval; medium → keep
-  similar; low → reset to review tomorrow. Use accuracy thresholds consistent with the rest
-  of the app: low `< 50`, medium `50–79`, high `>= 80` (same buckets as `accuracyHeatLevel`).
-- `src/domain/timedDrill.ts` — the per-feature pure-module + test style to mirror (focused
-  exports, module doc comment, time taken as a parameter — here `reviewedAt`/`now` are
-  passed in, never `Date.now()` inside).
-- `src/domain/practice.ts` `summarizePracticeAttempts` returns `accuracyPercentage` (0–100)
-  — the scheduler takes that number, not raw attempts.
-- `src/types/practice.ts` — add the `RangeReviewState` type here (next to the other v2.x
-  types).
+- `src/storage/practiceStatsStorage.ts` — THE pattern to mirror exactly (single versioned
+  key, `parse…`/validate helper returning `null` for malformed entries, `write…`
+  serializer, `load…` returning `{}` on missing/corrupt/non-object JSON and skipping
+  malformed entries re-keyed by each entry's own id). Match its structure, naming,
+  doc-comment style, and defensive validation.
+- `src/storage/practiceStatsStorage.test.ts` — mirror its test patterns.
+- `src/types/practice.ts` — `RangeReviewState` (`rangeId`, `ease`, `intervalDays`, `dueAt`,
+  `lastReviewedAt`).
 
-Task:
-- In `src/types/practice.ts`, add:
-  ```ts
-  export interface RangeReviewState {
-    rangeId: string
-    ease: number          // multiplier for spacing; higher = longer gaps
-    intervalDays: number  // days until the next review
-    dueAt: string         // ISO-8601 date/time the range is next due
-    lastReviewedAt: string // ISO-8601 of the most recent review
-  }
-  ```
-- Create `src/domain/spacedRepetition.ts`:
-  - Constants: `DEFAULT_EASE = 2.5`, `MIN_EASE = 1.3`, `FIRST_INTERVAL_DAYS = 1`,
-    `DAY_MS = 86_400_000`.
-  - `scheduleNextReview(prev: RangeReviewState | undefined, accuracyPercentage: number,
-    reviewedAt: string): RangeReviewState` — pure:
-    - `rangeId` carries over from `prev` when present (otherwise the caller supplies it via
-      `prev`; document that for a brand-new range the caller passes a `prev` with the
-      desired `rangeId`, `ease: DEFAULT_EASE`, `intervalDays: 0`, and any timestamps — i.e.
-      `prev` is required to know the id). To keep the signature simple, REQUIRE `prev`
-      (a seed state) and read `prev.rangeId`/`prev.ease`/`prev.intervalDays`.
-    - low (`< 50`): `ease = max(MIN_EASE, prev.ease - 0.2)`, `intervalDays = 1`.
-    - medium (`50–79`): `ease = prev.ease`, `intervalDays = max(1, prev.intervalDays)`.
-    - high (`>= 80`): `ease = prev.ease + 0.1`, `intervalDays = prev.intervalDays <= 0 ?
-      FIRST_INTERVAL_DAYS : Math.round(prev.intervalDays * prev.ease)`.
-    - `lastReviewedAt = reviewedAt`; `dueAt = new Date(new Date(reviewedAt).getTime() +
-      intervalDays * DAY_MS).toISOString()`.
-  - `isReviewDue(state: RangeReviewState, now: string): boolean` —
-    `new Date(now).getTime() >= new Date(state.dueAt).getTime()`.
-  - `seedReviewState(rangeId: string): RangeReviewState` — a convenience that returns a
-    brand-new state (`ease: DEFAULT_EASE`, `intervalDays: 0`, `dueAt`/`lastReviewedAt` as
-    the empty string `''`) so callers/tests can create the first `prev`. Document that a
-    `dueAt` of `''` parses to an invalid date and `isReviewDue` treats it as not due
-    (guard: if `state.dueAt === ''` return `false`).
-  - Module doc comment in the `timedDrill.ts` style (pure; timestamps injected).
+Task — create `src/storage/reviewStateStorage.ts`:
+- `export const REVIEW_STATE_STORAGE_KEY = 'poker-range-trainer.review-state.v1'`.
+- `loadReviewStates(): Record<string, RangeReviewState>` — keyed by `rangeId`. Return `{}`
+  on missing/corrupt/non-object JSON. Validate each entry: non-empty string `rangeId`,
+  finite `ease` and `intervalDays` that are `>= 0`, string `dueAt` and `lastReviewedAt`;
+  skip malformed entries and re-key by each entry's own `rangeId` (like
+  `loadPracticeStats`).
+- `saveReviewState(state: RangeReviewState): void` — upsert: load the map, set
+  `map[state.rangeId] = state`, write. (No no-op guard needed; callers pass a real state.)
+- Side-effect-only, all reads/writes funneled through the exported functions, with a private
+  `writeReviewStates` serializer.
 
-Tests to add (`src/domain/spacedRepetition.test.ts`):
-- low accuracy resets `intervalDays` to 1 and lowers `ease` (clamped at `MIN_EASE`);
-- medium keeps `ease` and keeps interval ≥ 1 (e.g. seed interval 0 → 1; interval 6 → 6);
-- high on a fresh seed (interval 0) sets interval to `FIRST_INTERVAL_DAYS` and raises ease;
-- high on an existing interval multiplies by ease and rounds (e.g. interval 6, ease 2.5 →
-  15) and `dueAt` = `reviewedAt + intervalDays` days (assert the ISO string);
-- `isReviewDue` is true when `now >= dueAt`, false before, and false for a seed with
-  `dueAt === ''`.
+Tests to add (`src/storage/reviewStateStorage.test.ts`):
+- `loadReviewStates()` is `{}` when empty and when JSON is corrupt;
+- `saveReviewState` then `loadReviewStates` round-trips a state;
+- saving the same `rangeId` again overwrites (upsert), not duplicates;
+- states are isolated per `rangeId`;
+- a malformed stored entry (e.g. missing `rangeId`, non-numeric `ease`, negative
+  `intervalDays`) is skipped on load without discarding valid ones.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -290,11 +266,11 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: ONLY `RangeReviewState`, `spacedRepetition.ts`, and its test. No
-  storage, no UI, no recording wiring.
-- Keep it pure and in `src/domain/`; take timestamps as parameters (no `Date.now()` inside).
+- Stay within this slice: ONLY `reviewStateStorage.ts` + its test. Do NOT modify
+  `App`/components or wire recording.
+- Storage in `src/storage/`. Mirror `practiceStatsStorage`.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: add spaced-repetition review scheduling helpers`
+- `feat: persist per-range spaced-repetition review state`
