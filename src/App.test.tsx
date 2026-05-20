@@ -633,6 +633,55 @@ describe('Range performance view', () => {
   })
 })
 
+describe('Due-today review queue', () => {
+  it('opens the queue listing a never-practiced range as due', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Pairs')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    await user.click(screen.getByRole('button', { name: 'Review due ranges' }))
+
+    expect(screen.getByRole('heading', { name: /Due for review/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Practice range Pairs' })).toBeInTheDocument()
+    // The queue replaces the editor/library.
+    expect(screen.queryByLabelText('Range name')).not.toBeInTheDocument()
+  })
+
+  it('returns to the library from the queue', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Pairs')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    await user.click(screen.getByRole('button', { name: 'Review due ranges' }))
+    await user.click(screen.getByRole('button', { name: 'Back to library' }))
+
+    expect(screen.getByLabelText('Range name')).toBeInTheDocument()
+    expect(within(library()).getByText('Pairs')).toBeInTheDocument()
+  })
+
+  it('starts practice for a due range from the queue', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Pairs')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    await user.click(screen.getByRole('button', { name: 'Review due ranges' }))
+    await user.click(screen.getByRole('button', { name: 'Practice range Pairs' }))
+
+    // Practice started (mode picker), the queue is gone.
+    expect(screen.getByRole('button', { name: 'Recognize hands (in/out)' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /Due for review/ })).not.toBeInTheDocument()
+  })
+})
+
 describe('Range shortcuts', () => {
   it('renders the range shortcut section', () => {
     render(<App />)

@@ -81,6 +81,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 44 | Advance review state at end of session (wiring) | v2.2 — Spaced repetition system | 2026-06-06 |
 | 45 | Due-ranges selector (which ranges are due for review) | v2.2 — Spaced repetition system | 2026-06-06 |
 | 46 | Due-today review queue component | v2.2 — Spaced repetition system | 2026-06-06 |
+| 47 | Wire the due-today review queue into App | v2.2 — Spaced repetition system | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -221,9 +222,14 @@ ranges count as due; preserves order).
 Slice 46 added the standalone `DueToday` component (lists due ranges with a Practice action;
 all-caught-up empty state), fully tested but not yet reachable.
 
-Still to come in v2.2: wire the due-today queue into `App`, plus streaks and review history.
-The next slice wires `DueToday` in behind a "Review due ranges" entry that opens the queue
-(computed fresh via `selectDueRanges` + `loadReviewStates`).
+Slice 47 wired the due-today queue into `App`: a "Review due ranges" button opens a
+`dueToday` view (`selectDueRanges` over non-archived ranges + `loadReviewStates`, computed
+in the handler), and practicing a due range launches the picker. The daily review queue is
+live.
+
+Still to come in v2.2: streak tracking (and review-completion history — largely covered by
+v2.1's per-range session history). The next slice adds the pure `currentStreak` helper
+(consecutive review days), before surfacing it on the review queue.
 
 NOTE ON CADENCE: the user approved continuing past the first 20-slice checkpoint (after
 slice 38). The loop resumed at slice 39 and continues through v2.2 → v2.3; the next safety
@@ -232,55 +238,48 @@ crosses into v3, whichever comes first.
 
 ## Next slice
 
-- **Number:** 47
+- **Number:** 48
 - **Roadmap target:** v2.2 — Spaced repetition system
-- **Working title:** Wire the due-today review queue into App
+- **Working title:** Review-streak helper (consecutive review days)
 
 ### Prompt
 
-You are implementing roadmap slice 47, continuing **v2.2 — Spaced repetition system**.
-Slice 46 built the standalone `DueToday` component. This slice makes it reachable: a
-"Review due ranges" entry opens the queue (computed fresh from the review states), and
-practicing a due range works.
+You are implementing roadmap slice 48, continuing **v2.2 — Spaced repetition system**. The
+review queue is live; the remaining v2.2 feature is streak tracking. Following the
+established rhythm, THIS slice adds the pure streak helper; surfacing it on the review queue
+is the next slice. (Review-completion history is largely covered by v2.1's per-range session
+history; the streak summarizes review consistency from those same session timestamps.)
 
-Scope of THIS slice: `App` wiring + a button. No changes to `DueToday` or domain.
+Scope of THIS slice (foundation only): one pure function + tests. No storage, no UI.
 
 Context (read these before starting):
-- `src/App.tsx` — top-level view switching with precedence `practicingRange ? (modes) :
-  performanceRange ? (<RangePerformance/>) : (<>editor/library</>)`. It has `savedRanges`
-  state and a `handlePractice(range)` that opens the practice picker. It imports
-  `loadReviewStates` already (slice 44).
-- `src/domain/spacedRepetition.ts` — `selectDueRanges(ranges, reviewStates, now)`.
-- `src/components/DueToday.tsx` — `DueToday({ dueRanges, onPractice, onClose })`.
-- `src/types/range.ts` — `SavedRange` (has optional `archived`).
+- `src/domain/spacedRepetition.ts` — already exports `DAY_MS = 86_400_000`. Add the streak
+  helper here. Pure; takes `now`/`today` as a parameter.
+- The caller will pass the `playedAt` timestamps from all session-history records
+  (`loadSessionHistory()` flattened); this helper just takes the list + today.
+- `src/domain/spacedRepetition.test.ts` — mirror its pure-domain test patterns.
 
-Task — in `src/App.tsx`:
-- Import `DueToday` and `selectDueRanges`.
-- Add state `dueToday: SavedRange[] | null` (null = not viewing the queue; an array = the
-  due list being shown).
-- Add `handleViewDueToday()`: compute the due list FRESH in the handler (so no impure
-  `Date`/`loadReviewStates` call happens during render) —
-  `setDueToday(selectDueRanges(savedRanges.filter((r) => !r.archived),
-  loadReviewStates(), new Date().toISOString()))`.
-- Add `handlePracticeDue(range)`: `setDueToday(null)` then `handlePractice(range)` (start
-  practice and leave the queue, so exiting practice returns to the editor/library).
-- Render precedence: keep `practicingRange` and `performanceRange` first, then
-  `dueToday !== null` → `<DueToday dueRanges={dueToday} onPractice={handlePracticeDue}
-  onClose={() => setDueToday(null)} />`, else the editor/library.
-- Add a "Review due ranges" button in the editor/library block (e.g. a small
-  `<div className="editor-controls">` just before `<RangeLibrary>`, reusing that class's
-  button styling) wired to `handleViewDueToday`.
-- Add a `headerSubtitle` case for `dueToday !== null` (e.g. "Review the ranges due for
-  review.").
+Task — add to `src/domain/spacedRepetition.ts`:
+- `currentStreak(reviewTimestamps: string[], today: string): number` — the number of
+  consecutive calendar days (UTC) ending at `today` (or, as a one-day grace, `today - 1`)
+  on which at least one review happened.
+  - Map each ISO timestamp to a UTC day number: `Math.floor(new Date(iso).getTime() /
+    DAY_MS)`; collect the distinct active day numbers in a `Set`.
+  - Let `todayNum = Math.floor(new Date(today).getTime() / DAY_MS)`. Choose the anchor:
+    `todayNum` if active, else `todayNum - 1` if active, else return `0` (streak broken).
+  - From the anchor, count backwards while each consecutive earlier day is active; return
+    the count.
+  - Multiple sessions on the same day count once; an empty list returns `0`. Pure.
 
-Tests to add (`src/App.test.tsx`):
-- clicking "Review due ranges" with at least one saved (never-practiced) range opens the
-  queue showing that range with a `Practice range {name}` button (never-reviewed counts as
-  due);
-- "Back to library" from the queue returns to the editor/library;
-- clicking a due range's Practice button starts practice (the mode picker appears, e.g. the
-  "Recognize hands (in/out)" button) — and the queue is no longer shown.
-- Keep existing tests green.
+Tests to add (`src/domain/spacedRepetition.test.ts`, new `describe('currentStreak', …)`),
+using fixed ISO dates and a fixed `today`:
+- empty list → 0;
+- only today → 1;
+- today + yesterday → 2; today + yesterday + 2-days-ago → 3;
+- multiple sessions on the same day count once (still the right streak);
+- a gap breaks it (today + 2-days-ago, missing yesterday → 1);
+- only yesterday (nothing today) → 1 (one-day grace);
+- only 2-days-ago (nothing today or yesterday) → 0.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -288,11 +287,10 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: the `App` wiring + button + tests. Do NOT modify `DueToday` or
-  domain/storage. Compute the due list in the handler (never call `Date`/storage during
-  render).
+- Stay within this slice: ONLY `currentStreak` + tests. No storage, no UI.
+- Keep it pure and in `src/domain/`; take `today` as a parameter (no `Date.now()` inside).
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: open a due-today review queue from the library`
+- `feat: add a review-streak helper`

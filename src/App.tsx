@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { BuildFromMemoryPractice } from './components/BuildFromMemoryPractice'
+import { DueToday } from './components/DueToday'
 import { HandGrid } from './components/HandGrid'
 import { PracticeSession } from './components/PracticeSession'
 import { TimedDrillSession } from './components/TimedDrillSession'
@@ -13,7 +14,7 @@ import { setRangeArchived } from './domain/rangeArchive'
 import { duplicateRange } from './domain/rangeDuplication'
 import { setRangeFavorite } from './domain/rangeFavorite'
 import { handsWithMistakes, summarizeHandAccuracy, summarizePracticeAttempts } from './domain/practice'
-import { scheduleNextReview, seedReviewState } from './domain/spacedRepetition'
+import { scheduleNextReview, seedReviewState, selectDueRanges } from './domain/spacedRepetition'
 import { calculateRangePercentage, countSelectedCombos } from './domain/rangeMath'
 import { mergeShortcutHands } from './domain/rangeShortcuts'
 import type { PokerHand } from './domain/pokerHands'
@@ -59,6 +60,9 @@ function App() {
   // null = editor/library view; otherwise the saved range whose performance view
   // is open.
   const [performanceRange, setPerformanceRange] = useState<SavedRange | null>(null)
+  // null = not viewing the review queue; otherwise the ranges due for review,
+  // computed fresh when the queue is opened.
+  const [dueToday, setDueToday] = useState<SavedRange[] | null>(null)
   // null = editor/library view; otherwise the saved range being practiced.
   const [practicingRange, setPracticingRange] = useState<SavedRange | null>(null)
   // When non-null, recognition practice is restricted to these hands (the
@@ -323,6 +327,24 @@ function App() {
     setPerformanceRange(range)
   }
 
+  function handleViewDueToday() {
+    // Compute the due list in the handler (not during render) so no impure
+    // Date/storage read happens while rendering. Archived ranges are excluded.
+    setDueToday(
+      selectDueRanges(
+        savedRanges.filter((range) => !range.archived),
+        loadReviewStates(),
+        new Date().toISOString(),
+      ),
+    )
+  }
+
+  function handlePracticeDue(range: SavedRange) {
+    // Leave the queue and start practice; exiting practice returns to the library.
+    setDueToday(null)
+    handlePractice(range)
+  }
+
   let headerSubtitle: string
   if (practicingRange) {
     if (practiceMode === 'recognize') {
@@ -340,6 +362,8 @@ function App() {
     }
   } else if (performanceRange) {
     headerSubtitle = 'Review your per-hand accuracy.'
+  } else if (dueToday !== null) {
+    headerSubtitle = 'Review the ranges due for review.'
   } else {
     headerSubtitle = "Click hands to build a Texas Hold'em preflop range."
   }
@@ -420,6 +444,12 @@ function App() {
           onClose={() => setPerformanceRange(null)}
           onPracticeMistakes={handlePracticeMistakes}
         />
+      ) : dueToday !== null ? (
+        <DueToday
+          dueRanges={dueToday}
+          onPractice={handlePracticeDue}
+          onClose={() => setDueToday(null)}
+        />
       ) : (
         <>
           <section className="range-editor" aria-label="Range editor">
@@ -483,6 +513,12 @@ function App() {
             <span>{combos} combos</span>
             <span>{percentage.toFixed(1)}% of all hands</span>
           </section>
+
+          <div className="editor-controls">
+            <button type="button" onClick={handleViewDueToday}>
+              Review due ranges
+            </button>
+          </div>
 
           <RangeLibrary
             ranges={savedRanges}
