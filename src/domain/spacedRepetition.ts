@@ -82,3 +82,32 @@ export function selectDueRanges(
     return state === undefined || isReviewDue(state, now)
   })
 }
+
+/**
+ * The current review streak: the number of consecutive UTC days ending at
+ * `today` (with a one-day grace for `today - 1`) on which at least one review
+ * happened. `reviewTimestamps` are ISO-8601 strings (e.g. session `playedAt`
+ * values across all ranges); multiple reviews on a day count once, and an empty
+ * list is a streak of 0. Pure — `today` is supplied, never read from the clock.
+ */
+export function currentStreak(reviewTimestamps: string[], today: string): number {
+  const activeDays = new Set(
+    reviewTimestamps.map((iso) => Math.floor(new Date(iso).getTime() / DAY_MS)),
+  )
+  const todayNum = Math.floor(new Date(today).getTime() / DAY_MS)
+
+  let anchor: number
+  if (activeDays.has(todayNum)) {
+    anchor = todayNum
+  } else if (activeDays.has(todayNum - 1)) {
+    anchor = todayNum - 1
+  } else {
+    return 0
+  }
+
+  let streak = 0
+  for (let day = anchor; activeDays.has(day); day -= 1) {
+    streak += 1
+  }
+  return streak
+}

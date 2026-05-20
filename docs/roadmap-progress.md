@@ -82,6 +82,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 45 | Due-ranges selector (which ranges are due for review) | v2.2 — Spaced repetition system | 2026-06-06 |
 | 46 | Due-today review queue component | v2.2 — Spaced repetition system | 2026-06-06 |
 | 47 | Wire the due-today review queue into App | v2.2 — Spaced repetition system | 2026-06-06 |
+| 48 | Review-streak helper (consecutive review days) | v2.2 — Spaced repetition system | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -227,9 +228,13 @@ Slice 47 wired the due-today queue into `App`: a "Review due ranges" button open
 in the handler), and practicing a due range launches the picker. The daily review queue is
 live.
 
-Still to come in v2.2: streak tracking (and review-completion history — largely covered by
-v2.1's per-range session history). The next slice adds the pure `currentStreak` helper
-(consecutive review days), before surfacing it on the review queue.
+Slice 48 added the pure `currentStreak(reviewTimestamps, today)` helper (consecutive UTC
+review days ending today, with a one-day grace).
+
+Still to come in v2.2: surface the streak on the review queue. The next slice shows it on
+`DueToday` (computed in `App` from all session timestamps), which **completes v2.2**
+(review-completion history is covered by v2.1's per-range session history). After that the
+roadmap moves to **v2.3 — Multi-action ranges** (the last in-scope version for finish-v2).
 
 NOTE ON CADENCE: the user approved continuing past the first 20-slice checkpoint (after
 slice 38). The loop resumed at slice 39 and continues through v2.2 → v2.3; the next safety
@@ -238,48 +243,42 @@ crosses into v3, whichever comes first.
 
 ## Next slice
 
-- **Number:** 48
+- **Number:** 49
 - **Roadmap target:** v2.2 — Spaced repetition system
-- **Working title:** Review-streak helper (consecutive review days)
+- **Working title:** Show the review streak on the due-today queue (completes v2.2)
 
 ### Prompt
 
-You are implementing roadmap slice 48, continuing **v2.2 — Spaced repetition system**. The
-review queue is live; the remaining v2.2 feature is streak tracking. Following the
-established rhythm, THIS slice adds the pure streak helper; surfacing it on the review queue
-is the next slice. (Review-completion history is largely covered by v2.1's per-range session
-history; the streak summarizes review consistency from those same session timestamps.)
+You are implementing roadmap slice 49, continuing **v2.2 — Spaced repetition system**.
+`currentStreak` (slice 48) computes the streak. This slice surfaces it on the `DueToday`
+review queue. Completing this **completes v2.2**; the next slice begins **v2.3 —
+Multi-action ranges**.
 
-Scope of THIS slice (foundation only): one pure function + tests. No storage, no UI.
+Scope of THIS slice: pass a `streak` into `DueToday` from `App` and display it. Small.
 
 Context (read these before starting):
-- `src/domain/spacedRepetition.ts` — already exports `DAY_MS = 86_400_000`. Add the streak
-  helper here. Pure; takes `now`/`today` as a parameter.
-- The caller will pass the `playedAt` timestamps from all session-history records
-  (`loadSessionHistory()` flattened); this helper just takes the list + today.
-- `src/domain/spacedRepetition.test.ts` — mirror its pure-domain test patterns.
+- `src/components/DueToday.tsx` — `DueToday({ dueRanges, onPractice, onClose })`. Add a
+  `streak: number` prop and show it (e.g. a line under the header: `Review streak: {streak}
+  day{streak === 1 ? '' : 's'}`).
+- `src/App.tsx` — `handleViewDueToday()` already computes the due list in the handler. Also
+  compute the streak there: gather all `playedAt` from `loadSessionHistory()`
+  (`Object.values(history).flat().map((r) => r.playedAt)`) and call
+  `currentStreak(playedAt, now)` with the same `now`. Store it in a `reviewStreak` number
+  state and pass `streak={reviewStreak}` to `<DueToday>`. Import `currentStreak` from
+  `./domain/spacedRepetition` and `loadSessionHistory` is already imported.
+- `src/components/DueToday.test.tsx` — add the new required `streak` prop to existing renders
+  (e.g. `streak={0}`) and assert the streak line.
+- `src/App.test.tsx` — the recognition flow records a session "today"; after practicing once
+  and opening the queue, the streak should read 1.
 
-Task — add to `src/domain/spacedRepetition.ts`:
-- `currentStreak(reviewTimestamps: string[], today: string): number` — the number of
-  consecutive calendar days (UTC) ending at `today` (or, as a one-day grace, `today - 1`)
-  on which at least one review happened.
-  - Map each ISO timestamp to a UTC day number: `Math.floor(new Date(iso).getTime() /
-    DAY_MS)`; collect the distinct active day numbers in a `Set`.
-  - Let `todayNum = Math.floor(new Date(today).getTime() / DAY_MS)`. Choose the anchor:
-    `todayNum` if active, else `todayNum - 1` if active, else return `0` (streak broken).
-  - From the anchor, count backwards while each consecutive earlier day is active; return
-    the count.
-  - Multiple sessions on the same day count once; an empty list returns `0`. Pure.
-
-Tests to add (`src/domain/spacedRepetition.test.ts`, new `describe('currentStreak', …)`),
-using fixed ISO dates and a fixed `today`:
-- empty list → 0;
-- only today → 1;
-- today + yesterday → 2; today + yesterday + 2-days-ago → 3;
-- multiple sessions on the same day count once (still the right streak);
-- a gap breaks it (today + 2-days-ago, missing yesterday → 1);
-- only yesterday (nothing today) → 1 (one-day grace);
-- only 2-days-ago (nothing today or yesterday) → 0.
+Task:
+- `DueToday`: add the `streak` prop and render the streak line (always shown; `0 days` is
+  fine).
+- `App`: add `reviewStreak` state; in `handleViewDueToday`, compute it from the flattened
+  session `playedAt` + `now` via `currentStreak`; pass `streak={reviewStreak}` to `DueToday`.
+- Tests: `DueToday.test.tsx` asserts the streak text (add `streak` to all renders);
+  `App.test.tsx` adds a case that practices a range (recognition, answering the shown hand),
+  opens "Review due ranges", and asserts the streak shows 1 (`Review streak: 1 day`).
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -287,10 +286,11 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: ONLY `currentStreak` + tests. No storage, no UI.
-- Keep it pure and in `src/domain/`; take `today` as a parameter (no `Date.now()` inside).
+- Stay within this slice: the `DueToday` streak prop/display + `App` streak computation +
+  tests. Do NOT change domain/storage. Compute the streak in the handler (no `Date`/storage
+  during render).
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: add a review-streak helper`
+- `feat: show the review streak on the due-today queue`

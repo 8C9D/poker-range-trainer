@@ -7,6 +7,7 @@ import {
   scheduleNextReview,
   isReviewDue,
   selectDueRanges,
+  currentStreak,
 } from './spacedRepetition'
 import type { RangeReviewState } from '../types/practice'
 import type { SavedRange } from '../types/range'
@@ -113,5 +114,42 @@ describe('selectDueRanges', () => {
     }
     const result = selectDueRanges([range('due'), range('future'), range('fresh')], states, NOW)
     expect(result.map((r) => r.id)).toEqual(['due', 'fresh'])
+  })
+})
+
+describe('currentStreak', () => {
+  const TODAY = '2026-06-06T12:00:00.000Z'
+  // A review timestamp on the given June day (UTC).
+  const day = (date: string, time = '08:00:00.000Z') => `2026-06-${date}T${time}`
+
+  it('is 0 for no reviews', () => {
+    expect(currentStreak([], TODAY)).toBe(0)
+  })
+
+  it('counts a review today as a streak of 1', () => {
+    expect(currentStreak([day('06')], TODAY)).toBe(1)
+  })
+
+  it('counts consecutive days through today', () => {
+    expect(currentStreak([day('06'), day('05'), day('04')], TODAY)).toBe(3)
+  })
+
+  it('counts multiple sessions on the same day once', () => {
+    expect(
+      currentStreak([day('06', '08:00:00.000Z'), day('06', '20:00:00.000Z'), day('05')], TODAY),
+    ).toBe(2)
+  })
+
+  it('breaks the streak at a gap', () => {
+    // today (06) and 2-days-ago (04), missing yesterday (05).
+    expect(currentStreak([day('06'), day('04')], TODAY)).toBe(1)
+  })
+
+  it('gives a one-day grace when only yesterday is active', () => {
+    expect(currentStreak([day('05')], TODAY)).toBe(1)
+  })
+
+  it('is 0 when the latest review is older than yesterday', () => {
+    expect(currentStreak([day('04')], TODAY)).toBe(0)
   })
 })
