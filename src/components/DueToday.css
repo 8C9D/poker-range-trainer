@@ -1,0 +1,47 @@
+.due-today-empty {
+  margin: 24px 0;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.due-today-list {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.due-today-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.due-today-name {
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.due-today-item button {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 14px;
+  color: #fff;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.due-today-item button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

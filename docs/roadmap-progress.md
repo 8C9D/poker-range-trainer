@@ -80,6 +80,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 43 | Review-state storage foundation (load + upsert) | v2.2 — Spaced repetition system | 2026-06-06 |
 | 44 | Advance review state at end of session (wiring) | v2.2 — Spaced repetition system | 2026-06-06 |
 | 45 | Due-ranges selector (which ranges are due for review) | v2.2 — Spaced repetition system | 2026-06-06 |
+| 46 | Due-today review queue component | v2.2 — Spaced repetition system | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -217,9 +218,12 @@ session.
 Slice 45 added the pure `selectDueRanges(ranges, reviewStates, now)` selector (never-reviewed
 ranges count as due; preserves order).
 
-Still to come in v2.2: the "due today" queue UI, streaks, and review history. The next slice
-adds the standalone `DueToday` component (lists due ranges with a Practice action); wiring it
-into `App` behind a header "Review" entry follows.
+Slice 46 added the standalone `DueToday` component (lists due ranges with a Practice action;
+all-caught-up empty state), fully tested but not yet reachable.
+
+Still to come in v2.2: wire the due-today queue into `App`, plus streaks and review history.
+The next slice wires `DueToday` in behind a "Review due ranges" entry that opens the queue
+(computed fresh via `selectDueRanges` + `loadReviewStates`).
 
 NOTE ON CADENCE: the user approved continuing past the first 20-slice checkpoint (after
 slice 38). The loop resumed at slice 39 and continues through v2.2 → v2.3; the next safety
@@ -228,45 +232,55 @@ crosses into v3, whichever comes first.
 
 ## Next slice
 
-- **Number:** 46
+- **Number:** 47
 - **Roadmap target:** v2.2 — Spaced repetition system
-- **Working title:** Due-today review queue component
+- **Working title:** Wire the due-today review queue into App
 
 ### Prompt
 
-You are implementing roadmap slice 46, continuing **v2.2 — Spaced repetition system**.
-`selectDueRanges` (slice 45) can pick the due ranges. This slice builds the "due today"
-review-queue UI component. Do NOT wire it into `App` yet — that is the next slice. Keep it
-standalone and fully tested first.
+You are implementing roadmap slice 47, continuing **v2.2 — Spaced repetition system**.
+Slice 46 built the standalone `DueToday` component. This slice makes it reachable: a
+"Review due ranges" entry opens the queue (computed fresh from the review states), and
+practicing a due range works.
 
-Scope of THIS slice: a self-contained `DueToday` component listing due ranges with a
-Practice action + an empty state. No App changes.
+Scope of THIS slice: `App` wiring + a button. No changes to `DueToday` or domain.
 
 Context (read these before starting):
-- `src/types/range.ts` — `SavedRange` (`id`, `name`, …).
-- `src/components/PracticeSession.css` — reuse `practice-session`, `practice-header`, and
-  the `practice-answers`/`.primary` button styling; add a tiny `DueToday.css` only if you
-  need new classes (e.g. a list). `src/components/RangeLibrary.tsx` shows the card-list +
-  accessible-button-name idiom (`Practice range {name}`) to mirror.
-- `src/components/RangeLibrary.test.tsx` — RTL patterns to mirror.
+- `src/App.tsx` — top-level view switching with precedence `practicingRange ? (modes) :
+  performanceRange ? (<RangePerformance/>) : (<>editor/library</>)`. It has `savedRanges`
+  state and a `handlePractice(range)` that opens the practice picker. It imports
+  `loadReviewStates` already (slice 44).
+- `src/domain/spacedRepetition.ts` — `selectDueRanges(ranges, reviewStates, now)`.
+- `src/components/DueToday.tsx` — `DueToday({ dueRanges, onPractice, onClose })`.
+- `src/types/range.ts` — `SavedRange` (has optional `archived`).
 
-Task — create `src/components/DueToday.tsx` exporting
-`DueToday({ dueRanges, onPractice, onClose }: { dueRanges: SavedRange[]; onPractice:
-(range: SavedRange) => void; onClose: () => void })`:
-- A header "Due for review" (optionally with the count, e.g. `Due for review (3)`) and a
-  "Back to library" button calling `onClose`.
-- If `dueRanges` is empty, show an empty state (e.g. "Nothing due for review right now —
-  great work!").
-- Otherwise render a list (`<ul>`), one item per range showing its name and a "Practice"
-  button with aria-label `Practice range {name}` calling `onPractice(range)`.
-- Pure presentation fed by props; no storage, no Date, no domain selection (the caller
-  passes the already-selected due ranges).
+Task — in `src/App.tsx`:
+- Import `DueToday` and `selectDueRanges`.
+- Add state `dueToday: SavedRange[] | null` (null = not viewing the queue; an array = the
+  due list being shown).
+- Add `handleViewDueToday()`: compute the due list FRESH in the handler (so no impure
+  `Date`/`loadReviewStates` call happens during render) —
+  `setDueToday(selectDueRanges(savedRanges.filter((r) => !r.archived),
+  loadReviewStates(), new Date().toISOString()))`.
+- Add `handlePracticeDue(range)`: `setDueToday(null)` then `handlePractice(range)` (start
+  practice and leave the queue, so exiting practice returns to the editor/library).
+- Render precedence: keep `practicingRange` and `performanceRange` first, then
+  `dueToday !== null` → `<DueToday dueRanges={dueToday} onPractice={handlePracticeDue}
+  onClose={() => setDueToday(null)} />`, else the editor/library.
+- Add a "Review due ranges" button in the editor/library block (e.g. a small
+  `<div className="editor-controls">` just before `<RangeLibrary>`, reusing that class's
+  button styling) wired to `handleViewDueToday`.
+- Add a `headerSubtitle` case for `dueToday !== null` (e.g. "Review the ranges due for
+  review.").
 
-Tests to add (`src/components/DueToday.test.tsx`, RTL):
-- empty `dueRanges` → shows the empty state and no list items;
-- with two due ranges, both names render and each has a `Practice range {name}` button;
-- clicking a range's Practice button calls `onPractice` with that range;
-- "Back to library" calls `onClose`.
+Tests to add (`src/App.test.tsx`):
+- clicking "Review due ranges" with at least one saved (never-practiced) range opens the
+  queue showing that range with a `Practice range {name}` button (never-reviewed counts as
+  due);
+- "Back to library" from the queue returns to the editor/library;
+- clicking a due range's Practice button starts practice (the mode picker appears, e.g. the
+  "Recognize hands (in/out)" button) — and the queue is no longer shown.
+- Keep existing tests green.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -274,11 +288,11 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: ONLY `DueToday.tsx`, its CSS (if needed), and its test. Do NOT
-  modify `App` or wire it in (next slice), and do NOT call `selectDueRanges`/storage in the
-  component (the caller supplies `dueRanges`).
+- Stay within this slice: the `App` wiring + button + tests. Do NOT modify `DueToday` or
+  domain/storage. Compute the due list in the handler (never call `Date`/storage during
+  render).
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: add a due-today review queue component`
+- `feat: open a due-today review queue from the library`
