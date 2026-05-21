@@ -5,6 +5,8 @@ import './DueToday.css'
 interface DueTodayProps {
   /** Ranges due for review now (already selected by the caller). */
   dueRanges: SavedRange[]
+  /** Current review streak in consecutive days. */
+  streak: number
   /** Start a practice session for the given range. */
   onPractice: (range: SavedRange) => void
   /** Return to the editor/library view. */
@@ -16,7 +18,7 @@ interface DueTodayProps {
  * for review, each with a Practice action, plus an all-caught-up empty state.
  * Pure presentation — the caller supplies the already-selected `dueRanges`.
  */
-export function DueToday({ dueRanges, onPractice, onClose }: DueTodayProps) {
+export function DueToday({ dueRanges, streak, onPractice, onClose }: DueTodayProps) {
   return (
     <section className="practice-session" aria-label="Due for review">
       <header className="practice-header">
@@ -25,6 +27,10 @@ export function DueToday({ dueRanges, onPractice, onClose }: DueTodayProps) {
           Back to library
         </button>
       </header>
+
+      <p className="due-today-streak">
+        Review streak: {streak} day{streak === 1 ? '' : 's'}
+      </p>
 
       {dueRanges.length === 0 ? (
         <p className="due-today-empty">Nothing due for review right now — great work!</p>

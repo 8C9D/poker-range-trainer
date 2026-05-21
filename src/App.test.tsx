@@ -680,6 +680,28 @@ describe('Due-today review queue', () => {
     expect(screen.getByRole('button', { name: 'Recognize hands (in/out)' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: /Due for review/ })).not.toBeInTheDocument()
   })
+
+  it('shows a 1-day review streak after practicing today', async () => {
+    const user = userEvent.setup()
+    const { container } = render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Pairs')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'KK' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    // Record a session today via recognition practice.
+    await user.click(screen.getByRole('button', { name: 'Practice range Pairs' }))
+    await user.click(screen.getByRole('button', { name: 'Recognize hands (in/out)' }))
+    const promptHand = container.querySelector('.practice-prompt-hand')?.textContent ?? ''
+    const inRange = promptHand === 'AA' || promptHand === 'KK'
+    await user.click(screen.getByRole('button', { name: inRange ? 'In range' : 'Out of range' }))
+    await user.click(screen.getByRole('button', { name: 'End Practice' }))
+    await user.click(screen.getByRole('button', { name: 'Back to library' }))
+
+    await user.click(screen.getByRole('button', { name: 'Review due ranges' }))
+    expect(screen.getByText('Review streak: 1 day')).toBeInTheDocument()
+  })
 })
 
 describe('Range shortcuts', () => {

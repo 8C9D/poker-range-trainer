@@ -83,6 +83,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 46 | Due-today review queue component | v2.2 — Spaced repetition system | 2026-06-06 |
 | 47 | Wire the due-today review queue into App | v2.2 — Spaced repetition system | 2026-06-06 |
 | 48 | Review-streak helper (consecutive review days) | v2.2 — Spaced repetition system | 2026-06-06 |
+| 49 | Show the review streak on the due-today queue | v2.2 — Spaced repetition system | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -231,10 +232,21 @@ live.
 Slice 48 added the pure `currentStreak(reviewTimestamps, today)` helper (consecutive UTC
 review days ending today, with a one-day grace).
 
-Still to come in v2.2: surface the streak on the review queue. The next slice shows it on
-`DueToday` (computed in `App` from all session timestamps), which **completes v2.2**
-(review-completion history is covered by v2.1's per-range session history). After that the
-roadmap moves to **v2.3 — Multi-action ranges** (the last in-scope version for finish-v2).
+Slice 49 surfaced the streak on the `DueToday` queue (`App` computes `currentStreak` from
+all session timestamps in the open handler and passes it down).
+
+**v2.2 — Spaced repetition system is now COMPLETE**: review state + scheduler, persistence,
+session-end schedule updates, the due-today queue, and streak tracking. (Review-completion
+history is covered by v2.1's per-range session history.)
+
+The roadmap now moves to **v2.3 — Multi-action ranges** — the LAST in-scope version for
+finish-v2. v2.3 reshapes the core range model so each hand can carry an action
+(fold/call/raise/3-bet/4-bet/jam/mixed): a multi-color grid, an action palette, per-action
+percentages, mode-2 "what's the correct action?" practice, action-specific accuracy, and
+notation with action groups. Per the finish-v2 skill this is where small-slice discipline
+matters most — build it as many tiny commits, starting with the pure action model. The next
+slice begins with the `RangeAction` type, its vocab/labels, and a `handsForAction` helper —
+WITHOUT yet changing the existing `SavedRange` (`hands: PokerHand[]`) model.
 
 NOTE ON CADENCE: the user approved continuing past the first 20-slice checkpoint (after
 slice 38). The loop resumed at slice 39 and continues through v2.2 → v2.3; the next safety
@@ -243,42 +255,62 @@ crosses into v3, whichever comes first.
 
 ## Next slice
 
-- **Number:** 49
-- **Roadmap target:** v2.2 — Spaced repetition system
-- **Working title:** Show the review streak on the due-today queue (completes v2.2)
+- **Number:** 50
+- **Roadmap target:** v2.3 — Multi-action ranges
+- **Working title:** Action model foundation (RangeAction type + handsForAction helper)
 
 ### Prompt
 
-You are implementing roadmap slice 49, continuing **v2.2 — Spaced repetition system**.
-`currentStreak` (slice 48) computes the streak. This slice surfaces it on the `DueToday`
-review queue. Completing this **completes v2.2**; the next slice begins **v2.3 —
-Multi-action ranges**.
+You are implementing roadmap slice 50, beginning **v2.3 — Multi-action ranges** (the last
+in-scope version for finish-v2). v2.3 lets each hand carry an action
+(fold/call/raise/3-bet/4-bet/jam/mixed): a multi-color grid, action palette, per-action
+percentages, mode-2 practice ("what's the correct action for AJs?"), action-specific
+accuracy, and notation with action groups. This RESHAPES the core range model, so it must be
+built as many tiny commits. THIS first slice adds ONLY the pure action vocabulary + a
+selection helper — it does NOT change the existing `SavedRange` (`hands: PokerHand[]`) model
+or any UI yet.
 
-Scope of THIS slice: pass a `streak` into `DueToday` from `App` and display it. Small.
+Scope of THIS slice (foundation only): the `RangeAction` type + ordered vocab + labels, and
+one pure helper, with tests. No storage, no UI, no change to `SavedRange`.
 
 Context (read these before starting):
-- `src/components/DueToday.tsx` — `DueToday({ dueRanges, onPractice, onClose })`. Add a
-  `streak: number` prop and show it (e.g. a line under the header: `Review streak: {streak}
-  day{streak === 1 ? '' : 's'}`).
-- `src/App.tsx` — `handleViewDueToday()` already computes the due list in the handler. Also
-  compute the streak there: gather all `playedAt` from `loadSessionHistory()`
-  (`Object.values(history).flat().map((r) => r.playedAt)`) and call
-  `currentStreak(playedAt, now)` with the same `now`. Store it in a `reviewStreak` number
-  state and pass `streak={reviewStreak}` to `<DueToday>`. Import `currentStreak` from
-  `./domain/spacedRepetition` and `loadSessionHistory` is already imported.
-- `src/components/DueToday.test.tsx` — add the new required `streak` prop to existing renders
-  (e.g. `streak={0}`) and assert the streak line.
-- `src/App.test.tsx` — the recognition flow records a session "today"; after practicing once
-  and opening the queue, the streak should read 1.
+- `docs/roadmap.md` v2.3 data model — `RangeAction = "fold" | "call" | "raise" | "threeBet"
+  | "fourBet" | "jam" | "mixed"` and `ActionRange { id, name, handActions: Record<PokerHand,
+  RangeAction>, metadata }`. (This slice only introduces `RangeAction` + the helper; the
+  `ActionRange` shape comes in later slices.)
+- `src/types/range.ts` — already defines vocab + label maps like `POSITIONS` /
+  `POSITION_LABELS` and a DIFFERENT `ActionType` (scenario-metadata actions: open/call/3-bet/
+  …). Do NOT reuse or conflate that with the new per-hand `RangeAction`. Add `RangeAction`,
+  `RANGE_ACTIONS` (ordered tuple), and `RANGE_ACTION_LABELS` here next to the other vocab,
+  following the exact `POSITIONS`/`POSITION_LABELS` pattern (e.g. labels: Fold, Call, Raise,
+  3-bet, 4-bet, Jam, Mixed).
+- `src/domain/pokerHands.ts` — `ALL_HANDS` (canonical order), `type PokerHand`.
+- `src/domain/rangeMath.ts` / `practice.ts` show the pure-domain module + canonical-order
+  idiom (filter `ALL_HANDS`).
 
 Task:
-- `DueToday`: add the `streak` prop and render the streak line (always shown; `0 days` is
-  fine).
-- `App`: add `reviewStreak` state; in `handleViewDueToday`, compute it from the flattened
-  session `playedAt` + `now` via `currentStreak`; pass `streak={reviewStreak}` to `DueToday`.
-- Tests: `DueToday.test.tsx` asserts the streak text (add `streak` to all renders);
-  `App.test.tsx` adds a case that practices a range (recognition, answering the shown hand),
-  opens "Review due ranges", and asserts the streak shows 1 (`Review streak: 1 day`).
+- In `src/types/range.ts`, add:
+  - `export type RangeAction = 'fold' | 'call' | 'raise' | 'threeBet' | 'fourBet' | 'jam' |
+    'mixed'`,
+  - `export const RANGE_ACTIONS: readonly RangeAction[] = ['fold', 'call', 'raise',
+    'threeBet', 'fourBet', 'jam', 'mixed']`,
+  - `export const RANGE_ACTION_LABELS: Record<RangeAction, string> = { fold: 'Fold', call:
+    'Call', raise: 'Raise', threeBet: '3-bet', fourBet: '4-bet', jam: 'Jam', mixed: 'Mixed'
+    }`.
+- Create `src/domain/actionRange.ts` with a pure helper:
+  - `handsForAction(handActions: Record<PokerHand, RangeAction>, action: RangeAction):
+    PokerHand[]` — the hands assigned `action`, in canonical 13×13 order (filter `ALL_HANDS`
+    where `handActions[hand] === action`). Do not mutate the input. Module doc comment in the
+    established style.
+
+Tests to add (`src/domain/actionRange.test.ts`):
+- `RANGE_ACTIONS` contains all seven actions and each has a label in `RANGE_ACTION_LABELS`
+  (import from `../types/range`);
+- `handsForAction({}, 'raise')` → `[]`;
+- with a small `handActions` map, returns exactly the hands for the requested action in
+  canonical order (e.g. `{ AA: 'raise', KK: 'fold', AKs: 'raise' }`, action `'raise'` →
+  `['AA', 'AKs']`);
+- a different action returns only its hands; an action with none returns `[]`.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -286,11 +318,14 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: the `DueToday` streak prop/display + `App` streak computation +
-  tests. Do NOT change domain/storage. Compute the streak in the handler (no `Date`/storage
-  during render).
-- No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
+- Stay within this slice: ONLY the `RangeAction` vocab in `types/range.ts`,
+  `src/domain/actionRange.ts` (`handsForAction`), and its test. Do NOT touch `SavedRange`,
+  storage, or any component.
+- Keep the helper pure and in `src/domain/`.
+- No backend, accounts, solver imports, postflop, mixed frequencies (this is the v2.3
+  one-action-per-hand model, NOT the prohibited v4.2 mixed FREQUENCIES — a single `'mixed'`
+  label is allowed), or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: show the review streak on the due-today queue`
+- `feat: add the multi-action range vocabulary and per-action hand selector`

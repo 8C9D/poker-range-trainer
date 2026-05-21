@@ -14,7 +14,12 @@ import { setRangeArchived } from './domain/rangeArchive'
 import { duplicateRange } from './domain/rangeDuplication'
 import { setRangeFavorite } from './domain/rangeFavorite'
 import { handsWithMistakes, summarizeHandAccuracy, summarizePracticeAttempts } from './domain/practice'
-import { scheduleNextReview, seedReviewState, selectDueRanges } from './domain/spacedRepetition'
+import {
+  currentStreak,
+  scheduleNextReview,
+  seedReviewState,
+  selectDueRanges,
+} from './domain/spacedRepetition'
 import { calculateRangePercentage, countSelectedCombos } from './domain/rangeMath'
 import { mergeShortcutHands } from './domain/rangeShortcuts'
 import type { PokerHand } from './domain/pokerHands'
@@ -63,6 +68,8 @@ function App() {
   // null = not viewing the review queue; otherwise the ranges due for review,
   // computed fresh when the queue is opened.
   const [dueToday, setDueToday] = useState<SavedRange[] | null>(null)
+  // Consecutive-day review streak, computed when the review queue is opened.
+  const [reviewStreak, setReviewStreak] = useState(0)
   // null = editor/library view; otherwise the saved range being practiced.
   const [practicingRange, setPracticingRange] = useState<SavedRange | null>(null)
   // When non-null, recognition practice is restricted to these hands (the
@@ -328,13 +335,18 @@ function App() {
   }
 
   function handleViewDueToday() {
-    // Compute the due list in the handler (not during render) so no impure
-    // Date/storage read happens while rendering. Archived ranges are excluded.
+    // Compute the due list and streak in the handler (not during render) so no
+    // impure Date/storage read happens while rendering. Archived ranges are excluded.
+    const now = new Date().toISOString()
+    const playedAt = Object.values(loadSessionHistory())
+      .flat()
+      .map((session) => session.playedAt)
+    setReviewStreak(currentStreak(playedAt, now))
     setDueToday(
       selectDueRanges(
         savedRanges.filter((range) => !range.archived),
         loadReviewStates(),
-        new Date().toISOString(),
+        now,
       ),
     )
   }
@@ -447,6 +459,7 @@ function App() {
       ) : dueToday !== null ? (
         <DueToday
           dueRanges={dueToday}
+          streak={reviewStreak}
           onPractice={handlePracticeDue}
           onClose={() => setDueToday(null)}
         />
