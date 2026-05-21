@@ -85,6 +85,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 48 | Review-streak helper (consecutive review days) | v2.2 — Spaced repetition system | 2026-06-06 |
 | 49 | Show the review streak on the due-today queue | v2.2 — Spaced repetition system | 2026-06-06 |
 | 50 | Action model foundation (RangeAction vocab + handsForAction) | v2.3 — Multi-action ranges | 2026-06-06 |
+| 51 | Per-action range percentage helper | v2.3 — Multi-action ranges | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -250,9 +251,14 @@ matters most — build it as many tiny commits, starting with the pure action mo
 Slice 50 added the action vocabulary: `RangeAction` (`fold`/`call`/`raise`/`threeBet`/
 `fourBet`/`jam`/`mixed`) with `RANGE_ACTIONS` + `RANGE_ACTION_LABELS` in `types/range.ts`
 (distinct from the scenario-metadata `ActionType`), and `src/domain/actionRange.ts`'s
-`handsForAction(handActions, action)` selector. `SavedRange` is unchanged so far. The next
-slice adds the per-action percentage helper; components (palette, multi-color grid) and the
-model/editor integration follow as later tiny slices.
+`handsForAction(handActions, action)` selector. `SavedRange` is unchanged so far. Slice 51 added `actionRangePercentage(handActions, action)` (reusing `calculateRangePercentage`
+over `handsForAction`).
+
+The pure foundation is in place. The next slices build the v2.3 UI as small, prop-fed,
+standalone components before any model/editor integration: an action palette (select the
+active action), then a multi-color action grid (assign actions to hands), then the editor
+wiring + per-action percentages, then mode-2 practice and action-specific accuracy. The next
+slice is the `ActionPalette` component.
 
 NOTE ON CADENCE: the user approved continuing past the first 20-slice checkpoint (after
 slice 38). The loop resumed at slice 39 and continues through v2.2 → v2.3; the next safety
@@ -261,38 +267,47 @@ crosses into v3, whichever comes first.
 
 ## Next slice
 
-- **Number:** 51
+- **Number:** 52
 - **Roadmap target:** v2.3 — Multi-action ranges
-- **Working title:** Per-action range percentage helper
+- **Working title:** Action palette component (select the active action)
 
 ### Prompt
 
-You are implementing roadmap slice 51, continuing **v2.3 — Multi-action ranges**. Slice 50
-added `RangeAction` + `handsForAction`. This slice adds the pure "per-action range
-percentage" helper that the multi-action editor/grid will display. Foundation only — no UI.
+You are implementing roadmap slice 52, continuing **v2.3 — Multi-action ranges**. The pure
+action model is done. This slice builds the standalone `ActionPalette` UI: a row of colored
+action swatches where the user picks the "active" action to paint onto the grid. Do NOT wire
+it into any editor yet (later slices). Keep it standalone and fully tested.
 
-Scope of THIS slice (foundation only): one pure function + tests, added to the existing
-`src/domain/actionRange.ts`.
+Scope of THIS slice: a self-contained `ActionPalette` component + its CSS (defining the
+per-action colors that the grid will also use) + tests. No App/model changes.
 
 Context (read these before starting):
-- `src/domain/actionRange.ts` — has `handsForAction(handActions, action)`.
-- `src/domain/rangeMath.ts` — `calculateRangePercentage(hands)` (selected combos / 1326 *
-  100) and `countSelectedCombos(hands)`. Reuse these; do NOT re-derive combo math.
-- `src/types/range.ts` — `RangeAction`.
-- `src/domain/actionRange.test.ts` — extend it.
+- `src/types/range.ts` — `RANGE_ACTIONS` (ordered) and `RANGE_ACTION_LABELS`, plus the
+  `RangeAction` type.
+- `src/components/RangeShortcuts.tsx` / `HandCell.tsx` — the button-group + `aria-pressed`
+  idioms to mirror. `src/components/HandGrid.css` shows the CSS-class-per-state approach
+  (like `heat-{level}`) — use `action-{action}` classes for colors so the action grid can
+  reuse the same color classes next slice.
 
-Task — add to `src/domain/actionRange.ts`:
-- `actionRangePercentage(handActions: Record<PokerHand, RangeAction>, action: RangeAction):
-  number` — the percentage of all 1326 combos covered by the hands assigned `action`:
-  `calculateRangePercentage(handsForAction(handActions, action))`. An action with no hands
-  is `0`. Pure; doc comment in the established style.
+Task:
+- Create `src/components/ActionPalette.tsx` exporting `ActionPalette({ selected, onSelect }:
+  { selected: RangeAction; onSelect: (action: RangeAction) => void })`:
+  - Render a `<div className="action-palette" role="group" aria-label="Action palette">`
+    with one `<button>` per `RANGE_ACTIONS` value, label from `RANGE_ACTION_LABELS`,
+    `className={`action-swatch action-${action}${action === selected ? ' selected' : ''}`}`,
+    and `aria-pressed={action === selected}`, calling `onSelect(action)` on click.
+- Create `src/components/ActionPalette.css`:
+  - `.action-palette` (flex row, wrap, gap), `.action-swatch` (padding, border, radius,
+    pointer), `.action-swatch.selected` (a clear selected outline), and a color per action
+    (`.action-fold`, `.action-call`, `.action-raise`, `.action-threeBet`, `.action-fourBet`,
+    `.action-jam`, `.action-mixed`) — distinct, readable backgrounds with legible text. Reuse
+    the app's green/red where natural (e.g. fold = neutral gray, call = green, raise = amber,
+    3-bet = red). Keep these color classes generic so the action grid can reuse them.
 
-Tests to add (`src/domain/actionRange.test.ts`, new `describe`):
-- an action with no hands → `0`;
-- a known assignment gives the expected percentage, reusing combo facts already used
-  elsewhere (e.g. `{ AA: 'raise', KK: 'raise' }`, action `'raise'` → 2 pairs = 12 combos →
-  `12 / 1326 * 100`; assert with `toBeCloseTo`);
-- only the requested action's hands count (other actions excluded).
+Tests to add (`src/components/ActionPalette.test.tsx`, RTL):
+- renders all seven action buttons with their labels;
+- the `selected` action has `aria-pressed="true"` and the others `"false"`;
+- clicking an action button calls `onSelect` with that action.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -300,11 +315,10 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: ONLY `actionRangePercentage` + tests. No UI, no storage, no change
-  to `SavedRange`.
-- Reuse `handsForAction` + `rangeMath`; keep it pure and in `src/domain/`.
+- Stay within this slice: ONLY `ActionPalette.tsx` + `.css` + its test. Do NOT modify `App`,
+  the grid, or the model.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: add per-action range percentage helper`
+- `feat: add an action palette for multi-action ranges`

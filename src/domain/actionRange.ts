@@ -1,4 +1,5 @@
 import { ALL_HANDS, type PokerHand } from './pokerHands'
+import { calculateRangePercentage } from './rangeMath'
 import type { RangeAction } from '../types/range'
 
 /**
@@ -14,4 +15,15 @@ export function handsForAction(
   action: RangeAction,
 ): PokerHand[] {
   return ALL_HANDS.filter((hand) => handActions[hand] === action)
+}
+
+/**
+ * Percentage (0–100) of all 1326 Hold'em combos covered by the hands assigned
+ * `action`. An action with no hands is 0.
+ */
+export function actionRangePercentage(
+  handActions: Record<PokerHand, RangeAction>,
+  action: RangeAction,
+): number {
+  return calculateRangePercentage(handsForAction(handActions, action))
 }

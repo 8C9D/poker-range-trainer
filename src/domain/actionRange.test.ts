@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { handsForAction } from './actionRange'
+import { actionRangePercentage, handsForAction } from './actionRange'
 import { RANGE_ACTIONS, RANGE_ACTION_LABELS, type RangeAction } from '../types/range'
 import type { PokerHand } from './pokerHands'
 
@@ -46,5 +46,23 @@ describe('handsForAction', () => {
     }
     expect(handsForAction(handActions, 'fold')).toEqual(['KK'])
     expect(handsForAction(handActions, 'jam')).toEqual([])
+  })
+})
+
+describe('actionRangePercentage', () => {
+  it('is 0 for an action with no hands', () => {
+    expect(actionRangePercentage({}, 'raise')).toBe(0)
+    expect(actionRangePercentage({ AA: 'fold' }, 'raise')).toBe(0)
+  })
+
+  it('counts only the requested action\'s combos', () => {
+    const handActions: Record<PokerHand, RangeAction> = {
+      AA: 'raise', // pair: 6 combos
+      KK: 'raise', // pair: 6 combos
+      QQ: 'fold', // excluded
+    }
+    // 2 pairs -> 12 combos of 1326.
+    expect(actionRangePercentage(handActions, 'raise')).toBeCloseTo((12 / 1326) * 100)
+    expect(actionRangePercentage(handActions, 'fold')).toBeCloseTo((6 / 1326) * 100)
   })
 })
