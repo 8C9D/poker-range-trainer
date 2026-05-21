@@ -84,6 +84,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 47 | Wire the due-today review queue into App | v2.2 — Spaced repetition system | 2026-06-06 |
 | 48 | Review-streak helper (consecutive review days) | v2.2 — Spaced repetition system | 2026-06-06 |
 | 49 | Show the review streak on the due-today queue | v2.2 — Spaced repetition system | 2026-06-06 |
+| 50 | Action model foundation (RangeAction vocab + handsForAction) | v2.3 — Multi-action ranges | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -244,9 +245,14 @@ finish-v2. v2.3 reshapes the core range model so each hand can carry an action
 (fold/call/raise/3-bet/4-bet/jam/mixed): a multi-color grid, an action palette, per-action
 percentages, mode-2 "what's the correct action?" practice, action-specific accuracy, and
 notation with action groups. Per the finish-v2 skill this is where small-slice discipline
-matters most — build it as many tiny commits, starting with the pure action model. The next
-slice begins with the `RangeAction` type, its vocab/labels, and a `handsForAction` helper —
-WITHOUT yet changing the existing `SavedRange` (`hands: PokerHand[]`) model.
+matters most — build it as many tiny commits, starting with the pure action model.
+
+Slice 50 added the action vocabulary: `RangeAction` (`fold`/`call`/`raise`/`threeBet`/
+`fourBet`/`jam`/`mixed`) with `RANGE_ACTIONS` + `RANGE_ACTION_LABELS` in `types/range.ts`
+(distinct from the scenario-metadata `ActionType`), and `src/domain/actionRange.ts`'s
+`handsForAction(handActions, action)` selector. `SavedRange` is unchanged so far. The next
+slice adds the per-action percentage helper; components (palette, multi-color grid) and the
+model/editor integration follow as later tiny slices.
 
 NOTE ON CADENCE: the user approved continuing past the first 20-slice checkpoint (after
 slice 38). The loop resumed at slice 39 and continues through v2.2 → v2.3; the next safety
@@ -255,62 +261,38 @@ crosses into v3, whichever comes first.
 
 ## Next slice
 
-- **Number:** 50
+- **Number:** 51
 - **Roadmap target:** v2.3 — Multi-action ranges
-- **Working title:** Action model foundation (RangeAction type + handsForAction helper)
+- **Working title:** Per-action range percentage helper
 
 ### Prompt
 
-You are implementing roadmap slice 50, beginning **v2.3 — Multi-action ranges** (the last
-in-scope version for finish-v2). v2.3 lets each hand carry an action
-(fold/call/raise/3-bet/4-bet/jam/mixed): a multi-color grid, action palette, per-action
-percentages, mode-2 practice ("what's the correct action for AJs?"), action-specific
-accuracy, and notation with action groups. This RESHAPES the core range model, so it must be
-built as many tiny commits. THIS first slice adds ONLY the pure action vocabulary + a
-selection helper — it does NOT change the existing `SavedRange` (`hands: PokerHand[]`) model
-or any UI yet.
+You are implementing roadmap slice 51, continuing **v2.3 — Multi-action ranges**. Slice 50
+added `RangeAction` + `handsForAction`. This slice adds the pure "per-action range
+percentage" helper that the multi-action editor/grid will display. Foundation only — no UI.
 
-Scope of THIS slice (foundation only): the `RangeAction` type + ordered vocab + labels, and
-one pure helper, with tests. No storage, no UI, no change to `SavedRange`.
+Scope of THIS slice (foundation only): one pure function + tests, added to the existing
+`src/domain/actionRange.ts`.
 
 Context (read these before starting):
-- `docs/roadmap.md` v2.3 data model — `RangeAction = "fold" | "call" | "raise" | "threeBet"
-  | "fourBet" | "jam" | "mixed"` and `ActionRange { id, name, handActions: Record<PokerHand,
-  RangeAction>, metadata }`. (This slice only introduces `RangeAction` + the helper; the
-  `ActionRange` shape comes in later slices.)
-- `src/types/range.ts` — already defines vocab + label maps like `POSITIONS` /
-  `POSITION_LABELS` and a DIFFERENT `ActionType` (scenario-metadata actions: open/call/3-bet/
-  …). Do NOT reuse or conflate that with the new per-hand `RangeAction`. Add `RangeAction`,
-  `RANGE_ACTIONS` (ordered tuple), and `RANGE_ACTION_LABELS` here next to the other vocab,
-  following the exact `POSITIONS`/`POSITION_LABELS` pattern (e.g. labels: Fold, Call, Raise,
-  3-bet, 4-bet, Jam, Mixed).
-- `src/domain/pokerHands.ts` — `ALL_HANDS` (canonical order), `type PokerHand`.
-- `src/domain/rangeMath.ts` / `practice.ts` show the pure-domain module + canonical-order
-  idiom (filter `ALL_HANDS`).
+- `src/domain/actionRange.ts` — has `handsForAction(handActions, action)`.
+- `src/domain/rangeMath.ts` — `calculateRangePercentage(hands)` (selected combos / 1326 *
+  100) and `countSelectedCombos(hands)`. Reuse these; do NOT re-derive combo math.
+- `src/types/range.ts` — `RangeAction`.
+- `src/domain/actionRange.test.ts` — extend it.
 
-Task:
-- In `src/types/range.ts`, add:
-  - `export type RangeAction = 'fold' | 'call' | 'raise' | 'threeBet' | 'fourBet' | 'jam' |
-    'mixed'`,
-  - `export const RANGE_ACTIONS: readonly RangeAction[] = ['fold', 'call', 'raise',
-    'threeBet', 'fourBet', 'jam', 'mixed']`,
-  - `export const RANGE_ACTION_LABELS: Record<RangeAction, string> = { fold: 'Fold', call:
-    'Call', raise: 'Raise', threeBet: '3-bet', fourBet: '4-bet', jam: 'Jam', mixed: 'Mixed'
-    }`.
-- Create `src/domain/actionRange.ts` with a pure helper:
-  - `handsForAction(handActions: Record<PokerHand, RangeAction>, action: RangeAction):
-    PokerHand[]` — the hands assigned `action`, in canonical 13×13 order (filter `ALL_HANDS`
-    where `handActions[hand] === action`). Do not mutate the input. Module doc comment in the
-    established style.
+Task — add to `src/domain/actionRange.ts`:
+- `actionRangePercentage(handActions: Record<PokerHand, RangeAction>, action: RangeAction):
+  number` — the percentage of all 1326 combos covered by the hands assigned `action`:
+  `calculateRangePercentage(handsForAction(handActions, action))`. An action with no hands
+  is `0`. Pure; doc comment in the established style.
 
-Tests to add (`src/domain/actionRange.test.ts`):
-- `RANGE_ACTIONS` contains all seven actions and each has a label in `RANGE_ACTION_LABELS`
-  (import from `../types/range`);
-- `handsForAction({}, 'raise')` → `[]`;
-- with a small `handActions` map, returns exactly the hands for the requested action in
-  canonical order (e.g. `{ AA: 'raise', KK: 'fold', AKs: 'raise' }`, action `'raise'` →
-  `['AA', 'AKs']`);
-- a different action returns only its hands; an action with none returns `[]`.
+Tests to add (`src/domain/actionRange.test.ts`, new `describe`):
+- an action with no hands → `0`;
+- a known assignment gives the expected percentage, reusing combo facts already used
+  elsewhere (e.g. `{ AA: 'raise', KK: 'raise' }`, action `'raise'` → 2 pairs = 12 combos →
+  `12 / 1326 * 100`; assert with `toBeCloseTo`);
+- only the requested action's hands count (other actions excluded).
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -318,14 +300,11 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: ONLY the `RangeAction` vocab in `types/range.ts`,
-  `src/domain/actionRange.ts` (`handsForAction`), and its test. Do NOT touch `SavedRange`,
-  storage, or any component.
-- Keep the helper pure and in `src/domain/`.
-- No backend, accounts, solver imports, postflop, mixed frequencies (this is the v2.3
-  one-action-per-hand model, NOT the prohibited v4.2 mixed FREQUENCIES — a single `'mixed'`
-  label is allowed), or AI.
+- Stay within this slice: ONLY `actionRangePercentage` + tests. No UI, no storage, no change
+  to `SavedRange`.
+- Reuse `handsForAction` + `rangeMath`; keep it pure and in `src/domain/`.
+- No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: add the multi-action range vocabulary and per-action hand selector`
+- `feat: add per-action range percentage helper`

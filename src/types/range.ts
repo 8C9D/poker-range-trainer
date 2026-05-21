@@ -66,6 +66,34 @@ export const ACTION_TYPE_LABELS: Record<ActionType, string> = {
 }
 
 /**
+ * Per-hand action vocabulary for v2.3 multi-action ranges: the action a single
+ * hand is assigned in a chart (one action per hand — this is NOT the prohibited
+ * v4.2 mixed *frequencies*; `'mixed'` is a single label). Distinct from the
+ * scenario-metadata `ActionType` above, which labels what a whole range
+ * represents. Declared as a `const` tuple so the union derives from it.
+ */
+export const RANGE_ACTIONS = [
+  'fold',
+  'call',
+  'raise',
+  'threeBet',
+  'fourBet',
+  'jam',
+  'mixed',
+] as const
+export type RangeAction = (typeof RANGE_ACTIONS)[number]
+
+export const RANGE_ACTION_LABELS: Record<RangeAction, string> = {
+  fold: 'Fold',
+  call: 'Call',
+  raise: 'Raise',
+  threeBet: '3-bet',
+  fourBet: '4-bet',
+  jam: 'Jam',
+  mixed: 'Mixed',
+}
+
+/**
  * Optional poker-situation metadata describing when a range applies.
  *
  * Every field is optional: a range may carry none, some, or all of them, and
