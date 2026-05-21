@@ -1,0 +1,57 @@
+.action-palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.action-swatch {
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.action-swatch.selected {
+  outline: 2px solid var(--text-h);
+  outline-offset: 1px;
+}
+
+.action-swatch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Per-action colors, shared with the action grid. */
+.action-fold {
+  background: #6b7280;
+}
+
+.action-call {
+  background: #1a7f37;
+}
+
+.action-raise {
+  color: #3d2c00;
+  background: #d4a72c;
+}
+
+.action-threeBet {
+  background: #cf222e;
+}
+
+.action-fourBet {
+  background: #8250df;
+}
+
+.action-jam {
+  background: #6e1423;
+}
+
+.action-mixed {
+  background: #0969da;
+}
