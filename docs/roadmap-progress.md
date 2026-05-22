@@ -87,6 +87,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 50 | Action model foundation (RangeAction vocab + handsForAction) | v2.3 — Multi-action ranges | 2026-06-06 |
 | 51 | Per-action range percentage helper | v2.3 — Multi-action ranges | 2026-06-06 |
 | 52 | Action palette component (select the active action) | v2.3 — Multi-action ranges | 2026-06-06 |
+| 53 | Multi-color action grid component (assign actions to hands) | v2.3 — Multi-action ranges | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -259,9 +260,13 @@ Slice 52 added the standalone `ActionPalette` component (colored swatches, one p
 with `aria-pressed` selection) and `ActionPalette.css` defining the shared `action-{action}`
 color classes (reused by the grid next).
 
-The next slices continue the v2.3 UI: a multi-color action grid (assign actions to hands),
-then the editor wiring + per-action percentages, then mode-2 practice and action-specific
-accuracy. The next slice is the `ActionGrid` component.
+Slice 53 added the standalone controlled `ActionGrid` (13×13 cells colored by assigned
+action via the shared `action-{action}` classes, `data-action` for tests, click → `onAssign`).
+
+The next slices assemble these into an editor and integrate the model: a `MultiActionEditor`
+(palette + grid + per-action %), then wiring it into `App` with an extended `SavedRange`
+(optional `handActions`) + storage, then mode-2 practice and action-specific accuracy. The
+next slice is the `MultiActionEditor` component (controlled, standalone).
 
 NOTE ON CADENCE: the user approved continuing past the first 20-slice checkpoint (after
 slice 38). The loop resumed at slice 39 and continues through v2.2 → v2.3; the next safety
@@ -270,54 +275,52 @@ crosses into v3, whichever comes first.
 
 ## Next slice
 
-- **Number:** 53
+- **Number:** 54
 - **Roadmap target:** v2.3 — Multi-action ranges
-- **Working title:** Multi-color action grid component (assign actions to hands)
+- **Working title:** Multi-action editor component (palette + grid + per-action %)
 
 ### Prompt
 
-You are implementing roadmap slice 53, continuing **v2.3 — Multi-action ranges**. The action
-palette exists; this slice builds the standalone multi-color `ActionGrid`: a 13×13 grid where
-each cell is colored by its assigned action, and clicking a cell assigns the active action
-(the parent owns the active action and the assignment). Do NOT wire it into an editor yet
-(next slices). Keep it standalone and fully tested.
+You are implementing roadmap slice 54, continuing **v2.3 — Multi-action ranges**. The action
+palette and grid exist as standalone components. This slice assembles them into a controlled
+`MultiActionEditor` that lets the user pick an active action, paint it onto the grid, and see
+per-action percentages. Do NOT wire it into `App` or persistence yet (later slices). Keep it
+standalone and fully tested.
 
-Scope of THIS slice: a controlled `ActionGrid` component + its CSS + tests. No App/model
-changes.
+Scope of THIS slice: a controlled `MultiActionEditor` component (+ tiny CSS if needed) +
+tests. No App/model/storage changes.
 
 Context (read these before starting):
-- `src/domain/pokerHands.ts` — `generateHandMatrix()` / `ALL_HANDS`, `type PokerHand`.
-- `src/components/HandGrid.tsx` / `HandGrid.css` — the 13×13 grid idiom (build `HANDS`
-  once at module load; CSS grid layout). ActionGrid is simpler: click-to-assign only (no
-  drag-paint needed) and cells expose their action via a `data-action` attribute for tests
-  and styling, mirroring `HandHeatmap`'s `data-heat`.
-- `src/components/ActionPalette.css` — defines the shared `.action-{action}` color classes.
-  Import it in `ActionGrid.tsx` so assigned cells get the right colors, and ensure each
-  `.action-{action}` sets a legible text `color` (update `ActionPalette.css` to give each
-  action class both `background` AND `color` — white for most, dark for the amber `raise`;
-  the palette stays visually correct). Layout/base-cell styling goes in a new `ActionGrid.css`.
-- `src/types/range.ts` — `RangeAction`, `RANGE_ACTION_LABELS`.
+- `src/components/ActionPalette.tsx` — `ActionPalette({ selected, onSelect })`.
+- `src/components/ActionGrid.tsx` — `ActionGrid({ handActions, onAssign })` (click → assign).
+- `src/domain/actionRange.ts` — `handsForAction(handActions, action)` and
+  `actionRangePercentage(handActions, action)`.
+- `src/types/range.ts` — `RANGE_ACTIONS`, `RANGE_ACTION_LABELS`, `RangeAction`.
+- `src/components/HandGrid.test.tsx` — its stateful `Harness` shows how to test a controlled
+  grid (mirror it for the controlled `handActions`/`onSetHandAction`).
 
 Task:
-- Create `src/components/ActionGrid.tsx` exporting `ActionGrid({ handActions, onAssign }: {
-  handActions: Record<PokerHand, RangeAction>; onAssign: (hand: PokerHand) => void })`:
-  - Render `<div className="action-grid">` with all 169 hands as `<button>` cells (accessible
-    name = the hand text). For each cell let `action = handActions[hand]`; set
-    `className={action ? `action-cell action-${action}` : 'action-cell'}` and
-    `data-action={action ?? 'none'}`; on click call `onAssign(hand)`.
-  - Import `ActionPalette.css` (for colors) and `ActionGrid.css` (for layout). Build the flat
-    `HANDS` list once at module load like `HandGrid`.
-- Create `src/components/ActionGrid.css`: `.action-grid` (13-col grid, gap, max-width like
-  `.hand-grid`), `.action-cell` (square cell, mono font, base border/bg for the unassigned
-  state, pointer, focus outline). Assigned cells get their color from the shared
-  `.action-{action}` classes.
+- Create `src/components/MultiActionEditor.tsx` exporting `MultiActionEditor({ handActions,
+  onSetHandAction }: { handActions: Record<PokerHand, RangeAction>; onSetHandAction: (hand:
+  PokerHand, action: RangeAction) => void })`:
+  - Hold the active action in internal state (`useState<RangeAction>('raise')`).
+  - Render `<ActionPalette selected={selectedAction} onSelect={setSelectedAction} />`,
+    `<ActionGrid handActions={handActions} onAssign={(hand) => onSetHandAction(hand,
+    selectedAction)} />`, and a per-action percentage summary
+    (`<div aria-label="Per-action percentages">`) listing each action that has at least one
+    hand (`handsForAction(...).length > 0`) as `{label}: {actionRangePercentage(...).toFixed(
+    1)}%`. Wrap it in a `<section className="multi-action-editor" aria-label="Multi-action
+    editor">`. Add a small `MultiActionEditor.css` only if needed.
+  - Controlled: `handActions` + `onSetHandAction` come from the parent (the parent will own
+    and persist them in a later slice). Only the active action is internal.
 
-Tests to add (`src/components/ActionGrid.test.tsx`, RTL):
-- renders 169 cells (`getByRole('button', { name: 'AA' })` etc.); an unassigned cell has
-  `data-action="none"`;
-- a cell with an assigned action exposes it: `screen.getByText('AA').getAttribute(
-  'data-action')` equals the action (pass a `handActions` like `{ AA: 'raise' }`);
-- clicking a cell calls `onAssign` with that hand.
+Tests to add (`src/components/MultiActionEditor.test.tsx`, RTL, with a stateful `Harness`
+that owns `handActions` and implements `onSetHandAction`):
+- renders the palette (e.g. a "Raise" swatch) and the grid (e.g. an "AA" cell);
+- selecting an action (click its palette swatch) then clicking a grid cell assigns that
+  action to the cell (the cell's `data-action` becomes the action);
+- the per-action percentages region lists an action in use with its percentage (assign a
+  couple of hands and assert the label + a `%`).
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -325,11 +328,12 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: `ActionGrid.tsx` + `ActionGrid.css` + its test, plus the small
-  `ActionPalette.css` color-contrast tweak. Do NOT modify `App`, `HandGrid`, or the model.
-- Reuse the shared `.action-{action}` color classes; no duplicated color values.
+- Stay within this slice: ONLY `MultiActionEditor.tsx` (+ css if needed) and its test. Do NOT
+  modify `App`, the model (`SavedRange`), or storage; do NOT modify `ActionPalette`/
+  `ActionGrid`.
+- Reuse the existing components + domain helpers; no duplicated logic.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: add a multi-color action grid for assigning hand actions`
+- `feat: add a multi-action range editor component`
