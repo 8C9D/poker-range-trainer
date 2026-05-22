@@ -704,6 +704,32 @@ describe('Due-today review queue', () => {
   })
 })
 
+describe('Multi-action editor', () => {
+  it('edits and persists per-hand actions for a range', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Pairs')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    await user.click(screen.getByRole('button', { name: 'Edit actions for Pairs' }))
+    expect(screen.getByRole('heading', { name: 'Actions: Pairs' })).toBeInTheDocument()
+
+    // Default active action is Raise; paint it onto AA on the action grid.
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    expect(screen.getByText('AA').getAttribute('data-action')).toBe('raise')
+
+    await user.click(screen.getByRole('button', { name: 'Save actions' }))
+    // Back to the editor/library.
+    expect(screen.getByLabelText('Range name')).toBeInTheDocument()
+
+    // Reopening shows the persisted assignment.
+    await user.click(screen.getByRole('button', { name: 'Edit actions for Pairs' }))
+    expect(screen.getByText('AA').getAttribute('data-action')).toBe('raise')
+  })
+})
+
 describe('Range shortcuts', () => {
   it('renders the range shortcut section', () => {
     render(<App />)

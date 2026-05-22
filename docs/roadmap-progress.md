@@ -90,6 +90,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 53 | Multi-color action grid component (assign actions to hands) | v2.3 — Multi-action ranges | 2026-06-06 |
 | 54 | Multi-action editor component (palette + grid + per-action %) | v2.3 — Multi-action ranges | 2026-06-06 |
 | 55 | Persist optional per-hand actions on a saved range | v2.3 — Multi-action ranges | 2026-06-06 |
+| 56 | Wire the multi-action editor into a per-range "Actions" view | v2.3 — Multi-action ranges | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -273,10 +274,14 @@ Slice 55 extended the persisted model: `SavedRange.handActions?` (optional) plus
 `rangeStorage` sanitization (`normalizeHandActions`) that round-trips valid maps and drops
 malformed entries; hands-only ranges are unaffected.
 
-The remaining v2.3 work: wire the editor into `App` (edit + save a range's actions), then
-mode-2 practice ("what's the correct action?") + action-specific accuracy, then notation with
-action groups. The next slice wires the `MultiActionEditor` into a per-range "Actions" view
-reachable from a library card.
+Slice 56 wired it in: each library card has an "Actions" button (`Edit actions for {name}`)
+opening a per-range action editor (`App` holds `actionEditRange` + `handActionsDraft`, "Save
+actions" persists `handActions` via `saveSavedRange`). Assigning + saving + reopening
+round-trips.
+
+The remaining v2.3 work: mode-2 practice ("what's the correct action for AJs?") +
+action-specific accuracy, then notation with action groups. The next slice adds the pure
+mode-2 foundation (prompt pool + correct-action lookup).
 
 NOTE ON CADENCE: this is the continuation run the user approved past the first checkpoint
 (slices 39+). After slice 58 the continuation reaches **20 slices** — the next safety
@@ -290,57 +295,44 @@ crosses into v3, whichever comes first.
 
 ## Next slice
 
-- **Number:** 56
+- **Number:** 57
 - **Roadmap target:** v2.3 — Multi-action ranges
-- **Working title:** Wire the multi-action editor into a per-range "Actions" view
+- **Working title:** Mode-2 practice foundation (prompt pool + correct-action lookup)
 
 ### Prompt
 
-You are implementing roadmap slice 56, continuing **v2.3 — Multi-action ranges**. The
-`MultiActionEditor` and the persisted `handActions` model exist. This slice makes the editor
-reachable and persistent: an "Actions" action on each library card opens a per-range
-multi-action editor; the user assigns actions and saves them onto the range. Mirror the
-existing per-range "Stats"/performance-view wiring (slices 32–33).
+You are implementing roadmap slice 57, continuing **v2.3 — Multi-action ranges**. The
+multi-action editor is wired. This slice adds the pure foundation for mode-2 practice ("What
+is the correct action for AJs?"): the pool of hands to quiz and the correct action for a hand.
+Foundation only — the quiz component + wiring + action-specific accuracy come next.
 
-Scope of THIS slice: `App` wiring + a `RangeLibrary` card action + tests. No changes to
-`MultiActionEditor`/grid/palette or the storage model.
+(Reminder: this is the 19th slice of the continuation run; the next slice (58) reaches the
+20-slice safety checkpoint, so the loop should pause and report after it — v2.3 will be
+partially complete.)
+
+Scope of THIS slice (foundation only): two pure helpers added to `src/domain/actionRange.ts`
++ tests. No UI, no storage.
 
 Context (read these before starting):
-- `src/App.tsx` — top-level view switching (`practicingRange` → modes; `performanceRange` →
-  `<RangePerformance/>`; `dueToday` → `<DueToday/>`; else editor/library). It owns
-  `savedRanges` and `saveSavedRange`+`setSavedRanges(loadSavedRanges())` refresh-after-write.
-  Add: `actionEditRange: SavedRange | null` and a `handActionsDraft: Record<PokerHand,
-  RangeAction>` state; `handleEditActions(range)` (set range + seed draft from
-  `range.handActions ?? {}`); a `setDraftHandAction(hand, action)` updater
-  (`setHandActionsDraft((prev) => ({ ...prev, [hand]: action }))`); `handleSaveActions()`
-  (`saveSavedRange({ ...actionEditRange, handActions: handActionsDraft, updatedAt: new
-  Date().toISOString() })`, refresh `savedRanges`, then clear `actionEditRange`); and a
-  render branch (before the editor/library) for `actionEditRange !== null` showing the range
-  name, `<MultiActionEditor handActions={handActionsDraft} onSetHandAction={setDraftHandAction}
-  />`, and "Save actions" + "Back to library" buttons. Add a header-subtitle case.
-- `src/components/RangeLibrary.tsx` — add an `onEditActions: (range: SavedRange) => void`
-  prop and an "Actions" button per card with aria-label `Edit actions for {range.name}`
-  (mirror the "Stats"/`onViewPerformance` button added in slice 33). Pass it from `App`.
-- `src/components/MultiActionEditor.tsx` — `MultiActionEditor({ handActions, onSetHandAction
-  })`.
-- `src/types/range.ts` / `pokerHands.ts` — `RangeAction`, `PokerHand`.
-- `src/components/RangeLibrary.test.tsx` — every `<RangeLibrary>` render needs the new
-  required `onEditActions` prop; add it (e.g. replace_all `onViewPerformance={vi.fn()}` →
-  add an `onEditActions={vi.fn()}` line, mirroring how `onViewPerformance` was added).
+- `src/domain/actionRange.ts` — has `handsForAction`, `actionRangePercentage`. Add the new
+  helpers here. It imports `ALL_HANDS` + `type PokerHand`.
+- `src/types/range.ts` — `RangeAction`.
+- `src/domain/actionRange.test.ts` — extend it.
 
-Task:
-- `RangeLibrary`: add `onEditActions` prop + the per-card "Actions" button.
-- `App`: add the state/handlers/render branch above; pass `onEditActions={handleEditActions}`
-  to `RangeLibrary`; add the header subtitle (e.g. "Assign an action to each hand.").
+Task — add to `src/domain/actionRange.ts`:
+- `assignedHands(handActions: Record<PokerHand, RangeAction>): PokerHand[]` — the hands that
+  have ANY assigned action, in canonical 13×13 order (filter `ALL_HANDS` where
+  `handActions[hand] !== undefined`). This is the mode-2 prompt pool (quiz only the hands the
+  chart actually assigns).
+- `correctActionFor(handActions: Record<PokerHand, RangeAction>, hand: PokerHand):
+  RangeAction` — the expected action for `hand`: `handActions[hand] ?? 'fold'` (an unassigned
+  hand defaults to fold). Pure; doc comments in the established style.
 
-Tests to add/update:
-- `RangeLibrary.test.tsx`: add `onEditActions` to all renders; a test that clicking the
-  "Actions" button calls `onEditActions` with the range.
-- `App.test.tsx`: save a range, click "Edit actions for <name>", assign an action (select a
-  palette action then click a grid cell — that cell's `data-action` updates), click "Save
-  actions", reopen the editor and assert the assignment persisted (the cell still shows the
-  action). Keep existing tests green (add the new required `onEditActions` prop wherever
-  `RangeLibrary` is rendered directly).
+Tests to add (`src/domain/actionRange.test.ts`, new describes):
+- `assignedHands({})` → `[]`; with `{ KK: 'fold', AA: 'raise' }` → `['AA', 'KK']` (canonical
+  order); only hands with an assignment are included.
+- `correctActionFor`: returns the assigned action for an assigned hand; returns `'fold'` for
+  an unassigned hand.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -348,11 +340,11 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: `App` wiring + `RangeLibrary` button + tests. Do NOT modify the
-  editor/grid/palette components or the storage model.
-- Reuse `saveSavedRange` + the refresh-after-write pattern; keep storage access in `App`.
+- Stay within this slice: ONLY `assignedHands` + `correctActionFor` + tests. No UI, no
+  storage, no new mode wiring.
+- Keep them pure and in `src/domain/`.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: edit and save per-hand actions for a range`
+- `feat: add mode-2 action-quiz prompt pool and correct-action helpers`

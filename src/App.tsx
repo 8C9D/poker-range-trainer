@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { BuildFromMemoryPractice } from './components/BuildFromMemoryPractice'
 import { DueToday } from './components/DueToday'
 import { HandGrid } from './components/HandGrid'
+import { MultiActionEditor } from './components/MultiActionEditor'
 import { PracticeSession } from './components/PracticeSession'
 import { TimedDrillSession } from './components/TimedDrillSession'
 import { WeaknessFocusedDrill } from './components/WeaknessFocusedDrill'
@@ -33,6 +34,7 @@ import type {
   ActionType,
   GameType,
   Position,
+  RangeAction,
   RangeMetadata,
   SavedRange,
   TableSize,
@@ -70,6 +72,10 @@ function App() {
   const [dueToday, setDueToday] = useState<SavedRange[] | null>(null)
   // Consecutive-day review streak, computed when the review queue is opened.
   const [reviewStreak, setReviewStreak] = useState(0)
+  // null = not editing actions; otherwise the range whose per-hand actions are
+  // being edited, with `handActionsDraft` holding the in-progress assignments.
+  const [actionEditRange, setActionEditRange] = useState<SavedRange | null>(null)
+  const [handActionsDraft, setHandActionsDraft] = useState<Record<PokerHand, RangeAction>>({})
   // null = editor/library view; otherwise the saved range being practiced.
   const [practicingRange, setPracticingRange] = useState<SavedRange | null>(null)
   // When non-null, recognition practice is restricted to these hands (the
@@ -357,6 +363,27 @@ function App() {
     handlePractice(range)
   }
 
+  function handleEditActions(range: SavedRange) {
+    setActionEditRange(range)
+    // Seed the draft from the range's saved actions (empty for a hands-only range).
+    setHandActionsDraft({ ...(range.handActions ?? {}) })
+  }
+
+  function setDraftHandAction(hand: PokerHand, action: RangeAction) {
+    setHandActionsDraft((prev) => ({ ...prev, [hand]: action }))
+  }
+
+  function handleSaveActions() {
+    if (!actionEditRange) return
+    saveSavedRange({
+      ...actionEditRange,
+      handActions: handActionsDraft,
+      updatedAt: new Date().toISOString(),
+    })
+    setSavedRanges(loadSavedRanges())
+    setActionEditRange(null)
+  }
+
   let headerSubtitle: string
   if (practicingRange) {
     if (practiceMode === 'recognize') {
@@ -376,6 +403,8 @@ function App() {
     headerSubtitle = 'Review your per-hand accuracy.'
   } else if (dueToday !== null) {
     headerSubtitle = 'Review the ranges due for review.'
+  } else if (actionEditRange) {
+    headerSubtitle = 'Assign an action to each hand.'
   } else {
     headerSubtitle = "Click hands to build a Texas Hold'em preflop range."
   }
@@ -463,6 +492,22 @@ function App() {
           onPractice={handlePracticeDue}
           onClose={() => setDueToday(null)}
         />
+      ) : actionEditRange ? (
+        <section className="practice-session" aria-label="Action editor">
+          <header className="practice-header">
+            <h2>Actions: {actionEditRange.name}</h2>
+            <button type="button" className="primary" onClick={handleSaveActions}>
+              Save actions
+            </button>
+            <button type="button" onClick={() => setActionEditRange(null)}>
+              Back to library
+            </button>
+          </header>
+          <MultiActionEditor
+            handActions={handActionsDraft}
+            onSetHandAction={setDraftHandAction}
+          />
+        </section>
       ) : (
         <>
           <section className="range-editor" aria-label="Range editor">
@@ -544,6 +589,7 @@ function App() {
             onFavorite={handleFavorite}
             onArchive={handleArchive}
             onViewPerformance={handleViewPerformance}
+            onEditActions={handleEditActions}
           />
         </>
       )}

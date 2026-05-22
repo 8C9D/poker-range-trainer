@@ -28,6 +28,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
     expect(screen.getByText(/no saved ranges/i)).toBeInTheDocument()
@@ -45,6 +46,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
     expect(screen.getByText('Pairs')).toBeInTheDocument()
@@ -67,6 +69,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -90,12 +93,37 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={onViewPerformance}
+        onEditActions={vi.fn()}
       />,
     )
 
     await user.click(screen.getByRole('button', { name: 'View stats for Pairs' }))
 
     expect(onViewPerformance).toHaveBeenCalledExactlyOnceWith(range)
+  })
+
+  it('calls onEditActions with the range when Actions is clicked', async () => {
+    const user = userEvent.setup()
+    const onEditActions = vi.fn()
+    const range = makeRange({ name: 'Pairs' })
+    render(
+      <RangeLibrary
+        ranges={[range]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+        onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
+        onFavorite={vi.fn()}
+        onViewPerformance={vi.fn()}
+        onEditActions={onEditActions}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Edit actions for Pairs' }))
+
+    expect(onEditActions).toHaveBeenCalledExactlyOnceWith(range)
   })
 
   it('calls onDelete with the range id when Delete is clicked', async () => {
@@ -112,6 +140,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -135,6 +164,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -158,6 +188,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -181,6 +212,7 @@ describe('RangeLibrary', () => {
         onArchive={onArchive}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -201,6 +233,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -226,6 +259,7 @@ describe('RangeLibrary', () => {
         onArchive={onArchive}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -257,6 +291,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -280,6 +315,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -310,6 +346,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -333,6 +370,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={onFavorite}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -353,6 +391,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -381,6 +420,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={onFavorite}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -409,6 +449,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -432,6 +473,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -464,6 +506,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -489,6 +532,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
     expect(screen.getByText('Active One').closest('li')).toHaveAttribute('aria-current', 'true')
@@ -511,6 +555,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
     expect(screen.getByText('BTN · Open')).toBeInTheDocument()
@@ -540,6 +585,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
     expect(screen.getByText('Cash · 6-max · 100bb · BTN vs CO · Open')).toBeInTheDocument()
@@ -557,6 +603,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
     // Scope to the scenario span so the matching "40bb" option in the
@@ -576,6 +623,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
     expect(screen.getByText('SB vs BTN · 3-bet')).toBeInTheDocument()
@@ -593,6 +641,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
     // Position alone renders as exactly "CO" (no separator); no action label appears.
@@ -616,6 +665,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
     // No empty scenario/notes labels are emitted for a metadata-less range.
@@ -636,6 +686,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
     expect(screen.getByText(`${'x'.repeat(80)}…`)).toBeInTheDocument()
@@ -654,6 +705,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
         practiceStats={{
           r1: {
             rangeId: 'r1',
@@ -684,6 +736,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -707,6 +760,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -733,6 +787,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -754,6 +809,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -779,6 +835,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -803,6 +860,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
     expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
@@ -824,6 +882,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -856,6 +915,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -884,6 +944,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -913,6 +974,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -941,6 +1003,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -965,6 +1028,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
     expect(
@@ -988,6 +1052,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -1020,6 +1085,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -1048,6 +1114,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -1089,6 +1156,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -1122,6 +1190,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -1146,6 +1215,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
     expect(
@@ -1170,6 +1240,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -1197,6 +1268,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -1229,6 +1301,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -1257,6 +1330,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -1298,6 +1372,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -1338,6 +1413,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -1368,6 +1444,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
     expect(
@@ -1391,6 +1468,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -1423,6 +1501,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -1451,6 +1530,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -1497,6 +1577,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -1546,6 +1627,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -1576,6 +1658,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
     expect(
@@ -1599,6 +1682,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -1624,6 +1708,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -1650,6 +1735,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -1683,6 +1769,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -1724,6 +1811,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
       />,
     )
 
@@ -1757,6 +1845,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
         practiceStats={{
           r1: {
             rangeId: 'r1',
@@ -1799,6 +1888,7 @@ describe('RangeLibrary', () => {
         onArchive={vi.fn()}
         onFavorite={vi.fn()}
         onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
         practiceStats={{
           r1: {
             rangeId: 'r1',

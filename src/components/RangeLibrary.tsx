@@ -47,6 +47,8 @@ interface RangeLibraryProps {
   onArchive: (range: SavedRange) => void
   /** Open the per-hand performance view for the given saved range. */
   onViewPerformance: (range: SavedRange) => void
+  /** Open the multi-action editor for the given saved range. */
+  onEditActions: (range: SavedRange) => void
   /**
    * Cumulative per-range practice stats, keyed by range id. A range with an
    * entry that has recorded attempts shows a practice-stats line on its card;
@@ -119,6 +121,7 @@ export function RangeLibrary({
   onFavorite,
   onArchive,
   onViewPerformance,
+  onEditActions,
   practiceStats = {},
 }: RangeLibraryProps) {
   const [query, setQuery] = useState('')
@@ -365,6 +368,13 @@ export function RangeLibrary({
                         onClick={() => onViewPerformance(range)}
                       >
                         Stats
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Edit actions for ${range.name}`}
+                        onClick={() => onEditActions(range)}
+                      >
+                        Actions
                       </button>
                       <button
                         type="button"
