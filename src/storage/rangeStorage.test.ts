@@ -340,3 +340,49 @@ describe('range favorite flag', () => {
     expect(loaded).toEqual(range)
   })
 })
+
+describe('handActions persistence', () => {
+  it('round-trips a range saved with handActions', () => {
+    saveSavedRange(makeRange({ id: 'r1', handActions: { AA: 'raise', KK: 'fold' } }))
+    expect(loadSavedRanges()[0].handActions).toEqual({ AA: 'raise', KK: 'fold' })
+  })
+
+  it('loads a hands-only range without a handActions field', () => {
+    saveSavedRange(makeRange({ id: 'r1' }))
+    expect(loadSavedRanges()[0].handActions).toBeUndefined()
+  })
+
+  it('sanitizes malformed handActions on load (drops bad hand keys and actions)', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify([
+        {
+          id: 'r1',
+          name: 'R',
+          hands: ['AA'],
+          createdAt: 'T',
+          updatedAt: 'T',
+          handActions: { AA: 'raise', ZZ: 'fold', KK: 'bogus' },
+        },
+      ]),
+    )
+    expect(loadSavedRanges()[0].handActions).toEqual({ AA: 'raise' })
+  })
+
+  it('omits handActions entirely when no entries are valid', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify([
+        {
+          id: 'r1',
+          name: 'R',
+          hands: ['AA'],
+          createdAt: 'T',
+          updatedAt: 'T',
+          handActions: { ZZ: 'fold', KK: 'bogus' },
+        },
+      ]),
+    )
+    expect(loadSavedRanges()[0].handActions).toBeUndefined()
+  })
+})

@@ -130,6 +130,12 @@ export interface SavedRange {
   name: string
   /** Selected starting hands in canonical notation (e.g. "AA", "AKs", "AKo"). */
   hands: PokerHand[]
+  /**
+   * Optional v2.3 per-hand action map (e.g. `{ AA: 'raise', 'A5s': 'call' }`).
+   * Absent on hands-only ranges (v1–v2.2). `hands` remains the membership list;
+   * `handActions` is the multi-action overlay (the two may coexist).
+   */
+  handActions?: Record<PokerHand, RangeAction>
   /** ISO-8601 timestamp of when the range was created. */
   createdAt: string
   /** ISO-8601 timestamp of the most recent edit. */

@@ -4,7 +4,9 @@ import {
   ACTION_TYPES,
   GAME_TYPES,
   POSITIONS,
+  RANGE_ACTIONS,
   TABLE_SIZES,
+  type RangeAction,
   type RangeMetadata,
   type SavedRange,
 } from '../types/range'
@@ -73,10 +75,28 @@ function normalizeMetadata(value: unknown): RangeMetadata | undefined {
   return Object.keys(metadata).length > 0 ? metadata : undefined
 }
 
+/**
+ * Validate and sanitize an optional per-hand action map.
+ *
+ * Like `normalizeMetadata`, a malformed map never rejects the whole range: only
+ * entries with a canonical hand key and a recognized `RangeAction` value survive,
+ * and an all-empty result collapses to `undefined` so `handActions: {}` is never
+ * persisted (a hands-only range stays without the field).
+ */
+function normalizeHandActions(value: unknown): Record<PokerHand, RangeAction> | undefined {
+  if (typeof value !== 'object' || value === null) return undefined
+  const result: Record<PokerHand, RangeAction> = {}
+  for (const [hand, raw] of Object.entries(value as Record<string, unknown>)) {
+    const action = asMember(RANGE_ACTIONS, raw)
+    if (action && isValidHand(hand)) result[hand] = action
+  }
+  return Object.keys(result).length > 0 ? result : undefined
+}
+
 /** Validate a parsed value as a `SavedRange`, returning `null` if it is malformed. */
 function parseSavedRange(value: unknown): SavedRange | null {
   if (typeof value !== 'object' || value === null) return null
-  const { id, name, hands, createdAt, updatedAt, metadata, archived, favorite } =
+  const { id, name, hands, createdAt, updatedAt, metadata, archived, favorite, handActions } =
     value as Record<string, unknown>
 
   if (typeof id !== 'string' || id.length === 0) return null
@@ -94,6 +114,7 @@ function parseSavedRange(value: unknown): SavedRange | null {
 
   // Hands are valid, so normalize (de-dupe + canonical order) without throwing.
   const normalizedMetadata = normalizeMetadata(metadata)
+  const normalizedHandActions = normalizeHandActions(handActions)
   return {
     id,
     name,
@@ -101,6 +122,7 @@ function parseSavedRange(value: unknown): SavedRange | null {
     updatedAt,
     hands: normalizeRangeHands(validatedHands),
     ...(normalizedMetadata ? { metadata: normalizedMetadata } : {}),
+    ...(normalizedHandActions ? { handActions: normalizedHandActions } : {}),
     // Only a strict `true` persists; absent/false stays unarchived with no key.
     ...(archived === true ? { archived: true } : {}),
     // Same rule as archived: only a strict `true` persists the favorite flag.
@@ -153,12 +175,14 @@ export function findSavedRangeById(id: string): SavedRange | undefined {
  * before any write and leaves existing storage untouched.
  */
 export function saveSavedRange(range: SavedRange): void {
-  const { metadata, archived, favorite, ...rest } = range
+  const { metadata, archived, favorite, handActions, ...rest } = range
   const normalizedMetadata = normalizeMetadata(metadata)
+  const normalizedHandActions = normalizeHandActions(handActions)
   const normalized: SavedRange = {
     ...rest,
     hands: normalizeRangeHands(range.hands),
     ...(normalizedMetadata ? { metadata: normalizedMetadata } : {}),
+    ...(normalizedHandActions ? { handActions: normalizedHandActions } : {}),
     // Mirror parse: only a strict `true` is stored, so `false`/undefined drops the key.
     ...(archived === true ? { archived: true } : {}),
     // Same rule as archived: only a strict `true` is stored for favorite.

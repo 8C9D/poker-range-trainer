@@ -89,6 +89,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 52 | Action palette component (select the active action) | v2.3 — Multi-action ranges | 2026-06-06 |
 | 53 | Multi-color action grid component (assign actions to hands) | v2.3 — Multi-action ranges | 2026-06-06 |
 | 54 | Multi-action editor component (palette + grid + per-action %) | v2.3 — Multi-action ranges | 2026-06-06 |
+| 55 | Persist optional per-hand actions on a saved range | v2.3 — Multi-action ranges | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -268,10 +269,14 @@ Slice 54 added the controlled `MultiActionEditor` (palette + grid + per-action %
 parent owns `handActions`, active action is internal). All v2.3 building blocks are now
 standalone-tested.
 
-The remaining v2.3 work integrates the model: extend `SavedRange` with optional
-`handActions` + storage validation, wire the editor into `App`, then mode-2 practice ("what's
-the correct action?") + action-specific accuracy, then notation with action groups. The next
-slice extends the persisted model.
+Slice 55 extended the persisted model: `SavedRange.handActions?` (optional) plus
+`rangeStorage` sanitization (`normalizeHandActions`) that round-trips valid maps and drops
+malformed entries; hands-only ranges are unaffected.
+
+The remaining v2.3 work: wire the editor into `App` (edit + save a range's actions), then
+mode-2 practice ("what's the correct action?") + action-specific accuracy, then notation with
+action groups. The next slice wires the `MultiActionEditor` into a per-range "Actions" view
+reachable from a library card.
 
 NOTE ON CADENCE: this is the continuation run the user approved past the first checkpoint
 (slices 39+). After slice 58 the continuation reaches **20 slices** — the next safety
@@ -285,49 +290,57 @@ crosses into v3, whichever comes first.
 
 ## Next slice
 
-- **Number:** 55
+- **Number:** 56
 - **Roadmap target:** v2.3 — Multi-action ranges
-- **Working title:** Persist optional per-hand actions on a saved range
+- **Working title:** Wire the multi-action editor into a per-range "Actions" view
 
 ### Prompt
 
-You are implementing roadmap slice 55, continuing **v2.3 — Multi-action ranges**. The
-editor components exist; this slice extends the persisted model so a range can carry per-hand
-actions. Make it BACKWARD COMPATIBLE: `handActions` is optional, and existing
-`hands`-only ranges (v1–v2.2) keep working unchanged.
+You are implementing roadmap slice 56, continuing **v2.3 — Multi-action ranges**. The
+`MultiActionEditor` and the persisted `handActions` model exist. This slice makes the editor
+reachable and persistent: an "Actions" action on each library card opens a per-range
+multi-action editor; the user assigns actions and saves them onto the range. Mirror the
+existing per-range "Stats"/performance-view wiring (slices 32–33).
 
-Scope of THIS slice: extend `SavedRange` with optional `handActions` + validate it in
-`rangeStorage` round-trips, with tests. No editor/App wiring yet (next slice).
+Scope of THIS slice: `App` wiring + a `RangeLibrary` card action + tests. No changes to
+`MultiActionEditor`/grid/palette or the storage model.
 
 Context (read these before starting):
-- `src/types/range.ts` — `SavedRange` (id, name, hands, timestamps, optional metadata,
-  archived, favorite) and `RangeAction` / `RANGE_ACTIONS`.
-- `src/storage/rangeStorage.ts` — load/save with a `parse…`/validate helper (READ IT to
-  match its structure). It validates each `SavedRange` field and likely drops unknown/invalid
-  ones; add `handActions` to the parsed shape. `src/domain/pokerHands.ts` `isValidHand` and
-  `RANGE_ACTIONS` let you validate entries.
-- `src/storage/rangeStorage.test.ts` — mirror its patterns (round-trip, malformed handling).
+- `src/App.tsx` — top-level view switching (`practicingRange` → modes; `performanceRange` →
+  `<RangePerformance/>`; `dueToday` → `<DueToday/>`; else editor/library). It owns
+  `savedRanges` and `saveSavedRange`+`setSavedRanges(loadSavedRanges())` refresh-after-write.
+  Add: `actionEditRange: SavedRange | null` and a `handActionsDraft: Record<PokerHand,
+  RangeAction>` state; `handleEditActions(range)` (set range + seed draft from
+  `range.handActions ?? {}`); a `setDraftHandAction(hand, action)` updater
+  (`setHandActionsDraft((prev) => ({ ...prev, [hand]: action }))`); `handleSaveActions()`
+  (`saveSavedRange({ ...actionEditRange, handActions: handActionsDraft, updatedAt: new
+  Date().toISOString() })`, refresh `savedRanges`, then clear `actionEditRange`); and a
+  render branch (before the editor/library) for `actionEditRange !== null` showing the range
+  name, `<MultiActionEditor handActions={handActionsDraft} onSetHandAction={setDraftHandAction}
+  />`, and "Save actions" + "Back to library" buttons. Add a header-subtitle case.
+- `src/components/RangeLibrary.tsx` — add an `onEditActions: (range: SavedRange) => void`
+  prop and an "Actions" button per card with aria-label `Edit actions for {range.name}`
+  (mirror the "Stats"/`onViewPerformance` button added in slice 33). Pass it from `App`.
+- `src/components/MultiActionEditor.tsx` — `MultiActionEditor({ handActions, onSetHandAction
+  })`.
+- `src/types/range.ts` / `pokerHands.ts` — `RangeAction`, `PokerHand`.
+- `src/components/RangeLibrary.test.tsx` — every `<RangeLibrary>` render needs the new
+  required `onEditActions` prop; add it (e.g. replace_all `onViewPerformance={vi.fn()}` →
+  add an `onEditActions={vi.fn()}` line, mirroring how `onViewPerformance` was added).
 
 Task:
-- In `src/types/range.ts`, add to `SavedRange`:
-  `handActions?: Record<PokerHand, RangeAction>` (optional; absent on hands-only ranges).
-  Document that `hands` remains the membership list and `handActions` is the v2.3 per-hand
-  action map (the two may coexist; later slices reconcile them).
-- In `src/storage/rangeStorage.ts`, extend the range parse/validate so a stored
-  `handActions` survives a load when valid: keep only entries whose key is a canonical hand
-  (`isValidHand`) and whose value is in `RANGE_ACTIONS`; drop the field entirely if it is not
-  a non-null object or has no valid entries (so a range without it stays without it). Saving a
-  range with `handActions` must round-trip. Do NOT change how `hands`/metadata are handled.
-- If `rangeStorage` builds the validated object field-by-field, add `handActions` there
-  (only attaching it when present and non-empty), mirroring how optional `metadata` is
-  handled.
+- `RangeLibrary`: add `onEditActions` prop + the per-card "Actions" button.
+- `App`: add the state/handlers/render branch above; pass `onEditActions={handleEditActions}`
+  to `RangeLibrary`; add the header subtitle (e.g. "Assign an action to each hand.").
 
-Tests to add (`src/storage/rangeStorage.test.ts`):
-- a range saved with `handActions` round-trips (load returns the same map);
-- a range without `handActions` loads without the field (unchanged behavior);
-- malformed `handActions` is sanitized on load: a non-canonical hand key and an invalid
-  action value are dropped; if nothing valid remains, the field is omitted;
-- existing range round-trip / malformed-range tests still pass.
+Tests to add/update:
+- `RangeLibrary.test.tsx`: add `onEditActions` to all renders; a test that clicking the
+  "Actions" button calls `onEditActions` with the range.
+- `App.test.tsx`: save a range, click "Edit actions for <name>", assign an action (select a
+  palette action then click a grid cell — that cell's `data-action` updates), click "Save
+  actions", reopen the editor and assert the assignment persisted (the cell still shows the
+  action). Keep existing tests green (add the new required `onEditActions` prop wherever
+  `RangeLibrary` is rendered directly).
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -335,11 +348,11 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: the `SavedRange.handActions` field + `rangeStorage` validation +
-  tests. Do NOT modify the editor, App, or practice flows.
-- Keep it backward compatible (optional field; hands-only ranges unaffected).
+- Stay within this slice: `App` wiring + `RangeLibrary` button + tests. Do NOT modify the
+  editor/grid/palette components or the storage model.
+- Reuse `saveSavedRange` + the refresh-after-write pattern; keep storage access in `App`.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: persist optional per-hand actions on saved ranges`
+- `feat: edit and save per-hand actions for a range`
