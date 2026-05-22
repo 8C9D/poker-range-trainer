@@ -1,0 +1,17 @@
+.multi-action-editor {
+  margin-top: 8px;
+}
+
+.multi-action-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 12px;
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--text);
+}
+
+.multi-action-summary-item {
+  white-space: nowrap;
+}

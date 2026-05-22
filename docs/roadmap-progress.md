@@ -88,6 +88,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 51 | Per-action range percentage helper | v2.3 — Multi-action ranges | 2026-06-06 |
 | 52 | Action palette component (select the active action) | v2.3 — Multi-action ranges | 2026-06-06 |
 | 53 | Multi-color action grid component (assign actions to hands) | v2.3 — Multi-action ranges | 2026-06-06 |
+| 54 | Multi-action editor component (palette + grid + per-action %) | v2.3 — Multi-action ranges | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -263,10 +264,19 @@ color classes (reused by the grid next).
 Slice 53 added the standalone controlled `ActionGrid` (13×13 cells colored by assigned
 action via the shared `action-{action}` classes, `data-action` for tests, click → `onAssign`).
 
-The next slices assemble these into an editor and integrate the model: a `MultiActionEditor`
-(palette + grid + per-action %), then wiring it into `App` with an extended `SavedRange`
-(optional `handActions`) + storage, then mode-2 practice and action-specific accuracy. The
-next slice is the `MultiActionEditor` component (controlled, standalone).
+Slice 54 added the controlled `MultiActionEditor` (palette + grid + per-action % summary;
+parent owns `handActions`, active action is internal). All v2.3 building blocks are now
+standalone-tested.
+
+The remaining v2.3 work integrates the model: extend `SavedRange` with optional
+`handActions` + storage validation, wire the editor into `App`, then mode-2 practice ("what's
+the correct action?") + action-specific accuracy, then notation with action groups. The next
+slice extends the persisted model.
+
+NOTE ON CADENCE: this is the continuation run the user approved past the first checkpoint
+(slices 39+). After slice 58 the continuation reaches **20 slices** — the next safety
+checkpoint — so the loop should pause there and report (v2.3 will be partially complete),
+unless v2.3 finishes first.
 
 NOTE ON CADENCE: the user approved continuing past the first 20-slice checkpoint (after
 slice 38). The loop resumed at slice 39 and continues through v2.2 → v2.3; the next safety
@@ -275,52 +285,49 @@ crosses into v3, whichever comes first.
 
 ## Next slice
 
-- **Number:** 54
+- **Number:** 55
 - **Roadmap target:** v2.3 — Multi-action ranges
-- **Working title:** Multi-action editor component (palette + grid + per-action %)
+- **Working title:** Persist optional per-hand actions on a saved range
 
 ### Prompt
 
-You are implementing roadmap slice 54, continuing **v2.3 — Multi-action ranges**. The action
-palette and grid exist as standalone components. This slice assembles them into a controlled
-`MultiActionEditor` that lets the user pick an active action, paint it onto the grid, and see
-per-action percentages. Do NOT wire it into `App` or persistence yet (later slices). Keep it
-standalone and fully tested.
+You are implementing roadmap slice 55, continuing **v2.3 — Multi-action ranges**. The
+editor components exist; this slice extends the persisted model so a range can carry per-hand
+actions. Make it BACKWARD COMPATIBLE: `handActions` is optional, and existing
+`hands`-only ranges (v1–v2.2) keep working unchanged.
 
-Scope of THIS slice: a controlled `MultiActionEditor` component (+ tiny CSS if needed) +
-tests. No App/model/storage changes.
+Scope of THIS slice: extend `SavedRange` with optional `handActions` + validate it in
+`rangeStorage` round-trips, with tests. No editor/App wiring yet (next slice).
 
 Context (read these before starting):
-- `src/components/ActionPalette.tsx` — `ActionPalette({ selected, onSelect })`.
-- `src/components/ActionGrid.tsx` — `ActionGrid({ handActions, onAssign })` (click → assign).
-- `src/domain/actionRange.ts` — `handsForAction(handActions, action)` and
-  `actionRangePercentage(handActions, action)`.
-- `src/types/range.ts` — `RANGE_ACTIONS`, `RANGE_ACTION_LABELS`, `RangeAction`.
-- `src/components/HandGrid.test.tsx` — its stateful `Harness` shows how to test a controlled
-  grid (mirror it for the controlled `handActions`/`onSetHandAction`).
+- `src/types/range.ts` — `SavedRange` (id, name, hands, timestamps, optional metadata,
+  archived, favorite) and `RangeAction` / `RANGE_ACTIONS`.
+- `src/storage/rangeStorage.ts` — load/save with a `parse…`/validate helper (READ IT to
+  match its structure). It validates each `SavedRange` field and likely drops unknown/invalid
+  ones; add `handActions` to the parsed shape. `src/domain/pokerHands.ts` `isValidHand` and
+  `RANGE_ACTIONS` let you validate entries.
+- `src/storage/rangeStorage.test.ts` — mirror its patterns (round-trip, malformed handling).
 
 Task:
-- Create `src/components/MultiActionEditor.tsx` exporting `MultiActionEditor({ handActions,
-  onSetHandAction }: { handActions: Record<PokerHand, RangeAction>; onSetHandAction: (hand:
-  PokerHand, action: RangeAction) => void })`:
-  - Hold the active action in internal state (`useState<RangeAction>('raise')`).
-  - Render `<ActionPalette selected={selectedAction} onSelect={setSelectedAction} />`,
-    `<ActionGrid handActions={handActions} onAssign={(hand) => onSetHandAction(hand,
-    selectedAction)} />`, and a per-action percentage summary
-    (`<div aria-label="Per-action percentages">`) listing each action that has at least one
-    hand (`handsForAction(...).length > 0`) as `{label}: {actionRangePercentage(...).toFixed(
-    1)}%`. Wrap it in a `<section className="multi-action-editor" aria-label="Multi-action
-    editor">`. Add a small `MultiActionEditor.css` only if needed.
-  - Controlled: `handActions` + `onSetHandAction` come from the parent (the parent will own
-    and persist them in a later slice). Only the active action is internal.
+- In `src/types/range.ts`, add to `SavedRange`:
+  `handActions?: Record<PokerHand, RangeAction>` (optional; absent on hands-only ranges).
+  Document that `hands` remains the membership list and `handActions` is the v2.3 per-hand
+  action map (the two may coexist; later slices reconcile them).
+- In `src/storage/rangeStorage.ts`, extend the range parse/validate so a stored
+  `handActions` survives a load when valid: keep only entries whose key is a canonical hand
+  (`isValidHand`) and whose value is in `RANGE_ACTIONS`; drop the field entirely if it is not
+  a non-null object or has no valid entries (so a range without it stays without it). Saving a
+  range with `handActions` must round-trip. Do NOT change how `hands`/metadata are handled.
+- If `rangeStorage` builds the validated object field-by-field, add `handActions` there
+  (only attaching it when present and non-empty), mirroring how optional `metadata` is
+  handled.
 
-Tests to add (`src/components/MultiActionEditor.test.tsx`, RTL, with a stateful `Harness`
-that owns `handActions` and implements `onSetHandAction`):
-- renders the palette (e.g. a "Raise" swatch) and the grid (e.g. an "AA" cell);
-- selecting an action (click its palette swatch) then clicking a grid cell assigns that
-  action to the cell (the cell's `data-action` becomes the action);
-- the per-action percentages region lists an action in use with its percentage (assign a
-  couple of hands and assert the label + a `%`).
+Tests to add (`src/storage/rangeStorage.test.ts`):
+- a range saved with `handActions` round-trips (load returns the same map);
+- a range without `handActions` loads without the field (unchanged behavior);
+- malformed `handActions` is sanitized on load: a non-canonical hand key and an invalid
+  action value are dropped; if nothing valid remains, the field is omitted;
+- existing range round-trip / malformed-range tests still pass.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -328,12 +335,11 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: ONLY `MultiActionEditor.tsx` (+ css if needed) and its test. Do NOT
-  modify `App`, the model (`SavedRange`), or storage; do NOT modify `ActionPalette`/
-  `ActionGrid`.
-- Reuse the existing components + domain helpers; no duplicated logic.
+- Stay within this slice: the `SavedRange.handActions` field + `rangeStorage` validation +
+  tests. Do NOT modify the editor, App, or practice flows.
+- Keep it backward compatible (optional field; hands-only ranges unaffected).
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: add a multi-action range editor component`
+- `feat: persist optional per-hand actions on saved ranges`
