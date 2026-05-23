@@ -92,6 +92,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 55 | Persist optional per-hand actions on a saved range | v2.3 — Multi-action ranges | 2026-06-06 |
 | 56 | Wire the multi-action editor into a per-range "Actions" view | v2.3 — Multi-action ranges | 2026-06-06 |
 | 57 | Mode-2 practice foundation (prompt pool + correct-action lookup) | v2.3 — Multi-action ranges | 2026-06-06 |
+| 58 | Action-quiz practice component (mode 2) | v2.3 — Multi-action ranges | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -283,14 +284,18 @@ round-trips.
 Slice 57 added the mode-2 foundation: `assignedHands(handActions)` (the prompt pool) and
 `correctActionFor(handActions, hand)` (assigned action, else fold).
 
-The remaining v2.3 work: the mode-2 action-quiz component + its wiring, action-specific
-accuracy tracking, and notation with action groups. The next slice builds the standalone
-`ActionQuiz` component.
+Slice 58 added the standalone mode-2 `ActionQuiz` component (prompt from `assignedHands`,
+colored action answer buttons, scored via `correctActionFor`, running stats + feedback;
+no-actions empty state). Fully tested but not yet wired into the picker.
 
-NOTE ON CADENCE: this is the continuation run the user approved past the first checkpoint
-(slices 39+). After slice 58 the continuation reaches **20 slices** — the next safety
-checkpoint — so the loop should pause there and report (v2.3 will be partially complete),
-unless v2.3 finishes first.
+v2.3 status: action vocab + helpers, palette, grid, editor (wired + persisted), and the
+mode-2 quiz component are done. Remaining: wire the action quiz into the picker (next slice),
+action-specific accuracy tracking, and notation with action groups.
+
+NOTE ON CADENCE: the continuation run (slices 39–58) has now reached **20 slices** — the
+second safety checkpoint. The run is PAUSED here pending the user's go-ahead before
+continuing v2.3 (slice 59+: wire the action quiz, then accuracy tracking + action notation).
+v2.3 is partially complete; everything is committed and pushed and the tree is green.
 
 NOTE ON CADENCE: the user approved continuing past the first 20-slice checkpoint (after
 slice 38). The loop resumed at slice 39 and continues through v2.2 → v2.3; the next safety
@@ -299,61 +304,49 @@ crosses into v3, whichever comes first.
 
 ## Next slice
 
-- **Number:** 58
+- **Number:** 59
 - **Roadmap target:** v2.3 — Multi-action ranges
-- **Working title:** Action-quiz practice component (mode 2)
+- **Working title:** Wire the action quiz into the practice-mode picker (mode 2)
 
 ### Prompt
 
-You are implementing roadmap slice 58, continuing **v2.3 — Multi-action ranges**. This slice
-builds the standalone mode-2 `ActionQuiz` component: it prompts a hand from a range's action
-chart and asks the user to pick the correct action, scoring against `correctActionFor`. Do
-NOT wire it into the picker yet (next slice). Keep it standalone and fully tested.
+You are implementing roadmap slice 59, continuing **v2.3 — Multi-action ranges**. The
+standalone `ActionQuiz` (mode 2) exists. This slice makes it reachable: add it to the
+practice-mode picker, shown only for ranges that have an action chart (`handActions`).
 
-(Reminder: this is the 20th slice of the continuation run — the safety checkpoint. After it
-validates, commits, and pushes, PAUSE and report; v2.3 is partially complete.)
-
-Scope of THIS slice: a self-contained `ActionQuiz` component (+ reuse existing CSS) + tests.
-No App/wiring/accuracy-tracking changes.
+Scope of THIS slice: `App` picker/routing wiring + tests. No component/model changes.
 
 Context (read these before starting):
-- `src/domain/actionRange.ts` — `assignedHands(handActions)` (prompt pool) and
-  `correctActionFor(handActions, hand)` (expected action).
-- `src/domain/practice.ts` — `getRandomHandFrom(pool, random)` to draw a prompt from the pool.
-- `src/types/range.ts` — `RANGE_ACTIONS`, `RANGE_ACTION_LABELS`, `RangeAction`, `SavedRange`.
-- `src/components/PracticeSession.tsx`/`.css` — mirror the recognition flow/classes
-  (`practice-session`, `practice-header`, `practice-stats`, `practice-prompt`*,
-  `practice-feedback`, `practice-result`/`.correct`/`.incorrect`, `practice-expected`). Reuse
-  `ActionPalette.css`'s `action-swatch`/`action-{action}` classes for the colored answer
-  buttons (import it). Mirror `PracticeSession.test.tsx`'s `sequenceRandom` for deterministic
-  prompts.
+- `src/App.tsx` — the practice picker. `practiceMode` is `'recognize' | 'build' | 'timed' |
+  'weakness' | null`; the picker (`practiceMode === null`) renders a button per mode and the
+  routing is a nested ternary on `practiceMode` (see how 'weakness' was added in slice 27).
+  Extend the union with `'action'`. In the picker, show a "Pick the correct action" button
+  ONLY when the practiced range has an action chart — guard with
+  `practicingRange.handActions && assignedHands(practicingRange.handActions).length > 0` (a
+  hands-only range can't be action-quizzed). Add the routing branch `practiceMode ===
+  'action'` → `<ActionQuiz range={practicingRange} onExit={exitPractice} />` (no stats
+  recorded yet — action-specific accuracy is a later slice). Add a `headerSubtitle` case.
+- `src/components/ActionQuiz.tsx` — `ActionQuiz({ range, onExit, random? })`, `onExit: () =>
+  void`. Import like the other practice components.
+- `src/domain/actionRange.ts` — `assignedHands(handActions)`.
+- `src/App.test.tsx` — the "Practice mode" describe block and its picker tests (mirror them).
 
-Task — create `src/components/ActionQuiz.tsx` exporting `ActionQuiz({ range, onExit, random =
-Math.random }: { range: SavedRange; onExit: () => void; random?: () => number })`:
-- `const pool = assignedHands(range.handActions ?? {})`. If `pool` is empty, render a header
-  with the range name, a short "no actions assigned yet" message, and a "Back to library"
-  button calling `onExit` (mode 2 needs an action chart).
-- Otherwise: draw the initial prompt with `getRandomHandFrom(pool, random)` (lazy useState).
-  Show running stats (total / correct / accuracy), the prompt hand under "What is the correct
-  action?", and one colored answer button per `RANGE_ACTIONS` (label from
-  `RANGE_ACTION_LABELS`, class `action-swatch action-${action}`, inside a `<div
-  className="action-palette" aria-label="Choose an action">`). On answer, compare the chosen
-  action to `correctActionFor(range.handActions ?? {}, currentHand)`; record total/correct;
-  show feedback (Correct!/Incorrect) and the correct action label; offer a "Next hand" button
-  that draws the next prompt via `getRandomHandFrom(pool, random)` and clears feedback. An
-  "End quiz" button in the header calls `onExit`. Ignore extra answer clicks once answered.
-- Keep scoring via `correctActionFor`; no duplicated logic. No persistence (action-specific
-  accuracy tracking is a later slice); `onExit` takes no args.
+Task:
+- Add `'action'` to the `practiceMode` union.
+- In the picker, conditionally render a "Pick the correct action" button (sets
+  `practiceMode('action')`) only when the range has assigned actions; extend the picker's
+  description text with a one-line note.
+- Add the routing branch for `'action'` → `<ActionQuiz range={practicingRange}
+  onExit={exitPractice} />`, and a `headerSubtitle` case (e.g. "Pick the correct action for
+  each hand.").
 
-Tests to add (`src/components/ActionQuiz.test.tsx`, RTL):
-- with `range.handActions = {}` (or undefined), shows the "no actions" message and a "Back to
-  library" button that calls `onExit`;
-- with `{ AA: 'raise' }` and `random` forcing the pool draw, shows the prompt hand "AA" and
-  colored action buttons;
-- answering with the correct action shows "Correct!" and updates the stats; answering wrong
-  shows "Incorrect" and the correct action label;
-- "Next hand" clears feedback and shows the answer buttons again;
-- "End quiz" calls `onExit`.
+Tests to add (`src/App.test.tsx`):
+- a hands-only range (no actions) does NOT show the "Pick the correct action" button in the
+  picker;
+- after assigning + saving an action to a range (reuse the "Edit actions" flow, or seed
+  `handActions` via the editor), the picker shows "Pick the correct action", and choosing it
+  shows the quiz ("Action quiz: <name>" heading and the "What is the correct action?" prompt);
+- keep all existing picker tests green.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -361,11 +354,10 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: ONLY `ActionQuiz.tsx` (+ tiny css if needed) and its test. Do NOT
-  modify `App`/the picker (wiring is the next slice), the model, or storage.
-- Reuse `assignedHands`/`correctActionFor`/`getRandomHandFrom` + existing CSS.
+- Stay within this slice: the picker/routing wiring in `App` + tests. Do NOT modify
+  `ActionQuiz` or the model.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: add the multi-action "what's the correct action?" quiz`
+- `feat: add the action quiz to the practice-mode picker`
