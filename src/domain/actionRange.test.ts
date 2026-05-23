@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { actionRangePercentage, handsForAction } from './actionRange'
+import {
+  actionRangePercentage,
+  assignedHands,
+  correctActionFor,
+  handsForAction,
+} from './actionRange'
 import { RANGE_ACTIONS, RANGE_ACTION_LABELS, type RangeAction } from '../types/range'
 import type { PokerHand } from './pokerHands'
 
@@ -64,5 +69,27 @@ describe('actionRangePercentage', () => {
     // 2 pairs -> 12 combos of 1326.
     expect(actionRangePercentage(handActions, 'raise')).toBeCloseTo((12 / 1326) * 100)
     expect(actionRangePercentage(handActions, 'fold')).toBeCloseTo((6 / 1326) * 100)
+  })
+})
+
+describe('assignedHands', () => {
+  it('returns an empty array when nothing is assigned', () => {
+    expect(assignedHands({})).toEqual([])
+  })
+
+  it('returns assigned hands in canonical order', () => {
+    const handActions: Record<PokerHand, RangeAction> = { KK: 'fold', AA: 'raise' }
+    expect(assignedHands(handActions)).toEqual(['AA', 'KK'])
+  })
+})
+
+describe('correctActionFor', () => {
+  it('returns the assigned action for an assigned hand', () => {
+    expect(correctActionFor({ AA: 'raise' }, 'AA')).toBe('raise')
+  })
+
+  it('defaults to fold for an unassigned hand', () => {
+    expect(correctActionFor({ AA: 'raise' }, 'KK')).toBe('fold')
+    expect(correctActionFor({}, 'QQ')).toBe('fold')
   })
 })

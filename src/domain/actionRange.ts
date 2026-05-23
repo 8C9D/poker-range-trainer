@@ -27,3 +27,23 @@ export function actionRangePercentage(
 ): number {
   return calculateRangePercentage(handsForAction(handActions, action))
 }
+
+/**
+ * The hands that have any assigned action, in canonical 13×13 order — the prompt
+ * pool for mode-2 ("what is the correct action?") practice, so the quiz only asks
+ * about the hands the chart actually assigns.
+ */
+export function assignedHands(handActions: Record<PokerHand, RangeAction>): PokerHand[] {
+  return ALL_HANDS.filter((hand) => handActions[hand] !== undefined)
+}
+
+/**
+ * The correct action for `hand` in a multi-action range: its assigned action, or
+ * `'fold'` when the hand is unassigned (a hand outside every action group folds).
+ */
+export function correctActionFor(
+  handActions: Record<PokerHand, RangeAction>,
+  hand: PokerHand,
+): RangeAction {
+  return handActions[hand] ?? 'fold'
+}
