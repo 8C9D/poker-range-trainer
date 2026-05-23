@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ActionQuiz } from './components/ActionQuiz'
 import { BuildFromMemoryPractice } from './components/BuildFromMemoryPractice'
 import { DueToday } from './components/DueToday'
 import { HandGrid } from './components/HandGrid'
@@ -11,6 +12,7 @@ import { RangeMetadataEditor } from './components/RangeMetadataEditor'
 import { RangeNotation } from './components/RangeNotation'
 import { RangePerformance } from './components/RangePerformance'
 import { RangeShortcuts } from './components/RangeShortcuts'
+import { assignedHands } from './domain/actionRange'
 import { setRangeArchived } from './domain/rangeArchive'
 import { duplicateRange } from './domain/rangeDuplication'
 import { setRangeFavorite } from './domain/rangeFavorite'
@@ -84,7 +86,7 @@ function App() {
   // Which practice mode is active for `practicingRange`. null = the mode picker is
   // showing (no mode chosen yet); chosen modes route to their components.
   const [practiceMode, setPracticeMode] = useState<
-    'recognize' | 'build' | 'timed' | 'weakness' | null
+    'recognize' | 'build' | 'timed' | 'weakness' | 'action' | null
   >(null)
   // Optional scenario metadata. '' means "unset" for the dropdowns; stackDepth
   // is raw input text ('' means no stack depth). These are descriptive only and
@@ -396,6 +398,8 @@ function App() {
       headerSubtitle = 'Race the clock.'
     } else if (practiceMode === 'weakness') {
       headerSubtitle = 'Drill your weak spots.'
+    } else if (practiceMode === 'action') {
+      headerSubtitle = 'Pick the correct action for each hand.'
     } else {
       headerSubtitle = 'Choose how you want to practice.'
     }
@@ -429,6 +433,8 @@ function App() {
           <TimedDrillSession range={practicingRange} onExit={handleEndPractice} />
         ) : practiceMode === 'weakness' ? (
           <WeaknessFocusedDrill range={practicingRange} onExit={handleEndPractice} />
+        ) : practiceMode === 'action' ? (
+          <ActionQuiz range={practicingRange} onExit={exitPractice} />
         ) : (
           <section className="practice-session" aria-label="Choose practice mode">
             <header className="practice-header">
@@ -439,6 +445,7 @@ function App() {
               Build from memory: rebuild the whole range on the grid, then check it.
               Timed drill: answer as many hands as you can before the clock runs out.
               Weakness drill: practice with the hands you keep getting wrong showing up more.
+              Pick the correct action: name the assigned action for each hand (action charts only).
             </p>
             <div className="practice-answers">
               <button
@@ -469,6 +476,16 @@ function App() {
               >
                 Weakness drill
               </button>
+              {practicingRange.handActions &&
+                assignedHands(practicingRange.handActions).length > 0 && (
+                  <button
+                    type="button"
+                    className="primary"
+                    onClick={() => setPracticeMode('action')}
+                  >
+                    Pick the correct action
+                  </button>
+                )}
             </div>
             <div className="practice-review-actions">
               <button type="button" onClick={exitPractice}>

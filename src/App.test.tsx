@@ -553,6 +553,46 @@ describe('Practice mode', () => {
       expect.objectContaining({ totalAttempts: 1, correctAttempts: 1 }),
     )
   })
+
+  it('does not offer the action quiz for a range without an action chart', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Pairs')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    await user.click(screen.getByRole('button', { name: 'Practice range Pairs' }))
+
+    // The picker is showing, but a hands-only range can't be action-quizzed.
+    expect(
+      screen.getByRole('button', { name: 'Recognize hands (in/out)' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Pick the correct action' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('offers and starts the action quiz for a range with an action chart', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Pairs')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    // Assign an action to AA (default action is Raise) and save it onto the range.
+    await user.click(screen.getByRole('button', { name: 'Edit actions for Pairs' }))
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Save actions' }))
+
+    // The picker now offers the action quiz; choosing it starts the quiz.
+    await user.click(screen.getByRole('button', { name: 'Practice range Pairs' }))
+    await user.click(screen.getByRole('button', { name: 'Pick the correct action' }))
+
+    expect(screen.getByRole('heading', { name: 'Action quiz: Pairs' })).toBeInTheDocument()
+    expect(screen.getByText('What is the correct action?')).toBeInTheDocument()
+  })
 })
 
 describe('Range performance view', () => {

@@ -93,6 +93,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 56 | Wire the multi-action editor into a per-range "Actions" view | v2.3 — Multi-action ranges | 2026-06-06 |
 | 57 | Mode-2 practice foundation (prompt pool + correct-action lookup) | v2.3 — Multi-action ranges | 2026-06-06 |
 | 58 | Action-quiz practice component (mode 2) | v2.3 — Multi-action ranges | 2026-06-06 |
+| 59 | Wire the action quiz into the practice-mode picker (mode 2) | v2.3 — Multi-action ranges | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -288,14 +289,21 @@ Slice 58 added the standalone mode-2 `ActionQuiz` component (prompt from `assign
 colored action answer buttons, scored via `correctActionFor`, running stats + feedback;
 no-actions empty state). Fully tested but not yet wired into the picker.
 
-v2.3 status: action vocab + helpers, palette, grid, editor (wired + persisted), and the
-mode-2 quiz component are done. Remaining: wire the action quiz into the picker (next slice),
-action-specific accuracy tracking, and notation with action groups.
+Slice 59 wired the mode-2 quiz into the practice-mode picker: a "Pick the correct action"
+button appears in the picker ONLY when the practiced range has an action chart
+(`practicingRange.handActions && assignedHands(...).length > 0`), and choosing it routes to
+`<ActionQuiz range={practicingRange} onExit={exitPractice} />` (no stats recorded yet —
+action-specific accuracy is a later slice). `practiceMode` gained an `'action'` member, a
+header subtitle, and a one-line note in the picker description.
 
-NOTE ON CADENCE: the continuation run (slices 39–58) has now reached **20 slices** — the
-second safety checkpoint. The run is PAUSED here pending the user's go-ahead before
-continuing v2.3 (slice 59+: wire the action quiz, then accuracy tracking + action notation).
-v2.3 is partially complete; everything is committed and pushed and the tree is green.
+v2.3 status: action vocab + helpers, palette, grid, editor (wired + persisted), the mode-2
+quiz component, AND its picker wiring are done. Remaining: action-specific accuracy tracking
+(record + surface per-action results from quiz sessions), and notation with action groups.
+
+NOTE ON CADENCE: the user re-invoked finish-v2 (the go-ahead after the slice-58 pause), so a
+fresh run resumed at slice 59. Slice counting restarts for THIS run; the next safety pause is
+after ~20 slices in this run (≈ slice 78) or when the queued slice crosses into v3, whichever
+comes first. v2.3 is expected to finish well before then.
 
 NOTE ON CADENCE: the user approved continuing past the first 20-slice checkpoint (after
 slice 38). The loop resumed at slice 39 and continues through v2.2 → v2.3; the next safety
@@ -304,49 +312,62 @@ crosses into v3, whichever comes first.
 
 ## Next slice
 
-- **Number:** 59
+- **Number:** 60
 - **Roadmap target:** v2.3 — Multi-action ranges
-- **Working title:** Wire the action quiz into the practice-mode picker (mode 2)
+- **Working title:** Action-quiz attempt model + per-action accuracy summarization (domain foundation)
 
 ### Prompt
 
-You are implementing roadmap slice 59, continuing **v2.3 — Multi-action ranges**. The
-standalone `ActionQuiz` (mode 2) exists. This slice makes it reachable: add it to the
-practice-mode picker, shown only for ranges that have an action chart (`handActions`).
+You are implementing roadmap slice 60, continuing **v2.3 — Multi-action ranges**. v2.3's
+remaining work is action-specific accuracy tracking and action notation. This slice lays the
+PURE domain foundation for action-specific accuracy: a record of one action-quiz answer and a
+function that tallies per-action accuracy from a session's answers. No component, storage, or
+App changes — those are later slices.
 
-Scope of THIS slice: `App` picker/routing wiring + tests. No component/model changes.
+Scope of THIS slice: types + one domain function + tests. Nothing else.
 
 Context (read these before starting):
-- `src/App.tsx` — the practice picker. `practiceMode` is `'recognize' | 'build' | 'timed' |
-  'weakness' | null`; the picker (`practiceMode === null`) renders a button per mode and the
-  routing is a nested ternary on `practiceMode` (see how 'weakness' was added in slice 27).
-  Extend the union with `'action'`. In the picker, show a "Pick the correct action" button
-  ONLY when the practiced range has an action chart — guard with
-  `practicingRange.handActions && assignedHands(practicingRange.handActions).length > 0` (a
-  hands-only range can't be action-quizzed). Add the routing branch `practiceMode ===
-  'action'` → `<ActionQuiz range={practicingRange} onExit={exitPractice} />` (no stats
-  recorded yet — action-specific accuracy is a later slice). Add a `headerSubtitle` case.
-- `src/components/ActionQuiz.tsx` — `ActionQuiz({ range, onExit, random? })`, `onExit: () =>
-  void`. Import like the other practice components.
-- `src/domain/actionRange.ts` — `assignedHands(handActions)`.
-- `src/App.test.tsx` — the "Practice mode" describe block and its picker tests (mirror them).
+- `src/types/practice.ts` — where `PracticeAttempt` lives. Add `ActionAttempt` here next to
+  it; match how the file already imports `PokerHand` (from `../domain/pokerHands`) and pull
+  `RangeAction` from `./range`.
+- `src/domain/actionRange.ts` — the action-domain helpers (`handsForAction`,
+  `actionRangePercentage`, `assignedHands`, `correctActionFor`). Add the accuracy summarizer
+  here so action logic stays together.
+- `src/domain/practice.ts` — `summarizeHandAccuracy` + `HandAccuracyStat` are the pattern to
+  mirror: tally a session's attempts, return stats in canonical order, only for entries that
+  actually appeared.
+- `src/types/range.ts` — `RANGE_ACTIONS` (canonical action order) and `RangeAction`.
+- `src/components/ActionQuiz.tsx` — its `AnsweredState` already holds `chosen`/`expected`/
+  `correct`; `ActionAttempt` is that plus the `hand`. Do NOT modify it this slice.
 
 Task:
-- Add `'action'` to the `practiceMode` union.
-- In the picker, conditionally render a "Pick the correct action" button (sets
-  `practiceMode('action')`) only when the range has assigned actions; extend the picker's
-  description text with a one-line note.
-- Add the routing branch for `'action'` → `<ActionQuiz range={practicingRange}
-  onExit={exitPractice} />`, and a `headerSubtitle` case (e.g. "Pick the correct action for
-  each hand.").
+- Add to `src/types/practice.ts`:
+  ```ts
+  export type ActionAttempt = {
+    hand: PokerHand
+    chosen: RangeAction
+    expected: RangeAction
+    correct: boolean
+  }
+  ```
+- Add to `src/domain/actionRange.ts`:
+  ```ts
+  export type ActionAccuracyStat = {
+    action: RangeAction // the expected (correct) action being measured
+    attempts: number
+    correct: number
+  }
+  export function summarizeActionAccuracy(attempts: ActionAttempt[]): ActionAccuracyStat[]
+  ```
+  Tally each attempt under its `expected` action; return one stat per expected action that
+  appeared, in `RANGE_ACTIONS` order. Pure — never mutate the input.
 
-Tests to add (`src/App.test.tsx`):
-- a hands-only range (no actions) does NOT show the "Pick the correct action" button in the
-  picker;
-- after assigning + saving an action to a range (reuse the "Edit actions" flow, or seed
-  `handActions` via the editor), the picker shows "Pick the correct action", and choosing it
-  shows the quiz ("Action quiz: <name>" heading and the "What is the correct action?" prompt);
-- keep all existing picker tests green.
+Tests to add (extend `src/domain/actionRange.test.ts`):
+- empty input → `[]`;
+- groups attempts by expected action, counts attempts/correct, and returns them in
+  `RANGE_ACTIONS` order (e.g. a mix of raise + threeBet attempts, some wrong);
+- an action quizzed but never answered correctly has `correct: 0`;
+- actions never quizzed do NOT appear in the result.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -354,10 +375,9 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Stay within this slice: the picker/routing wiring in `App` + tests. Do NOT modify
-  `ActionQuiz` or the model.
+- Pure domain only: no storage, no component, no App wiring. Do NOT modify `ActionQuiz`.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: add the action quiz to the practice-mode picker`
+- `feat: add per-action accuracy summarization (v2.3 domain foundation)`
