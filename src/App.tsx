@@ -12,7 +12,7 @@ import { RangeMetadataEditor } from './components/RangeMetadataEditor'
 import { RangeNotation } from './components/RangeNotation'
 import { RangePerformance } from './components/RangePerformance'
 import { RangeShortcuts } from './components/RangeShortcuts'
-import { assignedHands } from './domain/actionRange'
+import { assignedHands, summarizeActionAccuracy } from './domain/actionRange'
 import { setRangeArchived } from './domain/rangeArchive'
 import { duplicateRange } from './domain/rangeDuplication'
 import { setRangeFavorite } from './domain/rangeFavorite'
@@ -26,12 +26,13 @@ import {
 import { calculateRangePercentage, countSelectedCombos } from './domain/rangeMath'
 import { mergeShortcutHands } from './domain/rangeShortcuts'
 import type { PokerHand } from './domain/pokerHands'
+import { recordActionAccuracy } from './storage/actionAccuracyStorage'
 import { loadHandAccuracy, recordHandAccuracy } from './storage/handAccuracyStorage'
 import { loadPracticeStats, recordPracticeSession } from './storage/practiceStatsStorage'
 import { loadReviewStates, saveReviewState } from './storage/reviewStateStorage'
 import { loadSessionHistory, recordPracticeSessionHistory } from './storage/sessionHistoryStorage'
 import { deleteSavedRange, loadSavedRanges, saveSavedRange } from './storage/rangeStorage'
-import type { PracticeAttempt } from './types/practice'
+import type { ActionAttempt, PracticeAttempt } from './types/practice'
 import type {
   ActionType,
   GameType,
@@ -338,6 +339,17 @@ function App() {
     exitPractice()
   }
 
+  function handleEndActionQuiz(attempts: ActionAttempt[]) {
+    // Action-quiz attempts are a different shape from recognition attempts, so
+    // they record into per-action accuracy rather than the recognition stats.
+    // recordActionAccuracy no-ops on an empty summary, so ending without an
+    // answer records nothing.
+    if (practicingRange) {
+      recordActionAccuracy(practicingRange.id, summarizeActionAccuracy(attempts))
+    }
+    exitPractice()
+  }
+
   function handleViewPerformance(range: SavedRange) {
     setPerformanceRange(range)
   }
@@ -434,7 +446,7 @@ function App() {
         ) : practiceMode === 'weakness' ? (
           <WeaknessFocusedDrill range={practicingRange} onExit={handleEndPractice} />
         ) : practiceMode === 'action' ? (
-          <ActionQuiz range={practicingRange} onExit={exitPractice} />
+          <ActionQuiz range={practicingRange} onExit={handleEndActionQuiz} />
         ) : (
           <section className="practice-session" aria-label="Choose practice mode">
             <header className="practice-header">

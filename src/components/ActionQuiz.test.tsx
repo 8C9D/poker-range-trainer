@@ -31,7 +31,7 @@ describe('ActionQuiz', () => {
     expect(screen.queryByText('What is the correct action?')).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Back to library' }))
-    expect(onExit).toHaveBeenCalledTimes(1)
+    expect(onExit).toHaveBeenCalledWith([])
   })
 
   it('prompts a hand from the action chart with colored answer buttons', () => {
@@ -77,12 +77,26 @@ describe('ActionQuiz', () => {
     expect(screen.getByRole('button', { name: 'Raise' })).toBeInTheDocument()
   })
 
-  it('calls onExit from "End quiz"', async () => {
+  it('reports the answered attempts to onExit on "End quiz"', async () => {
+    const user = userEvent.setup()
+    const onExit = vi.fn()
+    render(<ActionQuiz range={makeRange({ handActions: RAISE_AA })} onExit={onExit} random={() => 0} />)
+
+    await user.click(screen.getByRole('button', { name: 'Raise' }))
+    await user.click(screen.getByRole('button', { name: 'End quiz' }))
+
+    expect(onExit).toHaveBeenCalledTimes(1)
+    expect(onExit).toHaveBeenCalledWith([
+      { hand: 'AA', chosen: 'raise', expected: 'raise', correct: true },
+    ])
+  })
+
+  it('reports an empty attempt array when ending before answering', async () => {
     const user = userEvent.setup()
     const onExit = vi.fn()
     render(<ActionQuiz range={makeRange({ handActions: RAISE_AA })} onExit={onExit} random={() => 0} />)
 
     await user.click(screen.getByRole('button', { name: 'End quiz' }))
-    expect(onExit).toHaveBeenCalledTimes(1)
+    expect(onExit).toHaveBeenCalledWith([])
   })
 })

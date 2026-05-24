@@ -96,6 +96,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 59 | Wire the action quiz into the practice-mode picker (mode 2) | v2.3 — Multi-action ranges | 2026-06-06 |
 | 60 | Per-action accuracy summarization (v2.3 domain foundation) | v2.3 — Multi-action ranges | 2026-06-06 |
 | 61 | Action-accuracy storage foundation (persist + record) | v2.3 — Multi-action ranges | 2026-06-06 |
+| 62 | Record per-action accuracy at the end of an action quiz | v2.3 — Multi-action ranges | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -311,10 +312,17 @@ next to `ActionAccuracyStat`, declared `Partial<Record<RangeAction, ActionAccura
 Mirrors `handAccuracyStorage` (single versioned key, defensive validation incl. an
 unknown-action check, fold-a-session recording). Tested directly but not yet called from the app.
 
+Slice 62 connected the recording: `ActionQuiz` now collects an `ActionAttempt[]` (one per
+answer) and its `onExit(attempts)` hands them back; `App.handleEndActionQuiz` records them via
+`recordActionAccuracy(rangeId, summarizeActionAccuracy(attempts))` (separate from
+`handleEndPractice`, since action attempts have a different shape). Ending with no answers
+records nothing. Per-action accuracy is now captured every action-quiz session — but nothing
+displays it yet.
+
 v2.3 status: action vocab + helpers, palette, grid, editor (wired + persisted), the mode-2 quiz
-component + picker wiring, the per-action accuracy summarizer, AND its storage are done.
-Remaining: make `ActionQuiz` report attempts so App records per-action accuracy, surface it, and
-notation with action groups.
+component + picker wiring, and per-action accuracy end-to-end (summarizer + storage + recording)
+are done. Remaining: surface per-action accuracy in the performance view, and notation with
+action groups.
 
 NOTE ON CADENCE: the user re-invoked finish-v2 (the go-ahead after the slice-58 pause), so a
 fresh run resumed at slice 59. Slice counting restarts for THIS run; the next safety pause is
@@ -328,51 +336,41 @@ crosses into v3, whichever comes first.
 
 ## Next slice
 
-- **Number:** 62
+- **Number:** 63
 - **Roadmap target:** v2.3 — Multi-action ranges
-- **Working title:** Record per-action accuracy at the end of an action quiz (ActionQuiz reporting + App wiring)
+- **Working title:** Per-action accuracy table in the performance view (presentation)
 
 ### Prompt
 
-You are implementing roadmap slice 62, continuing **v2.3 — Multi-action ranges**.
-`summarizeActionAccuracy` (slice 60) + `recordActionAccuracy` (slice 61) exist. This slice
-connects them: `ActionQuiz` collects its answered attempts and reports them on exit, and `App`
-records the per-action accuracy for the practiced range. Mirrors how slice 30 made the
-recognition components report `attempts` and `App.handleEndPractice` record them.
+You are implementing roadmap slice 63, continuing **v2.3 — Multi-action ranges**. Per-action
+accuracy is now recorded (slices 60–62) but nothing shows it. This slice surfaces it as a
+per-action accuracy table inside the existing `RangePerformance` view, behind a new OPTIONAL
+prop so `App` keeps compiling unchanged (App wiring is the next slice). Mirrors how slice 32
+added the per-hand table before slice 33 wired it.
 
-Scope of THIS slice: `ActionQuiz` onExit signature + attempt collection, an `App` handler +
-route, and tests. No new domain/storage code (slices 60–61 already provide it). Surfacing the
-numbers in the UI is a LATER slice.
+Scope of THIS slice: a small rate helper + a per-action table in `RangePerformance` (optional
+prop, default empty → section hidden) + tests. No App changes.
 
 Context (read these before starting):
-- `src/components/ActionQuiz.tsx` — currently `onExit: () => void`, called by both the
-  empty-pool "Back to library" button and the running "End quiz" button. Its `answer(chosen)`
-  already computes `expected`/`isCorrect`. Collect an `ActionAttempt[]` (push `{ hand:
-  currentHand, chosen, expected, correct }` on each answer) and change `onExit` to
-  `(attempts: ActionAttempt[]) => void`; both exit buttons call `onExit(attempts)` (the empty
-  pool passes `[]`). Keep `random` injectable.
-- `src/types/practice.ts` — `ActionAttempt`.
-- `src/domain/actionRange.ts` — `summarizeActionAccuracy`.
-- `src/storage/actionAccuracyStorage.ts` — `recordActionAccuracy`.
-- `src/App.tsx` — currently routes `<ActionQuiz range={practicingRange} onExit={exitPractice} />`
-  (slice 59). Add a handler `handleEndActionQuiz(attempts: ActionAttempt[])` that, when
-  `practicingRange` is set, calls `recordActionAccuracy(practicingRange.id,
-  summarizeActionAccuracy(attempts))` then `exitPractice()`. Route it as the quiz's `onExit`.
-  Do NOT route through `handleEndPractice` — that takes `PracticeAttempt[]` and records
-  recognition stats; action attempts are a different shape.
-- `src/components/ActionQuiz.test.tsx` — update its `onExit` assertions for the new signature.
-- `src/App.test.tsx` — extend the action-quiz integration test added in slice 59.
+- `src/domain/actionRange.ts` — `ActionAccuracyStat`, `RangeActionAccuracy`. Add
+  `actionAccuracyRate(stat)` (correct/attempts %, 0 when none), mirroring `handAccuracyRate`
+  in `domain/practice.ts`.
+- `src/components/RangePerformance.tsx` — the performance view (per-hand table + heatmap +
+  session history). Add an optional `actionAccuracy?: RangeActionAccuracy` prop (default `{}`);
+  when it has entries, render a "Per-action accuracy" table (action label via
+  `RANGE_ACTION_LABELS`, accuracy %, attempts) in `RANGE_ACTIONS` order. Hide the section when
+  empty. Do not disturb the existing sections.
+- `src/components/RangePerformance.test.tsx` — mirror its existing table tests.
+- `src/types/range.ts` — `RANGE_ACTIONS`, `RANGE_ACTION_LABELS`.
 
 Task:
-- Make `ActionQuiz` collect attempts and call `onExit(attempts)`.
-- Add `handleEndActionQuiz` to `App` and route the quiz through it.
+- Add `actionAccuracyRate` to `actionRange.ts` (+ unit tests in `actionRange.test.ts`).
+- Add the optional per-action table to `RangePerformance` (+ component tests).
 
 Tests:
-- `ActionQuiz.test.tsx`: answering one hand then ending calls `onExit` with a one-element
-  attempt array carrying chosen/expected/correct; the empty-pool exit calls `onExit([])`.
-- `App.test.tsx`: after assigning an action and running the quiz (answer one hand, end), the
-  range's per-action accuracy is persisted (`loadActionAccuracy()[rangeId]` has the expected
-  action with `attempts: 1`). Keep existing tests green.
+- `actionRange.test.ts`: rate is `correct/attempts*100`; 0 when `attempts` is 0.
+- `RangePerformance.test.tsx`: with `actionAccuracy` entries, the per-action table shows the
+  action label, attempts, and accuracy %, in canonical order; with none, the section is absent.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -380,9 +378,10 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Component signature + App wiring + tests only; reuse the slice 60/61 domain + storage.
+- Presentation only (helper + `RangePerformance` + tests). The new prop is optional; do NOT
+  modify `App` this slice.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: record per-action accuracy at the end of an action quiz`
+- `feat: show per-action accuracy in the performance view`

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, within, fireEvent, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
+import { loadActionAccuracy } from './storage/actionAccuracyStorage'
 import { loadHandAccuracy } from './storage/handAccuracyStorage'
 import { loadPracticeStats } from './storage/practiceStatsStorage'
 import { loadReviewStates } from './storage/reviewStateStorage'
@@ -592,6 +593,32 @@ describe('Practice mode', () => {
 
     expect(screen.getByRole('heading', { name: 'Action quiz: Pairs' })).toBeInTheDocument()
     expect(screen.getByText('What is the correct action?')).toBeInTheDocument()
+  })
+
+  it('records per-action accuracy after an action quiz', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Pairs')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    // Assign Raise (the default action) to AA and save it onto the range.
+    await user.click(screen.getByRole('button', { name: 'Edit actions for Pairs' }))
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Save actions' }))
+
+    // Run the quiz: AA is the only assigned hand, so it is the prompt. Answer it
+    // correctly, then end the quiz to record per-action accuracy.
+    await user.click(screen.getByRole('button', { name: 'Practice range Pairs' }))
+    await user.click(screen.getByRole('button', { name: 'Pick the correct action' }))
+    await user.click(screen.getByRole('button', { name: 'Raise' }))
+    await user.click(screen.getByRole('button', { name: 'End quiz' }))
+
+    const rangeId = loadSavedRanges()[0].id
+    expect(loadActionAccuracy()[rangeId]).toEqual({
+      raise: { action: 'raise', attempts: 1, correct: 1 },
+    })
   })
 })
 

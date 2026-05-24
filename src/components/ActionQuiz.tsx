@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { assignedHands, correctActionFor } from '../domain/actionRange'
 import { getRandomHandFrom } from '../domain/practice'
 import type { PokerHand } from '../domain/pokerHands'
+import type { ActionAttempt } from '../types/practice'
 import {
   RANGE_ACTIONS,
   RANGE_ACTION_LABELS,
@@ -14,8 +15,11 @@ import './PracticeSession.css'
 interface ActionQuizProps {
   /** The range being quizzed (its `handActions` define the correct answers). */
   range: SavedRange
-  /** Leave the quiz and return to the editor/library. */
-  onExit: () => void
+  /**
+   * Leave the quiz, handing back every answered attempt so the caller can record
+   * per-action accuracy. Empty when nothing was answered.
+   */
+  onExit: (attempts: ActionAttempt[]) => void
   /**
    * Source of randomness for drawing prompt hands. Defaults to `Math.random`;
    * injectable so tests can force a deterministic sequence of hands.
@@ -45,13 +49,15 @@ export function ActionQuiz({ range, onExit, random = Math.random }: ActionQuizPr
   const [answered, setAnswered] = useState<AnsweredState | null>(null)
   const [total, setTotal] = useState(0)
   const [correct, setCorrect] = useState(0)
+  // Every answered question, handed back on exit so App can record per-action accuracy.
+  const [attempts, setAttempts] = useState<ActionAttempt[]>([])
 
   if (pool.length === 0) {
     return (
       <section className="practice-session" aria-label="Action quiz">
         <header className="practice-header">
           <h2>Action quiz: {range.name}</h2>
-          <button type="button" onClick={onExit}>
+          <button type="button" onClick={() => onExit([])}>
             Back to library
           </button>
         </header>
@@ -67,6 +73,7 @@ export function ActionQuiz({ range, onExit, random = Math.random }: ActionQuizPr
     const expected = correctActionFor(handActions, currentHand)
     const isCorrect = chosen === expected
     setAnswered({ chosen, expected, correct: isCorrect })
+    setAttempts((prev) => [...prev, { hand: currentHand, chosen, expected, correct: isCorrect }])
     setTotal((value) => value + 1)
     if (isCorrect) setCorrect((value) => value + 1)
   }
@@ -82,7 +89,7 @@ export function ActionQuiz({ range, onExit, random = Math.random }: ActionQuizPr
     <section className="practice-session" aria-label="Action quiz">
       <header className="practice-header">
         <h2>Action quiz: {range.name}</h2>
-        <button type="button" onClick={onExit}>
+        <button type="button" onClick={() => onExit(attempts)}>
           End quiz
         </button>
       </header>
