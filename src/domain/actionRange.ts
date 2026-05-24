@@ -1,6 +1,7 @@
 import { ALL_HANDS, type PokerHand } from './pokerHands'
 import { calculateRangePercentage } from './rangeMath'
-import type { RangeAction } from '../types/range'
+import type { ActionAttempt } from '../types/practice'
+import { RANGE_ACTIONS, type RangeAction } from '../types/range'
 
 /**
  * Pure helpers for v2.3 multi-action ranges, where each hand maps to a single
@@ -46,4 +47,40 @@ export function correctActionFor(
   hand: PokerHand,
 ): RangeAction {
   return handActions[hand] ?? 'fold'
+}
+
+/**
+ * Per-action accuracy for a mode-2 action-quiz session, measured against each
+ * attempt's expected (correct) action.
+ */
+export interface ActionAccuracyStat {
+  /** The expected (correct) action these counts are for. */
+  action: RangeAction
+  /** Times a hand whose correct action is `action` was quizzed. */
+  attempts: number
+  /** Of those, how many the user answered correctly. */
+  correct: number
+}
+
+/**
+ * Aggregate a mode-2 action-quiz session's attempts into per-action accuracy,
+ * grouped by each attempt's `expected` (correct) action. Returns one stat per
+ * expected action that appeared, in canonical `RANGE_ACTIONS` order; actions
+ * never quizzed are omitted. Pure — the input is never mutated. Mirrors
+ * `summarizeHandAccuracy` for the action quiz.
+ */
+export function summarizeActionAccuracy(attempts: ActionAttempt[]): ActionAccuracyStat[] {
+  const byAction = new Map<RangeAction, ActionAccuracyStat>()
+  for (const { expected, correct } of attempts) {
+    let stat = byAction.get(expected)
+    if (!stat) {
+      stat = { action: expected, attempts: 0, correct: 0 }
+      byAction.set(expected, stat)
+    }
+    stat.attempts += 1
+    if (correct) stat.correct += 1
+  }
+  return RANGE_ACTIONS.filter((action) => byAction.has(action)).map(
+    (action) => byAction.get(action)!,
+  )
 }

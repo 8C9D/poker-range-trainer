@@ -1,4 +1,5 @@
 import type { PokerHand } from '../domain/pokerHands'
+import type { RangeAction } from './range'
 
 /**
  * A single answered practice question: the prompted hand, whether it is
@@ -16,6 +17,22 @@ export interface PracticeAttempt {
   correct: boolean
   /** ISO-8601 timestamp of when the attempt was answered. */
   timestamp: string
+}
+
+/**
+ * A single answered mode-2 action-quiz question (v2.3): the prompted hand, the
+ * action the user chose, the correct (expected) action for that hand, and
+ * whether they matched. Parallels `PracticeAttempt` for the action quiz.
+ */
+export interface ActionAttempt {
+  /** The prompted starting hand in canonical notation (e.g. "AA", "AJs"). */
+  hand: PokerHand
+  /** The action the user chose. */
+  chosen: RangeAction
+  /** The correct action for the hand (its assigned action, else fold). */
+  expected: RangeAction
+  /** True when `chosen === expected`. */
+  correct: boolean
 }
 
 /** Aggregate stats for the attempts in a practice session. */

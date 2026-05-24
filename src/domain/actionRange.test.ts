@@ -4,8 +4,10 @@ import {
   assignedHands,
   correctActionFor,
   handsForAction,
+  summarizeActionAccuracy,
 } from './actionRange'
 import { RANGE_ACTIONS, RANGE_ACTION_LABELS, type RangeAction } from '../types/range'
+import type { ActionAttempt } from '../types/practice'
 import type { PokerHand } from './pokerHands'
 
 describe('range action vocabulary', () => {
@@ -91,5 +93,41 @@ describe('correctActionFor', () => {
   it('defaults to fold for an unassigned hand', () => {
     expect(correctActionFor({ AA: 'raise' }, 'KK')).toBe('fold')
     expect(correctActionFor({}, 'QQ')).toBe('fold')
+  })
+})
+
+describe('summarizeActionAccuracy', () => {
+  it('returns an empty array for no attempts', () => {
+    expect(summarizeActionAccuracy([])).toEqual([])
+  })
+
+  it('groups by expected action and counts attempts/correct in canonical order', () => {
+    const attempts: ActionAttempt[] = [
+      { hand: 'AKs', chosen: 'threeBet', expected: 'threeBet', correct: true },
+      { hand: 'AA', chosen: 'call', expected: 'raise', correct: false },
+      { hand: 'KK', chosen: 'raise', expected: 'raise', correct: true },
+    ]
+    // 'raise' precedes 'threeBet' in RANGE_ACTIONS, so it is listed first.
+    expect(summarizeActionAccuracy(attempts)).toEqual([
+      { action: 'raise', attempts: 2, correct: 1 },
+      { action: 'threeBet', attempts: 1, correct: 1 },
+    ])
+  })
+
+  it('reports an action that was never answered correctly as correct: 0', () => {
+    const attempts: ActionAttempt[] = [
+      { hand: 'QQ', chosen: 'fold', expected: 'raise', correct: false },
+      { hand: 'JJ', chosen: 'call', expected: 'raise', correct: false },
+    ]
+    expect(summarizeActionAccuracy(attempts)).toEqual([
+      { action: 'raise', attempts: 2, correct: 0 },
+    ])
+  })
+
+  it('omits actions that were never quizzed', () => {
+    const attempts: ActionAttempt[] = [
+      { hand: 'AA', chosen: 'raise', expected: 'raise', correct: true },
+    ]
+    expect(summarizeActionAccuracy(attempts).map((stat) => stat.action)).toEqual(['raise'])
   })
 })
