@@ -97,6 +97,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 60 | Per-action accuracy summarization (v2.3 domain foundation) | v2.3 — Multi-action ranges | 2026-06-06 |
 | 61 | Action-accuracy storage foundation (persist + record) | v2.3 — Multi-action ranges | 2026-06-06 |
 | 62 | Record per-action accuracy at the end of an action quiz | v2.3 — Multi-action ranges | 2026-06-06 |
+| 63 | Per-action accuracy table in the performance view (presentation) | v2.3 — Multi-action ranges | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -319,10 +320,16 @@ answer) and its `onExit(attempts)` hands them back; `App.handleEndActionQuiz` re
 records nothing. Per-action accuracy is now captured every action-quiz session — but nothing
 displays it yet.
 
+Slice 63 surfaced per-action accuracy in the performance view: `actionAccuracyRate(stat)` in
+`domain/actionRange.ts`, and `RangePerformance` now takes an optional `actionAccuracy?:
+RangeActionAccuracy` prop (default `{}`) rendering a "Per-action accuracy" table (action label,
+accuracy %, attempts) in `RANGE_ACTIONS` order when non-empty; the empty-state message also now
+checks for action data. Tested via the component, but App does not pass the prop yet.
+
 v2.3 status: action vocab + helpers, palette, grid, editor (wired + persisted), the mode-2 quiz
-component + picker wiring, and per-action accuracy end-to-end (summarizer + storage + recording)
-are done. Remaining: surface per-action accuracy in the performance view, and notation with
-action groups.
+component + picker wiring, per-action accuracy end-to-end (summarizer + storage + recording), and
+the performance-view per-action table are done. Remaining: wire `actionAccuracy` from App into
+the performance view, and notation with action groups.
 
 NOTE ON CADENCE: the user re-invoked finish-v2 (the go-ahead after the slice-58 pause), so a
 fresh run resumed at slice 59. Slice counting restarts for THIS run; the next safety pause is
@@ -336,41 +343,40 @@ crosses into v3, whichever comes first.
 
 ## Next slice
 
-- **Number:** 63
+- **Number:** 64
 - **Roadmap target:** v2.3 — Multi-action ranges
-- **Working title:** Per-action accuracy table in the performance view (presentation)
+- **Working title:** Wire per-action accuracy from App into the performance view
 
 ### Prompt
 
-You are implementing roadmap slice 63, continuing **v2.3 — Multi-action ranges**. Per-action
-accuracy is now recorded (slices 60–62) but nothing shows it. This slice surfaces it as a
-per-action accuracy table inside the existing `RangePerformance` view, behind a new OPTIONAL
-prop so `App` keeps compiling unchanged (App wiring is the next slice). Mirrors how slice 32
-added the per-hand table before slice 33 wired it.
+You are implementing roadmap slice 64, continuing **v2.3 — Multi-action ranges**. Slice 63 added
+an optional `actionAccuracy` prop + per-action table to `RangePerformance`, but `App` doesn't
+pass it. This slice wires it: App loads per-action accuracy, refreshes it after each action quiz,
+and passes the practiced range's map to the performance view. Mirrors slice 33 (which wired the
+per-hand `handAccuracy` state into the view).
 
-Scope of THIS slice: a small rate helper + a per-action table in `RangePerformance` (optional
-prop, default empty → section hidden) + tests. No App changes.
+Scope of THIS slice: `App` state + refresh + prop, and a test. No component/domain/storage
+changes.
 
 Context (read these before starting):
-- `src/domain/actionRange.ts` — `ActionAccuracyStat`, `RangeActionAccuracy`. Add
-  `actionAccuracyRate(stat)` (correct/attempts %, 0 when none), mirroring `handAccuracyRate`
-  in `domain/practice.ts`.
-- `src/components/RangePerformance.tsx` — the performance view (per-hand table + heatmap +
-  session history). Add an optional `actionAccuracy?: RangeActionAccuracy` prop (default `{}`);
-  when it has entries, render a "Per-action accuracy" table (action label via
-  `RANGE_ACTION_LABELS`, accuracy %, attempts) in `RANGE_ACTIONS` order. Hide the section when
-  empty. Do not disturb the existing sections.
-- `src/components/RangePerformance.test.tsx` — mirror its existing table tests.
-- `src/types/range.ts` — `RANGE_ACTIONS`, `RANGE_ACTION_LABELS`.
+- `src/App.tsx` — already imports `recordActionAccuracy` and holds parallel state like
+  `handAccuracy` (`loadHandAccuracy`, refreshed in `handleEndPractice`). Add an `actionAccuracy`
+  state from `loadActionAccuracy()` (import it from `./storage/actionAccuracyStorage`). In
+  `handleEndActionQuiz`, after recording, refresh it: `setActionAccuracy(loadActionAccuracy())`.
+  Pass `actionAccuracy={actionAccuracy[performanceRange.id] ?? {}}` to the `<RangePerformance>`
+  render.
+- `src/storage/actionAccuracyStorage.ts` — `loadActionAccuracy`.
+- `src/components/RangePerformance.tsx` — already accepts the optional `actionAccuracy` prop.
+- `src/App.test.tsx` — the action-quiz tests + the performance-view tests are the models.
 
 Task:
-- Add `actionAccuracyRate` to `actionRange.ts` (+ unit tests in `actionRange.test.ts`).
-- Add the optional per-action table to `RangePerformance` (+ component tests).
+- Add the `actionAccuracy` state, refresh it in `handleEndActionQuiz`, and pass the per-range
+  map to `RangePerformance`.
 
-Tests:
-- `actionRange.test.ts`: rate is `correct/attempts*100`; 0 when `attempts` is 0.
-- `RangePerformance.test.tsx`: with `actionAccuracy` entries, the per-action table shows the
-  action label, attempts, and accuracy %, in canonical order; with none, the section is absent.
+Tests (`src/App.test.tsx`):
+- after assigning an action, running an action quiz (answer one hand, end), then opening "View
+  stats" for the range, the performance view's "Per-action accuracy" table shows the action with
+  its accuracy. Keep existing tests green.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -378,10 +384,9 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Presentation only (helper + `RangePerformance` + tests). The new prop is optional; do NOT
-  modify `App` this slice.
+- App wiring + test only; reuse the slice 61/63 storage + component.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: show per-action accuracy in the performance view`
+- `feat: wire per-action accuracy into the performance view`

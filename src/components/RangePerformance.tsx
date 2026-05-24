@@ -1,6 +1,7 @@
+import { actionAccuracyRate, type RangeActionAccuracy } from '../domain/actionRange'
 import { handAccuracyRate, handsWithMistakes, rankHandAccuracy } from '../domain/practice'
 import type { PracticeSessionRecord, RangeHandAccuracy } from '../types/practice'
-import type { SavedRange } from '../types/range'
+import { RANGE_ACTIONS, RANGE_ACTION_LABELS, type SavedRange } from '../types/range'
 import { HandHeatmap } from './HandHeatmap'
 import './PracticeSession.css'
 import './RangePerformance.css'
@@ -12,6 +13,8 @@ interface RangePerformanceProps {
   accuracy: RangeHandAccuracy
   /** Finished sessions for the range, oldest-first (may be empty). */
   history: PracticeSessionRecord[]
+  /** Cumulative per-action accuracy from action quizzes (may be empty). */
+  actionAccuracy?: RangeActionAccuracy
   /** Return to the library view. */
   onClose: () => void
   /** Start a recognition session restricted to this range's mistaken hands. */
@@ -29,6 +32,7 @@ export function RangePerformance({
   range,
   accuracy,
   history,
+  actionAccuracy = {},
   onClose,
   onPracticeMistakes,
 }: RangePerformanceProps) {
@@ -36,6 +40,10 @@ export function RangePerformance({
   const hasMistakes = handsWithMistakes(accuracy).length > 0
   // Newest session first; copy so the oldest-first prop is never mutated.
   const recentSessions = [...history].reverse()
+  // Quizzed actions in canonical order (actions never quizzed are absent).
+  const actionRows = RANGE_ACTIONS.filter((action) => actionAccuracy[action] !== undefined).map(
+    (action) => actionAccuracy[action]!,
+  )
 
   return (
     <section className="practice-session" aria-label="Range performance">
@@ -51,7 +59,7 @@ export function RangePerformance({
         </button>
       </header>
 
-      {ranked.length === 0 && history.length === 0 && (
+      {ranked.length === 0 && history.length === 0 && actionRows.length === 0 && (
         <p className="range-performance-empty">
           No practice data yet — practice this range to see per-hand accuracy.
         </p>
@@ -79,6 +87,30 @@ export function RangePerformance({
                   <td>{stat.attempts}</td>
                   <td>{stat.falseNegatives}</td>
                   <td>{stat.falsePositives}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+
+      {actionRows.length > 0 && (
+        <>
+          <h3 className="practice-review-heading">Per-action accuracy</h3>
+          <table className="hand-accuracy-table" aria-label="Per-action accuracy">
+            <thead>
+              <tr>
+                <th scope="col">Action</th>
+                <th scope="col">Accuracy</th>
+                <th scope="col">Attempts</th>
+              </tr>
+            </thead>
+            <tbody>
+              {actionRows.map((stat) => (
+                <tr key={stat.action}>
+                  <td>{RANGE_ACTION_LABELS[stat.action]}</td>
+                  <td>{actionAccuracyRate(stat).toFixed(0)}%</td>
+                  <td>{stat.attempts}</td>
                 </tr>
               ))}
             </tbody>

@@ -91,3 +91,11 @@ export function summarizeActionAccuracy(attempts: ActionAttempt[]): ActionAccura
     (action) => byAction.get(action)!,
   )
 }
+
+/**
+ * An action's accuracy as a percentage (0–100): `correct / attempts * 100`, or 0
+ * when there are no attempts (never NaN). Mirrors `handAccuracyRate`.
+ */
+export function actionAccuracyRate(stat: ActionAccuracyStat): number {
+  return stat.attempts === 0 ? 0 : (stat.correct / stat.attempts) * 100
+}

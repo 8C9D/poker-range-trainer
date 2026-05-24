@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { RangePerformance } from './RangePerformance'
+import type { RangeActionAccuracy } from '../domain/actionRange'
 import type {
   HandAccuracyStat,
   PracticeSessionRecord,
@@ -169,6 +170,46 @@ describe('RangePerformance', () => {
     expect(within(rows[0]).getByText('100%')).toBeInTheDocument()
     expect(within(rows[1]).getByText('2/4')).toBeInTheDocument()
     expect(within(rows[1]).getByText('50%')).toBeInTheDocument()
+  })
+
+  it('shows a per-action accuracy table in canonical order when given action data', () => {
+    const actionAccuracy: RangeActionAccuracy = {
+      threeBet: { action: 'threeBet', attempts: 4, correct: 1 }, // 25%
+      raise: { action: 'raise', attempts: 4, correct: 4 }, // 100%
+    }
+    render(
+      <RangePerformance
+        range={makeRange()}
+        accuracy={{}}
+        history={[]}
+        actionAccuracy={actionAccuracy}
+        onClose={vi.fn()}
+        onPracticeMistakes={vi.fn()}
+      />,
+    )
+
+    const rows = within(screen.getByRole('table', { name: 'Per-action accuracy' }))
+      .getAllByRole('row')
+      .slice(1) // drop the header row
+    // RANGE_ACTIONS order lists 'raise' before 'threeBet'.
+    expect(within(rows[0]).getByText('Raise')).toBeInTheDocument()
+    expect(within(rows[0]).getByText('100%')).toBeInTheDocument()
+    expect(within(rows[1]).getByText('3-bet')).toBeInTheDocument()
+    expect(within(rows[1]).getByText('25%')).toBeInTheDocument()
+  })
+
+  it('shows no per-action table when there is no action data', () => {
+    render(
+      <RangePerformance
+        range={makeRange()}
+        accuracy={{ AA: stat('AA', { attempts: 2, correct: 1, falseNegatives: 1 }) }}
+        history={[]}
+        onClose={vi.fn()}
+        onPracticeMistakes={vi.fn()}
+      />,
+    )
+
+    expect(screen.queryByRole('table', { name: 'Per-action accuracy' })).not.toBeInTheDocument()
   })
 
   it('shows no session history section when history is empty', () => {

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  actionAccuracyRate,
   actionRangePercentage,
   assignedHands,
   correctActionFor,
@@ -129,5 +130,16 @@ describe('summarizeActionAccuracy', () => {
       { hand: 'AA', chosen: 'raise', expected: 'raise', correct: true },
     ]
     expect(summarizeActionAccuracy(attempts).map((stat) => stat.action)).toEqual(['raise'])
+  })
+})
+
+describe('actionAccuracyRate', () => {
+  it('is correct/attempts as a percentage', () => {
+    expect(actionAccuracyRate({ action: 'raise', attempts: 4, correct: 1 })).toBe(25)
+    expect(actionAccuracyRate({ action: 'raise', attempts: 4, correct: 4 })).toBe(100)
+  })
+
+  it('is 0 when there are no attempts', () => {
+    expect(actionAccuracyRate({ action: 'raise', attempts: 0, correct: 0 })).toBe(0)
   })
 })
