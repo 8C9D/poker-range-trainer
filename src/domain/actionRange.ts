@@ -63,6 +63,13 @@ export interface ActionAccuracyStat {
 }
 
 /**
+ * Cumulative per-action accuracy for one range, keyed by action. `Partial`
+ * because `RangeAction` is a closed union and only the actions actually quizzed
+ * are present (unlike `RangeHandAccuracy`, where `PokerHand` is `string`).
+ */
+export type RangeActionAccuracy = Partial<Record<RangeAction, ActionAccuracyStat>>
+
+/**
  * Aggregate a mode-2 action-quiz session's attempts into per-action accuracy,
  * grouped by each attempt's `expected` (correct) action. Returns one stat per
  * expected action that appeared, in canonical `RANGE_ACTIONS` order; actions

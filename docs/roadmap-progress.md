@@ -95,6 +95,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 58 | Action-quiz practice component (mode 2) | v2.3 — Multi-action ranges | 2026-06-06 |
 | 59 | Wire the action quiz into the practice-mode picker (mode 2) | v2.3 — Multi-action ranges | 2026-06-06 |
 | 60 | Per-action accuracy summarization (v2.3 domain foundation) | v2.3 — Multi-action ranges | 2026-06-06 |
+| 61 | Action-accuracy storage foundation (persist + record) | v2.3 — Multi-action ranges | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -303,10 +304,17 @@ type (`hand`/`chosen`/`expected`/`correct`) in `types/practice.ts`, and
 which tallies a session's attempts per *expected* action and returns them in canonical
 `RANGE_ACTIONS` order (mirrors `summarizeHandAccuracy`).
 
-v2.3 status: action vocab + helpers, palette, grid, editor (wired + persisted), the mode-2
-quiz component + picker wiring, AND the per-action accuracy summarizer are done. Remaining:
-persist + record per-action accuracy (storage, then ActionQuiz reporting + App wiring), surface
-it, and notation with action groups.
+Slice 61 added the persistence: `src/storage/actionAccuracyStorage.ts` (`loadActionAccuracy`,
+`recordActionAccuracy`) plus the `RangeActionAccuracy` alias (kept in `domain/actionRange.ts`
+next to `ActionAccuracyStat`, declared `Partial<Record<RangeAction, ActionAccuracyStat>>` since
+`RangeAction` is a closed union — unlike `RangeHandAccuracy`, whose `PokerHand` key is `string`).
+Mirrors `handAccuracyStorage` (single versioned key, defensive validation incl. an
+unknown-action check, fold-a-session recording). Tested directly but not yet called from the app.
+
+v2.3 status: action vocab + helpers, palette, grid, editor (wired + persisted), the mode-2 quiz
+component + picker wiring, the per-action accuracy summarizer, AND its storage are done.
+Remaining: make `ActionQuiz` report attempts so App records per-action accuracy, surface it, and
+notation with action groups.
 
 NOTE ON CADENCE: the user re-invoked finish-v2 (the go-ahead after the slice-58 pause), so a
 fresh run resumed at slice 59. Slice counting restarts for THIS run; the next safety pause is
@@ -320,49 +328,51 @@ crosses into v3, whichever comes first.
 
 ## Next slice
 
-- **Number:** 61
+- **Number:** 62
 - **Roadmap target:** v2.3 — Multi-action ranges
-- **Working title:** Action-accuracy storage foundation (persist + record)
+- **Working title:** Record per-action accuracy at the end of an action quiz (ActionQuiz reporting + App wiring)
 
 ### Prompt
 
-You are implementing roadmap slice 61, continuing **v2.3 — Multi-action ranges**. Slice 60
-added `summarizeActionAccuracy` + the `ActionAccuracyStat` type. This slice adds the
-PERSISTENCE for per-range action accuracy, mirroring `handAccuracyStorage`. No component or
-App wiring yet (the `ActionQuiz` still doesn't report attempts — that's the next slice).
+You are implementing roadmap slice 62, continuing **v2.3 — Multi-action ranges**.
+`summarizeActionAccuracy` (slice 60) + `recordActionAccuracy` (slice 61) exist. This slice
+connects them: `ActionQuiz` collects its answered attempts and reports them on exit, and `App`
+records the per-action accuracy for the practiced range. Mirrors how slice 30 made the
+recognition components report `attempts` and `App.handleEndPractice` record them.
 
-Scope of THIS slice: one storage module + its tests (+ a small type alias). Nothing else.
+Scope of THIS slice: `ActionQuiz` onExit signature + attempt collection, an `App` handler +
+route, and tests. No new domain/storage code (slices 60–61 already provide it). Surfacing the
+numbers in the UI is a LATER slice.
 
 Context (read these before starting):
-- `src/storage/handAccuracyStorage.ts` — the exact pattern to mirror: a single versioned
-  localStorage key, `load…()` with defensive validation, and `record…(rangeId, stats)` that
-  folds a session's stat array into the cumulative per-range record (no-op on empty). Copy its
-  structure and validation discipline.
-- `src/storage/handAccuracyStorage.test.ts` — mirror its test cases.
-- `src/domain/actionRange.ts` — `ActionAccuracyStat` (`action`, `attempts`, `correct`).
-- `src/types/range.ts` — `RangeAction`, `RANGE_ACTIONS` (validate the action key against this).
-- `src/types/practice.ts` — where `RangeHandAccuracy` is aliased; add the action alias here too.
+- `src/components/ActionQuiz.tsx` — currently `onExit: () => void`, called by both the
+  empty-pool "Back to library" button and the running "End quiz" button. Its `answer(chosen)`
+  already computes `expected`/`isCorrect`. Collect an `ActionAttempt[]` (push `{ hand:
+  currentHand, chosen, expected, correct }` on each answer) and change `onExit` to
+  `(attempts: ActionAttempt[]) => void`; both exit buttons call `onExit(attempts)` (the empty
+  pool passes `[]`). Keep `random` injectable.
+- `src/types/practice.ts` — `ActionAttempt`.
+- `src/domain/actionRange.ts` — `summarizeActionAccuracy`.
+- `src/storage/actionAccuracyStorage.ts` — `recordActionAccuracy`.
+- `src/App.tsx` — currently routes `<ActionQuiz range={practicingRange} onExit={exitPractice} />`
+  (slice 59). Add a handler `handleEndActionQuiz(attempts: ActionAttempt[])` that, when
+  `practicingRange` is set, calls `recordActionAccuracy(practicingRange.id,
+  summarizeActionAccuracy(attempts))` then `exitPractice()`. Route it as the quiz's `onExit`.
+  Do NOT route through `handleEndPractice` — that takes `PracticeAttempt[]` and records
+  recognition stats; action attempts are a different shape.
+- `src/components/ActionQuiz.test.tsx` — update its `onExit` assertions for the new signature.
+- `src/App.test.tsx` — extend the action-quiz integration test added in slice 59.
 
 Task:
-- Add a `RangeActionAccuracy = Record<RangeAction, ActionAccuracyStat>` alias (keyed by action)
-  to `src/types/practice.ts`, referencing `ActionAccuracyStat` the same way `RangeHandAccuracy`
-  references `HandAccuracyStat`.
-- Add `src/storage/actionAccuracyStorage.ts`:
-  - `loadActionAccuracy(): Record<string, RangeActionAccuracy>` — read + validate its own
-    versioned key, dropping malformed entries (validate each action key against `RANGE_ACTIONS`
-    and that `attempts`/`correct` are finite non-negative numbers), returning `{}` on any
-    problem.
-  - `recordActionAccuracy(rangeId, stats: ActionAccuracyStat[]): void` — fold the session's
-    per-action stats into the stored cumulative counts for `rangeId` (sum `attempts`/`correct`);
-    a no-op when `stats` is empty.
-- Match the existing storage modules' defensive style (try/catch, shape checks).
+- Make `ActionQuiz` collect attempts and call `onExit(attempts)`.
+- Add `handleEndActionQuiz` to `App` and route the quiz through it.
 
-Tests to add (`src/storage/actionAccuracyStorage.test.ts`, mirroring the hand-accuracy one):
-- empty store loads as `{}`;
-- recording then loading round-trips per-action counts;
-- a second recording accumulates (sums) onto the first;
-- recording an empty stats array writes nothing;
-- malformed/foreign stored JSON loads as `{}` (or drops the bad entry).
+Tests:
+- `ActionQuiz.test.tsx`: answering one hand then ending calls `onExit` with a one-element
+  attempt array carrying chosen/expected/correct; the empty-pool exit calls `onExit([])`.
+- `App.test.tsx`: after assigning an action and running the quiz (answer one hand, end), the
+  range's per-action accuracy is persisted (`loadActionAccuracy()[rangeId]` has the expected
+  action with `attempts: 1`). Keep existing tests green.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -370,9 +380,9 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Storage + types + tests only. Do NOT modify `ActionQuiz` or `App` this slice.
+- Component signature + App wiring + tests only; reuse the slice 60/61 domain + storage.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: persist per-action accuracy (v2.3 storage foundation)`
+- `feat: record per-action accuracy at the end of an action quiz`
