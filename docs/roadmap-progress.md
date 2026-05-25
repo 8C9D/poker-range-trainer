@@ -98,6 +98,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 61 | Action-accuracy storage foundation (persist + record) | v2.3 — Multi-action ranges | 2026-06-06 |
 | 62 | Record per-action accuracy at the end of an action quiz | v2.3 — Multi-action ranges | 2026-06-06 |
 | 63 | Per-action accuracy table in the performance view (presentation) | v2.3 — Multi-action ranges | 2026-06-06 |
+| 64 | Wire per-action accuracy from App into the performance view | v2.3 — Multi-action ranges | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -326,10 +327,15 @@ RangeActionAccuracy` prop (default `{}`) rendering a "Per-action accuracy" table
 accuracy %, attempts) in `RANGE_ACTIONS` order when non-empty; the empty-state message also now
 checks for action data. Tested via the component, but App does not pass the prop yet.
 
-v2.3 status: action vocab + helpers, palette, grid, editor (wired + persisted), the mode-2 quiz
-component + picker wiring, per-action accuracy end-to-end (summarizer + storage + recording), and
-the performance-view per-action table are done. Remaining: wire `actionAccuracy` from App into
-the performance view, and notation with action groups.
+Slice 64 wired it into App: an `actionAccuracy` state (`loadActionAccuracy`, refreshed in
+`handleEndActionQuiz` after recording) is passed as `actionAccuracy={actionAccuracy[id] ?? {}}`
+to `RangePerformance`. Running an action quiz then opening "View stats" now shows the per-action
+table. **Action-specific accuracy tracking is COMPLETE** (summarizer + storage + recording +
+performance table + App wiring).
+
+v2.3 status: everything except notation with action groups is done. Remaining: import/export
+notation with action groups — export domain (next), parse domain, then a notation UI in the
+action editor.
 
 NOTE ON CADENCE: the user re-invoked finish-v2 (the go-ahead after the slice-58 pause), so a
 fresh run resumed at slice 59. Slice counting restarts for THIS run; the next safety pause is
@@ -343,40 +349,37 @@ crosses into v3, whichever comes first.
 
 ## Next slice
 
-- **Number:** 64
+- **Number:** 65
 - **Roadmap target:** v2.3 — Multi-action ranges
-- **Working title:** Wire per-action accuracy from App into the performance view
+- **Working title:** Action-grouped notation export (format domain)
 
 ### Prompt
 
-You are implementing roadmap slice 64, continuing **v2.3 — Multi-action ranges**. Slice 63 added
-an optional `actionAccuracy` prop + per-action table to `RangePerformance`, but `App` doesn't
-pass it. This slice wires it: App loads per-action accuracy, refreshes it after each action quiz,
-and passes the practiced range's map to the performance view. Mirrors slice 33 (which wired the
-per-hand `handAccuracy` state into the view).
+You are implementing roadmap slice 65, continuing **v2.3 — Multi-action ranges**. The only
+remaining v2.3 feature is "import/export notation with action groups". This slice adds the PURE
+export side: format a `handActions` map as action-grouped notation. Import (parse) and the UI
+are later slices.
 
-Scope of THIS slice: `App` state + refresh + prop, and a test. No component/domain/storage
-changes.
+Scope of THIS slice: one domain function + tests. No component/App/storage changes.
 
 Context (read these before starting):
-- `src/App.tsx` — already imports `recordActionAccuracy` and holds parallel state like
-  `handAccuracy` (`loadHandAccuracy`, refreshed in `handleEndPractice`). Add an `actionAccuracy`
-  state from `loadActionAccuracy()` (import it from `./storage/actionAccuracyStorage`). In
-  `handleEndActionQuiz`, after recording, refresh it: `setActionAccuracy(loadActionAccuracy())`.
-  Pass `actionAccuracy={actionAccuracy[performanceRange.id] ?? {}}` to the `<RangePerformance>`
-  render.
-- `src/storage/actionAccuracyStorage.ts` — `loadActionAccuracy`.
-- `src/components/RangePerformance.tsx` — already accepts the optional `actionAccuracy` prop.
-- `src/App.test.tsx` — the action-quiz tests + the performance-view tests are the models.
+- `src/domain/rangeNotation.ts` — `formatRangeNotation(hands)` formats a hand list as a
+  canonical comma-separated string. Reuse it per action group.
+- `src/domain/actionRange.ts` — `handsForAction(handActions, action)` gives an action's hands in
+  canonical order. Add the new formatter here (action logic lives here).
+- `src/types/range.ts` — `RANGE_ACTIONS` (canonical order), `RANGE_ACTION_LABELS` (labels).
 
 Task:
-- Add the `actionAccuracy` state, refresh it in `handleEndActionQuiz`, and pass the per-range
-  map to `RangePerformance`.
+- Add `formatActionNotation(handActions: Record<PokerHand, RangeAction>): string` to
+  `actionRange.ts`. For each action in `RANGE_ACTIONS` order that has at least one hand, emit a
+  line `"{RANGE_ACTION_LABELS[action]}: {formatRangeNotation(handsForAction(...))}"`. Join the
+  lines with "\n". An empty/actionless map returns "". Pure — never mutate the input.
 
-Tests (`src/App.test.tsx`):
-- after assigning an action, running an action quiz (answer one hand, end), then opening "View
-  stats" for the range, the performance view's "Per-action accuracy" table shows the action with
-  its accuracy. Keep existing tests green.
+Tests to add (`src/domain/actionRange.test.ts`):
+- empty map → "";
+- a map with raise + threeBet hands → two lines in canonical action order, each
+  `"Label: hands"` with hands in canonical order;
+- actions with no hands are skipped (e.g. a fold-only assignment yields a single "Fold:" line).
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -384,9 +387,9 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- App wiring + test only; reuse the slice 61/63 storage + component.
+- Domain + tests only; reuse `formatRangeNotation` / `handsForAction`.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: wire per-action accuracy into the performance view`
+- `feat: export action-grouped range notation (v2.3 domain)`

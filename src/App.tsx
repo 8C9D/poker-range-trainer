@@ -26,7 +26,7 @@ import {
 import { calculateRangePercentage, countSelectedCombos } from './domain/rangeMath'
 import { mergeShortcutHands } from './domain/rangeShortcuts'
 import type { PokerHand } from './domain/pokerHands'
-import { recordActionAccuracy } from './storage/actionAccuracyStorage'
+import { loadActionAccuracy, recordActionAccuracy } from './storage/actionAccuracyStorage'
 import { loadHandAccuracy, recordHandAccuracy } from './storage/handAccuracyStorage'
 import { loadPracticeStats, recordPracticeSession } from './storage/practiceStatsStorage'
 import { loadReviewStates, saveReviewState } from './storage/reviewStateStorage'
@@ -64,6 +64,9 @@ function App() {
   // Cumulative per-hand accuracy, refreshed after each session so the performance
   // view shows the latest numbers.
   const [handAccuracy, setHandAccuracy] = useState(() => loadHandAccuracy())
+  // Cumulative per-action accuracy from action quizzes, refreshed after each quiz
+  // so the performance view's per-action table shows the latest numbers.
+  const [actionAccuracy, setActionAccuracy] = useState(() => loadActionAccuracy())
   // Per-range session history, refreshed after each session so the performance
   // view's timeline shows the latest sessions.
   const [sessionHistory, setSessionHistory] = useState(() => loadSessionHistory())
@@ -346,6 +349,9 @@ function App() {
     // answer records nothing.
     if (practicingRange) {
       recordActionAccuracy(practicingRange.id, summarizeActionAccuracy(attempts))
+      // Refresh from storage so the performance view's per-action table reflects
+      // this quiz, mirroring the other refresh-after-write recorders.
+      setActionAccuracy(loadActionAccuracy())
     }
     exitPractice()
   }
@@ -511,6 +517,7 @@ function App() {
           range={performanceRange}
           accuracy={handAccuracy[performanceRange.id] ?? {}}
           history={sessionHistory[performanceRange.id] ?? []}
+          actionAccuracy={actionAccuracy[performanceRange.id] ?? {}}
           onClose={() => setPerformanceRange(null)}
           onPracticeMistakes={handlePracticeMistakes}
         />

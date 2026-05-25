@@ -620,6 +620,32 @@ describe('Practice mode', () => {
       raise: { action: 'raise', attempts: 1, correct: 1 },
     })
   })
+
+  it('shows per-action accuracy in the performance view after an action quiz', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Pairs')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    // Assign Raise to AA and save it onto the range.
+    await user.click(screen.getByRole('button', { name: 'Edit actions for Pairs' }))
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Save actions' }))
+
+    // Run the quiz and answer the only assigned hand (AA) correctly.
+    await user.click(screen.getByRole('button', { name: 'Practice range Pairs' }))
+    await user.click(screen.getByRole('button', { name: 'Pick the correct action' }))
+    await user.click(screen.getByRole('button', { name: 'Raise' }))
+    await user.click(screen.getByRole('button', { name: 'End quiz' }))
+
+    // The performance view's per-action table reflects the quiz.
+    await user.click(screen.getByRole('button', { name: 'View stats for Pairs' }))
+    const table = screen.getByRole('table', { name: 'Per-action accuracy' })
+    expect(within(table).getByText('Raise')).toBeInTheDocument()
+    expect(within(table).getByText('100%')).toBeInTheDocument()
+  })
 })
 
 describe('Range performance view', () => {
