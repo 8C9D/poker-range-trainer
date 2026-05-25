@@ -6,6 +6,7 @@ import {
   correctActionFor,
   formatActionNotation,
   handsForAction,
+  parseActionNotation,
   summarizeActionAccuracy,
 } from './actionRange'
 import { RANGE_ACTIONS, RANGE_ACTION_LABELS, type RangeAction } from '../types/range'
@@ -163,5 +164,59 @@ describe('formatActionNotation', () => {
   it('skips actions that have no hands', () => {
     const handActions: Record<PokerHand, RangeAction> = { AA: 'fold' }
     expect(formatActionNotation(handActions)).toBe('Fold: AA')
+  })
+})
+
+describe('parseActionNotation', () => {
+  it('returns an empty map for empty or whitespace input', () => {
+    expect(parseActionNotation('')).toEqual({})
+    expect(parseActionNotation('   \n  ')).toEqual({})
+  })
+
+  it('parses labeled action lines into a hand-action map', () => {
+    expect(parseActionNotation('Raise: AA, KK\n3-bet: AKs')).toEqual({
+      AA: 'raise',
+      KK: 'raise',
+      AKs: 'threeBet',
+    })
+  })
+
+  it('round-trips with formatActionNotation', () => {
+    const handActions: Record<PokerHand, RangeAction> = {
+      AA: 'raise',
+      KK: 'raise',
+      AKs: 'threeBet',
+      QQ: 'fold',
+    }
+    expect(parseActionNotation(formatActionNotation(handActions))).toEqual(handActions)
+  })
+
+  it('matches the action label case-insensitively', () => {
+    expect(parseActionNotation('raise: AA')).toEqual({ AA: 'raise' })
+  })
+
+  it('expands plus notation within a group', () => {
+    expect(parseActionNotation('Raise: 77+')).toEqual({
+      '77': 'raise',
+      '88': 'raise',
+      '99': 'raise',
+      TT: 'raise',
+      JJ: 'raise',
+      QQ: 'raise',
+      KK: 'raise',
+      AA: 'raise',
+    })
+  })
+
+  it('throws on a line without a colon', () => {
+    expect(() => parseActionNotation('Raise AA')).toThrow()
+  })
+
+  it('throws on an unknown action label', () => {
+    expect(() => parseActionNotation('Limp: AA')).toThrow()
+  })
+
+  it('throws when a hand is assigned to two different actions', () => {
+    expect(() => parseActionNotation('Raise: AA\n3-bet: AA')).toThrow()
   })
 })

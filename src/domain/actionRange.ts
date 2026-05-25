@@ -1,6 +1,6 @@
 import { ALL_HANDS, type PokerHand } from './pokerHands'
 import { calculateRangePercentage } from './rangeMath'
-import { formatRangeNotation } from './rangeNotation'
+import { formatRangeNotation, parseRangeNotation } from './rangeNotation'
 import type { ActionAttempt } from '../types/practice'
 import { RANGE_ACTIONS, RANGE_ACTION_LABELS, type RangeAction } from '../types/range'
 
@@ -115,4 +115,47 @@ export function formatActionNotation(handActions: Record<PokerHand, RangeAction>
   })
     .filter((line) => line.length > 0)
     .join('\n')
+}
+
+/**
+ * Parse action-grouped notation (the inverse of `formatActionNotation`) into a
+ * `handActions` map. Each non-blank line is `"{label}: {notation}"`: the label
+ * (trimmed, case-insensitive) names a `RangeAction`, and the right side is hand
+ * notation parsed by `parseRangeNotation`. Empty/whitespace input yields `{}`.
+ *
+ * Throws on a line without a colon, an unknown action label, invalid hand
+ * notation (via `parseRangeNotation`), or a hand assigned to two different
+ * actions (repeating the same action for a hand is idempotent). Pure — the input
+ * is never mutated.
+ */
+export function parseActionNotation(input: string): Record<PokerHand, RangeAction> {
+  const actionByLabel = new Map<string, RangeAction>(
+    RANGE_ACTIONS.map((action) => [RANGE_ACTION_LABELS[action].toLowerCase(), action]),
+  )
+
+  const result: Record<PokerHand, RangeAction> = {}
+  for (const rawLine of input.split('\n')) {
+    const line = rawLine.trim()
+    if (line.length === 0) continue
+
+    const colon = line.indexOf(':')
+    if (colon === -1) {
+      throw new Error(`Invalid action line (expected "Action: hands"): "${line}".`)
+    }
+
+    const label = line.slice(0, colon).trim()
+    const action = actionByLabel.get(label.toLowerCase())
+    if (action === undefined) {
+      throw new Error(`Unknown action label: "${label}".`)
+    }
+
+    for (const hand of parseRangeNotation(line.slice(colon + 1))) {
+      const prior = result[hand]
+      if (prior !== undefined && prior !== action) {
+        throw new Error(`Hand ${hand} is assigned to two actions (${prior} and ${action}).`)
+      }
+      result[hand] = action
+    }
+  }
+  return result
 }

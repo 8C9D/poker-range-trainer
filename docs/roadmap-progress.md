@@ -100,6 +100,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 63 | Per-action accuracy table in the performance view (presentation) | v2.3 — Multi-action ranges | 2026-06-06 |
 | 64 | Wire per-action accuracy from App into the performance view | v2.3 — Multi-action ranges | 2026-06-06 |
 | 65 | Action-grouped notation export (format domain) | v2.3 — Multi-action ranges | 2026-06-06 |
+| 66 | Action-grouped notation import (parse domain) | v2.3 — Multi-action ranges | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -338,8 +339,15 @@ Slice 65 added the export side: `formatActionNotation(handActions)` in `domain/a
 emits one `"{label}: {hands}"` line per action that has hands, in canonical `RANGE_ACTIONS`
 order, reusing `formatRangeNotation` per group ("" for an empty/actionless map).
 
-v2.3 status: everything except notation with action groups is done; the export formatter is now
-in. Remaining: parse (import) domain, then a notation UI in the action editor.
+Slice 66 added the import side: `parseActionNotation(input)` in `domain/actionRange.ts` parses
+`"{label}: {notation}"` lines (case-insensitive label → `RangeAction`, hands via
+`parseRangeNotation`) into a `handActions` map, round-tripping with `formatActionNotation`. It
+throws on a colonless line, unknown label, invalid notation, or a hand in two different actions.
+
+v2.3 status: everything except the notation UI is done; both export and import domain helpers are
+in. Remaining: a notation UI in the action editor — an `ActionNotation` component (next), then
+wire it into App's action editor. That is the LAST v2.3 work before the scope boundary (v3),
+where finish-v2 stops.
 
 NOTE ON CADENCE: the user re-invoked finish-v2 (the go-ahead after the slice-58 pause), so a
 fresh run resumed at slice 59. Slice counting restarts for THIS run; the next safety pause is
@@ -353,45 +361,44 @@ crosses into v3, whichever comes first.
 
 ## Next slice
 
-- **Number:** 66
+- **Number:** 67
 - **Roadmap target:** v2.3 — Multi-action ranges
-- **Working title:** Action-grouped notation import (parse domain)
+- **Working title:** ActionNotation component (export display + import box)
 
 ### Prompt
 
-You are implementing roadmap slice 66, continuing **v2.3 — Multi-action ranges**. Slice 65 added
-`formatActionNotation` (export). This slice adds the PURE import side: parse action-grouped
-notation back into a `handActions` map. The notation UI is the next/last v2.3 slice.
+You are implementing roadmap slice 67, continuing **v2.3 — Multi-action ranges** — the LAST v2.3
+feature (import/export notation with action groups), UI side. The domain helpers exist
+(`formatActionNotation`, `parseActionNotation`). This slice adds a standalone `ActionNotation`
+component mirroring `RangeNotation`. App wiring is the next (final v2.3) slice.
 
-Scope of THIS slice: one domain function + tests. No component/App/storage changes.
+Scope of THIS slice: one new component (reusing existing CSS) + tests. No App changes — the
+component is standalone-tested this slice.
 
 Context (read these before starting):
-- `src/domain/rangeNotation.ts` — `parseRangeNotation(input)` parses comma-separated hand
-  notation into hands (throws on invalid tokens). Reuse it per action group.
-- `src/domain/actionRange.ts` — has `formatActionNotation` (the inverse). Add the parser here.
-- `src/types/range.ts` — `RANGE_ACTIONS`, `RANGE_ACTION_LABELS`.
+- `src/components/RangeNotation.tsx` — the pattern to mirror: a read-only "current" field plus an
+  import textarea + Apply button with try/catch error display (`role="alert"`). Reuse the
+  `range-notation*` CSS classes from `RangeNotation.css`.
+- `src/domain/actionRange.ts` — `formatActionNotation(handActions)` (export string),
+  `parseActionNotation(input)` (parse → map, throws).
+- `src/types/range.ts` — `RangeAction`. `src/domain/pokerHands.ts` — `PokerHand`.
 
 Task:
-- Add `parseActionNotation(input: string): Record<PokerHand, RangeAction>` to `actionRange.ts`:
-  - Split on newlines; trim; skip blank lines.
-  - Each line is `"{label}: {notation}"`: split on the FIRST ":"; the label maps (trimmed,
-    case-insensitive) to a `RangeAction` via a reverse lookup of `RANGE_ACTION_LABELS`; the
-    right side goes through `parseRangeNotation`.
-  - Assign each parsed hand to that action in the result.
-  - Empty/whitespace input → `{}`.
-  - Throw a clear Error on: a line with no ":", an unknown action label, invalid hand notation
-    (let `parseRangeNotation` throw), or a hand assigned to two DIFFERENT actions (idempotent
-    same-action repeats are fine).
-  - Pure — never mutate the input.
+- Add `src/components/ActionNotation.tsx` exporting `ActionNotation`:
+  - Props: `handActions: Record<PokerHand, RangeAction>` and
+    `onReplaceActions: (handActions: Record<PokerHand, RangeAction>) => void`.
+  - A read-only "Current actions" textarea = `formatActionNotation(handActions)`.
+  - An import textarea + "Apply Action Notation" button: on click, `parseActionNotation(input)`
+    → `onReplaceActions(result)` and clear the error; on throw, show the message in a
+    `role="alert"` and leave actions untouched.
+  - `aria-label="Action notation"` on the section; reuse the `range-notation*` CSS classes
+    (import `./RangeNotation.css`; no new CSS needed).
 
-Tests to add (`src/domain/actionRange.test.ts`):
-- empty/whitespace → `{}`;
-- `parseActionNotation('Raise: AA, KK\n3-bet: AKs')` →
-  `{ AA: 'raise', KK: 'raise', AKs: 'threeBet' }`;
-- round-trips with `formatActionNotation` (parse(format(map)) deep-equals the map);
-- case-insensitive label ("raise: AA");
-- plus notation inside a group ("Raise: 77+" expands to 77..AA as raise);
-- unknown label throws; a line without ":" throws; a hand in two different actions throws.
+Tests to add (`src/components/ActionNotation.test.tsx`):
+- the current-actions field shows `formatActionNotation(handActions)` for a given map;
+- applying valid notation ("Raise: AA, KK") calls `onReplaceActions` with the parsed map and
+  shows no alert;
+- applying invalid notation ("Limp: AA") shows an alert and does NOT call `onReplaceActions`.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -399,9 +406,9 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Domain + tests only; reuse `parseRangeNotation`.
+- Component + tests only; reuse the domain helpers + existing CSS. Do NOT modify `App`.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: import action-grouped range notation (v2.3 domain)`
+- `feat: add the ActionNotation import/export component`
