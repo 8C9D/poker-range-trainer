@@ -1,7 +1,8 @@
 import { ALL_HANDS, type PokerHand } from './pokerHands'
 import { calculateRangePercentage } from './rangeMath'
+import { formatRangeNotation } from './rangeNotation'
 import type { ActionAttempt } from '../types/practice'
-import { RANGE_ACTIONS, type RangeAction } from '../types/range'
+import { RANGE_ACTIONS, RANGE_ACTION_LABELS, type RangeAction } from '../types/range'
 
 /**
  * Pure helpers for v2.3 multi-action ranges, where each hand maps to a single
@@ -98,4 +99,20 @@ export function summarizeActionAccuracy(attempts: ActionAttempt[]): ActionAccura
  */
 export function actionAccuracyRate(stat: ActionAccuracyStat): number {
   return stat.attempts === 0 ? 0 : (stat.correct / stat.attempts) * 100
+}
+
+/**
+ * Format a multi-action chart as action-grouped notation: one line per action
+ * that has hands, in canonical `RANGE_ACTIONS` order, as
+ * `"{label}: {comma-separated hands}"` (hands via `formatRangeNotation`, so each
+ * group is canonical and deduped). An empty or actionless map returns "". Pure —
+ * the input is never mutated.
+ */
+export function formatActionNotation(handActions: Record<PokerHand, RangeAction>): string {
+  return RANGE_ACTIONS.map((action) => {
+    const hands = handsForAction(handActions, action)
+    return hands.length > 0 ? `${RANGE_ACTION_LABELS[action]}: ${formatRangeNotation(hands)}` : ''
+  })
+    .filter((line) => line.length > 0)
+    .join('\n')
 }

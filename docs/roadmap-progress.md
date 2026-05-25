@@ -99,6 +99,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 62 | Record per-action accuracy at the end of an action quiz | v2.3 — Multi-action ranges | 2026-06-06 |
 | 63 | Per-action accuracy table in the performance view (presentation) | v2.3 — Multi-action ranges | 2026-06-06 |
 | 64 | Wire per-action accuracy from App into the performance view | v2.3 — Multi-action ranges | 2026-06-06 |
+| 65 | Action-grouped notation export (format domain) | v2.3 — Multi-action ranges | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -333,9 +334,12 @@ to `RangePerformance`. Running an action quiz then opening "View stats" now show
 table. **Action-specific accuracy tracking is COMPLETE** (summarizer + storage + recording +
 performance table + App wiring).
 
-v2.3 status: everything except notation with action groups is done. Remaining: import/export
-notation with action groups — export domain (next), parse domain, then a notation UI in the
-action editor.
+Slice 65 added the export side: `formatActionNotation(handActions)` in `domain/actionRange.ts`
+emits one `"{label}: {hands}"` line per action that has hands, in canonical `RANGE_ACTIONS`
+order, reusing `formatRangeNotation` per group ("" for an empty/actionless map).
+
+v2.3 status: everything except notation with action groups is done; the export formatter is now
+in. Remaining: parse (import) domain, then a notation UI in the action editor.
 
 NOTE ON CADENCE: the user re-invoked finish-v2 (the go-ahead after the slice-58 pause), so a
 fresh run resumed at slice 59. Slice counting restarts for THIS run; the next safety pause is
@@ -349,37 +353,45 @@ crosses into v3, whichever comes first.
 
 ## Next slice
 
-- **Number:** 65
+- **Number:** 66
 - **Roadmap target:** v2.3 — Multi-action ranges
-- **Working title:** Action-grouped notation export (format domain)
+- **Working title:** Action-grouped notation import (parse domain)
 
 ### Prompt
 
-You are implementing roadmap slice 65, continuing **v2.3 — Multi-action ranges**. The only
-remaining v2.3 feature is "import/export notation with action groups". This slice adds the PURE
-export side: format a `handActions` map as action-grouped notation. Import (parse) and the UI
-are later slices.
+You are implementing roadmap slice 66, continuing **v2.3 — Multi-action ranges**. Slice 65 added
+`formatActionNotation` (export). This slice adds the PURE import side: parse action-grouped
+notation back into a `handActions` map. The notation UI is the next/last v2.3 slice.
 
 Scope of THIS slice: one domain function + tests. No component/App/storage changes.
 
 Context (read these before starting):
-- `src/domain/rangeNotation.ts` — `formatRangeNotation(hands)` formats a hand list as a
-  canonical comma-separated string. Reuse it per action group.
-- `src/domain/actionRange.ts` — `handsForAction(handActions, action)` gives an action's hands in
-  canonical order. Add the new formatter here (action logic lives here).
-- `src/types/range.ts` — `RANGE_ACTIONS` (canonical order), `RANGE_ACTION_LABELS` (labels).
+- `src/domain/rangeNotation.ts` — `parseRangeNotation(input)` parses comma-separated hand
+  notation into hands (throws on invalid tokens). Reuse it per action group.
+- `src/domain/actionRange.ts` — has `formatActionNotation` (the inverse). Add the parser here.
+- `src/types/range.ts` — `RANGE_ACTIONS`, `RANGE_ACTION_LABELS`.
 
 Task:
-- Add `formatActionNotation(handActions: Record<PokerHand, RangeAction>): string` to
-  `actionRange.ts`. For each action in `RANGE_ACTIONS` order that has at least one hand, emit a
-  line `"{RANGE_ACTION_LABELS[action]}: {formatRangeNotation(handsForAction(...))}"`. Join the
-  lines with "\n". An empty/actionless map returns "". Pure — never mutate the input.
+- Add `parseActionNotation(input: string): Record<PokerHand, RangeAction>` to `actionRange.ts`:
+  - Split on newlines; trim; skip blank lines.
+  - Each line is `"{label}: {notation}"`: split on the FIRST ":"; the label maps (trimmed,
+    case-insensitive) to a `RangeAction` via a reverse lookup of `RANGE_ACTION_LABELS`; the
+    right side goes through `parseRangeNotation`.
+  - Assign each parsed hand to that action in the result.
+  - Empty/whitespace input → `{}`.
+  - Throw a clear Error on: a line with no ":", an unknown action label, invalid hand notation
+    (let `parseRangeNotation` throw), or a hand assigned to two DIFFERENT actions (idempotent
+    same-action repeats are fine).
+  - Pure — never mutate the input.
 
 Tests to add (`src/domain/actionRange.test.ts`):
-- empty map → "";
-- a map with raise + threeBet hands → two lines in canonical action order, each
-  `"Label: hands"` with hands in canonical order;
-- actions with no hands are skipped (e.g. a fold-only assignment yields a single "Fold:" line).
+- empty/whitespace → `{}`;
+- `parseActionNotation('Raise: AA, KK\n3-bet: AKs')` →
+  `{ AA: 'raise', KK: 'raise', AKs: 'threeBet' }`;
+- round-trips with `formatActionNotation` (parse(format(map)) deep-equals the map);
+- case-insensitive label ("raise: AA");
+- plus notation inside a group ("Raise: 77+" expands to 77..AA as raise);
+- unknown label throws; a line without ":" throws; a hand in two different actions throws.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -387,9 +399,9 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Domain + tests only; reuse `formatRangeNotation` / `handsForAction`.
+- Domain + tests only; reuse `parseRangeNotation`.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: export action-grouped range notation (v2.3 domain)`
+- `feat: import action-grouped range notation (v2.3 domain)`

@@ -4,6 +4,7 @@ import {
   actionRangePercentage,
   assignedHands,
   correctActionFor,
+  formatActionNotation,
   handsForAction,
   summarizeActionAccuracy,
 } from './actionRange'
@@ -141,5 +142,26 @@ describe('actionAccuracyRate', () => {
 
   it('is 0 when there are no attempts', () => {
     expect(actionAccuracyRate({ action: 'raise', attempts: 0, correct: 0 })).toBe(0)
+  })
+})
+
+describe('formatActionNotation', () => {
+  it('returns an empty string for an empty map', () => {
+    expect(formatActionNotation({})).toBe('')
+  })
+
+  it('emits one line per action with hands, in canonical action and hand order', () => {
+    const handActions: Record<PokerHand, RangeAction> = {
+      AKs: 'threeBet',
+      AA: 'raise',
+      KK: 'raise',
+    }
+    // RANGE_ACTIONS lists raise before threeBet; hands are canonical within each line.
+    expect(formatActionNotation(handActions)).toBe('Raise: AA, KK\n3-bet: AKs')
+  })
+
+  it('skips actions that have no hands', () => {
+    const handActions: Record<PokerHand, RangeAction> = { AA: 'fold' }
+    expect(formatActionNotation(handActions)).toBe('Fold: AA')
   })
 })
