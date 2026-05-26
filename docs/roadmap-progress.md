@@ -101,6 +101,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 64 | Wire per-action accuracy from App into the performance view | v2.3 — Multi-action ranges | 2026-06-06 |
 | 65 | Action-grouped notation export (format domain) | v2.3 — Multi-action ranges | 2026-06-06 |
 | 66 | Action-grouped notation import (parse domain) | v2.3 — Multi-action ranges | 2026-06-06 |
+| 67 | ActionNotation component (export display + import box) | v2.3 — Multi-action ranges | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -344,10 +345,14 @@ Slice 66 added the import side: `parseActionNotation(input)` in `domain/actionRa
 `parseRangeNotation`) into a `handActions` map, round-tripping with `formatActionNotation`. It
 throws on a colonless line, unknown label, invalid notation, or a hand in two different actions.
 
-v2.3 status: everything except the notation UI is done; both export and import domain helpers are
-in. Remaining: a notation UI in the action editor — an `ActionNotation` component (next), then
-wire it into App's action editor. That is the LAST v2.3 work before the scope boundary (v3),
-where finish-v2 stops.
+Slice 67 added the standalone `ActionNotation` component (mirrors `RangeNotation`, reusing its
+CSS): a read-only "Current actions" field from `formatActionNotation`, plus an import textarea +
+"Apply Action Notation" that runs `parseActionNotation` and reports the parsed map (or shows the
+error in a `role="alert"`). Standalone-tested; not yet wired into App.
+
+v2.3 status: only the App wiring of `ActionNotation` remains. Once slice 68 wires it into the
+action editor, **v2.3 — and all of v2.x — is COMPLETE**, and the next queued slice (69) is the
+first v3 item, where finish-v2 stops.
 
 NOTE ON CADENCE: the user re-invoked finish-v2 (the go-ahead after the slice-58 pause), so a
 fresh run resumed at slice 59. Slice counting restarts for THIS run; the next safety pause is
@@ -361,44 +366,36 @@ crosses into v3, whichever comes first.
 
 ## Next slice
 
-- **Number:** 67
+- **Number:** 68
 - **Roadmap target:** v2.3 — Multi-action ranges
-- **Working title:** ActionNotation component (export display + import box)
+- **Working title:** Wire ActionNotation into the action editor (final v2.3 slice)
 
 ### Prompt
 
-You are implementing roadmap slice 67, continuing **v2.3 — Multi-action ranges** — the LAST v2.3
-feature (import/export notation with action groups), UI side. The domain helpers exist
-(`formatActionNotation`, `parseActionNotation`). This slice adds a standalone `ActionNotation`
-component mirroring `RangeNotation`. App wiring is the next (final v2.3) slice.
+You are implementing roadmap slice 68 — the FINAL slice of **v2.3 — Multi-action ranges** (and of
+v2.x). The standalone `ActionNotation` exists (slice 67). This slice wires it into App's action
+editor so the user can import/export action charts. After this, v2.3 is complete.
 
-Scope of THIS slice: one new component (reusing existing CSS) + tests. No App changes — the
-component is standalone-tested this slice.
+Scope of THIS slice: App action-editor wiring + a test. No component/domain changes.
 
 Context (read these before starting):
-- `src/components/RangeNotation.tsx` — the pattern to mirror: a read-only "current" field plus an
-  import textarea + Apply button with try/catch error display (`role="alert"`). Reuse the
-  `range-notation*` CSS classes from `RangeNotation.css`.
-- `src/domain/actionRange.ts` — `formatActionNotation(handActions)` (export string),
-  `parseActionNotation(input)` (parse → map, throws).
-- `src/types/range.ts` — `RangeAction`. `src/domain/pokerHands.ts` — `PokerHand`.
+- `src/App.tsx` — the `actionEditRange` branch renders `<MultiActionEditor
+  handActions={handActionsDraft} onSetHandAction={setDraftHandAction} />`. `handActionsDraft` is
+  the in-progress chart; `setHandActionsDraft` replaces it; `handleSaveActions` persists it.
+  Render `<ActionNotation handActions={handActionsDraft} onReplaceActions={setHandActionsDraft} />`
+  below the editor in that section. Import `ActionNotation`.
+- `src/components/ActionNotation.tsx` — `ActionNotation({ handActions, onReplaceActions })`.
+- `src/App.test.tsx` — the "Multi-action editor" describe block is the model.
 
 Task:
-- Add `src/components/ActionNotation.tsx` exporting `ActionNotation`:
-  - Props: `handActions: Record<PokerHand, RangeAction>` and
-    `onReplaceActions: (handActions: Record<PokerHand, RangeAction>) => void`.
-  - A read-only "Current actions" textarea = `formatActionNotation(handActions)`.
-  - An import textarea + "Apply Action Notation" button: on click, `parseActionNotation(input)`
-    → `onReplaceActions(result)` and clear the error; on throw, show the message in a
-    `role="alert"` and leave actions untouched.
-  - `aria-label="Action notation"` on the section; reuse the `range-notation*` CSS classes
-    (import `./RangeNotation.css`; no new CSS needed).
+- Import and render `ActionNotation` in the action-editor section, fed by `handActionsDraft` /
+  `setHandActionsDraft`.
 
-Tests to add (`src/components/ActionNotation.test.tsx`):
-- the current-actions field shows `formatActionNotation(handActions)` for a given map;
-- applying valid notation ("Raise: AA, KK") calls `onReplaceActions` with the parsed map and
-  shows no alert;
-- applying invalid notation ("Limp: AA") shows an alert and does NOT call `onReplaceActions`.
+Tests to add (`src/App.test.tsx`):
+- in the action editor, typing "Raise: AA, KK" into the action-notation input and applying it
+  paints AA and KK as raise on the action grid (`data-action="raise"`), and "Save actions" then
+  persists `handActions` `{ AA: 'raise', KK: 'raise' }` (via `loadSavedRanges()`). Keep existing
+  tests green.
 
 Validation (all must pass before committing):
 - `npm run lint`
@@ -406,9 +403,11 @@ Validation (all must pass before committing):
 - `npm run build`
 
 Constraints:
-- Component + tests only; reuse the domain helpers + existing CSS. Do NOT modify `App`.
+- App wiring + test only; reuse the slice 67 component.
 - No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
 - Keep the change small and reversible.
+- SCOPE BOUNDARY: after this slice, v2.x is complete. The NEXT queued slice (69) is the first
+  v3 item (accounts/backend/cloud sync), which finish-v2 must NOT implement — queue it and stop.
 
 Suggested commit message:
-- `feat: add the ActionNotation import/export component`
+- `feat: wire action notation into the action editor`
