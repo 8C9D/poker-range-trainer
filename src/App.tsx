@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ActionNotation } from './components/ActionNotation'
 import { ActionQuiz } from './components/ActionQuiz'
 import { BuildFromMemoryPractice } from './components/BuildFromMemoryPractice'
 import { DueToday } from './components/DueToday'
@@ -542,6 +543,10 @@ function App() {
           <MultiActionEditor
             handActions={handActionsDraft}
             onSetHandAction={setDraftHandAction}
+          />
+          <ActionNotation
+            handActions={handActionsDraft}
+            onReplaceActions={setHandActionsDraft}
           />
         </section>
       ) : (

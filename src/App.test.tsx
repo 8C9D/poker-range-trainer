@@ -821,6 +821,32 @@ describe('Multi-action editor', () => {
     await user.click(screen.getByRole('button', { name: 'Edit actions for Pairs' }))
     expect(screen.getByText('AA').getAttribute('data-action')).toBe('raise')
   })
+
+  it('imports action notation in the action editor and persists it', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Pairs')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    await user.click(screen.getByRole('button', { name: 'Edit actions for Pairs' }))
+
+    // Import an action chart via notation, then apply it.
+    await user.type(
+      screen.getByLabelText('Paste or type action notation'),
+      'Raise: AA, KK',
+    )
+    await user.click(screen.getByRole('button', { name: 'Apply Action Notation' }))
+
+    // The action grid reflects the imported assignment.
+    expect(screen.getByText('AA').getAttribute('data-action')).toBe('raise')
+    expect(screen.getByText('KK').getAttribute('data-action')).toBe('raise')
+
+    // Saving persists the imported chart.
+    await user.click(screen.getByRole('button', { name: 'Save actions' }))
+    expect(loadSavedRanges()[0].handActions).toEqual({ AA: 'raise', KK: 'raise' })
+  })
 })
 
 describe('Range shortcuts', () => {

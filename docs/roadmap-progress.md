@@ -102,6 +102,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 65 | Action-grouped notation export (format domain) | v2.3 — Multi-action ranges | 2026-06-06 |
 | 66 | Action-grouped notation import (parse domain) | v2.3 — Multi-action ranges | 2026-06-06 |
 | 67 | ActionNotation component (export display + import box) | v2.3 — Multi-action ranges | 2026-06-06 |
+| 68 | Wire action notation into the action editor (v2.3 complete) | v2.3 — Multi-action ranges | 2026-06-06 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -350,9 +351,24 @@ CSS): a read-only "Current actions" field from `formatActionNotation`, plus an i
 "Apply Action Notation" that runs `parseActionNotation` and reports the parsed map (or shows the
 error in a `role="alert"`). Standalone-tested; not yet wired into App.
 
-v2.3 status: only the App wiring of `ActionNotation` remains. Once slice 68 wires it into the
-action editor, **v2.3 — and all of v2.x — is COMPLETE**, and the next queued slice (69) is the
-first v3 item, where finish-v2 stops.
+Slice 68 wired `ActionNotation` into App's action editor (below `MultiActionEditor`, fed by
+`handActionsDraft` / `setHandActionsDraft`), so a user can paste action-grouped notation to build
+a chart and read the current chart back out; "Save actions" persists an imported chart.
+
+**v2.3 — Multi-action ranges is COMPLETE**: action vocabulary + helpers, the action palette,
+multi-color grid, multi-action editor (wired + persisted), mode-2 "what's the correct action?"
+practice (picker-wired), action-specific accuracy (summarizer + storage + recording + performance
+table), and import/export notation with action groups (domain + UI + wiring).
+
+**With v2.3 done, ALL of v2.x is COMPLETE** — v2 (improved practice modes), v2.1 (mistake
+tracking and review), v2.2 (spaced repetition), and v2.3 (multi-action ranges). The next roadmap
+target is **v3 — Accounts, cloud sync, and backend**, which is OUT OF SCOPE for finish-v2 and,
+per `CLAUDE.md`, requires an explicit user request. The loop STOPS here; slice 69 is queued for
+the user to decide on separately.
+
+FINISH-V2 RUN COMPLETE: this run built slices 59–68 (10 slices), each validated
+(lint + test:run + build all green), committed, and pushed. The scope boundary (v3) is reached —
+the intended success exit.
 
 NOTE ON CADENCE: the user re-invoked finish-v2 (the go-ahead after the slice-58 pause), so a
 fresh run resumed at slice 59. Slice counting restarts for THIS run; the next safety pause is
@@ -366,48 +382,41 @@ crosses into v3, whichever comes first.
 
 ## Next slice
 
-- **Number:** 68
-- **Roadmap target:** v2.3 — Multi-action ranges
-- **Working title:** Wire ActionNotation into the action editor (final v2.3 slice)
+- **Number:** 69
+- **Roadmap target:** v3 — Accounts, cloud sync, and backend
+- **Working title:** Export all saved data to a backup file (first v3 slice — OUT OF finish-v2 scope)
+
+> ⚠️ **finish-v2 STOPS here.** This slice targets **v3**, which is outside the finish-v2 skill's
+> scope and, per `CLAUDE.md`, needs an explicit user request (no backend / accounts / cloud sync
+> without one). Run it only via `roadmap-slice` after the user confirms they want to begin v3.
 
 ### Prompt
 
-You are implementing roadmap slice 68 — the FINAL slice of **v2.3 — Multi-action ranges** (and of
-v2.x). The standalone `ActionNotation` exists (slice 67). This slice wires it into App's action
-editor so the user can import/export action charts. After this, v2.3 is complete.
+NOTE: This slice targets **v3 — Accounts, cloud sync, and backend**, which is OUT OF SCOPE for
+the `finish-v2` skill and requires explicit user authorization. finish-v2 has stopped at this
+boundary; do not auto-run this. The following is a suggested low-risk first step into v3.
 
-Scope of THIS slice: App action-editor wiring + a test. No component/domain changes.
+v3's smallest, safest, local-first starting point is the roadmap's "Import/export backup file":
+export the entire local library to a single downloadable JSON file. This needs NO backend and
+keeps the app local-only, so it is a low-risk first v3 step. (True accounts / cloud sync / server
+persistence are larger, separate slices needing infrastructure decisions — raise those with the
+user before starting.)
 
-Context (read these before starting):
-- `src/App.tsx` — the `actionEditRange` branch renders `<MultiActionEditor
-  handActions={handActionsDraft} onSetHandAction={setDraftHandAction} />`. `handActionsDraft` is
-  the in-progress chart; `setHandActionsDraft` replaces it; `handleSaveActions` persists it.
-  Render `<ActionNotation handActions={handActionsDraft} onReplaceActions={setHandActionsDraft} />`
-  below the editor in that section. Import `ActionNotation`.
-- `src/components/ActionNotation.tsx` — `ActionNotation({ handActions, onReplaceActions })`.
-- `src/App.test.tsx` — the "Multi-action editor" describe block is the model.
+Suggested scope for THIS slice (export only; import is a follow-up):
+- Add `src/storage/backup.ts`: a pure `buildBackup()` that gathers every persisted slice (reuse
+  the existing `loadSavedRanges` / `loadPracticeStats` / `loadHandAccuracy` / `loadActionAccuracy`
+  / `loadSessionHistory` / `loadReviewStates` fns) into one versioned object
+  `{ version: 1, exportedAt, ranges, practiceStats, handAccuracy, actionAccuracy, sessionHistory,
+  reviewStates }`, plus `serializeBackup(backup): string` (pretty JSON). Unit-test the shape.
+- A small "Export backup" button in `App` that builds the JSON and triggers a download (Blob +
+  object URL). Keep import (file read + validate + merge/replace) as the next slice.
 
-Task:
-- Import and render `ActionNotation` in the action-editor section, fed by `handActionsDraft` /
-  `setHandActionsDraft`.
-
-Tests to add (`src/App.test.tsx`):
-- in the action editor, typing "Raise: AA, KK" into the action-notation input and applying it
-  paints AA and KK as raise on the action grid (`data-action="raise"`), and "Save actions" then
-  persists `handActions` `{ AA: 'raise', KK: 'raise' }` (via `loadSavedRanges()`). Keep existing
-  tests green.
-
-Validation (all must pass before committing):
-- `npm run lint`
-- `npm run test:run`
-- `npm run build`
+Validation (when authorized): `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- App wiring + test only; reuse the slice 67 component.
-- No backend, accounts, solver imports, postflop, mixed frequencies, or AI.
+- Stay local-only for this slice (no network, no accounts). Confirm with the user before any
+  backend / accounts / cloud work.
 - Keep the change small and reversible.
-- SCOPE BOUNDARY: after this slice, v2.x is complete. The NEXT queued slice (69) is the first
-  v3 item (accounts/backend/cloud sync), which finish-v2 must NOT implement — queue it and stop.
 
 Suggested commit message:
-- `feat: wire action notation into the action editor`
+- `feat: export all saved data to a backup file`
