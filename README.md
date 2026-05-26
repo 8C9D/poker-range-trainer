@@ -1,73 +1,98 @@
-# React + TypeScript + Vite
+# Poker Range Trainer
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A client-only web app for creating, saving, editing, and practicing Texas
+Hold'em preflop ranges on a standard 13×13 starting-hand grid. It runs entirely
+in the browser and persists to `localStorage` — there is no backend, account, or
+network dependency.
 
-Currently, two official plugins are available:
+Built with React, TypeScript, and Vite. Poker-domain logic is kept separate from
+the UI (see [Project structure](#project-structure)).
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Features
 
-## React Compiler
+The app is implemented through roadmap version **v2.3**. At a glance:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Range editor (v1–v1.3)** — 13×13 grid with click-to-toggle and drag-to-paint
+  selection, range shortcut buttons, live combo count and percentage, range
+  notation import/export (e.g. `22+, A2s+, ATo+`), and optional scenario
+  metadata (game type, table size, stack depth, position, action type, notes).
+- **Range library (v1.4)** — saved ranges as cards with search, filtering
+  (position / action / stack depth / game type), sorting, favorite, archive, and
+  duplicate.
+- **Practice modes (v2, v2.3)** — recognize-hands (in/out) with a missing-hands
+  review, build-from-memory, timed drill, weakness-focused drill, and a
+  "pick the correct action" quiz for ranges that have an action chart.
+- **Mistake tracking (v2.1)** — per-hand accuracy, an accuracy heatmap, a
+  weakest-hands performance view, "practice mistakes only", and session history.
+- **Spaced repetition (v2.2)** — a "due for review" queue and a review streak,
+  with each session advancing the range's review schedule by accuracy.
+- **Multi-action ranges (v2.3)** — assign an action (fold/call/raise/3-bet/
+  4-bet/jam/mixed) per hand on a multi-color grid, see per-action percentages,
+  and import/export action-grouped notation.
 
-## Expanding the ESLint configuration
+For a complete, current feature-by-feature description — including what each
+practice mode records — see the
+[manual testing guide](docs/manual-testing-guide.md).
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+Not yet implemented (on the roadmap): accounts, cloud sync, and a backend (v3);
+mobile/PWA support (v3.1); file/link/pack-based sharing (v3.2); postflop and
+combo-level features (v4+). See [`docs/roadmap.md`](docs/roadmap.md).
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Getting started
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+Requires Node.js and npm.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install      # first time only
+npm run dev      # start the Vite dev server (default http://localhost:5173)
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Scripts
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+| Command | What it does |
+|---------|--------------|
+| `npm run dev` | Start the Vite dev server with hot reload. |
+| `npm run build` | Type-check (`tsc -b`) and build the production bundle. |
+| `npm run preview` | Serve the production build locally. |
+| `npm run lint` | Run ESLint over the project. |
+| `npm run test` | Run Vitest in watch mode. |
+| `npm run test:run` | Run the Vitest suite once (CI-style). |
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+After code changes, the project convention is to run `npm run lint`,
+`npm run test:run`, and `npm run build` and fix any failures before committing.
+
+## Project structure
+
+```text
+src/
+  App.tsx        Top-level app: wires the editor, library, practice, and views together.
+  components/    React UI (hand grid, range library, practice modes, editors, notation, performance views).
+  domain/        Pure poker logic (hand generation, range math, notation, practice scoring, spaced repetition, ...).
+  storage/       localStorage persistence (ranges, practice stats, hand/action accuracy, session history, review state).
+  types/         Shared TypeScript types (range.ts, practice.ts).
+  test/          Vitest setup.
+docs/            Roadmap, manual testing guide, acceptance reviews, and the docs-sync report.
 ```
+
+Tests live beside the code they cover (e.g. `domain/practice.ts` /
+`domain/practice.test.ts`).
+
+## Data & persistence
+
+All data is stored in the browser's `localStorage` under keys prefixed with
+`poker-range-trainer.` (saved ranges, practice stats, per-hand and per-action
+accuracy, session history, and review state). Clearing site data or switching
+browsers/devices loses everything — there is no sync or backup yet. The keys and
+how to reset them are documented in the
+[manual testing guide](docs/manual-testing-guide.md#2-managing-test-state-important).
+
+## Testing
+
+Core domain and storage logic is covered by Vitest, with component tests via
+Testing Library. Run the suite with `npm run test:run`.
+
+## Documentation
+
+- [`docs/roadmap.md`](docs/roadmap.md) — product vision and the full version roadmap.
+- [`docs/manual-testing-guide.md`](docs/manual-testing-guide.md) — current feature list and a manual test checklist.
+- [`CLAUDE.md`](CLAUDE.md) — workflow rules and technical conventions for contributors (and AI agents).
