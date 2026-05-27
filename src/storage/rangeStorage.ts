@@ -10,7 +10,7 @@ import {
   type RangeMetadata,
   type SavedRange,
 } from '../types/range'
-import { readJson } from './storageHelpers'
+import { asMember, readJson } from './storageHelpers'
 
 /**
  * Local persistence for saved preflop ranges, backed by `localStorage`.
@@ -22,13 +22,6 @@ import { readJson } from './storageHelpers'
 
 /** Versioned key so a future schema change can migrate instead of clobbering. */
 export const STORAGE_KEY = 'poker-range-trainer.saved-ranges.v1'
-
-/** Return `value` when it is one of `allowed`, else `undefined`. */
-function asMember<T extends string>(allowed: readonly T[], value: unknown): T | undefined {
-  return typeof value === 'string' && (allowed as readonly string[]).includes(value)
-    ? (value as T)
-    : undefined
-}
 
 /**
  * Validate and normalize optional scenario metadata.

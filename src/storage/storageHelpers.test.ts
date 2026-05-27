@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { isNonNegativeFinite, readJson } from './storageHelpers'
+import { asMember, isNonNegativeFinite, readJson } from './storageHelpers'
 
 describe('isNonNegativeFinite', () => {
   it('accepts zero and positive finite numbers', () => {
@@ -24,6 +24,24 @@ describe('isNonNegativeFinite', () => {
     expect(isNonNegativeFinite(null)).toBe(false)
     expect(isNonNegativeFinite(undefined)).toBe(false)
     expect(isNonNegativeFinite({})).toBe(false)
+  })
+})
+
+describe('asMember', () => {
+  const COLORS = ['red', 'green', 'blue'] as const
+
+  it('returns the value when it is a member', () => {
+    expect(asMember(COLORS, 'green')).toBe('green')
+  })
+
+  it('returns undefined for a non-member string', () => {
+    expect(asMember(COLORS, 'purple')).toBeUndefined()
+  })
+
+  it('returns undefined for non-string values', () => {
+    expect(asMember(COLORS, 1)).toBeUndefined()
+    expect(asMember(COLORS, null)).toBeUndefined()
+    expect(asMember(COLORS, undefined)).toBeUndefined()
   })
 })
 

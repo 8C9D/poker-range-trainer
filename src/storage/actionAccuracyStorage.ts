@@ -1,6 +1,6 @@
 import type { ActionAccuracyStat, RangeActionAccuracy } from '../domain/actionRange'
 import { RANGE_ACTIONS, type RangeAction } from '../types/range'
-import { isNonNegativeFinite, readJson } from './storageHelpers'
+import { asMember, isNonNegativeFinite, readJson } from './storageHelpers'
 
 /**
  * Local persistence for cumulative per-action accuracy stats, per range, backed
@@ -18,7 +18,7 @@ export const ACTION_ACCURACY_STORAGE_KEY = 'poker-range-trainer.action-accuracy.
 
 /** True when `value` is one of the known range actions. */
 function isRangeAction(value: unknown): value is RangeAction {
-  return typeof value === 'string' && (RANGE_ACTIONS as readonly string[]).includes(value)
+  return asMember(RANGE_ACTIONS, value) !== undefined
 }
 
 /** Validate a parsed value as `ActionAccuracyStat`, returning `null` if malformed. */

@@ -9,6 +9,13 @@ export function isNonNegativeFinite(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0
 }
 
+/** Return `value` when it is one of `allowed`, else `undefined`. */
+export function asMember<T extends string>(allowed: readonly T[], value: unknown): T | undefined {
+  return typeof value === 'string' && (allowed as readonly string[]).includes(value)
+    ? (value as T)
+    : undefined
+}
+
 /**
  * Read and JSON-parse the value stored at `key`.
  *

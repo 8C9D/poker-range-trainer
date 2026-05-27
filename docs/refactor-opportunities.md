@@ -168,4 +168,5 @@ From `package.json`:
 |---|---------|---------------|------------|--------|------|-------|
 | 0 | Report | docs/refactor-opportunities.md | n/a | 7493977 | ok | This report |
 | A | Extract `isNonNegativeFinite` | new storageHelpers.ts + .test.ts; 5 storage modules | lint + 675 tests + build all pass | 2a888f0 | ok | Removed 5 verbatim copies; behavior-identical |
-| B | Extract `readJson` IO helper | storageHelpers.ts + .test.ts; 6 storage loaders | lint + 679 tests + build all pass | this commit | ok | Dropped duplicated getItem+try/catch from 6 loaders; shape guards already absorb the `undefined` from miss/corrupt |
+| B | Extract `readJson` IO helper | storageHelpers.ts + .test.ts; 6 storage loaders | lint + 679 tests + build all pass | 679c50c | ok | Dropped duplicated getItem+try/catch from 6 loaders; shape guards already absorb the `undefined` from miss/corrupt |
+| D | Share `asMember` guard | storageHelpers.ts + .test.ts; rangeStorage.ts, actionAccuracyStorage.ts | lint + 682 tests + build all pass | this commit | ok | `isRangeAction` now reuses `asMember`; one membership-check primitive |
