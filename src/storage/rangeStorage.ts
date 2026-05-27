@@ -10,6 +10,7 @@ import {
   type RangeMetadata,
   type SavedRange,
 } from '../types/range'
+import { readJson } from './storageHelpers'
 
 /**
  * Local persistence for saved preflop ranges, backed by `localStorage`.
@@ -143,15 +144,7 @@ function writeSavedRanges(ranges: SavedRange[]): void {
  * bad record never discards the rest.
  */
 export function loadSavedRanges(): SavedRange[] {
-  const raw = localStorage.getItem(STORAGE_KEY)
-  if (raw === null) return []
-
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(raw)
-  } catch {
-    return []
-  }
+  const parsed = readJson(STORAGE_KEY)
   if (!Array.isArray(parsed)) return []
 
   const ranges: SavedRange[] = []

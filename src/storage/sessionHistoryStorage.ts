@@ -1,5 +1,5 @@
 import type { PracticeSessionRecord, PracticeSessionSummary } from '../types/practice'
-import { isNonNegativeFinite } from './storageHelpers'
+import { isNonNegativeFinite, readJson } from './storageHelpers'
 
 /**
  * Local persistence for the practice session history — an append-only log of
@@ -43,15 +43,7 @@ function writeSessionHistory(history: Record<string, PracticeSessionRecord[]>): 
  * record never discards the rest and the structure is always self-consistent.
  */
 export function loadSessionHistory(): Record<string, PracticeSessionRecord[]> {
-  const raw = localStorage.getItem(SESSION_HISTORY_STORAGE_KEY)
-  if (raw === null) return {}
-
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(raw)
-  } catch {
-    return {}
-  }
+  const parsed = readJson(SESSION_HISTORY_STORAGE_KEY)
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {}
 
   const history: Record<string, PracticeSessionRecord[]> = {}

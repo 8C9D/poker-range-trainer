@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { isNonNegativeFinite } from './storageHelpers'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { isNonNegativeFinite, readJson } from './storageHelpers'
 
 describe('isNonNegativeFinite', () => {
   it('accepts zero and positive finite numbers', () => {
@@ -24,5 +24,33 @@ describe('isNonNegativeFinite', () => {
     expect(isNonNegativeFinite(null)).toBe(false)
     expect(isNonNegativeFinite(undefined)).toBe(false)
     expect(isNonNegativeFinite({})).toBe(false)
+  })
+})
+
+describe('readJson', () => {
+  const KEY = 'storage-helpers.test-key'
+
+  beforeEach(() => localStorage.clear())
+  afterEach(() => localStorage.clear())
+
+  it('returns undefined when the key is absent', () => {
+    expect(readJson(KEY)).toBeUndefined()
+  })
+
+  it('returns undefined when the stored text is not valid JSON', () => {
+    localStorage.setItem(KEY, '{ not json')
+    expect(readJson(KEY)).toBeUndefined()
+  })
+
+  it('returns the parsed value for valid JSON', () => {
+    localStorage.setItem(KEY, JSON.stringify({ a: 1, b: [2, 3] }))
+    expect(readJson(KEY)).toEqual({ a: 1, b: [2, 3] })
+  })
+
+  it('round-trips primitive and array JSON', () => {
+    localStorage.setItem(KEY, JSON.stringify([1, 2, 3]))
+    expect(readJson(KEY)).toEqual([1, 2, 3])
+    localStorage.setItem(KEY, JSON.stringify('hi'))
+    expect(readJson(KEY)).toBe('hi')
   })
 })

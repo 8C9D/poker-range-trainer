@@ -1,5 +1,5 @@
 import type { HandAccuracyStat, RangeHandAccuracy } from '../types/practice'
-import { isNonNegativeFinite } from './storageHelpers'
+import { isNonNegativeFinite, readJson } from './storageHelpers'
 
 /**
  * Local persistence for cumulative per-hand accuracy stats, per range, backed by
@@ -60,15 +60,7 @@ function writeHandAccuracy(stats: Record<string, RangeHandAccuracy>): void {
  * discards the rest; each inner map is re-keyed by each stat's own `hand`.
  */
 export function loadHandAccuracy(): Record<string, RangeHandAccuracy> {
-  const raw = localStorage.getItem(HAND_ACCURACY_STORAGE_KEY)
-  if (raw === null) return {}
-
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(raw)
-  } catch {
-    return {}
-  }
+  const parsed = readJson(HAND_ACCURACY_STORAGE_KEY)
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {}
 
   const stats: Record<string, RangeHandAccuracy> = {}

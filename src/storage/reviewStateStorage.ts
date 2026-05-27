@@ -1,5 +1,5 @@
 import type { RangeReviewState } from '../types/practice'
-import { isNonNegativeFinite } from './storageHelpers'
+import { isNonNegativeFinite, readJson } from './storageHelpers'
 
 /**
  * Local persistence for per-range spaced-repetition review state, backed by
@@ -41,15 +41,7 @@ function writeReviewStates(states: Record<string, RangeReviewState>): void {
  * `rangeId` so the map is always self-consistent.
  */
 export function loadReviewStates(): Record<string, RangeReviewState> {
-  const raw = localStorage.getItem(REVIEW_STATE_STORAGE_KEY)
-  if (raw === null) return {}
-
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(raw)
-  } catch {
-    return {}
-  }
+  const parsed = readJson(REVIEW_STATE_STORAGE_KEY)
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {}
 
   const states: Record<string, RangeReviewState> = {}

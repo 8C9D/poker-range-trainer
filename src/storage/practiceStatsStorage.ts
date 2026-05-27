@@ -1,5 +1,5 @@
 import type { PracticeSessionSummary, RangePracticeStats } from '../types/practice'
-import { isNonNegativeFinite } from './storageHelpers'
+import { isNonNegativeFinite, readJson } from './storageHelpers'
 
 /**
  * Local persistence for cumulative per-range practice stats, backed by
@@ -42,15 +42,7 @@ function writePracticeStats(stats: Record<string, RangePracticeStats>): void {
  * re-keyed by each entry's own `rangeId` so it is always self-consistent.
  */
 export function loadPracticeStats(): Record<string, RangePracticeStats> {
-  const raw = localStorage.getItem(PRACTICE_STATS_STORAGE_KEY)
-  if (raw === null) return {}
-
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(raw)
-  } catch {
-    return {}
-  }
+  const parsed = readJson(PRACTICE_STATS_STORAGE_KEY)
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {}
 
   const stats: Record<string, RangePracticeStats> = {}

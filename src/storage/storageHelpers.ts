@@ -8,3 +8,20 @@
 export function isNonNegativeFinite(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0
 }
+
+/**
+ * Read and JSON-parse the value stored at `key`.
+ *
+ * Returns `undefined` when the key is absent or the stored text is not valid
+ * JSON, collapsing the "missing" and "corrupt" cases so callers only have to
+ * validate the shape of the parsed value (not re-handle IO and parse errors).
+ */
+export function readJson(key: string): unknown {
+  const raw = localStorage.getItem(key)
+  if (raw === null) return undefined
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return undefined
+  }
+}
