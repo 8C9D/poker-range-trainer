@@ -1,4 +1,5 @@
 import type { RangeReviewState } from '../types/practice'
+import { isNonNegativeFinite } from './storageHelpers'
 
 /**
  * Local persistence for per-range spaced-repetition review state, backed by
@@ -11,11 +12,6 @@ import type { RangeReviewState } from '../types/practice'
 
 /** Versioned key so a future schema change can migrate instead of clobbering. */
 export const REVIEW_STATE_STORAGE_KEY = 'poker-range-trainer.review-state.v1'
-
-/** True when `value` is a finite number that is zero or positive. */
-function isNonNegativeFinite(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value) && value >= 0
-}
 
 /** Validate a parsed value as `RangeReviewState`, returning `null` if malformed. */
 function parseRangeReviewState(value: unknown): RangeReviewState | null {

@@ -1,4 +1,5 @@
 import type { PracticeSessionSummary, RangePracticeStats } from '../types/practice'
+import { isNonNegativeFinite } from './storageHelpers'
 
 /**
  * Local persistence for cumulative per-range practice stats, backed by
@@ -12,11 +13,6 @@ import type { PracticeSessionSummary, RangePracticeStats } from '../types/practi
 
 /** Versioned key so a future schema change can migrate instead of clobbering. */
 export const PRACTICE_STATS_STORAGE_KEY = 'poker-range-trainer.practice-stats.v1'
-
-/** True when `value` is a finite number that is zero or positive. */
-function isNonNegativeFinite(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value) && value >= 0
-}
 
 /** Validate a parsed value as `RangePracticeStats`, returning `null` if malformed. */
 function parseRangePracticeStats(value: unknown): RangePracticeStats | null {

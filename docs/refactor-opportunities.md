@@ -166,4 +166,5 @@ From `package.json`:
 
 | # | Cleanup | Files changed | Validation | Commit | Push | Notes |
 |---|---------|---------------|------------|--------|------|-------|
-| 0 | Report | docs/refactor-opportunities.md | n/a | _pending_ | _pending_ | This report |
+| 0 | Report | docs/refactor-opportunities.md | n/a | 7493977 | ok | This report |
+| A | Extract `isNonNegativeFinite` | new storageHelpers.ts + .test.ts; 5 storage modules | lint + 675 tests + build all pass | this commit | ok | Removed 5 verbatim copies; behavior-identical |

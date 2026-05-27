@@ -1,5 +1,6 @@
 import type { ActionAccuracyStat, RangeActionAccuracy } from '../domain/actionRange'
 import { RANGE_ACTIONS, type RangeAction } from '../types/range'
+import { isNonNegativeFinite } from './storageHelpers'
 
 /**
  * Local persistence for cumulative per-action accuracy stats, per range, backed
@@ -18,11 +19,6 @@ export const ACTION_ACCURACY_STORAGE_KEY = 'poker-range-trainer.action-accuracy.
 /** True when `value` is one of the known range actions. */
 function isRangeAction(value: unknown): value is RangeAction {
   return typeof value === 'string' && (RANGE_ACTIONS as readonly string[]).includes(value)
-}
-
-/** True when `value` is a finite number that is zero or positive. */
-function isNonNegativeFinite(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value) && value >= 0
 }
 
 /** Validate a parsed value as `ActionAccuracyStat`, returning `null` if malformed. */

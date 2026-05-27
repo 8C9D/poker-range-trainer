@@ -1,4 +1,5 @@
 import type { PracticeSessionRecord, PracticeSessionSummary } from '../types/practice'
+import { isNonNegativeFinite } from './storageHelpers'
 
 /**
  * Local persistence for the practice session history — an append-only log of
@@ -13,11 +14,6 @@ import type { PracticeSessionRecord, PracticeSessionSummary } from '../types/pra
 
 /** Versioned key so a future schema change can migrate instead of clobbering. */
 export const SESSION_HISTORY_STORAGE_KEY = 'poker-range-trainer.session-history.v1'
-
-/** True when `value` is a finite number that is zero or positive. */
-function isNonNegativeFinite(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value) && value >= 0
-}
 
 /** Validate a parsed value as `PracticeSessionRecord`, returning `null` if malformed. */
 function parsePracticeSessionRecord(value: unknown): PracticeSessionRecord | null {
