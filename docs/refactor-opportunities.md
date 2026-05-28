@@ -141,6 +141,11 @@ is exactly the low-risk, high-confidence cleanup this pass targets.
 - `ActionQuiz.tsx:86` could call `Math.round(accuracyPercentage(...))`, but that
   pulls a domain helper into a component for a single site; skipped to keep the
   primitive's first use inside the domain layer.
+- A **generic keyed-map parser** could unify `parseRangeHandAccuracy` /
+  `parseRangeActionAccuracy` (and the outer load loops), but folding them needs a
+  parse callback + key selector — an abstraction whose indirection trades against
+  the current self-documenting clarity. Only two instances exist; left for human
+  judgment rather than done autonomously.
 
 ## 7. Suggested Refactor Sequence
 
@@ -170,4 +175,9 @@ From `package.json`:
 | A | Extract `isNonNegativeFinite` | new storageHelpers.ts + .test.ts; 5 storage modules | lint + 675 tests + build all pass | 2a888f0 | ok | Removed 5 verbatim copies; behavior-identical |
 | B | Extract `readJson` IO helper | storageHelpers.ts + .test.ts; 6 storage loaders | lint + 679 tests + build all pass | 679c50c | ok | Dropped duplicated getItem+try/catch from 6 loaders; shape guards already absorb the `undefined` from miss/corrupt |
 | D | Share `asMember` guard | storageHelpers.ts + .test.ts; rangeStorage.ts, actionAccuracyStorage.ts | lint + 682 tests + build all pass | c67bffe | ok | `isRangeAction` now reuses `asMember`; one membership-check primitive |
-| C | Extract `accuracyPercentage` | new accuracy.ts + .test.ts; practice.ts, practiceStats.ts, actionRange.ts | lint + 684 tests + build all pass | this commit | ok | Folds 4 inline guarded ratios into one tested primitive; two-arg form keeps it shape-decoupled |
+| C | Extract `accuracyPercentage` | new accuracy.ts + .test.ts; practice.ts, practiceStats.ts, actionRange.ts | lint + 684 tests + build all pass | 3c9adaa | ok | Folds 4 inline guarded ratios into one tested primitive; two-arg form keeps it shape-decoupled |
+
+**Result:** all four planned cleanups (A, B, D, C) implemented, validated, and
+pushed. Test count grew 671 → 684 (the new helpers gained direct unit tests). No
+behavior changes. Stopped after the safe, mechanical opportunities were
+exhausted; see §6 for what was deliberately left.
