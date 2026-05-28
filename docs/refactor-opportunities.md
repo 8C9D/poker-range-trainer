@@ -169,4 +169,5 @@ From `package.json`:
 | 0 | Report | docs/refactor-opportunities.md | n/a | 7493977 | ok | This report |
 | A | Extract `isNonNegativeFinite` | new storageHelpers.ts + .test.ts; 5 storage modules | lint + 675 tests + build all pass | 2a888f0 | ok | Removed 5 verbatim copies; behavior-identical |
 | B | Extract `readJson` IO helper | storageHelpers.ts + .test.ts; 6 storage loaders | lint + 679 tests + build all pass | 679c50c | ok | Dropped duplicated getItem+try/catch from 6 loaders; shape guards already absorb the `undefined` from miss/corrupt |
-| D | Share `asMember` guard | storageHelpers.ts + .test.ts; rangeStorage.ts, actionAccuracyStorage.ts | lint + 682 tests + build all pass | this commit | ok | `isRangeAction` now reuses `asMember`; one membership-check primitive |
+| D | Share `asMember` guard | storageHelpers.ts + .test.ts; rangeStorage.ts, actionAccuracyStorage.ts | lint + 682 tests + build all pass | c67bffe | ok | `isRangeAction` now reuses `asMember`; one membership-check primitive |
+| C | Extract `accuracyPercentage` | new accuracy.ts + .test.ts; practice.ts, practiceStats.ts, actionRange.ts | lint + 684 tests + build all pass | this commit | ok | Folds 4 inline guarded ratios into one tested primitive; two-arg form keeps it shape-decoupled |

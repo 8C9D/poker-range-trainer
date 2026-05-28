@@ -1,4 +1,5 @@
 import type { RangePracticeStats } from '../types/practice'
+import { accuracyPercentage } from './accuracy'
 
 /**
  * Derive cumulative practice accuracy for one range as a percentage.
@@ -10,7 +11,5 @@ import type { RangePracticeStats } from '../types/practice'
  * keeps the helper total for any `RangePracticeStats`.
  */
 export function practiceAccuracyPercentage(stats: RangePracticeStats): number {
-  return stats.totalAttempts === 0
-    ? 0
-    : (stats.correctAttempts / stats.totalAttempts) * 100
+  return accuracyPercentage(stats.correctAttempts, stats.totalAttempts)
 }

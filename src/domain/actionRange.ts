@@ -1,3 +1,4 @@
+import { accuracyPercentage } from './accuracy'
 import { ALL_HANDS, type PokerHand } from './pokerHands'
 import { calculateRangePercentage } from './rangeMath'
 import { formatRangeNotation, parseRangeNotation } from './rangeNotation'
@@ -98,7 +99,7 @@ export function summarizeActionAccuracy(attempts: ActionAttempt[]): ActionAccura
  * when there are no attempts (never NaN). Mirrors `handAccuracyRate`.
  */
 export function actionAccuracyRate(stat: ActionAccuracyStat): number {
-  return stat.attempts === 0 ? 0 : (stat.correct / stat.attempts) * 100
+  return accuracyPercentage(stat.correct, stat.attempts)
 }
 
 /**

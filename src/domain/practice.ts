@@ -1,3 +1,4 @@
+import { accuracyPercentage } from './accuracy'
 import { ALL_HANDS, isValidHand, type PokerHand } from './pokerHands'
 import { normalizeRangeHands } from './rangeMath'
 import type {
@@ -68,9 +69,11 @@ export function summarizePracticeAttempts(
 ): PracticeSessionSummary {
   const totalQuestions = attempts.length
   const correctAnswers = attempts.filter((attempt) => attempt.correct).length
-  const accuracyPercentage =
-    totalQuestions === 0 ? 0 : (correctAnswers / totalQuestions) * 100
-  return { totalQuestions, correctAnswers, accuracyPercentage }
+  return {
+    totalQuestions,
+    correctAnswers,
+    accuracyPercentage: accuracyPercentage(correctAnswers, totalQuestions),
+  }
 }
 
 /**
@@ -135,7 +138,7 @@ export function summarizeHandAccuracy(attempts: PracticeAttempt[]): HandAccuracy
  * `summarizePracticeAttempts`.
  */
 export function handAccuracyRate(stat: HandAccuracyStat): number {
-  return stat.attempts === 0 ? 0 : (stat.correct / stat.attempts) * 100
+  return accuracyPercentage(stat.correct, stat.attempts)
 }
 
 /**
