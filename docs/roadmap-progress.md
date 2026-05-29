@@ -103,6 +103,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 66 | Action-grouped notation import (parse domain) | v2.3 — Multi-action ranges | 2026-06-06 |
 | 67 | ActionNotation component (export display + import box) | v2.3 — Multi-action ranges | 2026-06-06 |
 | 68 | Wire action notation into the action editor (v2.3 complete) | v2.3 — Multi-action ranges | 2026-06-06 |
+| 69 | Export all saved data to a backup file (first v3 slice) | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -380,43 +381,47 @@ slice 38). The loop resumed at slice 39 and continues through v2.2 → v2.3; the
 pause is after ~20 slices in this continuation (≈ slice 58) or when the queued slice
 crosses into v3, whichever comes first.
 
+**v3 — Accounts, cloud sync, and backend** is now underway (the user invoked `finish-roadmap`,
+which is the explicit authorization `CLAUDE.md` requires for v3+ work). It starts local-first:
+true accounts / backend / cloud sync are larger slices that need infrastructure decisions and
+will pause for the user when reached.
+
+Slice 69 added the export side of the backup feature: `src/storage/backup.ts` with `buildBackup
+(exportedAt?)` — gathering every persisted slice (`loadSavedRanges`, `loadPracticeStats`,
+`loadHandAccuracy`, `loadActionAccuracy`, `loadSessionHistory`, `loadReviewStates`) into one
+versioned `Backup` object (`version: 1`, `exportedAt`, plus the six data maps) — and
+`serializeBackup(backup)` (pretty JSON). An "Export backup" button in `App`'s editor controls
+builds the JSON and triggers a Blob/object-URL download named by date. Local-only, no network.
+Import is the next slice.
+
 ## Next slice
 
-- **Number:** 69
+- **Number:** 70
 - **Roadmap target:** v3 — Accounts, cloud sync, and backend
-- **Working title:** Export all saved data to a backup file (first v3 slice — OUT OF finish-v2 scope)
-
-> ⚠️ **finish-v2 STOPS here.** This slice targets **v3**, which is outside the finish-v2 skill's
-> scope and, per `CLAUDE.md`, needs an explicit user request (no backend / accounts / cloud sync
-> without one). Run it only via `roadmap-slice` after the user confirms they want to begin v3.
+- **Working title:** Import a backup file (read + validate + restore the local library)
 
 ### Prompt
 
-NOTE: This slice targets **v3 — Accounts, cloud sync, and backend**, which is OUT OF SCOPE for
-the `finish-v2` skill and requires explicit user authorization. finish-v2 has stopped at this
-boundary; do not auto-run this. The following is a suggested low-risk first step into v3.
+Build the import counterpart to slice 69's export. Add a pure parser/validator in
+`src/storage/backup.ts`: `parseBackup(json: string): Backup` (or a `Result`-style return) that
+JSON-parses the input and validates it is a well-formed `Backup` (correct `version`, an object
+with the six expected maps + `ranges` array), throwing or returning an error on malformed input.
+Then `restoreBackup(backup: Backup): void` that writes each slice back into localStorage under
+the existing storage keys (reuse/extend the existing storage writers; this is a REPLACE of local
+data — be explicit about that). Unit-test: round-trip `restoreBackup(parseBackup(serializeBackup
+(buildBackup())))`, plus rejection of malformed/og wrong-version input.
 
-v3's smallest, safest, local-first starting point is the roadmap's "Import/export backup file":
-export the entire local library to a single downloadable JSON file. This needs NO backend and
-keeps the app local-only, so it is a low-risk first v3 step. (True accounts / cloud sync / server
-persistence are larger, separate slices needing infrastructure decisions — raise those with the
-user before starting.)
+UI: an "Import backup" control in `App` (file `<input type="file">` reading the file via
+`FileReader` / `file.text()`), parse + restore, then refresh the in-memory state
+(`setSavedRanges(loadSavedRanges())` etc.). Since import REPLACES local data, gate it behind a
+confirm() so the user can't wipe their library by accident.
 
-Suggested scope for THIS slice (export only; import is a follow-up):
-- Add `src/storage/backup.ts`: a pure `buildBackup()` that gathers every persisted slice (reuse
-  the existing `loadSavedRanges` / `loadPracticeStats` / `loadHandAccuracy` / `loadActionAccuracy`
-  / `loadSessionHistory` / `loadReviewStates` fns) into one versioned object
-  `{ version: 1, exportedAt, ranges, practiceStats, handAccuracy, actionAccuracy, sessionHistory,
-  reviewStates }`, plus `serializeBackup(backup): string` (pretty JSON). Unit-test the shape.
-- A small "Export backup" button in `App` that builds the JSON and triggers a download (Blob +
-  object URL). Keep import (file read + validate + merge/replace) as the next slice.
-
-Validation (when authorized): `npm run lint`, `npm run test:run`, `npm run build`.
+Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Stay local-only for this slice (no network, no accounts). Confirm with the user before any
-  backend / accounts / cloud work.
+- Stay local-only (no network, no accounts). The roadmap's true accounts / backend / cloud sync
+  are larger slices needing infrastructure decisions — PAUSE and ask the user before those.
 - Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: export all saved data to a backup file`
+- `feat: import a backup file to restore the local library`

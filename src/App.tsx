@@ -33,6 +33,7 @@ import { loadPracticeStats, recordPracticeSession } from './storage/practiceStat
 import { loadReviewStates, saveReviewState } from './storage/reviewStateStorage'
 import { loadSessionHistory, recordPracticeSessionHistory } from './storage/sessionHistoryStorage'
 import { deleteSavedRange, loadSavedRanges, saveSavedRange } from './storage/rangeStorage'
+import { buildBackup, serializeBackup } from './storage/backup'
 import type { ActionAttempt, PracticeAttempt } from './types/practice'
 import type {
   ActionType,
@@ -405,6 +406,19 @@ function App() {
     setActionEditRange(null)
   }
 
+  function handleExportBackup() {
+    const json = serializeBackup(buildBackup())
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `poker-range-trainer-backup-${new Date().toISOString().slice(0, 10)}.json`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
   let headerSubtitle: string
   if (practicingRange) {
     if (practiceMode === 'recognize') {
@@ -616,6 +630,9 @@ function App() {
           <div className="editor-controls">
             <button type="button" onClick={handleViewDueToday}>
               Review due ranges
+            </button>
+            <button type="button" onClick={handleExportBackup}>
+              Export backup
             </button>
           </div>
 
