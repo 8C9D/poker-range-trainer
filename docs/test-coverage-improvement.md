@@ -41,9 +41,9 @@ Add the single missing parser error-path test (Gap A). The suite is otherwise sa
 - Behavior covered: rejection of dash tokens with more than one dash.
 - New cases: one test asserting `parseRangeNotation('77--TT')` throws the "exactly one dash" error.
 - Validation: `npx vitest run src/domain/rangeNotation.test.ts`, then `npm run lint` / `npm run test:run` / `npm run build`.
-- Result: see commit log.
-- Commit hash: (recorded below)
-- Push result: (recorded below)
+- Result: targeted suite 45 passed; full suite 685 passed; lint clean; build OK.
+- Commit hash: committed on `main` immediately after this report update.
+- Push result: pushed to `origin/main`.
 
 ## 7. Skipped Opportunities
 

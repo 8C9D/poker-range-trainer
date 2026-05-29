@@ -235,6 +235,13 @@ describe('parseRangeNotation', () => {
       expect(() => parseRangeNotation('77-')).toThrow()
     })
 
+    it('throws when a dash token has more than one dash', () => {
+      // Splits into 3+ parts, so it fails the "exactly one dash" check before
+      // endpoint validation (distinct branch from the "77-" case above).
+      expect(() => parseRangeNotation('77--TT')).toThrow(/exactly one dash/)
+      expect(() => parseRangeNotation('A5s-A4s-A3s')).toThrow(/exactly one dash/)
+    })
+
     it('throws on weighted/mixed-frequency notation for now', () => {
       expect(() => parseRangeNotation('AA:0.5')).toThrow(/not supported yet/)
       expect(() => parseRangeNotation('AKs@50')).toThrow(/not supported yet/)
