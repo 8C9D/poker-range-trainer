@@ -33,7 +33,7 @@ import { loadPracticeStats, recordPracticeSession } from './storage/practiceStat
 import { loadReviewStates, saveReviewState } from './storage/reviewStateStorage'
 import { loadSessionHistory, recordPracticeSessionHistory } from './storage/sessionHistoryStorage'
 import { deleteSavedRange, loadSavedRanges, saveSavedRange } from './storage/rangeStorage'
-import { buildBackup, serializeBackup } from './storage/backup'
+import { buildBackup, parseBackup, restoreBackup, serializeBackup } from './storage/backup'
 import type { ActionAttempt, PracticeAttempt } from './types/practice'
 import type {
   ActionType,
@@ -419,6 +419,34 @@ function App() {
     URL.revokeObjectURL(url)
   }
 
+  async function handleImportBackup(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    // Reset the input so re-selecting the same file fires change again.
+    event.target.value = ''
+    if (!file) return
+    if (
+      !window.confirm(
+        'Importing a backup REPLACES all your current local data. Continue?',
+      )
+    ) {
+      return
+    }
+    try {
+      restoreBackup(parseBackup(await file.text()))
+    } catch (error) {
+      window.alert(
+        error instanceof Error ? error.message : 'Could not import backup file.',
+      )
+      return
+    }
+    // Refresh all in-memory state from the freshly restored storage.
+    setSavedRanges(loadSavedRanges())
+    setPracticeStats(loadPracticeStats())
+    setHandAccuracy(loadHandAccuracy())
+    setActionAccuracy(loadActionAccuracy())
+    setSessionHistory(loadSessionHistory())
+  }
+
   let headerSubtitle: string
   if (practicingRange) {
     if (practiceMode === 'recognize') {
@@ -634,6 +662,14 @@ function App() {
             <button type="button" onClick={handleExportBackup}>
               Export backup
             </button>
+            <label className="import-backup">
+              Import backup
+              <input
+                type="file"
+                accept="application/json,.json"
+                onChange={handleImportBackup}
+              />
+            </label>
           </div>
 
           <RangeLibrary

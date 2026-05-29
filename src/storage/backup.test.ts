@@ -1,9 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import type { SavedRange } from '../types/range'
 import { saveSavedRange } from './rangeStorage'
+import { loadSavedRanges } from './rangeStorage'
 import {
   BACKUP_VERSION,
   buildBackup,
+  parseBackup,
+  restoreBackup,
   serializeBackup,
 } from './backup'
 
@@ -58,5 +61,56 @@ describe('serializeBackup', () => {
     const json = serializeBackup(backup)
     expect(json).toContain('\n  ')
     expect(JSON.parse(json)).toEqual(backup)
+  })
+})
+
+describe('parseBackup', () => {
+  it('round-trips a serialized backup', () => {
+    const backup = buildBackup('2026-06-08T00:00:00.000Z')
+    expect(parseBackup(serializeBackup(backup))).toEqual(backup)
+  })
+
+  it('rejects invalid JSON', () => {
+    expect(() => parseBackup('{not json')).toThrow(/valid JSON/)
+  })
+
+  it('rejects a non-object payload', () => {
+    expect(() => parseBackup('[]')).toThrow(/backup object/)
+  })
+
+  it('rejects an unsupported version', () => {
+    expect(() => parseBackup(JSON.stringify({ version: 999 }))).toThrow(/version/)
+  })
+
+  it('rejects a payload missing its ranges list', () => {
+    expect(() => parseBackup(JSON.stringify({ version: BACKUP_VERSION }))).toThrow(/ranges/)
+  })
+
+  it('rejects a payload missing a data map', () => {
+    const incomplete = {
+      version: BACKUP_VERSION,
+      ranges: [],
+      practiceStats: {},
+      handAccuracy: {},
+      actionAccuracy: {},
+      sessionHistory: {},
+      // reviewStates missing
+    }
+    expect(() => parseBackup(JSON.stringify(incomplete))).toThrow(/reviewStates/)
+  })
+})
+
+describe('restoreBackup', () => {
+  it('replaces local data so a built backup round-trips through storage', () => {
+    saveSavedRange(makeRange({ id: 'original' }))
+    const snapshot = buildBackup('2026-06-08T00:00:00.000Z')
+
+    saveSavedRange(makeRange({ id: 'added-later', name: 'Later' }))
+    expect(loadSavedRanges()).toHaveLength(2)
+
+    restoreBackup(parseBackup(serializeBackup(snapshot)))
+    const restored = loadSavedRanges()
+    expect(restored).toHaveLength(1)
+    expect(restored[0].id).toBe('original')
   })
 })

@@ -104,6 +104,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 67 | ActionNotation component (export display + import box) | v2.3 — Multi-action ranges | 2026-06-06 |
 | 68 | Wire action notation into the action editor (v2.3 complete) | v2.3 — Multi-action ranges | 2026-06-06 |
 | 69 | Export all saved data to a backup file (first v3 slice) | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
+| 70 | Import a backup file (validate + restore the local library) | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -394,34 +395,49 @@ versioned `Backup` object (`version: 1`, `exportedAt`, plus the six data maps) �
 builds the JSON and triggers a Blob/object-URL download named by date. Local-only, no network.
 Import is the next slice.
 
+Slice 70 added the import counterpart in `src/storage/backup.ts`: `parseBackup(json)` (JSON-parses
+and validates the payload — object shape, supported `version`, the `ranges` array and the five
+data maps — throwing a clear `Error` otherwise) and `restoreBackup(backup)` (writes each slice
+back under its existing storage key, REPLACING all local data). An "Import backup" file-input in
+`App` reads the file via `file.text()`, runs parse + restore behind a `confirm()` (since import
+wipes local data), reports parse errors via `alert()`, then refreshes the in-memory state. Round-
+trip and malformed-input rejection are unit-tested. **The local-first backup import/export feature
+is COMPLETE** — the safe, no-backend portion of v3.
+
+> ⚠️ **finish-roadmap design-decision PAUSE.** With backup import/export done, the remaining v3
+> work — user accounts, authentication, cloud-saved ranges, cross-device sync, server-side
+> persistence, and the backend API suite (range/session/stats/review APIs, auth middleware, rate
+> limiting, DB migrations, backend tests) — all require non-obvious architectural and product
+> decisions the roadmap does not pin down. Per the `finish-roadmap` design-decision gate, the loop
+> STOPS here to ask the user before building any backend. Slice 71 below is the queued entry point
+> once those decisions are made.
+
 ## Next slice
 
-- **Number:** 70
+- **Number:** 71
 - **Roadmap target:** v3 — Accounts, cloud sync, and backend
-- **Working title:** Import a backup file (read + validate + restore the local library)
+- **Working title:** Backend foundation — accounts, auth, and server persistence (NEEDS DESIGN DECISION)
 
 ### Prompt
 
-Build the import counterpart to slice 69's export. Add a pure parser/validator in
-`src/storage/backup.ts`: `parseBackup(json: string): Backup` (or a `Result`-style return) that
-JSON-parses the input and validates it is a well-formed `Backup` (correct `version`, an object
-with the six expected maps + `ranges` array), throwing or returning an error on malformed input.
-Then `restoreBackup(backup: Backup): void` that writes each slice back into localStorage under
-the existing storage keys (reuse/extend the existing storage writers; this is a REPLACE of local
-data — be explicit about that). Unit-test: round-trip `restoreBackup(parseBackup(serializeBackup
-(buildBackup())))`, plus rejection of malformed/og wrong-version input.
+This slice begins the **server-side** portion of v3 (accounts, authentication, cloud-saved ranges,
+cross-device sync, server persistence). Unlike the local-only backup slices, this CANNOT proceed
+without several architectural/product decisions that the roadmap deliberately leaves open. Per the
+`finish-roadmap` design-decision gate, STOP and confirm these with the user before writing code:
 
-UI: an "Import backup" control in `App` (file `<input type="file">` reading the file via
-`FileReader` / `file.text()`), parse + restore, then refresh the in-memory state
-(`setSavedRanges(loadSavedRanges())` etc.). Since import REPLACES local data, gate it behind a
-confirm() so the user can't wipe their library by accident.
+- **Backend stack / hosting:** which server runtime + host (e.g. Node/Express, a serverless
+  platform, a BaaS like Supabase/Firebase)?
+- **Auth provider:** roll-your-own email/password, magic links, OAuth, or a managed auth service?
+- **Database / schema:** which DB (Postgres, SQLite, a hosted document store), and the schema +
+  migration approach for ranges, sessions, stats, review state?
+- **Sync & conflict policy:** how do local-only data and cloud data reconcile (last-write-wins,
+  merge, explicit push/pull)? The roadmap requires anonymous/local mode to keep working.
+- **Repo shape:** where does backend code live (separate package/folder), keeping the existing
+  local-only path fully functional?
 
-Validation: `npm run lint`, `npm run test:run`, `npm run build`.
+Once those are decided, slice this into many small commits (schema + one API endpoint at a time,
+auth middleware, then client sync), keeping the local-only path working throughout. Until the user
+answers, DO NOT start: there is no safe default to guess here.
 
-Constraints:
-- Stay local-only (no network, no accounts). The roadmap's true accounts / backend / cloud sync
-  are larger slices needing infrastructure decisions — PAUSE and ask the user before those.
-- Keep the change small and reversible.
-
-Suggested commit message:
-- `feat: import a backup file to restore the local library`
+Validation (each backend slice): `npm run lint`, `npm run test:run`, `npm run build`, plus backend
+tests once a backend exists.

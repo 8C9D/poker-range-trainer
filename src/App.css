@@ -41,6 +41,26 @@
   gap: 8px;
 }
 
+.import-backup {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  font-size: 15px;
+  color: var(--text-h);
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.import-backup:hover {
+  border-color: var(--accent-border);
+}
+
+.import-backup input {
+  display: none;
+}
+
 .range-name-input {
   flex: 1 1 200px;
   min-width: 0;
