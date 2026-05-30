@@ -105,6 +105,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 68 | Wire action notation into the action editor (v2.3 complete) | v2.3 — Multi-action ranges | 2026-06-06 |
 | 69 | Export all saved data to a backup file (first v3 slice) | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 | 70 | Import a backup file (validate + restore the local library) | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
+| 71 | Cloud config foundation (env-gated Supabase config) | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -404,40 +405,42 @@ wipes local data), reports parse errors via `alert()`, then refreshes the in-mem
 trip and malformed-input rejection are unit-tested. **The local-first backup import/export feature
 is COMPLETE** — the safe, no-backend portion of v3.
 
-> ⚠️ **finish-roadmap design-decision PAUSE.** With backup import/export done, the remaining v3
-> work — user accounts, authentication, cloud-saved ranges, cross-device sync, server-side
-> persistence, and the backend API suite (range/session/stats/review APIs, auth middleware, rate
-> limiting, DB migrations, backend tests) — all require non-obvious architectural and product
-> decisions the roadmap does not pin down. Per the `finish-roadmap` design-decision gate, the loop
-> STOPS here to ask the user before building any backend. Slice 71 below is the queued entry point
-> once those decisions are made.
+**v3 backend decisions made (2026-06-08):** the user chose **Supabase** (managed Postgres + auth +
+RLS) for the backend, **Supabase managed auth** (email/password + OAuth), and **explicit push/pull**
+sync (no silent overwrites; anonymous/local mode must keep working). Build small Supabase slices,
+each gated behind env-config presence so the local-only path stays fully functional and validatable
+without a live project.
+
+Slice 71 added the cloud config foundation: `src/cloud/cloudConfig.ts` with `getCloudConfig(env?)`
+(returns `{ url, anonKey }` from `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`, trimmed, or `null`
+when either is missing/blank) and `isCloudConfigured(env?)`. The env source is injectable for pure
+unit tests; `import.meta.env` is the default. Added `src/vite-env.d.ts` typing the two vars. No
+network, no dependency yet — the app stays 100% local when unconfigured.
 
 ## Next slice
 
-- **Number:** 71
+- **Number:** 72
 - **Roadmap target:** v3 — Accounts, cloud sync, and backend
-- **Working title:** Backend foundation — accounts, auth, and server persistence (NEEDS DESIGN DECISION)
+- **Working title:** Supabase client singleton (lazy, env-gated)
 
 ### Prompt
 
-This slice begins the **server-side** portion of v3 (accounts, authentication, cloud-saved ranges,
-cross-device sync, server persistence). Unlike the local-only backup slices, this CANNOT proceed
-without several architectural/product decisions that the roadmap deliberately leaves open. Per the
-`finish-roadmap` design-decision gate, STOP and confirm these with the user before writing code:
+Add the actual Supabase client, still env-gated so the local-only path is unaffected. Install
+`@supabase/supabase-js` (a new dependency — run `npm install` may need network; if the sandbox
+blocks it, retry outside the sandbox). Add `src/cloud/supabaseClient.ts`: `getSupabaseClient()` that
+lazily creates and memoizes a single `SupabaseClient` from `getCloudConfig()` (slice 71), returning
+`null` when cloud is not configured. Keep it side-effect-free at import time (create on first call).
+Unit-test the null-when-unconfigured path by injecting an unconfigured env; mock `createClient` (or
+inject it) so the test does not make network calls or require live credentials.
 
-- **Backend stack / hosting:** which server runtime + host (e.g. Node/Express, a serverless
-  platform, a BaaS like Supabase/Firebase)?
-- **Auth provider:** roll-your-own email/password, magic links, OAuth, or a managed auth service?
-- **Database / schema:** which DB (Postgres, SQLite, a hosted document store), and the schema +
-  migration approach for ranges, sessions, stats, review state?
-- **Sync & conflict policy:** how do local-only data and cloud data reconcile (last-write-wins,
-  merge, explicit push/pull)? The roadmap requires anonymous/local mode to keep working.
-- **Repo shape:** where does backend code live (separate package/folder), keeping the existing
-  local-only path fully functional?
+Do NOT wire any UI or auth flow yet — that is a later slice. This slice only establishes a single,
+safe client accessor.
 
-Once those are decided, slice this into many small commits (schema + one API endpoint at a time,
-auth middleware, then client sync), keeping the local-only path working throughout. Until the user
-answers, DO NOT start: there is no safe default to guess here.
+Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
-Validation (each backend slice): `npm run lint`, `npm run test:run`, `npm run build`, plus backend
-tests once a backend exists.
+Constraints:
+- Keep cloud strictly optional: with no env vars, nothing changes for local users.
+- No real network calls in tests. Keep the change small and reversible.
+
+Suggested commit message:
+- `feat: add lazy env-gated Supabase client accessor`
