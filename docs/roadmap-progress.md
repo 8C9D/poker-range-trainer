@@ -107,6 +107,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 70 | Import a backup file (validate + restore the local library) | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 | 71 | Cloud config foundation (env-gated Supabase config) | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 | 72 | Lazy env-gated Supabase client accessor | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
+| 73 | Supabase auth wrapper module (sign up/in/out/session) | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -425,30 +426,36 @@ unconfigured. Created on first call (no import-time side effects). `deps` inject
 `@supabase/supabase-js` is now a dependency, but it is not imported by the app entry yet, so the
 bundle is unchanged and local users are unaffected. `resetSupabaseClient()` supports tests.
 
+Slice 73 added `src/cloud/auth.ts`: a thin wrapper over Supabase managed auth — `signUp`,
+`signIn`, `signOut`, `getCurrentSession`, `onAuthChange` — over `getSupabaseClient()` (injectable).
+When cloud is unconfigured (client null) the operations fail gracefully: mutating ops throw
+`CloudNotConfiguredError`, `getCurrentSession` returns null, `onAuthChange` is a no-op returning a
+no-op unsubscribe. Fully unit-tested with a fake Supabase auth object (no network/creds). No UI yet.
+
 ## Next slice
 
-- **Number:** 73
+- **Number:** 74
 - **Roadmap target:** v3 — Accounts, cloud sync, and backend
-- **Working title:** Cloud auth module (sign up / sign in / sign out / session)
+- **Working title:** Auth session React hook (`useAuthSession`)
 
 ### Prompt
 
-Wrap Supabase managed auth in a thin, testable module `src/cloud/auth.ts` (no UI yet). Expose
-async functions over `getSupabaseClient()`: `signUp(email, password)`, `signIn(email, password)`,
-`signOut()`, `getCurrentSession()`, and `onAuthChange(callback)` (subscribe to auth-state changes,
-returning an unsubscribe fn). Each returns a typed result/throws a clear error; when cloud is
-unconfigured (`getSupabaseClient()` is null) they should fail gracefully (e.g. throw a
-"cloud not configured" error or return null) rather than crash. Inject the client (via a deps param
-defaulting to `getSupabaseClient()`) so tests can pass a fake Supabase auth object and assert the
-calls — no network, no live creds.
+Add a small React hook `src/cloud/useAuthSession.ts` that exposes the current auth session to
+components, built on slice 73's `auth.ts`. On mount it calls `getCurrentSession()` to seed state
+and subscribes via `onAuthChange` (unsubscribing on unmount). It returns `{ session, user, loading,
+isCloudConfigured }` (derive `user` from `session?.user ?? null`; reuse `isCloudConfigured` from
+cloudConfig). When cloud is unconfigured the hook resolves immediately to a signed-out, not-loading
+state so local users see no change. Test it with React Testing Library's `renderHook`, injecting/
+mocking `auth.ts` so there is no network — assert the unconfigured path and that an auth-change
+callback updates the returned session.
 
-Do NOT add UI in this slice; the sign-in form + session display is the next slice.
+Do NOT render a sign-in form yet (next slice); this slice only exposes session state to React.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Keep cloud strictly optional; unconfigured = local-only behavior unchanged.
-- No real network calls in tests. Keep the change small and reversible.
+- Cloud strictly optional; unconfigured = unchanged local behavior.
+- No real network in tests. Small and reversible.
 
 Suggested commit message:
-- `feat: add Supabase auth wrapper module`
+- `feat: add useAuthSession hook exposing cloud auth state`
