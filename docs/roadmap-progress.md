@@ -106,6 +106,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 69 | Export all saved data to a backup file (first v3 slice) | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 | 70 | Import a backup file (validate + restore the local library) | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 | 71 | Cloud config foundation (env-gated Supabase config) | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
+| 72 | Lazy env-gated Supabase client accessor | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -417,30 +418,37 @@ when either is missing/blank) and `isCloudConfigured(env?)`. The env source is i
 unit tests; `import.meta.env` is the default. Added `src/vite-env.d.ts` typing the two vars. No
 network, no dependency yet — the app stays 100% local when unconfigured.
 
+Slice 72 added `src/cloud/supabaseClient.ts`: `getSupabaseClient(deps?)` lazily creates and
+memoizes a single `SupabaseClient` from `getCloudConfig()`, returning `null` when cloud is
+unconfigured. Created on first call (no import-time side effects). `deps` injects `config` and
+`create` so tests cover the null path and creation/memoization without network or live creds.
+`@supabase/supabase-js` is now a dependency, but it is not imported by the app entry yet, so the
+bundle is unchanged and local users are unaffected. `resetSupabaseClient()` supports tests.
+
 ## Next slice
 
-- **Number:** 72
+- **Number:** 73
 - **Roadmap target:** v3 — Accounts, cloud sync, and backend
-- **Working title:** Supabase client singleton (lazy, env-gated)
+- **Working title:** Cloud auth module (sign up / sign in / sign out / session)
 
 ### Prompt
 
-Add the actual Supabase client, still env-gated so the local-only path is unaffected. Install
-`@supabase/supabase-js` (a new dependency — run `npm install` may need network; if the sandbox
-blocks it, retry outside the sandbox). Add `src/cloud/supabaseClient.ts`: `getSupabaseClient()` that
-lazily creates and memoizes a single `SupabaseClient` from `getCloudConfig()` (slice 71), returning
-`null` when cloud is not configured. Keep it side-effect-free at import time (create on first call).
-Unit-test the null-when-unconfigured path by injecting an unconfigured env; mock `createClient` (or
-inject it) so the test does not make network calls or require live credentials.
+Wrap Supabase managed auth in a thin, testable module `src/cloud/auth.ts` (no UI yet). Expose
+async functions over `getSupabaseClient()`: `signUp(email, password)`, `signIn(email, password)`,
+`signOut()`, `getCurrentSession()`, and `onAuthChange(callback)` (subscribe to auth-state changes,
+returning an unsubscribe fn). Each returns a typed result/throws a clear error; when cloud is
+unconfigured (`getSupabaseClient()` is null) they should fail gracefully (e.g. throw a
+"cloud not configured" error or return null) rather than crash. Inject the client (via a deps param
+defaulting to `getSupabaseClient()`) so tests can pass a fake Supabase auth object and assert the
+calls — no network, no live creds.
 
-Do NOT wire any UI or auth flow yet — that is a later slice. This slice only establishes a single,
-safe client accessor.
+Do NOT add UI in this slice; the sign-in form + session display is the next slice.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Keep cloud strictly optional: with no env vars, nothing changes for local users.
+- Keep cloud strictly optional; unconfigured = local-only behavior unchanged.
 - No real network calls in tests. Keep the change small and reversible.
 
 Suggested commit message:
-- `feat: add lazy env-gated Supabase client accessor`
+- `feat: add Supabase auth wrapper module`
