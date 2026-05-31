@@ -1,0 +1,46 @@
+.auth-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.auth-panel h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.auth-panel-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.auth-panel-field input {
+  padding: 8px 10px;
+  font: inherit;
+  color: var(--text-h);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.auth-panel-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.auth-panel-note,
+.auth-panel-user {
+  margin: 0;
+  font-size: 14px;
+}
+
+.auth-panel-error {
+  margin: 0;
+  font-size: 14px;
+  color: var(--error, #d33);
+}

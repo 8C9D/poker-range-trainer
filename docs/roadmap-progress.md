@@ -109,6 +109,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 72 | Lazy env-gated Supabase client accessor | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 | 73 | Supabase auth wrapper module (sign up/in/out/session) | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 | 74 | useAuthSession hook (exposes cloud auth state to React) | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
+| 75 | AuthPanel sign-in/sign-up/sign-out component | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -439,31 +440,37 @@ via `onAuthChange`, unsubscribing on unmount; when unconfigured it stays signed-
 local users are unaffected. Deps are injectable; tested with `renderHook` (no network) for the
 unconfigured path, seeding, auth-change updates, and unmount unsubscribe.
 
+Slice 75 added the standalone `src/components/AuthPanel.tsx` (+ CSS): cloud-account UI built on
+`auth.ts`. Unconfigured → a short "local-only mode" note (no form). Configured + signed out → email/
+password fields with Sign in / Sign up (errors in a `role="alert"`, buttons disabled while busy).
+Signed in → the user's email + Sign out. Session comes from a prop (parent owns it); the component
+owns only local busy/error state. Auth fns are injectable; tested across all three states + error.
+Not wired into App yet.
+
 ## Next slice
 
-- **Number:** 75
+- **Number:** 76
 - **Roadmap target:** v3 — Accounts, cloud sync, and backend
-- **Working title:** Sign-in / sign-up form component (`AuthPanel`)
+- **Working title:** Wire AuthPanel + useAuthSession into App
 
 ### Prompt
 
-Add a standalone `src/components/AuthPanel.tsx` (+ `AuthPanel.css`) that renders the auth UI using
-slice 73's `auth.ts`. It shows nothing meaningful when cloud is unconfigured (render `null` or a
-short "cloud sync not configured" note) so local-only users are unaffected. When configured and
-signed out, it shows email + password fields with a "Sign in" and a "Sign up" button (calling
-`signIn` / `signUp`), surfacing errors in a `role="alert"`. When signed in, it shows the user's
-email and a "Sign out" button (`signOut`). Drive signed-in/out state from a `session` prop (parent
-owns it via `useAuthSession`); the component itself just calls the auth fns and reports loading/
-error locally. Make the auth fns injectable (default to the real ones) so tests assert calls with
-no network. Fully test the three states (unconfigured, signed-out form, signed-in) + an error path.
+Wire the cloud account UI into `App`. Call `useAuthSession()` in `App` and render `<AuthPanel
+isCloudConfigured={...} session={...} />` in the app header/controls area (a discreet spot — it
+shows only a one-line note for local-only users, so it must not disrupt the existing layout).
+Keep everything else unchanged: no sync yet, local data still flows through localStorage. The point
+of this slice is only that a configured user can sign in/up/out from the running app; cloud data
+read/write is a later slice.
 
-Do NOT wire it into `App` yet — that is the next slice.
+Since `App` is heavily tested, ensure existing tests still pass (the AuthPanel renders its
+local-only note by default because tests run with no Supabase env vars → `isCloudConfigured` is
+false). If any App test asserts on exact header contents, update it minimally.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Cloud strictly optional; unconfigured = unchanged local behavior.
+- Cloud strictly optional; with no env vars the app behaves exactly as before (plus a one-line note).
 - No real network in tests. Small and reversible.
 
 Suggested commit message:
-- `feat: add AuthPanel sign-in/sign-up component`
+- `feat: wire cloud account sign-in into the app`
