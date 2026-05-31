@@ -111,6 +111,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 74 | useAuthSession hook (exposes cloud auth state to React) | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 | 75 | AuthPanel sign-in/sign-up/sign-out component | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 | 76 | Wire cloud account sign-in into the app | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
+| 77 | Cloud ranges repository + schema (push/pull) | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -455,38 +456,44 @@ the hook — a later optimization slice could lazy-load it, but functionality is
 behavior is unchanged. A configured user can now sign in/up/out from the running app; cloud data
 read/write is next.
 
+Slice 77 began explicit push/pull sync for saved ranges. `supabase/migrations/0001_ranges.sql`
+documents the `ranges` table (`id text pk`, `user_id uuid → auth.users`, `data jsonb`, `updated_at`)
+with RLS policies restricting each user to their own rows (not run by app/tests). `src/cloud/
+rangesRepo.ts` adds `pushRanges(ranges, deps?)` (upserts `{id,user_id,data,updated_at}` rows) and
+`pullRanges(deps?)` (selects the user's rows, returns each `data` as a `SavedRange`). Client +
+`resolveUserId` are injectable; unconfigured → `CloudNotConfiguredError`, signed-out →
+`NotSignedInError`. Fully unit-tested with a fake query builder (no network). Not wired into App.
+
 ## Next slice
 
-- **Number:** 77
+- **Number:** 78
 - **Roadmap target:** v3 — Accounts, cloud sync, and backend
-- **Working title:** Cloud ranges repository + schema (push/pull, explicit sync)
+- **Working title:** Wire push/pull ranges sync into App (explicit buttons)
 
 ### Prompt
 
-Begin the explicit push/pull sync chosen for v3. This slice covers ONLY saved ranges (other slices
-cover stats/history/review later). Two parts:
+Wire slice 77's `pushRanges` / `pullRanges` into `App` as explicit buttons in the cloud account
+area — shown ONLY when the user is signed in (`auth.session` truthy). "Push to cloud" calls
+`pushRanges(savedRanges)`. "Pull from cloud" calls `pullRanges()`, then REPLACES the local ranges:
+persist each returned range (reuse `saveSavedRange`, or clear + save) and refresh `savedRanges`
+state via `loadSavedRanges()`. Since pull replaces local ranges, gate it behind a `confirm()`
+(consistent with backup import). Surface success/error feedback (a small status line / `alert`).
+Keep these controls out of the way for local-only and signed-out users (render nothing for them).
 
-1. **Schema (migration).** Add `supabase/migrations/0001_ranges.sql` creating a `ranges` table:
-   `id uuid/text primary key`, `user_id uuid references auth.users not null`, `data jsonb not null`
-   (the full `SavedRange`), `updated_at timestamptz`. Enable row-level security with policies so a
-   user can only read/write their own rows (`auth.uid() = user_id`). This file is documentation of
-   the schema for whoever provisions Supabase; it is not executed by the app or tests.
+Consider placing the buttons inside `AuthPanel` (passed as optional props/children) OR as a small
+sibling block in `App`'s controls — pick whichever keeps concerns clean; if added to `AuthPanel`,
+keep its sync props optional so its existing tests are unaffected.
 
-2. **Client repo.** Add `src/cloud/rangesRepo.ts`: `pushRanges(ranges: SavedRange[], deps?)` that
-   upserts each range as a row (`{ id, user_id, data, updated_at }`) for the current user, and
-   `pullRanges(deps?): Promise<SavedRange[]>` that selects the user's rows and returns their `data`.
-   Inject the Supabase client + current user id (default to `getSupabaseClient()` / current session)
-   so tests use a fake query builder — assert the upsert/select calls and the SavedRange mapping
-   with NO network. When cloud is unconfigured or signed out, both should throw a clear error.
-
-Do NOT wire any sync button into App yet (next slice). Keep local-only path untouched.
+Note `App` tests run signed-out (no env), so these buttons won't render there — but add/adjust a
+focused test if practical (e.g. extract a tiny pure helper for the pull-replace, or test AuthPanel
+with sync props). Don't force a brittle full-App signed-in test if it requires heavy mocking.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Cloud strictly optional; unconfigured/signed-out = unchanged local behavior.
-- Explicit push/pull only — no automatic background sync, no merge logic this slice.
+- Cloud strictly optional; signed-out/local = unchanged behavior.
+- Explicit push/pull only; pull replaces local data behind a confirm. No background sync.
 - No real network in tests. Small and reversible.
 
 Suggested commit message:
-- `feat: add cloud ranges repository with push/pull and schema`
+- `feat: wire explicit push/pull range sync into the app`
