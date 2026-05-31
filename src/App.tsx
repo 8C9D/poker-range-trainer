@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ActionNotation } from './components/ActionNotation'
+import { AuthPanel } from './components/AuthPanel'
 import { ActionQuiz } from './components/ActionQuiz'
 import { BuildFromMemoryPractice } from './components/BuildFromMemoryPractice'
 import { DueToday } from './components/DueToday'
@@ -34,6 +35,7 @@ import { loadReviewStates, saveReviewState } from './storage/reviewStateStorage'
 import { loadSessionHistory, recordPracticeSessionHistory } from './storage/sessionHistoryStorage'
 import { deleteSavedRange, loadSavedRanges, saveSavedRange } from './storage/rangeStorage'
 import { buildBackup, parseBackup, restoreBackup, serializeBackup } from './storage/backup'
+import { useAuthSession } from './cloud/useAuthSession'
 import type { ActionAttempt, PracticeAttempt } from './types/practice'
 import type {
   ActionType,
@@ -55,6 +57,7 @@ function createRangeId(): string {
 }
 
 function App() {
+  const auth = useAuthSession()
   const [selected, setSelected] = useState<Set<PokerHand>>(new Set())
   const [name, setName] = useState('')
   // null = composing a new range; otherwise the id of the saved range being edited.
@@ -479,6 +482,10 @@ function App() {
       <header className="app-header">
         <h1>Poker Range Trainer</h1>
         <p>{headerSubtitle}</p>
+        <AuthPanel
+          isCloudConfigured={auth.isCloudConfigured}
+          session={auth.session}
+        />
       </header>
 
       {practicingRange ? (

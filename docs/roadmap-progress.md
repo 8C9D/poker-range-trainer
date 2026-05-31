@@ -110,6 +110,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 73 | Supabase auth wrapper module (sign up/in/out/session) | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 | 74 | useAuthSession hook (exposes cloud auth state to React) | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 | 75 | AuthPanel sign-in/sign-up/sign-out component | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
+| 76 | Wire cloud account sign-in into the app | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -447,30 +448,45 @@ Signed in → the user's email + Sign out. Session comes from a prop (parent own
 owns only local busy/error state. Auth fns are injectable; tested across all three states + error.
 Not wired into App yet.
 
+Slice 76 wired the cloud account UI into `App`: `useAuthSession()` drives `<AuthPanel>` in the app
+header. With no Supabase env vars the panel shows only the one-line local-only note, so existing App
+tests pass unchanged. The bundle grew (~452 kB) since `@supabase/supabase-js` is now imported via
+the hook — a later optimization slice could lazy-load it, but functionality is correct and local
+behavior is unchanged. A configured user can now sign in/up/out from the running app; cloud data
+read/write is next.
+
 ## Next slice
 
-- **Number:** 76
+- **Number:** 77
 - **Roadmap target:** v3 — Accounts, cloud sync, and backend
-- **Working title:** Wire AuthPanel + useAuthSession into App
+- **Working title:** Cloud ranges repository + schema (push/pull, explicit sync)
 
 ### Prompt
 
-Wire the cloud account UI into `App`. Call `useAuthSession()` in `App` and render `<AuthPanel
-isCloudConfigured={...} session={...} />` in the app header/controls area (a discreet spot — it
-shows only a one-line note for local-only users, so it must not disrupt the existing layout).
-Keep everything else unchanged: no sync yet, local data still flows through localStorage. The point
-of this slice is only that a configured user can sign in/up/out from the running app; cloud data
-read/write is a later slice.
+Begin the explicit push/pull sync chosen for v3. This slice covers ONLY saved ranges (other slices
+cover stats/history/review later). Two parts:
 
-Since `App` is heavily tested, ensure existing tests still pass (the AuthPanel renders its
-local-only note by default because tests run with no Supabase env vars → `isCloudConfigured` is
-false). If any App test asserts on exact header contents, update it minimally.
+1. **Schema (migration).** Add `supabase/migrations/0001_ranges.sql` creating a `ranges` table:
+   `id uuid/text primary key`, `user_id uuid references auth.users not null`, `data jsonb not null`
+   (the full `SavedRange`), `updated_at timestamptz`. Enable row-level security with policies so a
+   user can only read/write their own rows (`auth.uid() = user_id`). This file is documentation of
+   the schema for whoever provisions Supabase; it is not executed by the app or tests.
+
+2. **Client repo.** Add `src/cloud/rangesRepo.ts`: `pushRanges(ranges: SavedRange[], deps?)` that
+   upserts each range as a row (`{ id, user_id, data, updated_at }`) for the current user, and
+   `pullRanges(deps?): Promise<SavedRange[]>` that selects the user's rows and returns their `data`.
+   Inject the Supabase client + current user id (default to `getSupabaseClient()` / current session)
+   so tests use a fake query builder — assert the upsert/select calls and the SavedRange mapping
+   with NO network. When cloud is unconfigured or signed out, both should throw a clear error.
+
+Do NOT wire any sync button into App yet (next slice). Keep local-only path untouched.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Cloud strictly optional; with no env vars the app behaves exactly as before (plus a one-line note).
+- Cloud strictly optional; unconfigured/signed-out = unchanged local behavior.
+- Explicit push/pull only — no automatic background sync, no merge logic this slice.
 - No real network in tests. Small and reversible.
 
 Suggested commit message:
-- `feat: wire cloud account sign-in into the app`
+- `feat: add cloud ranges repository with push/pull and schema`
