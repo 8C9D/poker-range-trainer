@@ -134,3 +134,28 @@
   font-size: 14px;
   color: var(--text);
 }
+
+/* Mobile-first pass (v3.1): comfortable layout and tap targets on phones. */
+@media (max-width: 480px) {
+  .app {
+    padding: 16px 12px 40px;
+  }
+
+  .app-header h1 {
+    font-size: 26px;
+  }
+
+  /* Larger, full-width-friendly tap targets for the main control buttons. */
+  .range-editor button,
+  .import-backup,
+  .cloud-sync button {
+    min-height: 44px;
+  }
+
+  /* Let control rows wrap instead of overflowing on narrow screens. */
+  .editor-controls,
+  .auth-panel-actions,
+  .cloud-sync {
+    flex-wrap: wrap;
+  }
+}

@@ -115,6 +115,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 78 | Wire explicit push/pull range sync into the app | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 | 79 | Full-library cloud sync via the backup shape | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 | 80 | Delete cloud data control | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
+| 81 | Responsive layout pass for small screens | v3.1 — Mobile-first and PWA support | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -502,33 +503,36 @@ backup import/export, and SQL schema/RLS migrations. Anonymous local mode keeps 
 backend tests) is handled by Supabase's managed platform + RLS rather than a hand-written server,
 which is the deliberate consequence of the Supabase decision.
 
+Slice 81 began **v3.1** with a CSS-only responsive pass. The 13×13 grid was already fluid (1fr
+columns + `aspect-ratio`, clamped font), so the work was a `@media (max-width: 480px)` block in
+`App.css`: tighter app padding, smaller `h1`, ≥44px tap targets for the main control buttons
+(`.range-editor button`, `.import-backup`, `.cloud-sync button`), and wrapping for the editor/auth/
+cloud-sync control rows. No DOM/logic changes, so all tests pass; desktop layout intact.
+
 ## Next slice
 
-- **Number:** 81
+- **Number:** 82
 - **Roadmap target:** v3.1 — Mobile-first and PWA support
-- **Working title:** Responsive layout pass for small screens (first v3.1 slice)
+- **Working title:** Web app manifest + theme color (installable PWA, no offline yet)
 
 ### Prompt
 
-Begin **v3.1 — Mobile-first and PWA support**. Start with a low-risk, no-dependency responsive
-pass so the trainer is comfortable on phones. Focus on the 13×13 grid and the main controls:
+Make the app installable with a web app manifest (no service worker / offline yet — that is the
+next slice). Add `public/manifest.webmanifest` with `name`, `short_name` ("Range Trainer"),
+`start_url` "/", `display` "standalone", `background_color` + `theme_color` (match the app's dark
+theme), and at least one maskable icon. For icons, add simple SVG (or PNG) app icons under `public/`
+(a plain poker-themed glyph is fine; keep it lightweight). Link the manifest and a `theme-color`
+`<meta>` in `index.html`, and an `apple-mobile-web-app-capable` meta + apple-touch-icon for iOS
+home-screen support.
 
-- Ensure the `HandGrid` scales to narrow viewports (cells stay square and tappable; the grid fits
-  ~360px wide without horizontal scroll). Prefer CSS (e.g. `aspect-ratio`, `min()`/`clamp()`,
-  container or viewport units, a `@media (max-width: …)` block) over JS.
-- Make the header controls / cloud-sync / editor-control button rows wrap cleanly and keep large
-  enough tap targets (≥40px height) on small screens.
-- Verify nothing overflows horizontally at ~360px.
-
-Keep it CSS-only where possible; do not restructure component logic. If a component test asserts on
-layout it should still pass (CSS changes don't change the DOM). Add a brief note to the manual
-testing guide if one exists.
+No build-tool plugin is required for a static manifest in Vite's `public/` dir. Keep it dependency-
+free. Verify `npm run build` includes the manifest/icons in `dist/`.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- No new dependencies for this slice. PWA/offline/install come in later v3.1 slices.
-- Keep desktop layout intact. Small and reversible.
+- No new dependencies. Offline/service-worker is the next slice.
+- Don't break existing `index.html` head. Small and reversible.
 
 Suggested commit message:
-- `feat: responsive layout pass for small screens`
+- `feat: add web app manifest for installable PWA`
