@@ -1,0 +1,77 @@
+import { describe, it, expect, vi } from 'vitest'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Backup } from '../storage/backup'
+import { CloudNotConfiguredError } from './auth'
+import { NotSignedInError } from './rangesRepo'
+import { pullBackup, pushBackup } from './backupRepo'
+
+function makeBackup(): Backup {
+  return {
+    version: 1,
+    exportedAt: '2026-06-08T00:00:00.000Z',
+    ranges: [],
+    practiceStats: {},
+    handAccuracy: {},
+    actionAccuracy: {},
+    sessionHistory: {},
+    reviewStates: {},
+  }
+}
+
+const signedIn = { resolveUserId: async () => 'user-1' }
+
+describe('pushBackup', () => {
+  it('throws when cloud is unconfigured', async () => {
+    await expect(pushBackup(makeBackup(), { client: null })).rejects.toBeInstanceOf(
+      CloudNotConfiguredError,
+    )
+  })
+
+  it('throws when signed out', async () => {
+    await expect(
+      pushBackup(makeBackup(), { client: {} as SupabaseClient, resolveUserId: async () => null }),
+    ).rejects.toBeInstanceOf(NotSignedInError)
+  })
+
+  it('upserts the single backup row', async () => {
+    const upsert = vi.fn().mockResolvedValue({ error: null })
+    const client = { from: vi.fn(() => ({ upsert })) } as unknown as SupabaseClient
+    const backup = makeBackup()
+    await pushBackup(backup, { client, ...signedIn })
+    expect(upsert).toHaveBeenCalledWith({
+      user_id: 'user-1',
+      data: backup,
+      updated_at: '2026-06-08T00:00:00.000Z',
+    })
+  })
+})
+
+describe('pullBackup', () => {
+  it('returns the data column when a row exists', async () => {
+    const backup = makeBackup()
+    const maybeSingle = vi.fn().mockResolvedValue({ data: { data: backup }, error: null })
+    const client = {
+      from: () => ({ select: () => ({ eq: () => ({ maybeSingle }) }) }),
+    } as unknown as SupabaseClient
+    await expect(pullBackup({ client, ...signedIn })).resolves.toEqual(backup)
+  })
+
+  it('returns null when no row exists', async () => {
+    const client = {
+      from: () => ({
+        select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) }),
+      }),
+    } as unknown as SupabaseClient
+    await expect(pullBackup({ client, ...signedIn })).resolves.toBeNull()
+  })
+
+  it('throws the Supabase error on failure', async () => {
+    const error = new Error('db down')
+    const client = {
+      from: () => ({
+        select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error }) }) }),
+      }),
+    } as unknown as SupabaseClient
+    await expect(pullBackup({ client, ...signedIn })).rejects.toBe(error)
+  })
+})

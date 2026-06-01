@@ -33,8 +33,8 @@ import { loadHandAccuracy, recordHandAccuracy } from './storage/handAccuracyStor
 import { loadPracticeStats, recordPracticeSession } from './storage/practiceStatsStorage'
 import { loadReviewStates, saveReviewState } from './storage/reviewStateStorage'
 import { loadSessionHistory, recordPracticeSessionHistory } from './storage/sessionHistoryStorage'
-import { deleteSavedRange, loadSavedRanges, replaceSavedRanges, saveSavedRange } from './storage/rangeStorage'
-import { pullRanges, pushRanges } from './cloud/rangesRepo'
+import { deleteSavedRange, loadSavedRanges, saveSavedRange } from './storage/rangeStorage'
+import { pullBackup, pushBackup } from './cloud/backupRepo'
 import { buildBackup, parseBackup, restoreBackup, serializeBackup } from './storage/backup'
 import { useAuthSession } from './cloud/useAuthSession'
 import type { ActionAttempt, PracticeAttempt } from './types/practice'
@@ -456,8 +456,8 @@ function App() {
   async function handlePushSync() {
     setSyncStatus('Pushing…')
     try {
-      await pushRanges(savedRanges)
-      setSyncStatus('Pushed to cloud.')
+      await pushBackup(buildBackup())
+      setSyncStatus('Pushed your full library to the cloud.')
     } catch (error) {
       setSyncStatus(error instanceof Error ? error.message : 'Push failed.')
     }
@@ -466,17 +466,26 @@ function App() {
   async function handlePullSync() {
     if (
       !window.confirm(
-        'Pulling from the cloud REPLACES your local ranges with the cloud copy. Continue?',
+        'Pulling from the cloud REPLACES all your local data with the cloud copy. Continue?',
       )
     ) {
       return
     }
     setSyncStatus('Pulling…')
     try {
-      const cloudRanges = await pullRanges()
-      replaceSavedRanges(cloudRanges)
+      const cloudBackup = await pullBackup()
+      if (!cloudBackup) {
+        setSyncStatus('No cloud backup found yet. Push first.')
+        return
+      }
+      restoreBackup(cloudBackup)
+      // Refresh all in-memory state from the freshly restored storage.
       setSavedRanges(loadSavedRanges())
-      setSyncStatus(`Pulled ${cloudRanges.length} range(s) from cloud.`)
+      setPracticeStats(loadPracticeStats())
+      setHandAccuracy(loadHandAccuracy())
+      setActionAccuracy(loadActionAccuracy())
+      setSessionHistory(loadSessionHistory())
+      setSyncStatus('Pulled your full library from the cloud.')
     } catch (error) {
       setSyncStatus(error instanceof Error ? error.message : 'Pull failed.')
     }

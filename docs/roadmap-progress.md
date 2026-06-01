@@ -113,6 +113,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 76 | Wire cloud account sign-in into the app | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 | 77 | Cloud ranges repository + schema (push/pull) | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 | 78 | Wire explicit push/pull range sync into the app | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
+| 79 | Full-library cloud sync via the backup shape | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -473,36 +474,41 @@ refreshes `savedRanges`. A `syncStatus` line reports progress/errors. Signed-out
 nothing new. `replaceSavedRanges` is unit-tested. **Ranges cloud sync (push + pull) is now usable
 end-to-end for a configured, signed-in user.**
 
+Slice 79 extended cloud sync to the WHOLE library via the backup shape. `supabase/migrations/
+0002_backups.sql` documents a `backups` table (one `data jsonb` row per `user_id`, owner-only RLS).
+`src/cloud/backupRepo.ts` adds `pushBackup(backup, deps?)` (upsert the single row) and
+`pullBackup(deps?): Promise<Backup | null>` (`.maybeSingle()`), injectable + same error handling as
+`rangesRepo`, fully unit-tested with a fake client. `App`'s push now sends `buildBackup()` via
+`pushBackup`; pull does `pullBackup()` → `restoreBackup()` behind the confirm, then refreshes ALL
+in-memory state. This SUPERSEDES the ranges-only sync — `rangesRepo` and `replaceSavedRanges` are
+now unused by `App` but kept (tested modules, may power finer-grained sync later). **Full-library
+cloud sync works end-to-end for a signed-in user.**
+
 ## Next slice
 
-- **Number:** 79
+- **Number:** 80
 - **Roadmap target:** v3 — Accounts, cloud sync, and backend
-- **Working title:** Cloud sync for the rest of the data (stats/history/review) via the backup shape
+- **Working title:** Delete cloud data (account data deletion control)
 
 ### Prompt
 
-Extend cloud sync beyond ranges to ALL persisted data, reusing the slice-69/70 backup shape so we
-don't write six separate tables. Plan:
+Add the roadmap's "delete account/data export flow" (data deletion half; export already exists via
+the backup file). Add `deleteBackup(deps?)` to `src/cloud/backupRepo.ts`: delete the signed-in
+user's `backups` row (`.from('backups').delete().eq('user_id', userId)`), same injectable
+client/userId + unconfigured/signed-out errors as the other repo fns. Unit-test with a fake client.
+Then wire a "Delete cloud data" button into `App`'s signed-in cloud-sync block, behind a `confirm()`
+warning it permanently removes the cloud copy (local data is untouched), updating `syncStatus` on
+success/error. Keep it strictly optional/signed-in-only.
 
-1. **Schema:** add `supabase/migrations/0002_backups.sql` — a `backups` table keyed by `user_id`
-   (one row per user) with a `data jsonb` column holding the full `Backup` object and `updated_at`,
-   plus RLS policies (owner-only), mirroring `0001_ranges.sql`. (Doc only; not run by app/tests.)
-2. **Repo:** add `src/cloud/backupRepo.ts`: `pushBackup(backup, deps?)` (upsert the single
-   `{ user_id, data, updated_at }` row) and `pullBackup(deps?): Promise<Backup | null>` (select the
-   user's row, return its `data` or null). Same injectable client/userId + error handling as
-   `rangesRepo`. Unit-test with a fake client (no network).
-3. **Wire:** change `App`'s push to send `buildBackup()` (everything) via `pushBackup`, and pull to
-   `pullBackup()` → `restoreBackup(backup)` (slice 70) behind the existing confirm, then refresh ALL
-   in-memory state (ranges, practiceStats, handAccuracy, actionAccuracy, sessionHistory — like the
-   backup-import handler). This SUPERSEDES the ranges-only push/pull with a full-library sync; you
-   can keep `rangesRepo` or remove it if now unused (note which in the log).
+(Note: deleting the Supabase auth account itself requires admin privileges/an edge function, which
+is out of scope for a client-only slice — deleting the user's stored data is the safe, in-scope
+piece. Mention this boundary in the log.)
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Cloud strictly optional; signed-out/local = unchanged behavior. Pull replaces local data behind a
-  confirm. Explicit push/pull only.
-- No real network in tests. Small and reversible.
+- Cloud strictly optional; signed-out/local = unchanged behavior. No real network in tests.
+- Small and reversible.
 
 Suggested commit message:
-- `feat: sync the full library (all data) to the cloud`
+- `feat: add delete-cloud-data control`
