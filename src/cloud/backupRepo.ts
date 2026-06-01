@@ -48,6 +48,13 @@ export async function pushBackup(backup: Backup, deps: BackupRepoDeps = {}): Pro
   if (error) throw error
 }
 
+/** Permanently delete the user's cloud backup. Local data is untouched. */
+export async function deleteBackup(deps: BackupRepoDeps = {}): Promise<void> {
+  const { client, userId } = await requireContext(deps)
+  const { error } = await client.from(BACKUPS_TABLE).delete().eq('user_id', userId)
+  if (error) throw error
+}
+
 /** Read back the user's backup, or null when none has been pushed yet. */
 export async function pullBackup(deps: BackupRepoDeps = {}): Promise<Backup | null> {
   const { client, userId } = await requireContext(deps)

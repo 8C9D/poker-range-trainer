@@ -3,7 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Backup } from '../storage/backup'
 import { CloudNotConfiguredError } from './auth'
 import { NotSignedInError } from './rangesRepo'
-import { pullBackup, pushBackup } from './backupRepo'
+import { deleteBackup, pullBackup, pushBackup } from './backupRepo'
 
 function makeBackup(): Backup {
   return {
@@ -73,5 +73,21 @@ describe('pullBackup', () => {
       }),
     } as unknown as SupabaseClient
     await expect(pullBackup({ client, ...signedIn })).rejects.toBe(error)
+  })
+})
+
+describe('deleteBackup', () => {
+  it("deletes the user's backup row", async () => {
+    const eq = vi.fn().mockResolvedValue({ error: null })
+    const deleteFn = vi.fn(() => ({ eq }))
+    const client = { from: vi.fn(() => ({ delete: deleteFn })) } as unknown as SupabaseClient
+    await expect(deleteBackup({ client, ...signedIn })).resolves.toBeUndefined()
+    expect(eq).toHaveBeenCalledWith('user_id', 'user-1')
+  })
+
+  it('throws when signed out', async () => {
+    await expect(
+      deleteBackup({ client: {} as SupabaseClient, resolveUserId: async () => null }),
+    ).rejects.toBeInstanceOf(NotSignedInError)
   })
 })

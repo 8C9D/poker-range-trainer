@@ -34,7 +34,7 @@ import { loadPracticeStats, recordPracticeSession } from './storage/practiceStat
 import { loadReviewStates, saveReviewState } from './storage/reviewStateStorage'
 import { loadSessionHistory, recordPracticeSessionHistory } from './storage/sessionHistoryStorage'
 import { deleteSavedRange, loadSavedRanges, saveSavedRange } from './storage/rangeStorage'
-import { pullBackup, pushBackup } from './cloud/backupRepo'
+import { deleteBackup, pullBackup, pushBackup } from './cloud/backupRepo'
 import { buildBackup, parseBackup, restoreBackup, serializeBackup } from './storage/backup'
 import { useAuthSession } from './cloud/useAuthSession'
 import type { ActionAttempt, PracticeAttempt } from './types/practice'
@@ -491,6 +491,23 @@ function App() {
     }
   }
 
+  async function handleDeleteCloudData() {
+    if (
+      !window.confirm(
+        'This permanently deletes your cloud backup. Your local data is kept. Continue?',
+      )
+    ) {
+      return
+    }
+    setSyncStatus('Deleting cloud data…')
+    try {
+      await deleteBackup()
+      setSyncStatus('Deleted your cloud backup.')
+    } catch (error) {
+      setSyncStatus(error instanceof Error ? error.message : 'Delete failed.')
+    }
+  }
+
   let headerSubtitle: string
   if (practicingRange) {
     if (practiceMode === 'recognize') {
@@ -534,6 +551,9 @@ function App() {
             </button>
             <button type="button" onClick={() => void handlePullSync()}>
               Pull from cloud
+            </button>
+            <button type="button" onClick={() => void handleDeleteCloudData()}>
+              Delete cloud data
             </button>
             {syncStatus && <span className="cloud-sync-status">{syncStatus}</span>}
           </div>

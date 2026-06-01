@@ -114,6 +114,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 77 | Cloud ranges repository + schema (push/pull) | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 | 78 | Wire explicit push/pull range sync into the app | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 | 79 | Full-library cloud sync via the backup shape | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
+| 80 | Delete cloud data control | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -484,31 +485,50 @@ in-memory state. This SUPERSEDES the ranges-only sync — `rangesRepo` and `repl
 now unused by `App` but kept (tested modules, may power finer-grained sync later). **Full-library
 cloud sync works end-to-end for a signed-in user.**
 
+Slice 80 added the data-deletion half of v3's "delete account / data export" flow (export already
+exists via the backup file). `deleteBackup(deps?)` in `backupRepo.ts` deletes the signed-in user's
+`backups` row (`.delete().eq('user_id', userId)`), same injectable deps + unconfigured/signed-out
+errors, unit-tested with a fake client. A "Delete cloud data" button in `App`'s signed-in cloud-sync
+block runs it behind a `confirm()` (local data kept), updating `syncStatus`. NOTE: deleting the
+Supabase auth *account* itself needs admin/edge-function privileges and is out of scope for a
+client-only slice; deleting the user's stored data is the safe, in-scope piece.
+
+**v3 — Accounts, cloud sync, and backend is now substantially COMPLETE** (the client-buildable
+parts): Supabase config/client gating, managed auth (sign up/in/out + session hook + AuthPanel,
+wired into App), full-library cloud sync (push/pull behind confirm), cloud-data deletion, local
+backup import/export, and SQL schema/RLS migrations. Anonymous local mode keeps working throughout
+(everything is gated on cloud being configured + signed in). The roadmap's "Backend features" list
+(server-side rate limiting, dedicated REST APIs, an admin-level account-delete edge function, CI
+backend tests) is handled by Supabase's managed platform + RLS rather than a hand-written server,
+which is the deliberate consequence of the Supabase decision.
+
 ## Next slice
 
-- **Number:** 80
-- **Roadmap target:** v3 — Accounts, cloud sync, and backend
-- **Working title:** Delete cloud data (account data deletion control)
+- **Number:** 81
+- **Roadmap target:** v3.1 — Mobile-first and PWA support
+- **Working title:** Responsive layout pass for small screens (first v3.1 slice)
 
 ### Prompt
 
-Add the roadmap's "delete account/data export flow" (data deletion half; export already exists via
-the backup file). Add `deleteBackup(deps?)` to `src/cloud/backupRepo.ts`: delete the signed-in
-user's `backups` row (`.from('backups').delete().eq('user_id', userId)`), same injectable
-client/userId + unconfigured/signed-out errors as the other repo fns. Unit-test with a fake client.
-Then wire a "Delete cloud data" button into `App`'s signed-in cloud-sync block, behind a `confirm()`
-warning it permanently removes the cloud copy (local data is untouched), updating `syncStatus` on
-success/error. Keep it strictly optional/signed-in-only.
+Begin **v3.1 — Mobile-first and PWA support**. Start with a low-risk, no-dependency responsive
+pass so the trainer is comfortable on phones. Focus on the 13×13 grid and the main controls:
 
-(Note: deleting the Supabase auth account itself requires admin privileges/an edge function, which
-is out of scope for a client-only slice — deleting the user's stored data is the safe, in-scope
-piece. Mention this boundary in the log.)
+- Ensure the `HandGrid` scales to narrow viewports (cells stay square and tappable; the grid fits
+  ~360px wide without horizontal scroll). Prefer CSS (e.g. `aspect-ratio`, `min()`/`clamp()`,
+  container or viewport units, a `@media (max-width: …)` block) over JS.
+- Make the header controls / cloud-sync / editor-control button rows wrap cleanly and keep large
+  enough tap targets (≥40px height) on small screens.
+- Verify nothing overflows horizontally at ~360px.
+
+Keep it CSS-only where possible; do not restructure component logic. If a component test asserts on
+layout it should still pass (CSS changes don't change the DOM). Add a brief note to the manual
+testing guide if one exists.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Cloud strictly optional; signed-out/local = unchanged behavior. No real network in tests.
-- Small and reversible.
+- No new dependencies for this slice. PWA/offline/install come in later v3.1 slices.
+- Keep desktop layout intact. Small and reversible.
 
 Suggested commit message:
-- `feat: add delete-cloud-data control`
+- `feat: responsive layout pass for small screens`
