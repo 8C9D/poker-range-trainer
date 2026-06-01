@@ -112,6 +112,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 75 | AuthPanel sign-in/sign-up/sign-out component | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 | 76 | Wire cloud account sign-in into the app | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 | 77 | Cloud ranges repository + schema (push/pull) | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
+| 78 | Wire explicit push/pull range sync into the app | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -464,36 +465,44 @@ rangesRepo.ts` adds `pushRanges(ranges, deps?)` (upserts `{id,user_id,data,updat
 `resolveUserId` are injectable; unconfigured → `CloudNotConfiguredError`, signed-out →
 `NotSignedInError`. Fully unit-tested with a fake query builder (no network). Not wired into App.
 
+Slice 78 wired explicit range sync into `App`: a "Push to cloud" / "Pull from cloud" block in the
+header that renders ONLY when signed in (`auth.session`). Push calls `pushRanges(savedRanges)`; pull
+calls `pullRanges()`, then `replaceSavedRanges` (a new `rangeStorage` fn that replaces the whole
+local library, normalizing each range and discarding ones not pulled) behind a `confirm()`, and
+refreshes `savedRanges`. A `syncStatus` line reports progress/errors. Signed-out/local users see
+nothing new. `replaceSavedRanges` is unit-tested. **Ranges cloud sync (push + pull) is now usable
+end-to-end for a configured, signed-in user.**
+
 ## Next slice
 
-- **Number:** 78
+- **Number:** 79
 - **Roadmap target:** v3 — Accounts, cloud sync, and backend
-- **Working title:** Wire push/pull ranges sync into App (explicit buttons)
+- **Working title:** Cloud sync for the rest of the data (stats/history/review) via the backup shape
 
 ### Prompt
 
-Wire slice 77's `pushRanges` / `pullRanges` into `App` as explicit buttons in the cloud account
-area — shown ONLY when the user is signed in (`auth.session` truthy). "Push to cloud" calls
-`pushRanges(savedRanges)`. "Pull from cloud" calls `pullRanges()`, then REPLACES the local ranges:
-persist each returned range (reuse `saveSavedRange`, or clear + save) and refresh `savedRanges`
-state via `loadSavedRanges()`. Since pull replaces local ranges, gate it behind a `confirm()`
-(consistent with backup import). Surface success/error feedback (a small status line / `alert`).
-Keep these controls out of the way for local-only and signed-out users (render nothing for them).
+Extend cloud sync beyond ranges to ALL persisted data, reusing the slice-69/70 backup shape so we
+don't write six separate tables. Plan:
 
-Consider placing the buttons inside `AuthPanel` (passed as optional props/children) OR as a small
-sibling block in `App`'s controls — pick whichever keeps concerns clean; if added to `AuthPanel`,
-keep its sync props optional so its existing tests are unaffected.
-
-Note `App` tests run signed-out (no env), so these buttons won't render there — but add/adjust a
-focused test if practical (e.g. extract a tiny pure helper for the pull-replace, or test AuthPanel
-with sync props). Don't force a brittle full-App signed-in test if it requires heavy mocking.
+1. **Schema:** add `supabase/migrations/0002_backups.sql` — a `backups` table keyed by `user_id`
+   (one row per user) with a `data jsonb` column holding the full `Backup` object and `updated_at`,
+   plus RLS policies (owner-only), mirroring `0001_ranges.sql`. (Doc only; not run by app/tests.)
+2. **Repo:** add `src/cloud/backupRepo.ts`: `pushBackup(backup, deps?)` (upsert the single
+   `{ user_id, data, updated_at }` row) and `pullBackup(deps?): Promise<Backup | null>` (select the
+   user's row, return its `data` or null). Same injectable client/userId + error handling as
+   `rangesRepo`. Unit-test with a fake client (no network).
+3. **Wire:** change `App`'s push to send `buildBackup()` (everything) via `pushBackup`, and pull to
+   `pullBackup()` → `restoreBackup(backup)` (slice 70) behind the existing confirm, then refresh ALL
+   in-memory state (ranges, practiceStats, handAccuracy, actionAccuracy, sessionHistory — like the
+   backup-import handler). This SUPERSEDES the ranges-only push/pull with a full-library sync; you
+   can keep `rangesRepo` or remove it if now unused (note which in the log).
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Cloud strictly optional; signed-out/local = unchanged behavior.
-- Explicit push/pull only; pull replaces local data behind a confirm. No background sync.
+- Cloud strictly optional; signed-out/local = unchanged behavior. Pull replaces local data behind a
+  confirm. Explicit push/pull only.
 - No real network in tests. Small and reversible.
 
 Suggested commit message:
-- `feat: wire explicit push/pull range sync into the app`
+- `feat: sync the full library (all data) to the cloud`

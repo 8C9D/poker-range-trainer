@@ -41,6 +41,19 @@
   gap: 8px;
 }
 
+.cloud-sync {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.cloud-sync-status {
+  font-size: 14px;
+  opacity: 0.8;
+}
+
 .import-backup {
   display: inline-flex;
   align-items: center;

@@ -6,6 +6,7 @@ import {
   saveSavedRange,
   deleteSavedRange,
   findSavedRangeById,
+  replaceSavedRanges,
 } from './rangeStorage'
 
 function makeRange(overrides: Partial<SavedRange> = {}): SavedRange {
@@ -384,5 +385,19 @@ describe('handActions persistence', () => {
       ]),
     )
     expect(loadSavedRanges()[0].handActions).toBeUndefined()
+  })
+})
+
+describe('replaceSavedRanges', () => {
+  it('replaces the whole library, discarding ranges not in the new list', () => {
+    saveSavedRange(makeRange({ id: 'old' }))
+    replaceSavedRanges([makeRange({ id: 'new-a' }), makeRange({ id: 'new-b' })])
+    expect(loadSavedRanges().map((r) => r.id)).toEqual(['new-a', 'new-b'])
+  })
+
+  it('clears the library when given an empty list', () => {
+    saveSavedRange(makeRange())
+    replaceSavedRanges([])
+    expect(loadSavedRanges()).toEqual([])
   })
 })

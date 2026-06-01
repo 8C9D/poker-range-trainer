@@ -33,7 +33,8 @@ import { loadHandAccuracy, recordHandAccuracy } from './storage/handAccuracyStor
 import { loadPracticeStats, recordPracticeSession } from './storage/practiceStatsStorage'
 import { loadReviewStates, saveReviewState } from './storage/reviewStateStorage'
 import { loadSessionHistory, recordPracticeSessionHistory } from './storage/sessionHistoryStorage'
-import { deleteSavedRange, loadSavedRanges, saveSavedRange } from './storage/rangeStorage'
+import { deleteSavedRange, loadSavedRanges, replaceSavedRanges, saveSavedRange } from './storage/rangeStorage'
+import { pullRanges, pushRanges } from './cloud/rangesRepo'
 import { buildBackup, parseBackup, restoreBackup, serializeBackup } from './storage/backup'
 import { useAuthSession } from './cloud/useAuthSession'
 import type { ActionAttempt, PracticeAttempt } from './types/practice'
@@ -450,6 +451,37 @@ function App() {
     setSessionHistory(loadSessionHistory())
   }
 
+  const [syncStatus, setSyncStatus] = useState('')
+
+  async function handlePushSync() {
+    setSyncStatus('Pushing…')
+    try {
+      await pushRanges(savedRanges)
+      setSyncStatus('Pushed to cloud.')
+    } catch (error) {
+      setSyncStatus(error instanceof Error ? error.message : 'Push failed.')
+    }
+  }
+
+  async function handlePullSync() {
+    if (
+      !window.confirm(
+        'Pulling from the cloud REPLACES your local ranges with the cloud copy. Continue?',
+      )
+    ) {
+      return
+    }
+    setSyncStatus('Pulling…')
+    try {
+      const cloudRanges = await pullRanges()
+      replaceSavedRanges(cloudRanges)
+      setSavedRanges(loadSavedRanges())
+      setSyncStatus(`Pulled ${cloudRanges.length} range(s) from cloud.`)
+    } catch (error) {
+      setSyncStatus(error instanceof Error ? error.message : 'Pull failed.')
+    }
+  }
+
   let headerSubtitle: string
   if (practicingRange) {
     if (practiceMode === 'recognize') {
@@ -486,6 +518,17 @@ function App() {
           isCloudConfigured={auth.isCloudConfigured}
           session={auth.session}
         />
+        {auth.session && (
+          <div className="cloud-sync" aria-label="Cloud sync">
+            <button type="button" onClick={() => void handlePushSync()}>
+              Push to cloud
+            </button>
+            <button type="button" onClick={() => void handlePullSync()}>
+              Pull from cloud
+            </button>
+            {syncStatus && <span className="cloud-sync-status">{syncStatus}</span>}
+          </div>
+        )}
       </header>
 
       {practicingRange ? (

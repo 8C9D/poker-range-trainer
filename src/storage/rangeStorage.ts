@@ -193,3 +193,15 @@ export function deleteSavedRange(id: string): void {
     writeSavedRanges(remaining)
   }
 }
+
+/**
+ * Replace the entire local library with the given ranges (used by cloud pull).
+ * Each range is normalized/validated like {@link saveSavedRange}; order is
+ * preserved. Existing local ranges not present in the new list are discarded.
+ */
+export function replaceSavedRanges(ranges: SavedRange[]): void {
+  writeSavedRanges([])
+  for (const range of ranges) {
+    saveSavedRange(range)
+  }
+}
