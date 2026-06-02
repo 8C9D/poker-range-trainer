@@ -9,6 +9,7 @@ import {
 import type { PokerHand } from '../domain/pokerHands'
 import type { PracticeAttempt } from '../types/practice'
 import type { SavedRange } from '../types/range'
+import { useSwipe } from './useSwipe'
 import './PracticeSession.css'
 
 interface PracticeSessionProps {
@@ -64,6 +65,12 @@ export function PracticeSession({
 
   const summary = summarizePracticeAttempts(attempts)
   const answered = currentAttempt !== null
+
+  // Swipe right = in range, swipe left = out of range (mirrors the buttons).
+  const swipe = useSwipe({
+    onSwipeRight: () => answer(true),
+    onSwipeLeft: () => answer(false),
+  })
 
   function answer(userAnsweredInRange: boolean) {
     // Ignore extra clicks once the current hand has been answered.
@@ -146,9 +153,12 @@ export function PracticeSession({
 
       {sessionStats}
 
-      <div className="practice-prompt">
+      <div className="practice-prompt" {...swipe}>
         <p className="practice-prompt-label">Is this hand in range?</p>
         <p className="practice-prompt-hand">{currentHand}</p>
+        {!answered && (
+          <p className="practice-prompt-hint">Swipe right for in range, left for out</p>
+        )}
       </div>
 
       {answered ? (
