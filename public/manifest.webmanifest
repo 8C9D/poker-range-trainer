@@ -1,0 +1,19 @@
+{
+  "name": "Poker Range Trainer",
+  "short_name": "Range Trainer",
+  "description": "Create, save, and practice Texas Hold'em preflop ranges.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1a1626",
+  "theme_color": "#1a1626",
+  "icons": [
+    {
+      "src": "/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -116,6 +116,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 79 | Full-library cloud sync via the backup shape | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 | 80 | Delete cloud data control | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 | 81 | Responsive layout pass for small screens | v3.1 — Mobile-first and PWA support | 2026-06-08 |
+| 82 | Web app manifest + theme color (installable PWA) | v3.1 — Mobile-first and PWA support | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -509,30 +510,44 @@ columns + `aspect-ratio`, clamped font), so the work was a `@media (max-width: 4
 (`.range-editor button`, `.import-backup`, `.cloud-sync button`), and wrapping for the editor/auth/
 cloud-sync control rows. No DOM/logic changes, so all tests pass; desktop layout intact.
 
+Slice 82 made the app installable. Added `public/manifest.webmanifest` (name/short_name, standalone
+display, dark `background_color`/`theme_color` `#1a1626`, a maskable SVG icon) and a poker-spade
+`public/app-icon.svg`. `index.html` now links the manifest + `theme-color` meta + iOS
+`apple-mobile-web-app-*` metas + apple-touch-icon, and the title is now "Poker Range Trainer". The
+build copies the manifest and icon into `dist/`. Dependency-free; no service worker yet.
+
 ## Next slice
 
-- **Number:** 82
+- **Number:** 83
 - **Roadmap target:** v3.1 — Mobile-first and PWA support
-- **Working title:** Web app manifest + theme color (installable PWA, no offline yet)
+- **Working title:** Offline support via a service worker (app shell caching)
 
 ### Prompt
 
-Make the app installable with a web app manifest (no service worker / offline yet — that is the
-next slice). Add `public/manifest.webmanifest` with `name`, `short_name` ("Range Trainer"),
-`start_url` "/", `display` "standalone", `background_color` + `theme_color` (match the app's dark
-theme), and at least one maskable icon. For icons, add simple SVG (or PNG) app icons under `public/`
-(a plain poker-themed glyph is fine; keep it lightweight). Link the manifest and a `theme-color`
-`<meta>` in `index.html`, and an `apple-mobile-web-app-capable` meta + apple-touch-icon for iOS
-home-screen support.
+Add offline access by registering a service worker that caches the app shell (so saved ranges —
+already in localStorage — and the UI work without a network). Keep it dependency-free (a hand-
+written SW in `public/`, not a Vite plugin) to avoid build-config churn:
 
-No build-tool plugin is required for a static manifest in Vite's `public/` dir. Keep it dependency-
-free. Verify `npm run build` includes the manifest/icons in `dist/`.
+- Add `public/service-worker.js`: on `install`, pre-cache the app shell (`/`, `/index.html`,
+  `/manifest.webmanifest`, `/app-icon.svg`, `/favicon.svg`); on `fetch`, serve cached responses
+  with a network fallback (cache-first for the shell, network-first or passthrough for everything
+  else — and NEVER cache Supabase API calls). Bump a `CACHE_NAME` constant and clean old caches on
+  `activate`.
+- Register it from `src/main.tsx` behind `if ('serviceWorker' in navigator)` and only in
+  production (`import.meta.env.PROD`) so dev/tests are unaffected. Use a `window.load` listener.
+- Note: hashed Vite asset URLs can't be known ahead of time, so the simplest robust approach is a
+  runtime cache-on-fetch for same-origin GET assets plus the static pre-cache list above. Implement
+  that (cache successful same-origin GET responses, fall back to cache when offline).
+
+Don't add tests for the SW (it's environment glue, hard to unit-test meaningfully and runs only in
+prod); keep `main.tsx` registration tiny and guarded. Validate the app still builds and existing
+tests pass.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- No new dependencies. Offline/service-worker is the next slice.
-- Don't break existing `index.html` head. Small and reversible.
+- No new dependencies. Never cache Supabase/network API calls. Dev + tests unaffected (prod-only).
+- Small and reversible.
 
 Suggested commit message:
-- `feat: add web app manifest for installable PWA`
+- `feat: add service worker for offline app-shell caching`
