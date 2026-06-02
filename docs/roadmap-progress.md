@@ -117,6 +117,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 80 | Delete cloud data control | v3 — Accounts, cloud sync, and backend | 2026-06-08 |
 | 81 | Responsive layout pass for small screens | v3.1 — Mobile-first and PWA support | 2026-06-08 |
 | 82 | Web app manifest + theme color (installable PWA) | v3.1 — Mobile-first and PWA support | 2026-06-08 |
+| 83 | Service worker for offline app-shell caching | v3.1 — Mobile-first and PWA support | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -516,38 +517,38 @@ display, dark `background_color`/`theme_color` `#1a1626`, a maskable SVG icon) a
 `apple-mobile-web-app-*` metas + apple-touch-icon, and the title is now "Poker Range Trainer". The
 build copies the manifest and icon into `dist/`. Dependency-free; no service worker yet.
 
+Slice 83 added offline support via a hand-written `public/service-worker.js` (no Vite plugin):
+pre-caches the static shell on install, runtime network-first-then-cache for same-origin GETs
+(covers Vite's hashed asset URLs), cleans old caches on activate, and ignores cross-origin requests
+so Supabase calls always hit the network. `src/main.tsx` registers it behind
+`import.meta.env.PROD && 'serviceWorker' in navigator` on `window.load`, so dev and tests are
+unaffected. Build copies it to `dist/`. **With install (slice 82) + offline (slice 83), the core
+PWA pieces of v3.1 are in place.**
+
 ## Next slice
 
-- **Number:** 83
+- **Number:** 84
 - **Roadmap target:** v3.1 — Mobile-first and PWA support
-- **Working title:** Offline support via a service worker (app shell caching)
+- **Working title:** Swipe gestures for practice answers (touch)
 
 ### Prompt
 
-Add offline access by registering a service worker that caches the app shell (so saved ranges —
-already in localStorage — and the UI work without a network). Keep it dependency-free (a hand-
-written SW in `public/`, not a Vite plugin) to avoid build-config churn:
+Add mobile swipe gestures to the recognition `PracticeSession` so a phone user can answer without
+precise taps: swipe right = "In range", swipe left = "Out of range" (matching the existing two
+answer buttons). Keep the buttons too — swipe is an addition, not a replacement.
 
-- Add `public/service-worker.js`: on `install`, pre-cache the app shell (`/`, `/index.html`,
-  `/manifest.webmanifest`, `/app-icon.svg`, `/favicon.svg`); on `fetch`, serve cached responses
-  with a network fallback (cache-first for the shell, network-first or passthrough for everything
-  else — and NEVER cache Supabase API calls). Bump a `CACHE_NAME` constant and clean old caches on
-  `activate`.
-- Register it from `src/main.tsx` behind `if ('serviceWorker' in navigator)` and only in
-  production (`import.meta.env.PROD`) so dev/tests are unaffected. Use a `window.load` listener.
-- Note: hashed Vite asset URLs can't be known ahead of time, so the simplest robust approach is a
-  runtime cache-on-fetch for same-origin GET assets plus the static pre-cache list above. Implement
-  that (cache successful same-origin GET responses, fall back to cache when offline).
-
-Don't add tests for the SW (it's environment glue, hard to unit-test meaningfully and runs only in
-prod); keep `main.tsx` registration tiny and guarded. Validate the app still builds and existing
-tests pass.
+Implement a tiny reusable hook `src/components/useSwipe.ts` (or inline helper) using pointer/touch
+events: track `pointerdown`→`pointerup` X delta, and fire `onSwipeLeft` / `onSwipeRight` past a
+threshold (e.g. 50px) with limited vertical drift. Wire it into `PracticeSession`'s prompt area so a
+horizontal swipe triggers the same handler as the corresponding button. Unit-test the hook's
+threshold logic (simulate pointer events / call the handlers) and that `PracticeSession` still works
+via buttons. Keep it accessible (buttons remain the primary control).
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- No new dependencies. Never cache Supabase/network API calls. Dev + tests unaffected (prod-only).
+- No new dependencies. Don't regress the existing button flow or its tests.
 - Small and reversible.
 
 Suggested commit message:
-- `feat: add service worker for offline app-shell caching`
+- `feat: add swipe gestures for practice answers`
