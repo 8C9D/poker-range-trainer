@@ -37,7 +37,7 @@ import { deleteSavedRange, loadSavedRanges, saveSavedRange } from './storage/ran
 import { deleteBackup, pullBackup, pushBackup } from './cloud/backupRepo'
 import { buildBackup, parseBackup, restoreBackup, serializeBackup } from './storage/backup'
 import { useAuthSession } from './cloud/useAuthSession'
-import { serializeRangeExport } from './domain/rangeTransfer'
+import { parseRangeExport, serializeRangeExport } from './domain/rangeTransfer'
 import type { ActionAttempt, PracticeAttempt } from './types/practice'
 import type {
   ActionType,
@@ -435,6 +435,24 @@ function App() {
     downloadTextFile(`${safeName}.json`, serializeRangeExport(range))
   }
 
+  async function handleImportRange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    // Reset the input so re-selecting the same file fires change again.
+    event.target.value = ''
+    if (!file) return
+    let imported: SavedRange
+    try {
+      imported = parseRangeExport(await file.text())
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Could not import range file.')
+      return
+    }
+    // Add as a new range with a fresh id so importing never clobbers an existing one.
+    const now = new Date().toISOString()
+    saveSavedRange({ ...imported, id: createRangeId(), createdAt: now, updatedAt: now })
+    setSavedRanges(loadSavedRanges())
+  }
+
   async function handleImportBackup(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     // Reset the input so re-selecting the same file fires change again.
@@ -759,6 +777,14 @@ function App() {
                 type="file"
                 accept="application/json,.json"
                 onChange={handleImportBackup}
+              />
+            </label>
+            <label className="import-backup">
+              Import range
+              <input
+                type="file"
+                accept="application/json,.json"
+                onChange={handleImportRange}
               />
             </label>
           </div>

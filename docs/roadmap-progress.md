@@ -121,6 +121,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 84 | Swipe gestures for practice answers | v3.1 — Mobile-first and PWA support | 2026-06-08 |
 | 85 | Code-split Supabase out of the initial bundle | v3.1 — Mobile-first and PWA support | 2026-06-08 |
 | 86 | Export a single range to a JSON file | v3.2 — Import/export ecosystem | 2026-06-08 |
+| 87 | Import a single range from a JSON file | v3.2 — Import/export ecosystem | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -553,32 +554,42 @@ button (`onExportRange(range)`, optional prop defaulting to no-op so existing re
 unaffected; one focused test added). `App` extracted a shared `downloadTextFile(name, text)` helper
 (backup export now reuses it) and `handleExportRange` downloads the range as `{sanitized-name}.json`.
 
+Slice 87 added single-range JSON import. `parseRangeExport(json)` in `rangeTransfer.ts` JSON-parses
+and validates the envelope (`kind`, `version`, a `range` with string `id`/`name` + `hands` array),
+returning the inner `SavedRange` or throwing a clear `Error`; round-trip + rejection paths are
+unit-tested. An "Import range" file input in `App` reads the file, parses it, and adds it as a NEW
+range with a fresh `createRangeId()` + timestamps (never clobbering an existing range), then
+refreshes `savedRanges`; parse errors go to `alert`. **Single-range JSON interchange (export +
+import) is complete.**
+
+> ⚠️ **finish-roadmap 20-slice safety checkpoint.** This run (starting at slice 69) has now built
+> ~19 validated/committed/pushed slices across v3 → v3.1 → v3.2. Per the skill's safety checkpoint,
+> the loop PAUSES here to report progress and let the user decide whether to continue. Re-invoking
+> `finish-roadmap` resumes from slice 88. Nothing is broken — the repo is in a clean, pushed state.
+
 ## Next slice
 
-- **Number:** 87
+- **Number:** 88
 - **Roadmap target:** v3.2 — Import/export ecosystem
-- **Working title:** Import a single range from a JSON file
+- **Working title:** Export a range as a CSV summary
 
 ### Prompt
 
-Add the import counterpart to slice 86. In `src/domain/rangeTransfer.ts` add `parseRangeExport(json:
-string): SavedRange` that JSON-parses, validates the envelope (`kind === 'poker-range'`, supported
-`version`, a `range` object with a string `id`/`name` and `hands` array), and returns the inner
-`SavedRange`, throwing a clear `Error` otherwise. Unit-test round-trip + rejection of malformed/
-wrong-kind/wrong-version input.
-
-Wire an "Import range" file input into `App` (near the backup import / export-backup controls):
-read the file via `file.text()`, `parseRangeExport`, then add it to the library. To avoid id
-collisions with existing ranges, assign a fresh id + updated timestamps on import (reuse the
-existing `duplicateRange` domain helper or generate a new id the same way the app does for new
-ranges), then `saveSavedRange` and refresh `savedRanges`. Surface parse errors via `alert`. This is
-an ADD (not a replace), so no confirm() needed.
+Continue **v3.2**. Add CSV export for a range (the roadmap's "Export CSV summary"). In
+`src/domain/rangeTransfer.ts` (or a sibling `rangeCsv.ts`) add a pure `formatRangeCsv(range:
+SavedRange): string` that emits a simple, spreadsheet-friendly summary — e.g. a header row plus one
+row per hand in the range (`hand`), and/or a small summary block (name, combo count, percentage
+reusing `countSelectedCombos` / `calculateRangePercentage` from `domain/rangeMath`). Decide a clean,
+documented column layout; keep it deterministic and unit-test it. Then add an "Export CSV" card
+action in `RangeLibrary` (optional `onExportRangeCsv` prop, like `onExportRange`) wired in `App` via
+`downloadTextFile` with a `.csv` filename and `text/csv` — note `downloadTextFile` currently
+hardcodes `application/json`, so generalize it to take a mime type (default JSON) or set type per
+call.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Pure parsing/validation in `src/domain/`; no new dependencies. Local-only.
-- Importing must not clobber an existing range (fresh id). Small and reversible.
+- Pure formatting in `src/domain/`; no new dependencies. Local-only. Small and reversible.
 
 Suggested commit message:
-- `feat: import a single range from a JSON file`
+- `feat: export a range as a CSV summary`

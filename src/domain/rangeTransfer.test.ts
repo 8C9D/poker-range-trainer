@@ -4,6 +4,7 @@ import {
   RANGE_EXPORT_KIND,
   RANGE_EXPORT_VERSION,
   buildRangeExport,
+  parseRangeExport,
   serializeRangeExport,
 } from './rangeTransfer'
 
@@ -35,5 +36,40 @@ describe('serializeRangeExport', () => {
     const json = serializeRangeExport(range)
     expect(json).toContain('\n  ')
     expect(JSON.parse(json)).toEqual(buildRangeExport(range))
+  })
+})
+
+describe('parseRangeExport', () => {
+  it('round-trips a serialized range', () => {
+    const range = makeRange()
+    expect(parseRangeExport(serializeRangeExport(range))).toEqual(range)
+  })
+
+  it('rejects invalid JSON', () => {
+    expect(() => parseRangeExport('{nope')).toThrow(/valid JSON/)
+  })
+
+  it('rejects a non-object payload', () => {
+    expect(() => parseRangeExport('42')).toThrow(/range export/)
+  })
+
+  it('rejects the wrong kind', () => {
+    expect(() =>
+      parseRangeExport(JSON.stringify({ kind: 'something-else', version: 1, range: {} })),
+    ).toThrow(/poker-range/)
+  })
+
+  it('rejects an unsupported version', () => {
+    expect(() =>
+      parseRangeExport(JSON.stringify({ kind: RANGE_EXPORT_KIND, version: 999, range: {} })),
+    ).toThrow(/version/)
+  })
+
+  it('rejects a structurally invalid range', () => {
+    expect(() =>
+      parseRangeExport(
+        JSON.stringify({ kind: RANGE_EXPORT_KIND, version: RANGE_EXPORT_VERSION, range: { id: 1 } }),
+      ),
+    ).toThrow(/valid range/)
   })
 })
