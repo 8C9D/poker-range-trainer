@@ -126,6 +126,31 @@ describe('RangeLibrary', () => {
     expect(onEditActions).toHaveBeenCalledExactlyOnceWith(range)
   })
 
+  it('calls onExportRange with the range when Export JSON is clicked', async () => {
+    const user = userEvent.setup()
+    const onExportRange = vi.fn()
+    const range = makeRange({ name: 'Pairs' })
+    render(
+      <RangeLibrary
+        ranges={[range]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+        onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
+        onFavorite={vi.fn()}
+        onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
+        onExportRange={onExportRange}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Export range Pairs to JSON' }))
+
+    expect(onExportRange).toHaveBeenCalledExactlyOnceWith(range)
+  })
+
   it('calls onDelete with the range id when Delete is clicked', async () => {
     const user = userEvent.setup()
     const onDelete = vi.fn()

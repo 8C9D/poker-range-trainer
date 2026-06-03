@@ -120,6 +120,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 83 | Service worker for offline app-shell caching | v3.1 — Mobile-first and PWA support | 2026-06-08 |
 | 84 | Swipe gestures for practice answers | v3.1 — Mobile-first and PWA support | 2026-06-08 |
 | 85 | Code-split Supabase out of the initial bundle | v3.1 — Mobile-first and PWA support | 2026-06-08 |
+| 86 | Export a single range to a JSON file | v3.2 — Import/export ecosystem | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -545,33 +546,39 @@ targets, installable manifest, offline service worker, swipe answers, and the mo
 win. (Remaining roadmap bullets like deeper offline-sync reconciliation build on the existing
 explicit push/pull.)
 
+Slice 86 began **v3.2** with single-range JSON export. `src/domain/rangeTransfer.ts` adds the
+versioned envelope `{ kind: 'poker-range', version: 1, range }` via `buildRangeExport` /
+`serializeRangeExport` (pretty JSON), unit-tested. `RangeLibrary` cards gained an "Export JSON"
+button (`onExportRange(range)`, optional prop defaulting to no-op so existing renders are
+unaffected; one focused test added). `App` extracted a shared `downloadTextFile(name, text)` helper
+(backup export now reuses it) and `handleExportRange` downloads the range as `{sanitized-name}.json`.
+
 ## Next slice
 
-- **Number:** 86
+- **Number:** 87
 - **Roadmap target:** v3.2 — Import/export ecosystem
-- **Working title:** Export a single range to a JSON file (first v3.2 slice)
+- **Working title:** Import a single range from a JSON file
 
 ### Prompt
 
-Begin **v3.2 — Import/export ecosystem**. Whereas v3's backup export covers the WHOLE library, v3.2
-is about per-range interchange. Start with single-range JSON export:
+Add the import counterpart to slice 86. In `src/domain/rangeTransfer.ts` add `parseRangeExport(json:
+string): SavedRange` that JSON-parses, validates the envelope (`kind === 'poker-range'`, supported
+`version`, a `range` object with a string `id`/`name` and `hands` array), and returns the inner
+`SavedRange`, throwing a clear `Error` otherwise. Unit-test round-trip + rejection of malformed/
+wrong-kind/wrong-version input.
 
-- Add `src/domain/rangeTransfer.ts` (pure): `serializeRangeExport(range: SavedRange): string` →
-  a versioned JSON envelope `{ kind: 'poker-range', version: 1, range }` (pretty-printed). Unit-test
-  the shape + that it round-trips `JSON.parse`.
-- Add a small "Export JSON" action to each library card in `RangeLibrary` (an `onExportRange(range)`
-  callback prop, mirroring the existing card actions like duplicate/stats), and in `App` wire it to
-  build the JSON and trigger a download (reuse the Blob/object-URL pattern from the backup export;
-  consider extracting a tiny `downloadTextFile(name, text)` helper in `App` since this is the 2nd
-  download). Filename from the range name (sanitized) + `.json`.
-
-Keep import (single-range JSON → add to library) as the next slice.
+Wire an "Import range" file input into `App` (near the backup import / export-backup controls):
+read the file via `file.text()`, `parseRangeExport`, then add it to the library. To avoid id
+collisions with existing ranges, assign a fresh id + updated timestamps on import (reuse the
+existing `duplicateRange` domain helper or generate a new id the same way the app does for new
+ranges), then `saveSavedRange` and refresh `savedRanges`. Surface parse errors via `alert`. This is
+an ADD (not a replace), so no confirm() needed.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Pure domain logic in `src/domain/`; no new dependencies. Local-only.
-- Small and reversible.
+- Pure parsing/validation in `src/domain/`; no new dependencies. Local-only.
+- Importing must not clobber an existing range (fresh id). Small and reversible.
 
 Suggested commit message:
-- `feat: export a single range to a JSON file`
+- `feat: import a single range from a JSON file`

@@ -37,6 +37,7 @@ import { deleteSavedRange, loadSavedRanges, saveSavedRange } from './storage/ran
 import { deleteBackup, pullBackup, pushBackup } from './cloud/backupRepo'
 import { buildBackup, parseBackup, restoreBackup, serializeBackup } from './storage/backup'
 import { useAuthSession } from './cloud/useAuthSession'
+import { serializeRangeExport } from './domain/rangeTransfer'
 import type { ActionAttempt, PracticeAttempt } from './types/practice'
 import type {
   ActionType,
@@ -410,17 +411,28 @@ function App() {
     setActionEditRange(null)
   }
 
-  function handleExportBackup() {
-    const json = serializeBackup(buildBackup())
-    const blob = new Blob([json], { type: 'application/json' })
+  function downloadTextFile(filename: string, text: string) {
+    const blob = new Blob([text], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `poker-range-trainer-backup-${new Date().toISOString().slice(0, 10)}.json`
+    link.download = filename
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
+  }
+
+  function handleExportBackup() {
+    downloadTextFile(
+      `poker-range-trainer-backup-${new Date().toISOString().slice(0, 10)}.json`,
+      serializeBackup(buildBackup()),
+    )
+  }
+
+  function handleExportRange(range: SavedRange) {
+    const safeName = range.name.trim().replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '') || 'range'
+    downloadTextFile(`${safeName}.json`, serializeRangeExport(range))
   }
 
   async function handleImportBackup(event: React.ChangeEvent<HTMLInputElement>) {
@@ -763,6 +775,7 @@ function App() {
             onArchive={handleArchive}
             onViewPerformance={handleViewPerformance}
             onEditActions={handleEditActions}
+            onExportRange={handleExportRange}
           />
         </>
       )}
