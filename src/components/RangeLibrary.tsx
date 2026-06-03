@@ -51,6 +51,8 @@ interface RangeLibraryProps {
   onEditActions: (range: SavedRange) => void
   /** Export the given saved range to a downloadable JSON file. */
   onExportRange?: (range: SavedRange) => void
+  /** Export the given saved range to a downloadable CSV summary. */
+  onExportRangeCsv?: (range: SavedRange) => void
   /**
    * Cumulative per-range practice stats, keyed by range id. A range with an
    * entry that has recorded attempts shows a practice-stats line on its card;
@@ -125,6 +127,7 @@ export function RangeLibrary({
   onViewPerformance,
   onEditActions,
   onExportRange = () => {},
+  onExportRangeCsv = () => {},
   practiceStats = {},
 }: RangeLibraryProps) {
   const [query, setQuery] = useState('')
@@ -399,6 +402,13 @@ export function RangeLibrary({
                         onClick={() => onExportRange(range)}
                       >
                         Export JSON
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Export range ${range.name} to CSV`}
+                        onClick={() => onExportRangeCsv(range)}
+                      >
+                        Export CSV
                       </button>
                       <button
                         type="button"

@@ -37,7 +37,7 @@ import { deleteSavedRange, loadSavedRanges, saveSavedRange } from './storage/ran
 import { deleteBackup, pullBackup, pushBackup } from './cloud/backupRepo'
 import { buildBackup, parseBackup, restoreBackup, serializeBackup } from './storage/backup'
 import { useAuthSession } from './cloud/useAuthSession'
-import { parseRangeExport, serializeRangeExport } from './domain/rangeTransfer'
+import { formatRangeCsv, parseRangeExport, serializeRangeExport } from './domain/rangeTransfer'
 import type { ActionAttempt, PracticeAttempt } from './types/practice'
 import type {
   ActionType,
@@ -411,8 +411,8 @@ function App() {
     setActionEditRange(null)
   }
 
-  function downloadTextFile(filename: string, text: string) {
-    const blob = new Blob([text], { type: 'application/json' })
+  function downloadTextFile(filename: string, text: string, mime = 'application/json') {
+    const blob = new Blob([text], { type: mime })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
@@ -430,9 +430,16 @@ function App() {
     )
   }
 
+  function safeRangeFileName(range: SavedRange) {
+    return range.name.trim().replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '') || 'range'
+  }
+
   function handleExportRange(range: SavedRange) {
-    const safeName = range.name.trim().replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '') || 'range'
-    downloadTextFile(`${safeName}.json`, serializeRangeExport(range))
+    downloadTextFile(`${safeRangeFileName(range)}.json`, serializeRangeExport(range))
+  }
+
+  function handleExportRangeCsv(range: SavedRange) {
+    downloadTextFile(`${safeRangeFileName(range)}.csv`, formatRangeCsv(range), 'text/csv')
   }
 
   async function handleImportRange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -802,6 +809,7 @@ function App() {
             onViewPerformance={handleViewPerformance}
             onEditActions={handleEditActions}
             onExportRange={handleExportRange}
+            onExportRangeCsv={handleExportRangeCsv}
           />
         </>
       )}

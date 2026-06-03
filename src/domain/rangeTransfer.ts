@@ -1,4 +1,5 @@
 import type { SavedRange } from '../types/range'
+import { calculateRangePercentage, countSelectedCombos } from './rangeMath'
 
 /**
  * Per-range interchange format (v3.2 import/export ecosystem).
@@ -24,6 +25,33 @@ export function buildRangeExport(range: SavedRange): RangeExport {
 /** Serialize a single range to a pretty-printed JSON export string. */
 export function serializeRangeExport(range: SavedRange): string {
   return JSON.stringify(buildRangeExport(range), null, 2)
+}
+
+/**
+ * Format a range as a spreadsheet-friendly CSV summary.
+ *
+ * A small summary block (name, hand count, combos, percentage) followed by a
+ * blank line and a `hand` column listing each hand in stored order. Deterministic
+ * and dependency-free; values with commas/quotes are CSV-escaped.
+ */
+export function formatRangeCsv(range: SavedRange): string {
+  const combos = countSelectedCombos(range.hands)
+  const percentage = calculateRangePercentage(range.hands)
+  const lines = [
+    'field,value',
+    `name,${csvEscape(range.name)}`,
+    `hands,${range.hands.length}`,
+    `combos,${combos}`,
+    `percentage,${percentage.toFixed(1)}`,
+    '',
+    'hand',
+    ...range.hands.map((hand) => csvEscape(hand)),
+  ]
+  return lines.join('\n')
+}
+
+function csvEscape(value: string): string {
+  return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

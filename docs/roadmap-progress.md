@@ -122,6 +122,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 85 | Code-split Supabase out of the initial bundle | v3.1 — Mobile-first and PWA support | 2026-06-08 |
 | 86 | Export a single range to a JSON file | v3.2 — Import/export ecosystem | 2026-06-08 |
 | 87 | Import a single range from a JSON file | v3.2 — Import/export ecosystem | 2026-06-08 |
+| 88 | Export a range as a CSV summary | v3.2 — Import/export ecosystem | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -562,29 +563,35 @@ range with a fresh `createRangeId()` + timestamps (never clobbering an existing 
 refreshes `savedRanges`; parse errors go to `alert`. **Single-range JSON interchange (export +
 import) is complete.**
 
-> ⚠️ **finish-roadmap 20-slice safety checkpoint.** This run (starting at slice 69) has now built
-> ~19 validated/committed/pushed slices across v3 → v3.1 → v3.2. Per the skill's safety checkpoint,
-> the loop PAUSES here to report progress and let the user decide whether to continue. Re-invoking
-> `finish-roadmap` resumes from slice 88. Nothing is broken — the repo is in a clean, pushed state.
+Slice 88 added CSV export. `formatRangeCsv(range)` in `rangeTransfer.ts` emits a summary block
+(name, hand count, combos, percentage — reusing `countSelectedCombos`/`calculateRangePercentage`),
+a blank line, then a `hand` column listing each hand; values are CSV-escaped. Unit-tested. A new
+"Export CSV" card action (`onExportRangeCsv`, optional like `onExportRange`) is wired in `App`;
+`downloadTextFile` now takes an optional mime type (default JSON) so CSV downloads as `text/csv`.
+
+> ⚠️ **finish-roadmap 20-slice safety checkpoint.** This run (slices 69–88) has built **20**
+> validated/committed/pushed slices across **v3** (accounts, Supabase auth, full-library cloud sync,
+> data deletion, backup import/export), **v3.1** (responsive layout, installable PWA, offline
+> service worker, swipe answers, Supabase code-split), and the start of **v3.2** (single-range JSON
+> import/export, CSV export). Per the skill's safety checkpoint the loop PAUSES here so the user can
+> decide whether to continue. Re-invoking `finish-roadmap` resumes from slice 89. The repo is clean
+> and fully pushed.
 
 ## Next slice
 
-- **Number:** 88
+- **Number:** 89
 - **Roadmap target:** v3.2 — Import/export ecosystem
-- **Working title:** Export a range as a CSV summary
+- **Working title:** Export a range as a PNG/SVG image of the 13×13 grid
 
 ### Prompt
 
-Continue **v3.2**. Add CSV export for a range (the roadmap's "Export CSV summary"). In
-`src/domain/rangeTransfer.ts` (or a sibling `rangeCsv.ts`) add a pure `formatRangeCsv(range:
-SavedRange): string` that emits a simple, spreadsheet-friendly summary — e.g. a header row plus one
-row per hand in the range (`hand`), and/or a small summary block (name, combo count, percentage
-reusing `countSelectedCombos` / `calculateRangePercentage` from `domain/rangeMath`). Decide a clean,
-documented column layout; keep it deterministic and unit-test it. Then add an "Export CSV" card
-action in `RangeLibrary` (optional `onExportRangeCsv` prop, like `onExportRange`) wired in `App` via
-`downloadTextFile` with a `.csv` filename and `text/csv` — note `downloadTextFile` currently
-hardcodes `application/json`, so generalize it to take a mime type (default JSON) or set type per
-call.
+Continue **v3.2** with the roadmap's "Export range images". Add a way to export a range's 13×13 grid
+as an image. Lowest-risk approach without new deps: generate an SVG string from the range (a pure
+`formatRangeSvg(range): string` in `src/domain/` that draws a 13×13 grid, coloring in-range cells —
+and, if `handActions` is present, action colors — with hand labels), unit-test its structure
+(contains `<svg`, 169 cells, correct fills for a small case), and add an "Export image" card action
+that downloads it as `{name}.svg` via `downloadTextFile(..., 'image/svg+xml')`. (PNG would need
+canvas rasterization; SVG keeps it pure/testable and is still a real image users can open/print.)
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
@@ -592,4 +599,4 @@ Constraints:
 - Pure formatting in `src/domain/`; no new dependencies. Local-only. Small and reversible.
 
 Suggested commit message:
-- `feat: export a range as a CSV summary`
+- `feat: export a range as an SVG image`

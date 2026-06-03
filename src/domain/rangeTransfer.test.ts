@@ -4,6 +4,7 @@ import {
   RANGE_EXPORT_KIND,
   RANGE_EXPORT_VERSION,
   buildRangeExport,
+  formatRangeCsv,
   parseRangeExport,
   serializeRangeExport,
 } from './rangeTransfer'
@@ -71,5 +72,25 @@ describe('parseRangeExport', () => {
         JSON.stringify({ kind: RANGE_EXPORT_KIND, version: RANGE_EXPORT_VERSION, range: { id: 1 } }),
       ),
     ).toThrow(/valid range/)
+  })
+})
+
+describe('formatRangeCsv', () => {
+  it('emits a summary block and a hand column', () => {
+    const range = makeRange({ name: 'Pairs', hands: ['AA', 'KK'] })
+    const csv = formatRangeCsv(range)
+    const lines = csv.split('\n')
+    expect(lines[0]).toBe('field,value')
+    expect(lines).toContain('name,Pairs')
+    expect(lines).toContain('hands,2')
+    expect(lines).toContain('combos,12')
+    expect(lines).toContain('hand')
+    expect(lines).toContain('AA')
+    expect(lines).toContain('KK')
+  })
+
+  it('CSV-escapes names containing commas', () => {
+    const csv = formatRangeCsv(makeRange({ name: 'BTN, vs BB', hands: ['AA'] }))
+    expect(csv).toContain('name,"BTN, vs BB"')
   })
 })
