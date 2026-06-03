@@ -12,7 +12,10 @@ export interface AuthSessionState {
 
 interface UseAuthSessionDeps {
   getCurrentSession?: typeof getCurrentSession
-  onAuthChange?: typeof onAuthChange
+  // Accepts the real (promise-returning) onAuthChange or a sync test fake.
+  onAuthChange?: (
+    callback: (session: Session | null) => void,
+  ) => (() => void) | Promise<() => void>
   cloudConfigured?: boolean
 }
 
@@ -37,6 +40,7 @@ export function useAuthSession(deps: UseAuthSessionDeps = {}): AuthSessionState 
     // is nothing to do — local-only users see no change.
     if (!cloudConfigured) return
     let active = true
+    let unsubscribe = () => {}
     getSession()
       .then((current) => {
         if (active) setSession(current)
@@ -47,8 +51,15 @@ export function useAuthSession(deps: UseAuthSessionDeps = {}): AuthSessionState 
       .finally(() => {
         if (active) setLoading(false)
       })
-    const unsubscribe = subscribe((next) => {
-      if (active) setSession(next)
+    // `subscribe` may return the unsubscribe fn directly (test fakes) or a
+    // promise of it (the real, dynamically-imported client) — handle both.
+    Promise.resolve(
+      subscribe((next) => {
+        if (active) setSession(next)
+      }),
+    ).then((unsub) => {
+      if (active) unsubscribe = unsub
+      else unsub()
     })
     return () => {
       active = false

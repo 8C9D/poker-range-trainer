@@ -119,6 +119,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 82 | Web app manifest + theme color (installable PWA) | v3.1 — Mobile-first and PWA support | 2026-06-08 |
 | 83 | Service worker for offline app-shell caching | v3.1 — Mobile-first and PWA support | 2026-06-08 |
 | 84 | Swipe gestures for practice answers | v3.1 — Mobile-first and PWA support | 2026-06-08 |
+| 85 | Code-split Supabase out of the initial bundle | v3.1 — Mobile-first and PWA support | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -532,36 +533,45 @@ horizontal threshold with limited vertical drift) is attached to the prompt area
 range, swipe left = out of range, mirroring the buttons (which remain the primary control). A hint
 line shows while unanswered. The hook's threshold logic is unit-tested; the button flow is unchanged.
 
+Slice 85 code-split Supabase out of the initial bundle. `getSupabaseClient` is now async and loads
+the library via dynamic `import('@supabase/supabase-js')` (still memoized, still null when
+unconfigured). The `await` propagated through `auth.ts` (a `resolveClient` helper; `onAuthChange` is
+now async too), `rangesRepo`, `backupRepo`, and `useAuthSession` (handles a sync-or-async
+`subscribe` return). Behavior is identical for local/cloud users; tests updated to await. Result:
+main chunk 454 → 255 kB, with Supabase a separate ~200 kB chunk loaded only on a cloud op.
+
+**v3.1 — Mobile-first and PWA support is now substantially COMPLETE**: responsive layout + large tap
+targets, installable manifest, offline service worker, swipe answers, and the mobile bundle perf
+win. (Remaining roadmap bullets like deeper offline-sync reconciliation build on the existing
+explicit push/pull.)
+
 ## Next slice
 
-- **Number:** 85
-- **Roadmap target:** v3.1 — Mobile-first and PWA support
-- **Working title:** Code-split Supabase to shrink the initial mobile bundle
+- **Number:** 86
+- **Roadmap target:** v3.2 — Import/export ecosystem
+- **Working title:** Export a single range to a JSON file (first v3.2 slice)
 
 ### Prompt
 
-Mobile performance: `@supabase/supabase-js` (~200 kB) is currently in the main bundle even though
-cloud is optional. Code-split it so it only loads when actually needed (configured + a cloud op).
-Approach:
+Begin **v3.2 — Import/export ecosystem**. Whereas v3's backup export covers the WHOLE library, v3.2
+is about per-range interchange. Start with single-range JSON export:
 
-- Make `getSupabaseClient` resolve the client via a dynamic `import('@supabase/supabase-js')` —
-  i.e. an async `getSupabaseClient(): Promise<SupabaseClient | null>` (still memoized, still null
-  when unconfigured). Update its tests (inject `create` + a fake config; await the result).
-- Propagate the `await` through callers: `auth.ts` (its fns already async — await the client
-  instead of taking it as a sync default param; keep client injectable for tests),
-  `rangesRepo.ts`, `backupRepo.ts`, and `useAuthSession` (already eff-based; await inside).
-- Keep behavior identical: unconfigured/signed-out paths unchanged, all existing tests green
-  (adjust the cloud tests' client resolution as needed). Confirm via `npm run build` that the main
-  `index-*.js` chunk drops substantially and a separate supabase chunk appears.
+- Add `src/domain/rangeTransfer.ts` (pure): `serializeRangeExport(range: SavedRange): string` →
+  a versioned JSON envelope `{ kind: 'poker-range', version: 1, range }` (pretty-printed). Unit-test
+  the shape + that it round-trips `JSON.parse`.
+- Add a small "Export JSON" action to each library card in `RangeLibrary` (an `onExportRange(range)`
+  callback prop, mirroring the existing card actions like duplicate/stats), and in `App` wire it to
+  build the JSON and trigger a download (reuse the Blob/object-URL pattern from the backup export;
+  consider extracting a tiny `downloadTextFile(name, text)` helper in `App` since this is the 2nd
+  download). Filename from the range name (sanitized) + `.json`.
 
-This is a mechanical async refactor — keep it faithful and well-tested; if it balloons, stop and
-report rather than half-applying it.
+Keep import (single-range JSON → add to library) as the next slice.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- No behavior change for local-only/cloud users; no new dependencies.
-- Small and reversible (it's one cohesive refactor).
+- Pure domain logic in `src/domain/`; no new dependencies. Local-only.
+- Small and reversible.
 
 Suggested commit message:
-- `perf: code-split Supabase out of the initial bundle`
+- `feat: export a single range to a JSON file`

@@ -30,7 +30,7 @@ async function requireContext(deps: BackupRepoDeps): Promise<{
   client: SupabaseClient
   userId: string
 }> {
-  const client = deps.client ?? getSupabaseClient()
+  const client = deps.client ?? (await getSupabaseClient())
   if (!client) throw new CloudNotConfiguredError()
   const userId = await (deps.resolveUserId ?? defaultResolveUserId)()
   if (!userId) throw new NotSignedInError()

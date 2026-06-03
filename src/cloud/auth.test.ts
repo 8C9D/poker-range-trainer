@@ -28,8 +28,8 @@ describe('auth wrapper when cloud is unconfigured', () => {
     await expect(getCurrentSession(null)).resolves.toBeNull()
   })
 
-  it('onAuthChange is a no-op returning an unsubscribe fn', () => {
-    const unsub = onAuthChange(() => {}, null)
+  it('onAuthChange is a no-op returning an unsubscribe fn', async () => {
+    const unsub = await onAuthChange(() => {}, null)
     expect(() => unsub()).not.toThrow()
   })
 })
@@ -72,7 +72,7 @@ describe('signOut', () => {
 })
 
 describe('onAuthChange', () => {
-  it('forwards sessions and unsubscribes', () => {
+  it('forwards sessions and unsubscribes', async () => {
     const unsubscribe = vi.fn()
     let handler: ((event: string, session: Session | null) => void) | undefined
     const onAuthStateChange = vi.fn((cb) => {
@@ -80,7 +80,10 @@ describe('onAuthChange', () => {
       return { data: { subscription: { unsubscribe } } }
     })
     const seen: (Session | null)[] = []
-    const unsub = onAuthChange((s) => seen.push(s), clientWithAuth({ onAuthStateChange } as never))
+    const unsub = await onAuthChange(
+      (s) => seen.push(s),
+      clientWithAuth({ onAuthStateChange } as never),
+    )
     handler?.('SIGNED_IN', fakeSession)
     expect(seen).toEqual([fakeSession])
     unsub()

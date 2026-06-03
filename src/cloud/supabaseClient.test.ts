@@ -7,14 +7,14 @@ beforeEach(() => {
 })
 
 describe('getSupabaseClient', () => {
-  it('returns null when cloud is not configured', () => {
-    expect(getSupabaseClient({ config: null })).toBeNull()
+  it('returns null when cloud is not configured', async () => {
+    await expect(getSupabaseClient({ config: null })).resolves.toBeNull()
   })
 
-  it('creates a client from the injected config', () => {
+  it('creates a client from the injected config', async () => {
     const fakeClient = {} as SupabaseClient
     const create = vi.fn(() => fakeClient)
-    const client = getSupabaseClient({
+    const client = await getSupabaseClient({
       config: { url: 'https://example.supabase.co', anonKey: 'anon-key' },
       create: create as never,
     })
@@ -22,15 +22,15 @@ describe('getSupabaseClient', () => {
     expect(create).toHaveBeenCalledWith('https://example.supabase.co', 'anon-key')
   })
 
-  it('memoizes the client across calls (creates once)', () => {
+  it('memoizes the client across calls (creates once)', async () => {
     const fakeClient = {} as SupabaseClient
     const create = vi.fn(() => fakeClient)
     const deps = {
       config: { url: 'https://example.supabase.co', anonKey: 'anon-key' },
       create: create as never,
     }
-    getSupabaseClient(deps)
-    getSupabaseClient(deps)
+    await getSupabaseClient(deps)
+    await getSupabaseClient(deps)
     expect(create).toHaveBeenCalledTimes(1)
   })
 })
