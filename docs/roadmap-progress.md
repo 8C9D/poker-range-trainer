@@ -123,6 +123,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 86 | Export a single range to a JSON file | v3.2 — Import/export ecosystem | 2026-06-08 |
 | 87 | Import a single range from a JSON file | v3.2 — Import/export ecosystem | 2026-06-08 |
 | 88 | Export a range as a CSV summary | v3.2 — Import/export ecosystem | 2026-06-08 |
+| 89 | Export a range as an SVG image | v3.2 — Import/export ecosystem | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -573,30 +574,41 @@ a blank line, then a `hand` column listing each hand; values are CSV-escaped. Un
 > validated/committed/pushed slices across **v3** (accounts, Supabase auth, full-library cloud sync,
 > data deletion, backup import/export), **v3.1** (responsive layout, installable PWA, offline
 > service worker, swipe answers, Supabase code-split), and the start of **v3.2** (single-range JSON
-> import/export, CSV export). Per the skill's safety checkpoint the loop PAUSES here so the user can
-> decide whether to continue. Re-invoking `finish-roadmap` resumes from slice 89. The repo is clean
-> and fully pushed.
+> import/export, CSV export). Per the skill's safety checkpoint the loop PAUSED at slice 89; the user
+> re-invoked `finish-roadmap` to continue. Slice counting restarts for this run.
+
+Slice 89 added SVG image export. `formatRangeSvg(range)` in `domain/rangeTransfer.ts` renders a
+standalone 13×13 SVG (one `<rect>` + `<text>` per starting hand in matrix order): in-range hands use
+the accent color, action-assigned hands use their palette color (mirroring `ActionPalette.css`),
+others are muted; the range name is XML-escaped into a `<title>`. Pure and dependency-free, unit-
+tested for structure (169 cells), fills, action colors, and escaping. An "Export image" card action
+(`onExportRangeImage`, optional like the JSON/CSV actions) downloads `{name}.svg` via
+`downloadTextFile(..., 'image/svg+xml')`.
 
 ## Next slice
 
-- **Number:** 89
+- **Number:** 90
 - **Roadmap target:** v3.2 — Import/export ecosystem
-- **Working title:** Export a range as a PNG/SVG image of the 13×13 grid
+- **Working title:** Shareable range links (client-side URL-encoded range)
 
 ### Prompt
 
-Continue **v3.2** with the roadmap's "Export range images". Add a way to export a range's 13×13 grid
-as an image. Lowest-risk approach without new deps: generate an SVG string from the range (a pure
-`formatRangeSvg(range): string` in `src/domain/` that draws a 13×13 grid, coloring in-range cells —
-and, if `handActions` is present, action colors — with hand labels), unit-test its structure
-(contains `<svg`, 169 cells, correct fills for a small case), and add an "Export image" card action
-that downloads it as `{name}.svg` via `downloadTextFile(..., 'image/svg+xml')`. (PNG would need
-canvas rasterization; SVG keeps it pure/testable and is still a real image users can open/print.)
+Continue **v3.2** with the roadmap's "Shareable range links" — the client-side, no-backend portion.
+(Public read-only pages and private server-hosted shared links need backend/hosting decisions and
+should be paused for the user when reached.) Add a pure pair in `src/domain/rangeTransfer.ts`:
+`encodeRangeToHash(range): string` (base64url-encode the existing `serializeRangeExport` JSON) and
+`decodeRangeFromHash(hash): SavedRange` (decode + reuse `parseRangeExport`, throwing a clear `Error`
+on malformed input), round-trip + rejection unit-tested. Add a "Copy share link" card action that
+copies `${location.origin}${location.pathname}#range=<hash>` to the clipboard, and have `App` read a
+`#range=` fragment on load: parse it, add the decoded range as a NEW range (fresh `createRangeId()` +
+timestamps, never clobbering), clear the hash, and refresh `savedRanges` (alert on parse error),
+mirroring the existing single-range import flow.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Pure formatting in `src/domain/`; no new dependencies. Local-only. Small and reversible.
+- Pure encode/decode in `src/domain/`; no new dependencies. Client-only (no backend). Small and
+  reversible. Keep anonymous/local mode fully working.
 
 Suggested commit message:
-- `feat: export a range as an SVG image`
+- `feat: share a range via a URL link`

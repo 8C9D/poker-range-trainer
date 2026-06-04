@@ -5,6 +5,7 @@ import {
   RANGE_EXPORT_VERSION,
   buildRangeExport,
   formatRangeCsv,
+  formatRangeSvg,
   parseRangeExport,
   serializeRangeExport,
 } from './rangeTransfer'
@@ -92,5 +93,31 @@ describe('formatRangeCsv', () => {
   it('CSV-escapes names containing commas', () => {
     const csv = formatRangeCsv(makeRange({ name: 'BTN, vs BB', hands: ['AA'] }))
     expect(csv).toContain('name,"BTN, vs BB"')
+  })
+})
+
+describe('formatRangeSvg', () => {
+  it('produces an SVG with one cell per starting hand', () => {
+    const svg = formatRangeSvg(makeRange({ hands: ['AA'] }))
+    expect(svg).toContain('<svg')
+    expect(svg).toContain('</svg>')
+    expect((svg.match(/<rect /g) ?? []).length).toBe(169)
+    expect((svg.match(/<text /g) ?? []).length).toBe(169)
+  })
+
+  it('fills in-range hands with the accent color and others muted', () => {
+    const svg = formatRangeSvg(makeRange({ hands: ['AA'] }))
+    expect(svg).toContain('fill="#aa3bff"')
+    expect(svg).toContain('fill="#2b2540"')
+  })
+
+  it('uses action colors when handActions are present', () => {
+    const svg = formatRangeSvg(makeRange({ hands: ['AA'], handActions: { AA: 'raise' } }))
+    expect(svg).toContain('fill="#d4a72c"')
+  })
+
+  it('escapes the range name in the title', () => {
+    const svg = formatRangeSvg(makeRange({ name: 'A & B <x>' }))
+    expect(svg).toContain('<title>A &amp; B &lt;x&gt;</title>')
   })
 })

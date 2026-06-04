@@ -1,4 +1,6 @@
 import type { SavedRange } from '../types/range'
+import { RANGE_ACTIONS, type RangeAction } from '../types/range'
+import { generateHandMatrix } from './pokerHands'
 import { calculateRangePercentage, countSelectedCombos } from './rangeMath'
 
 /**
@@ -48,6 +50,77 @@ export function formatRangeCsv(range: SavedRange): string {
     ...range.hands.map((hand) => csvEscape(hand)),
   ]
   return lines.join('\n')
+}
+
+/**
+ * Action fill colors for the SVG export, mirroring `ActionPalette.css` so an
+ * exported image matches the on-screen multi-color grid.
+ */
+const ACTION_COLORS: Record<RangeAction, string> = {
+  fold: '#6b7280',
+  call: '#1a7f37',
+  raise: '#d4a72c',
+  threeBet: '#cf222e',
+  fourBet: '#8250df',
+  jam: '#6e1423',
+  mixed: '#0969da',
+}
+
+/** Fill for an in-range cell with no per-hand action (the accent color). */
+const IN_RANGE_COLOR = '#aa3bff'
+/** Fill for an out-of-range cell. */
+const OUT_OF_RANGE_COLOR = '#2b2540'
+
+/**
+ * Render a range's 13×13 grid as a standalone SVG image string.
+ *
+ * Pure and dependency-free: draws one square per starting hand in standard
+ * matrix order with its hand label. In-range hands are filled with the accent
+ * color; when `handActions` is present, each assigned hand uses its action color
+ * (matching the on-screen palette). The result is a real, printable image users
+ * can open in any browser or image viewer.
+ */
+export function formatRangeSvg(range: SavedRange): string {
+  const matrix = generateHandMatrix()
+  const inRange = new Set(range.hands)
+  const handActions = range.handActions
+  const cell = 40
+  const size = cell * 13
+
+  const cells: string[] = []
+  matrix.forEach((row, i) => {
+    row.forEach((hand, j) => {
+      const x = j * cell
+      const y = i * cell
+      let fill = OUT_OF_RANGE_COLOR
+      const action = handActions?.[hand]
+      if (action && RANGE_ACTIONS.includes(action)) {
+        fill = ACTION_COLORS[action]
+      } else if (inRange.has(hand)) {
+        fill = IN_RANGE_COLOR
+      }
+      const textFill = fill === OUT_OF_RANGE_COLOR ? '#888' : '#fff'
+      cells.push(
+        `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" fill="${fill}" stroke="#1a1626" stroke-width="1"/>` +
+          `<text x="${x + cell / 2}" y="${y + cell / 2}" fill="${textFill}" font-family="sans-serif" font-size="11" text-anchor="middle" dominant-baseline="central">${xmlEscape(hand)}</text>`,
+      )
+    })
+  })
+
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">` +
+    `<title>${xmlEscape(range.name)}</title>` +
+    cells.join('') +
+    `</svg>`
+  )
+}
+
+function xmlEscape(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
 }
 
 function csvEscape(value: string): string {

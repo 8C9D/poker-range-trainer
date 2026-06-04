@@ -37,7 +37,12 @@ import { deleteSavedRange, loadSavedRanges, saveSavedRange } from './storage/ran
 import { deleteBackup, pullBackup, pushBackup } from './cloud/backupRepo'
 import { buildBackup, parseBackup, restoreBackup, serializeBackup } from './storage/backup'
 import { useAuthSession } from './cloud/useAuthSession'
-import { formatRangeCsv, parseRangeExport, serializeRangeExport } from './domain/rangeTransfer'
+import {
+  formatRangeCsv,
+  formatRangeSvg,
+  parseRangeExport,
+  serializeRangeExport,
+} from './domain/rangeTransfer'
 import type { ActionAttempt, PracticeAttempt } from './types/practice'
 import type {
   ActionType,
@@ -442,6 +447,10 @@ function App() {
     downloadTextFile(`${safeRangeFileName(range)}.csv`, formatRangeCsv(range), 'text/csv')
   }
 
+  function handleExportRangeImage(range: SavedRange) {
+    downloadTextFile(`${safeRangeFileName(range)}.svg`, formatRangeSvg(range), 'image/svg+xml')
+  }
+
   async function handleImportRange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     // Reset the input so re-selecting the same file fires change again.
@@ -810,6 +819,7 @@ function App() {
             onEditActions={handleEditActions}
             onExportRange={handleExportRange}
             onExportRangeCsv={handleExportRangeCsv}
+            onExportRangeImage={handleExportRangeImage}
           />
         </>
       )}
