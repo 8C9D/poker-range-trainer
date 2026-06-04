@@ -124,6 +124,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 87 | Import a single range from a JSON file | v3.2 — Import/export ecosystem | 2026-06-08 |
 | 88 | Export a range as a CSV summary | v3.2 — Import/export ecosystem | 2026-06-08 |
 | 89 | Export a range as an SVG image | v3.2 — Import/export ecosystem | 2026-06-08 |
+| 90 | Shareable range links (client-side URL-encoded range) | v3.2 — Import/export ecosystem | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -585,30 +586,46 @@ tested for structure (169 cells), fills, action colors, and escaping. An "Export
 (`onExportRangeImage`, optional like the JSON/CSV actions) downloads `{name}.svg` via
 `downloadTextFile(..., 'image/svg+xml')`.
 
+Slice 90 added shareable range links (the client-side, no-backend portion of "Shareable range
+links"). `encodeRangeToHash(range)` / `decodeRangeFromHash(hash)` in `domain/rangeTransfer.ts`
+base64url-encode the existing `serializeRangeExport` envelope (UTF-8 safe via
+`encodeURIComponent`/`escape`), reusing `parseRangeExport` on decode and throwing a clear `Error` on
+malformed input; round-trip + rejection unit-tested. A "Copy share link" card action
+(`onShareRange`, optional) copies `${origin}${pathname}#range=<hash>` to the clipboard (falling back
+to `window.prompt` when the Clipboard API is unavailable). On load, `App` runs a module-level
+`importSharedRangeFromHash()` BEFORE rendering — it decodes a `#range=` fragment, saves it as a NEW
+range (fresh `createRangeId()` + timestamps), and clears the hash — so the normal `loadSavedRanges()`
+initializer picks it up without a synchronous setState in an effect (which the lint config forbids).
+
+(Remaining v3.2 bullets — **public read-only range pages** and **private server-hosted shared
+links** — require backend/hosting decisions and are a design-decision PAUSE when reached. **Range
+packs** are buildable locally and are queued next.)
+
 ## Next slice
 
-- **Number:** 90
+- **Number:** 91
 - **Roadmap target:** v3.2 — Import/export ecosystem
-- **Working title:** Shareable range links (client-side URL-encoded range)
+- **Working title:** Range packs (export/import a bundle of ranges as one file)
 
 ### Prompt
 
-Continue **v3.2** with the roadmap's "Shareable range links" — the client-side, no-backend portion.
-(Public read-only pages and private server-hosted shared links need backend/hosting decisions and
-should be paused for the user when reached.) Add a pure pair in `src/domain/rangeTransfer.ts`:
-`encodeRangeToHash(range): string` (base64url-encode the existing `serializeRangeExport` JSON) and
-`decodeRangeFromHash(hash): SavedRange` (decode + reuse `parseRangeExport`, throwing a clear `Error`
-on malformed input), round-trip + rejection unit-tested. Add a "Copy share link" card action that
-copies `${location.origin}${location.pathname}#range=<hash>` to the clipboard, and have `App` read a
-`#range=` fragment on load: parse it, add the decoded range as a NEW range (fresh `createRangeId()` +
-timestamps, never clobbering), clear the hash, and refresh `savedRanges` (alert on parse error),
-mirroring the existing single-range import flow.
+Continue **v3.2** with the roadmap's "Range packs": a single file that bundles multiple ranges so a
+user can move or share a whole set at once. Add a pure module (e.g. extend
+`src/domain/rangeTransfer.ts` or a new `rangePack.ts`): a versioned envelope `{ kind:
+'poker-range-pack', version: 1, name?: string, ranges: SavedRange[] }` with `buildRangePack(name,
+ranges)` / `serializeRangePack(...)` and `parseRangePack(json): { name?: string; ranges: SavedRange[]
+}` (validate kind/version and that `ranges` is an array of structurally valid ranges, reusing the
+single-range validation; throw a clear `Error` otherwise). Round-trip + rejection unit-tested. Wire
+into `App`: an "Export pack" control that downloads ALL current ranges as one `.json` pack, and an
+"Import pack" file input that parses it and adds EVERY range as a NEW range (fresh `createRangeId()`
++ timestamps, never clobbering), then refreshes `savedRanges` (alert on parse error). Mirror the
+existing single-range import/export wiring.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Pure encode/decode in `src/domain/`; no new dependencies. Client-only (no backend). Small and
+- Pure pack format in `src/domain/`; no new dependencies. Local-only (no backend). Small and
   reversible. Keep anonymous/local mode fully working.
 
 Suggested commit message:
-- `feat: share a range via a URL link`
+- `feat: export and import a range pack`

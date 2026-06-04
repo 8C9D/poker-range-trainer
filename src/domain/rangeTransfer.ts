@@ -30,6 +30,34 @@ export function serializeRangeExport(range: SavedRange): string {
 }
 
 /**
+ * Encode a range into a compact, URL-safe string for a shareable link.
+ *
+ * The same versioned JSON envelope as the file export, base64url-encoded
+ * (UTF-8 safe). Client-only — no backend or hosting involved; the decoder
+ * (`decodeRangeFromHash`) reverses it.
+ */
+export function encodeRangeToHash(range: SavedRange): string {
+  const json = serializeRangeExport(range)
+  const base64 = btoa(unescape(encodeURIComponent(json)))
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+/**
+ * Decode a shareable-link string back into a `SavedRange`. Throws a clear
+ * `Error` when the string is not valid base64url or not a valid range export.
+ */
+export function decodeRangeFromHash(hash: string): SavedRange {
+  let json: string
+  try {
+    const base64 = hash.replace(/-/g, '+').replace(/_/g, '/')
+    json = decodeURIComponent(escape(atob(base64)))
+  } catch {
+    throw new Error('Share link is not a valid range.')
+  }
+  return parseRangeExport(json)
+}
+
+/**
  * Format a range as a spreadsheet-friendly CSV summary.
  *
  * A small summary block (name, hand count, combos, percentage) followed by a

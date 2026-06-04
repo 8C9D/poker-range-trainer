@@ -4,6 +4,8 @@ import {
   RANGE_EXPORT_KIND,
   RANGE_EXPORT_VERSION,
   buildRangeExport,
+  decodeRangeFromHash,
+  encodeRangeToHash,
   formatRangeCsv,
   formatRangeSvg,
   parseRangeExport,
@@ -119,5 +121,18 @@ describe('formatRangeSvg', () => {
   it('escapes the range name in the title', () => {
     const svg = formatRangeSvg(makeRange({ name: 'A & B <x>' }))
     expect(svg).toContain('<title>A &amp; B &lt;x&gt;</title>')
+  })
+})
+
+describe('encodeRangeToHash / decodeRangeFromHash', () => {
+  it('round-trips a range through a URL-safe hash', () => {
+    const range = makeRange({ name: 'BTN open ♠', hands: ['AA', 'AKs'] })
+    const hash = encodeRangeToHash(range)
+    expect(hash).not.toMatch(/[+/=]/)
+    expect(decodeRangeFromHash(hash)).toEqual(range)
+  })
+
+  it('rejects a malformed hash', () => {
+    expect(() => decodeRangeFromHash('!!!not base64!!!')).toThrow(/Share link|valid/)
   })
 })

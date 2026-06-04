@@ -38,6 +38,8 @@ import { deleteBackup, pullBackup, pushBackup } from './cloud/backupRepo'
 import { buildBackup, parseBackup, restoreBackup, serializeBackup } from './storage/backup'
 import { useAuthSession } from './cloud/useAuthSession'
 import {
+  decodeRangeFromHash,
+  encodeRangeToHash,
   formatRangeCsv,
   formatRangeSvg,
   parseRangeExport,
@@ -62,6 +64,28 @@ function createRangeId(): string {
   }
   return `range-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
 }
+
+/**
+ * Import a range shared via a `#range=<hash>` link into local storage once, at
+ * module load, then clear the hash so a refresh won't re-import. Doing this
+ * before React renders lets the normal `loadSavedRanges()` initializer pick it
+ * up without a synchronous setState in an effect. No-op when there's no hash.
+ */
+function importSharedRangeFromHash() {
+  if (typeof window === 'undefined') return
+  const match = /^#range=(.+)$/.exec(window.location.hash)
+  if (!match) return
+  try {
+    const shared = decodeRangeFromHash(match[1])
+    const now = new Date().toISOString()
+    saveSavedRange({ ...shared, id: createRangeId(), createdAt: now, updatedAt: now })
+  } catch (error) {
+    window.alert(error instanceof Error ? error.message : 'Could not open shared range.')
+  }
+  window.history.replaceState(null, '', window.location.pathname + window.location.search)
+}
+
+importSharedRangeFromHash()
 
 function App() {
   const auth = useAuthSession()
@@ -451,6 +475,17 @@ function App() {
     downloadTextFile(`${safeRangeFileName(range)}.svg`, formatRangeSvg(range), 'image/svg+xml')
   }
 
+  async function handleShareRange(range: SavedRange) {
+    const link = `${window.location.origin}${window.location.pathname}#range=${encodeRangeToHash(range)}`
+    try {
+      await navigator.clipboard.writeText(link)
+      window.alert('Share link copied to clipboard.')
+    } catch {
+      // Clipboard may be unavailable (insecure context); show the link to copy manually.
+      window.prompt('Copy this share link:', link)
+    }
+  }
+
   async function handleImportRange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     // Reset the input so re-selecting the same file fires change again.
@@ -820,6 +855,7 @@ function App() {
             onExportRange={handleExportRange}
             onExportRangeCsv={handleExportRangeCsv}
             onExportRangeImage={handleExportRangeImage}
+            onShareRange={handleShareRange}
           />
         </>
       )}

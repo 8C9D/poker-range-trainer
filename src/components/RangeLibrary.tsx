@@ -54,6 +54,7 @@ interface RangeLibraryProps {
   /** Export the given saved range to a downloadable CSV summary. */
   onExportRangeCsv?: (range: SavedRange) => void
   onExportRangeImage?: (range: SavedRange) => void
+  onShareRange?: (range: SavedRange) => void
   /**
    * Cumulative per-range practice stats, keyed by range id. A range with an
    * entry that has recorded attempts shows a practice-stats line on its card;
@@ -130,6 +131,7 @@ export function RangeLibrary({
   onExportRange = () => {},
   onExportRangeCsv = () => {},
   onExportRangeImage = () => {},
+  onShareRange = () => {},
   practiceStats = {},
 }: RangeLibraryProps) {
   const [query, setQuery] = useState('')
@@ -418,6 +420,13 @@ export function RangeLibrary({
                         onClick={() => onExportRangeImage(range)}
                       >
                         Export image
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Copy share link for range ${range.name}`}
+                        onClick={() => onShareRange(range)}
+                      >
+                        Copy share link
                       </button>
                       <button
                         type="button"
