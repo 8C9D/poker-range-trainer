@@ -126,6 +126,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 89 | Export a range as an SVG image | v3.2 — Import/export ecosystem | 2026-06-08 |
 | 90 | Shareable range links (client-side URL-encoded range) | v3.2 — Import/export ecosystem | 2026-06-08 |
 | 91 | Range packs (export/import a bundle of ranges) | v3.2 — Import/export ecosystem | 2026-06-08 |
+| 92 | Shared-ranges backend (publish/fetch/unpublish repo + migration) | v3.2 — Import/export ecosystem | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -610,37 +611,44 @@ otherwise). Round-trip + rejection unit-tested. `App` wires an "Export pack" but
 ranges as one `.json`) and an "Import pack" file input (adds every contained range as a NEW range
 with fresh ids/timestamps, never clobbering), mirroring the single-range flow.
 
-> ⛔ **DESIGN-DECISION PAUSE (finish-roadmap step 3b).** The remaining **v3.2** bullets are
-> **public read-only range pages** and **private shared range links**. Unlike everything built so
-> far in v3.2 (all client-side/local), these require *server-hosted, publicly reachable pages* —
-> a hosting + routing + access-control decision the roadmap does not pin down (where are pages
-> hosted? a Supabase row + a `/r/:id` route served by what? how is "private" link access enforced —
-> unguessable token, RLS, signed URL? SEO/SSR or client-rendered?). Per the skill these
-> infrastructure calls must not be guessed. The loop STOPS here for the user to decide. The repo is
-> clean and fully pushed through slice 91.
+**DESIGN DECISION (2026-06-08):** the user chose the **Supabase row + `/r/:id` route** model for
+v3.2's shared range pages, so the loop resumed. Implementation: a `shared_ranges` table keyed by an
+unguessable id; public rows readable by id alone, private rows guarded by a secret token; visitor
+reads go through a `SECURITY DEFINER` RPC; a client-rendered hash route renders the page read-only.
+
+Slice 92 built the backend foundation. `supabase/migrations/0003_shared_ranges.sql` documents the
+`shared_ranges` table (owner-only RLS for insert/update/delete/owner-select) plus a
+`get_shared_range(p_id, p_token)` SECURITY DEFINER function that returns the payload when the row is
+public or the token matches (granted to anon + authenticated). `src/cloud/sharedRangesRepo.ts` adds
+`publishSharedRange(range, isPublic)` (signed-in insert; generates the id and, for private, a token —
+both injectable), `getSharedRange(id, token?)` (no sign-in needed; calls the RPC; null when nothing
+matches), and `unpublishSharedRange(id)` (owner-scoped delete). Same injectable deps + unconfigured/
+signed-out errors as the other repos; fully unit-tested with a fake client. Not wired into the UI yet.
 
 ## Next slice
 
-- **Number:** 92
+- **Number:** 93
 - **Roadmap target:** v3.2 — Import/export ecosystem
-- **Working title:** Public/private shared range pages (BLOCKED on a hosting/access-control decision)
+- **Working title:** Read-only shared range page + hash route (`#/r/:id`)
 
 ### Prompt
 
-(Queued pending the design decision above.) Implement the roadmap's "Public read-only range pages"
-and "Private shared range links" once the user has chosen the hosting + access-control model.
-Likely shape given the existing Supabase backend: store a shared range/pack in a `shared_ranges`
-table keyed by an unguessable id (public rows readable by anyone via RLS; private rows reachable
-only with a secret token), add a `/r/:id` route that fetches and renders the range read-only
-(reusing the existing grid components), and a "Publish / share" control on a range that uploads it
-and returns the link. Keep anonymous/local mode fully working and the local share-link (slice 90)
-path intact. Confirm the exact table/RLS/route/render approach with the user before building.
+Continue v3.2's shared range pages with the visitor-facing read side. Add a small client-side route
+read (no router dependency): a pure helper in `src/domain/` — e.g. `parseShareRoute(hash):
+{ id: string; token?: string } | null` that recognizes `#/r/:id` (with an optional `?t=token` or
+`&t=`), unit-tested. Add a standalone read-only `SharedRangePage` component
+(`src/components/`) that, given an `id`/`token`, calls `getSharedRange` and renders the range
+read-only — reusing the existing grid (and action grid if `handActions` present) plus name/percent —
+with loading, not-found, and cloud-unconfigured states; fully tested with an injected fetch fn.
+Then wire `App` to render `SharedRangePage` instead of the normal app when `parseShareRoute(location.hash)`
+matches, so visiting a share link shows the read-only page. Keep local mode + the slice-90
+`#range=` import path working (distinct prefix).
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Backend code stays isolated under `src/cloud/`; pure logic in `src/domain/`; UI in
-  `src/components/`. Small, reversible slices. Do NOT start until the hosting/access decision is made.
+- Pure route parsing in `src/domain/`; cloud calls via `src/cloud/`; UI in `src/components/`. No new
+  deps. Small and reversible.
 
 Suggested commit message:
-- `feat: public read-only shared range pages` (first sub-slice)
+- `feat: read-only shared range page at #/r/:id`
