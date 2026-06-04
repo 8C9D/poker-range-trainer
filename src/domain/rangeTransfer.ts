@@ -13,6 +13,9 @@ import { calculateRangePercentage, countSelectedCombos } from './rangeMath'
 export const RANGE_EXPORT_KIND = 'poker-range'
 export const RANGE_EXPORT_VERSION = 1
 
+export const RANGE_PACK_KIND = 'poker-range-pack'
+export const RANGE_PACK_VERSION = 1
+
 export interface RangeExport {
   kind: typeof RANGE_EXPORT_KIND
   version: number
@@ -181,14 +184,73 @@ export function parseRangeExport(json: string): SavedRange {
   if (parsed.version !== RANGE_EXPORT_VERSION) {
     throw new Error(`Unsupported range export version: ${String(parsed.version)}.`)
   }
-  const range = parsed.range
-  if (
-    !isPlainObject(range) ||
-    typeof range.id !== 'string' ||
-    typeof range.name !== 'string' ||
-    !Array.isArray(range.hands)
-  ) {
+  if (!isValidRangeShape(parsed.range)) {
     throw new Error('Range file is missing a valid range.')
   }
-  return range as unknown as SavedRange
+  return parsed.range as unknown as SavedRange
+}
+
+/** Structural check shared by single-range and range-pack parsing. */
+function isValidRangeShape(range: unknown): boolean {
+  return (
+    isPlainObject(range) &&
+    typeof range.id === 'string' &&
+    typeof range.name === 'string' &&
+    Array.isArray(range.hands)
+  )
+}
+
+/**
+ * A range pack bundles multiple ranges into one shareable/movable file. Like the
+ * single-range export it is a versioned envelope; `name` is an optional label.
+ */
+export interface RangePack {
+  kind: typeof RANGE_PACK_KIND
+  version: number
+  name?: string
+  ranges: SavedRange[]
+}
+
+/** Wrap ranges in a pack envelope (omitting `name` when blank). */
+export function buildRangePack(name: string, ranges: SavedRange[]): RangePack {
+  const trimmed = name.trim()
+  return {
+    kind: RANGE_PACK_KIND,
+    version: RANGE_PACK_VERSION,
+    ...(trimmed ? { name: trimmed } : {}),
+    ranges,
+  }
+}
+
+/** Serialize a range pack to a pretty-printed JSON string. */
+export function serializeRangePack(name: string, ranges: SavedRange[]): string {
+  return JSON.stringify(buildRangePack(name, ranges), null, 2)
+}
+
+/**
+ * Parse and validate a range-pack string, returning its optional name and the
+ * contained ranges. Throws a clear `Error` on invalid JSON, the wrong
+ * `kind`/`version`, a non-array `ranges`, or any structurally invalid range.
+ */
+export function parseRangePack(json: string): { name?: string; ranges: SavedRange[] } {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(json)
+  } catch {
+    throw new Error('Pack file is not valid JSON.')
+  }
+  if (!isPlainObject(parsed)) {
+    throw new Error('Pack file is not a range pack.')
+  }
+  if (parsed.kind !== RANGE_PACK_KIND) {
+    throw new Error('Pack file is not a poker-range-pack.')
+  }
+  if (parsed.version !== RANGE_PACK_VERSION) {
+    throw new Error(`Unsupported range pack version: ${String(parsed.version)}.`)
+  }
+  if (!Array.isArray(parsed.ranges) || !parsed.ranges.every(isValidRangeShape)) {
+    throw new Error('Pack file is missing valid ranges.')
+  }
+  const name = typeof parsed.name === 'string' ? parsed.name : undefined
+  return { name, ranges: parsed.ranges as unknown as SavedRange[] }
 }

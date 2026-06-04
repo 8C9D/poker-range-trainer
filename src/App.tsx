@@ -43,7 +43,9 @@ import {
   formatRangeCsv,
   formatRangeSvg,
   parseRangeExport,
+  parseRangePack,
   serializeRangeExport,
+  serializeRangePack,
 } from './domain/rangeTransfer'
 import type { ActionAttempt, PracticeAttempt } from './types/practice'
 import type {
@@ -459,6 +461,33 @@ function App() {
     )
   }
 
+  function handleExportPack() {
+    downloadTextFile(
+      `poker-range-pack-${new Date().toISOString().slice(0, 10)}.json`,
+      serializeRangePack('', savedRanges),
+    )
+  }
+
+  async function handleImportPack(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    // Reset the input so re-selecting the same file fires change again.
+    event.target.value = ''
+    if (!file) return
+    let pack: { name?: string; ranges: SavedRange[] }
+    try {
+      pack = parseRangePack(await file.text())
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Could not import pack file.')
+      return
+    }
+    // Add every range as a new range so importing never clobbers existing ones.
+    const now = new Date().toISOString()
+    for (const range of pack.ranges) {
+      saveSavedRange({ ...range, id: createRangeId(), createdAt: now, updatedAt: now })
+    }
+    setSavedRanges(loadSavedRanges())
+  }
+
   function safeRangeFileName(range: SavedRange) {
     return range.name.trim().replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '') || 'range'
   }
@@ -836,6 +865,17 @@ function App() {
                 type="file"
                 accept="application/json,.json"
                 onChange={handleImportRange}
+              />
+            </label>
+            <button type="button" onClick={handleExportPack}>
+              Export pack
+            </button>
+            <label className="import-backup">
+              Import pack
+              <input
+                type="file"
+                accept="application/json,.json"
+                onChange={handleImportPack}
               />
             </label>
           </div>

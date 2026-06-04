@@ -9,7 +9,11 @@ import {
   formatRangeCsv,
   formatRangeSvg,
   parseRangeExport,
+  parseRangePack,
   serializeRangeExport,
+  serializeRangePack,
+  RANGE_PACK_KIND,
+  RANGE_PACK_VERSION,
 } from './rangeTransfer'
 
 function makeRange(overrides: Partial<SavedRange> = {}): SavedRange {
@@ -134,5 +138,43 @@ describe('encodeRangeToHash / decodeRangeFromHash', () => {
 
   it('rejects a malformed hash', () => {
     expect(() => decodeRangeFromHash('!!!not base64!!!')).toThrow(/Share link|valid/)
+  })
+})
+
+describe('range packs', () => {
+  it('round-trips multiple ranges with an optional name', () => {
+    const ranges = [makeRange({ id: 'a', name: 'A' }), makeRange({ id: 'b', name: 'B' })]
+    const json = serializeRangePack('My pack', ranges)
+    expect(json).toContain('\n  ')
+    expect(parseRangePack(json)).toEqual({ name: 'My pack', ranges })
+  })
+
+  it('omits a blank name', () => {
+    const json = serializeRangePack('  ', [makeRange()])
+    expect(parseRangePack(json).name).toBeUndefined()
+  })
+
+  it('rejects invalid JSON', () => {
+    expect(() => parseRangePack('{nope')).toThrow(/valid JSON/)
+  })
+
+  it('rejects the wrong kind', () => {
+    expect(() =>
+      parseRangePack(JSON.stringify({ kind: 'nope', version: 1, ranges: [] })),
+    ).toThrow(/poker-range-pack/)
+  })
+
+  it('rejects an unsupported version', () => {
+    expect(() =>
+      parseRangePack(JSON.stringify({ kind: RANGE_PACK_KIND, version: 99, ranges: [] })),
+    ).toThrow(/version/)
+  })
+
+  it('rejects a non-array or invalid ranges list', () => {
+    expect(() =>
+      parseRangePack(
+        JSON.stringify({ kind: RANGE_PACK_KIND, version: RANGE_PACK_VERSION, ranges: [{ id: 1 }] }),
+      ),
+    ).toThrow(/valid ranges/)
   })
 })

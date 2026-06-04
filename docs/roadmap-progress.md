@@ -125,6 +125,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 88 | Export a range as a CSV summary | v3.2 — Import/export ecosystem | 2026-06-08 |
 | 89 | Export a range as an SVG image | v3.2 — Import/export ecosystem | 2026-06-08 |
 | 90 | Shareable range links (client-side URL-encoded range) | v3.2 — Import/export ecosystem | 2026-06-08 |
+| 91 | Range packs (export/import a bundle of ranges) | v3.2 — Import/export ecosystem | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -601,31 +602,45 @@ initializer picks it up without a synchronous setState in an effect (which the l
 links** — require backend/hosting decisions and are a design-decision PAUSE when reached. **Range
 packs** are buildable locally and are queued next.)
 
+Slice 91 added range packs. `rangeTransfer.ts` gained the versioned envelope `{ kind:
+'poker-range-pack', version: 1, name?, ranges }` via `buildRangePack` / `serializeRangePack` and
+`parseRangePack(json): { name?; ranges }` (validates kind/version + that `ranges` is an array of
+structurally valid ranges, reusing a factored-out `isValidRangeShape`; throws a clear `Error`
+otherwise). Round-trip + rejection unit-tested. `App` wires an "Export pack" button (downloads ALL
+ranges as one `.json`) and an "Import pack" file input (adds every contained range as a NEW range
+with fresh ids/timestamps, never clobbering), mirroring the single-range flow.
+
+> ⛔ **DESIGN-DECISION PAUSE (finish-roadmap step 3b).** The remaining **v3.2** bullets are
+> **public read-only range pages** and **private shared range links**. Unlike everything built so
+> far in v3.2 (all client-side/local), these require *server-hosted, publicly reachable pages* —
+> a hosting + routing + access-control decision the roadmap does not pin down (where are pages
+> hosted? a Supabase row + a `/r/:id` route served by what? how is "private" link access enforced —
+> unguessable token, RLS, signed URL? SEO/SSR or client-rendered?). Per the skill these
+> infrastructure calls must not be guessed. The loop STOPS here for the user to decide. The repo is
+> clean and fully pushed through slice 91.
+
 ## Next slice
 
-- **Number:** 91
+- **Number:** 92
 - **Roadmap target:** v3.2 — Import/export ecosystem
-- **Working title:** Range packs (export/import a bundle of ranges as one file)
+- **Working title:** Public/private shared range pages (BLOCKED on a hosting/access-control decision)
 
 ### Prompt
 
-Continue **v3.2** with the roadmap's "Range packs": a single file that bundles multiple ranges so a
-user can move or share a whole set at once. Add a pure module (e.g. extend
-`src/domain/rangeTransfer.ts` or a new `rangePack.ts`): a versioned envelope `{ kind:
-'poker-range-pack', version: 1, name?: string, ranges: SavedRange[] }` with `buildRangePack(name,
-ranges)` / `serializeRangePack(...)` and `parseRangePack(json): { name?: string; ranges: SavedRange[]
-}` (validate kind/version and that `ranges` is an array of structurally valid ranges, reusing the
-single-range validation; throw a clear `Error` otherwise). Round-trip + rejection unit-tested. Wire
-into `App`: an "Export pack" control that downloads ALL current ranges as one `.json` pack, and an
-"Import pack" file input that parses it and adds EVERY range as a NEW range (fresh `createRangeId()`
-+ timestamps, never clobbering), then refreshes `savedRanges` (alert on parse error). Mirror the
-existing single-range import/export wiring.
+(Queued pending the design decision above.) Implement the roadmap's "Public read-only range pages"
+and "Private shared range links" once the user has chosen the hosting + access-control model.
+Likely shape given the existing Supabase backend: store a shared range/pack in a `shared_ranges`
+table keyed by an unguessable id (public rows readable by anyone via RLS; private rows reachable
+only with a secret token), add a `/r/:id` route that fetches and renders the range read-only
+(reusing the existing grid components), and a "Publish / share" control on a range that uploads it
+and returns the link. Keep anonymous/local mode fully working and the local share-link (slice 90)
+path intact. Confirm the exact table/RLS/route/render approach with the user before building.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Pure pack format in `src/domain/`; no new dependencies. Local-only (no backend). Small and
-  reversible. Keep anonymous/local mode fully working.
+- Backend code stays isolated under `src/cloud/`; pure logic in `src/domain/`; UI in
+  `src/components/`. Small, reversible slices. Do NOT start until the hosting/access decision is made.
 
 Suggested commit message:
-- `feat: export and import a range pack`
+- `feat: public read-only shared range pages` (first sub-slice)
