@@ -34,6 +34,47 @@ describe('RangeLibrary', () => {
     expect(screen.getByText(/no saved ranges/i)).toBeInTheDocument()
   })
 
+  it('shows the cloud "Publish link" action only when publishing is available', async () => {
+    const onPublishRange = vi.fn()
+    const { rerender } = render(
+      <RangeLibrary
+        ranges={[makeRange()]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+        onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
+        onFavorite={vi.fn()}
+        onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
+        onPublishRange={onPublishRange}
+        canPublishToCloud={false}
+      />,
+    )
+    expect(screen.queryByLabelText(/Publish range .* as a cloud link/i)).not.toBeInTheDocument()
+
+    rerender(
+      <RangeLibrary
+        ranges={[makeRange()]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+        onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
+        onFavorite={vi.fn()}
+        onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
+        onPublishRange={onPublishRange}
+        canPublishToCloud
+      />,
+    )
+    const button = screen.getByLabelText(/Publish range .* as a cloud link/i)
+    await userEvent.click(button)
+    expect(onPublishRange).toHaveBeenCalledTimes(1)
+  })
+
   it('renders each range with its name and derived summary stats', () => {
     render(
       <RangeLibrary

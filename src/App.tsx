@@ -37,6 +37,7 @@ import { loadReviewStates, saveReviewState } from './storage/reviewStateStorage'
 import { loadSessionHistory, recordPracticeSessionHistory } from './storage/sessionHistoryStorage'
 import { deleteSavedRange, loadSavedRanges, saveSavedRange } from './storage/rangeStorage'
 import { deleteBackup, pullBackup, pushBackup } from './cloud/backupRepo'
+import { publishSharedRange } from './cloud/sharedRangesRepo'
 import { buildBackup, parseBackup, restoreBackup, serializeBackup } from './storage/backup'
 import { useAuthSession } from './cloud/useAuthSession'
 import {
@@ -576,6 +577,28 @@ function AppShell() {
 
   const [syncStatus, setSyncStatus] = useState('')
 
+  async function handlePublishRange(range: SavedRange) {
+    // OK = public (anyone with the link); Cancel = private (link carries a token).
+    const isPublic = window.confirm(
+      `Publish "${range.name}" as a shareable link?\n\nOK = public (anyone with the link can view)\nCancel = private (link includes a secret token)`,
+    )
+    setSyncStatus('Publishing…')
+    try {
+      const { id, token } = await publishSharedRange(range, isPublic)
+      const base = `${window.location.origin}${window.location.pathname}#/r/${id}`
+      const link = token ? `${base}?t=${token}` : base
+      try {
+        await navigator.clipboard.writeText(link)
+        setSyncStatus('Share link copied to clipboard.')
+      } catch {
+        window.prompt('Copy this share link:', link)
+        setSyncStatus('Share link ready.')
+      }
+    } catch (error) {
+      setSyncStatus(error instanceof Error ? error.message : 'Publish failed.')
+    }
+  }
+
   async function handlePushSync() {
     setSyncStatus('Pushing…')
     try {
@@ -909,6 +932,8 @@ function AppShell() {
             onExportRangeCsv={handleExportRangeCsv}
             onExportRangeImage={handleExportRangeImage}
             onShareRange={handleShareRange}
+            onPublishRange={handlePublishRange}
+            canPublishToCloud={!!auth.session}
           />
         </>
       )}

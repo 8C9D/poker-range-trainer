@@ -55,6 +55,9 @@ interface RangeLibraryProps {
   onExportRangeCsv?: (range: SavedRange) => void
   onExportRangeImage?: (range: SavedRange) => void
   onShareRange?: (range: SavedRange) => void
+  onPublishRange?: (range: SavedRange) => void
+  /** Whether the cloud "Publish link" action is available (signed in). */
+  canPublishToCloud?: boolean
   /**
    * Cumulative per-range practice stats, keyed by range id. A range with an
    * entry that has recorded attempts shows a practice-stats line on its card;
@@ -132,6 +135,8 @@ export function RangeLibrary({
   onExportRangeCsv = () => {},
   onExportRangeImage = () => {},
   onShareRange = () => {},
+  onPublishRange = () => {},
+  canPublishToCloud = false,
   practiceStats = {},
 }: RangeLibraryProps) {
   const [query, setQuery] = useState('')
@@ -428,6 +433,15 @@ export function RangeLibrary({
                       >
                         Copy share link
                       </button>
+                      {canPublishToCloud && (
+                        <button
+                          type="button"
+                          aria-label={`Publish range ${range.name} as a cloud link`}
+                          onClick={() => onPublishRange(range)}
+                        >
+                          Publish link
+                        </button>
+                      )}
                       <button
                         type="button"
                         aria-label={

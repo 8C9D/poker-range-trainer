@@ -128,6 +128,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 91 | Range packs (export/import a bundle of ranges) | v3.2 — Import/export ecosystem | 2026-06-08 |
 | 92 | Shared-ranges backend (publish/fetch/unpublish repo + migration) | v3.2 — Import/export ecosystem | 2026-06-08 |
 | 93 | Read-only shared range page + `#/r/:id` hash route | v3.2 — Import/export ecosystem | 2026-06-08 |
+| 94 | Publish a range as a shareable cloud link (library UI) | v3.2 — Import/export ecosystem | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -636,29 +637,44 @@ runs in the effect). `App` now splits into a thin `App` (renders `SharedRangePag
 `parseShareRoute(location.hash)` matches) and `AppShell` (the full app), so visiting a share link
 shows the read-only page while local mode and the `#range=` import path keep working.
 
+Slice 94 added the author-facing publish side. `AppShell.handlePublishRange(range)` asks public vs
+private (a `confirm`: OK = public, Cancel = private), calls `publishSharedRange(range, isPublic)`,
+builds `${origin}${pathname}#/r/${id}` (with `?t=${token}` for private), copies it to the clipboard
+(falling back to `window.prompt`), and reports via `syncStatus`. `RangeLibrary` cards gained a
+"Publish link" action gated behind a new `canPublishToCloud` prop (passed `!!auth.session`), so it
+appears only for signed-in users; tested for the gating + click. **The shared range pages feature is
+usable end-to-end: a signed-in user publishes a link, anyone opens `#/r/:id` to view it read-only.**
+
+> ⚠️ **NOTE ON v3.2 completion.** With slices 86–94, **v3.2 — Import/export ecosystem is
+> effectively COMPLETE**: JSON export/import, CSV, SVG image, client-side share links, range packs,
+> and cloud-published public/private shared pages. The repo also has an unused
+> `unpublishSharedRange` (slice 92) with no UI yet; slice 95 adds that small affordance to fully
+> round out the feature before the roadmap moves on to **v4 — Advanced poker training** (a large,
+> postflop-focused version — its first slice should be a small pure-domain foundation, e.g. board
+> texture tagging).
+
 ## Next slice
 
-- **Number:** 94
-- **Roadmap target:** v3.2 — Import/export ecosystem
-- **Working title:** Publish / unpublish a range from the library (share-link UI)
+- **Number:** 95
+- **Roadmap target:** v3.2 — Import/export ecosystem (finishing touch)
+- **Working title:** Unpublish a previously-shared range (UI for `unpublishSharedRange`)
 
 ### Prompt
 
-Complete v3.2's shared range pages with the author-facing publish side. In `AppShell`, for a
-signed-in user (`auth.session`), add a per-range "Share" action on the library card (or in the editor
-controls) that publishes the range via `publishSharedRange(range, isPublic)` — offer public vs
-private (e.g. a confirm or two buttons) — and on success builds the link
-`${origin}${pathname}#/r/${id}` (appending `?t=${token}` for private) and copies it to the clipboard
-(falling back to `window.prompt`), reporting via the existing `syncStatus`/alert pattern. Optionally
-add an "Unpublish" affordance calling `unpublishSharedRange(id)`. Hidden entirely when signed out or
-cloud-unconfigured (mirrors the existing cloud-sync block). Keep slices small — if publish + unpublish
-get large, ship publish first and queue unpublish as a follow-up slice.
+Round out v3.2's shared pages with an "Unpublish" affordance. The repo function
+`unpublishSharedRange(id)` already exists (slice 92) but has no UI. The challenge: the app does not
+persist which share id maps to which range. Simplest in-scope approach: when `handlePublishRange`
+succeeds, remember the returned share id in component state (e.g. a `Map<rangeId, shareId>` or just
+the last-published id) so an "Unpublish" button can call `unpublishSharedRange(shareId)` for ranges
+published this session; report via `syncStatus`. Gate it behind `auth.session` like the publish
+action, and keep it small — if mapping per-range gets fiddly, ship a single "Unpublish last shared
+link" control in the cloud-sync block instead. Add/adjust a focused test.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Cloud calls via `src/cloud/`; UI in `src/components/`/`App`. No new deps. Small and reversible.
+- Cloud calls via `src/cloud/`; UI in `App`/`src/components/`. No new deps. Small and reversible.
   Local/anonymous mode unaffected.
 
 Suggested commit message:
-- `feat: publish a range as a shareable link`
+- `feat: unpublish a shared range link`
