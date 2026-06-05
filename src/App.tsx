@@ -37,7 +37,7 @@ import { loadReviewStates, saveReviewState } from './storage/reviewStateStorage'
 import { loadSessionHistory, recordPracticeSessionHistory } from './storage/sessionHistoryStorage'
 import { deleteSavedRange, loadSavedRanges, saveSavedRange } from './storage/rangeStorage'
 import { deleteBackup, pullBackup, pushBackup } from './cloud/backupRepo'
-import { publishSharedRange } from './cloud/sharedRangesRepo'
+import { publishSharedRange, unpublishSharedRange } from './cloud/sharedRangesRepo'
 import { buildBackup, parseBackup, restoreBackup, serializeBackup } from './storage/backup'
 import { useAuthSession } from './cloud/useAuthSession'
 import {
@@ -576,6 +576,8 @@ function AppShell() {
   }
 
   const [syncStatus, setSyncStatus] = useState('')
+  // Share ids published this session, keyed by range id, so they can be unpublished.
+  const [publishedShareIds, setPublishedShareIds] = useState<Record<string, string>>({})
 
   async function handlePublishRange(range: SavedRange) {
     // OK = public (anyone with the link); Cancel = private (link carries a token).
@@ -585,6 +587,8 @@ function AppShell() {
     setSyncStatus('Publishing…')
     try {
       const { id, token } = await publishSharedRange(range, isPublic)
+      // Remember the share id so this session can unpublish it later.
+      setPublishedShareIds((prev) => ({ ...prev, [range.id]: id }))
       const base = `${window.location.origin}${window.location.pathname}#/r/${id}`
       const link = token ? `${base}?t=${token}` : base
       try {
@@ -596,6 +600,23 @@ function AppShell() {
       }
     } catch (error) {
       setSyncStatus(error instanceof Error ? error.message : 'Publish failed.')
+    }
+  }
+
+  async function handleUnpublishRange(range: SavedRange) {
+    const shareId = publishedShareIds[range.id]
+    if (!shareId) return
+    setSyncStatus('Unpublishing…')
+    try {
+      await unpublishSharedRange(shareId)
+      setPublishedShareIds((prev) => {
+        const next = { ...prev }
+        delete next[range.id]
+        return next
+      })
+      setSyncStatus('Shared link unpublished.')
+    } catch (error) {
+      setSyncStatus(error instanceof Error ? error.message : 'Unpublish failed.')
     }
   }
 
@@ -933,6 +954,8 @@ function AppShell() {
             onExportRangeImage={handleExportRangeImage}
             onShareRange={handleShareRange}
             onPublishRange={handlePublishRange}
+            onUnpublishRange={handleUnpublishRange}
+            publishedRangeIds={publishedShareIds}
             canPublishToCloud={!!auth.session}
           />
         </>

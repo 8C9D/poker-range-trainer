@@ -56,8 +56,11 @@ interface RangeLibraryProps {
   onExportRangeImage?: (range: SavedRange) => void
   onShareRange?: (range: SavedRange) => void
   onPublishRange?: (range: SavedRange) => void
+  onUnpublishRange?: (range: SavedRange) => void
   /** Whether the cloud "Publish link" action is available (signed in). */
   canPublishToCloud?: boolean
+  /** Map of range id → share id for ranges published this session (enables "Unpublish"). */
+  publishedRangeIds?: Record<string, string>
   /**
    * Cumulative per-range practice stats, keyed by range id. A range with an
    * entry that has recorded attempts shows a practice-stats line on its card;
@@ -136,7 +139,9 @@ export function RangeLibrary({
   onExportRangeImage = () => {},
   onShareRange = () => {},
   onPublishRange = () => {},
+  onUnpublishRange = () => {},
   canPublishToCloud = false,
+  publishedRangeIds = {},
   practiceStats = {},
 }: RangeLibraryProps) {
   const [query, setQuery] = useState('')
@@ -440,6 +445,15 @@ export function RangeLibrary({
                           onClick={() => onPublishRange(range)}
                         >
                           Publish link
+                        </button>
+                      )}
+                      {canPublishToCloud && publishedRangeIds[range.id] && (
+                        <button
+                          type="button"
+                          aria-label={`Unpublish shared link for range ${range.name}`}
+                          onClick={() => onUnpublishRange(range)}
+                        >
+                          Unpublish link
                         </button>
                       )}
                       <button

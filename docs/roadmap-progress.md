@@ -129,6 +129,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 92 | Shared-ranges backend (publish/fetch/unpublish repo + migration) | v3.2 — Import/export ecosystem | 2026-06-08 |
 | 93 | Read-only shared range page + `#/r/:id` hash route | v3.2 — Import/export ecosystem | 2026-06-08 |
 | 94 | Publish a range as a shareable cloud link (library UI) | v3.2 — Import/export ecosystem | 2026-06-08 |
+| 95 | Unpublish a shared range link (library UI) | v3.2 — Import/export ecosystem | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -653,28 +654,44 @@ usable end-to-end: a signed-in user publishes a link, anyone opens `#/r/:id` to 
 > postflop-focused version — its first slice should be a small pure-domain foundation, e.g. board
 > texture tagging).
 
+Slice 95 added the "Unpublish link" affordance. `AppShell` now tracks a `publishedShareIds`
+(`Record<rangeId, shareId>`) populated on successful publish; `handleUnpublishRange(range)` calls
+`unpublishSharedRange(shareId)` and drops the entry, reporting via `syncStatus`. `RangeLibrary`
+shows an "Unpublish link" button only for ranges with a published id this session (new
+`onUnpublishRange` + `publishedRangeIds` props), gated behind `canPublishToCloud`; tested for the
+gating + click.
+
+> ✅ **v3.2 — Import/export ecosystem is COMPLETE** (slices 86–95): JSON export/import, CSV, SVG
+> image, client-side `#range=` share links, range packs, and cloud-published public/private shared
+> pages (publish + read-only `#/r/:id` page + unpublish). **With v1–v3.2 all done, the roadmap now
+> moves to v4 — Advanced poker training**, a large postflop-focused version. It is a major shift
+> (cards, boards, postflop scenarios) but it is product-specified, not an infrastructure decision,
+> so the loop proceeds — starting with a small pure-domain foundation (card model + flop texture
+> tagging) and keeping every existing preflop feature intact.
+
 ## Next slice
 
-- **Number:** 95
-- **Roadmap target:** v3.2 — Import/export ecosystem (finishing touch)
-- **Working title:** Unpublish a previously-shared range (UI for `unpublishSharedRange`)
+- **Number:** 96
+- **Roadmap target:** v4 — Advanced poker training
+- **Working title:** Card + flop-texture domain foundation (pure)
 
 ### Prompt
 
-Round out v3.2's shared pages with an "Unpublish" affordance. The repo function
-`unpublishSharedRange(id)` already exists (slice 92) but has no UI. The challenge: the app does not
-persist which share id maps to which range. Simplest in-scope approach: when `handlePublishRange`
-succeeds, remember the returned share id in component state (e.g. a `Map<rangeId, shareId>` or just
-the last-published id) so an "Unpublish" button can call `unpublishSharedRange(shareId)` for ranges
-published this session; report via `syncStatus`. Gate it behind `auth.session` like the publish
-action, and keep it small — if mapping per-range gets fiddly, ship a single "Unpublish last shared
-link" control in the cloud-sync block instead. Add/adjust a focused test.
+Begin **v4** with a pure, dependency-free domain foundation in `src/domain/` (e.g. `cards.ts` and
+`boardTexture.ts`) — no UI yet. Add a minimal card model: `RANKS`/`SUITS`, a `Card` type (rank +
+suit), and `parseCard`/`parseBoard` that turn strings like `"As"`, `"Td"`, `"7h"` (and a 3-card flop
+like `"AsKd7h"` or space-separated) into typed cards, throwing a clear `Error` on malformed/duplicate
+cards. Then add `tagFlopTexture(board): FlopTextureTag[]` returning the roadmap's texture tags:
+`'aceHigh'`, `'paired'`, `'monotone'`, `'rainbow'`, `'twoTone'`, `'connected'` (and a `'dry'`/`'wet'`
+summary if straightforward). Unit-test parsing (valid + error cases) and tagging across several flops
+(e.g. `AsKs2s` → monotone/aceHigh; `7h7d2c` → paired/rainbow; `9s8h7d` → connected). Keep it entirely
+pure and separate from the preflop range model; do NOT touch existing components or storage yet.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Cloud calls via `src/cloud/`; UI in `App`/`src/components/`. No new deps. Small and reversible.
-  Local/anonymous mode unaffected.
+- Pure logic in `src/domain/`; no new dependencies; no UI/storage changes. Small and reversible.
+  Preflop trainer must remain fast and unaffected.
 
 Suggested commit message:
-- `feat: unpublish a shared range link`
+- `feat: card model and flop texture tagging`

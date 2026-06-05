@@ -75,6 +75,30 @@ describe('RangeLibrary', () => {
     expect(onPublishRange).toHaveBeenCalledTimes(1)
   })
 
+  it('shows "Unpublish link" only for ranges published this session', async () => {
+    const onUnpublishRange = vi.fn()
+    const props = {
+      ranges: [makeRange({ id: 'r1' })],
+      activeId: null,
+      onLoad: vi.fn(),
+      onDelete: vi.fn(),
+      onPractice: vi.fn(),
+      onDuplicate: vi.fn(),
+      onArchive: vi.fn(),
+      onFavorite: vi.fn(),
+      onViewPerformance: vi.fn(),
+      onEditActions: vi.fn(),
+      onUnpublishRange,
+      canPublishToCloud: true,
+    }
+    const { rerender } = render(<RangeLibrary {...props} publishedRangeIds={{}} />)
+    expect(screen.queryByLabelText(/Unpublish shared link/i)).not.toBeInTheDocument()
+
+    rerender(<RangeLibrary {...props} publishedRangeIds={{ r1: 'share-1' }} />)
+    await userEvent.click(screen.getByLabelText(/Unpublish shared link/i))
+    expect(onUnpublishRange).toHaveBeenCalledTimes(1)
+  })
+
   it('renders each range with its name and derived summary stats', () => {
     render(
       <RangeLibrary
