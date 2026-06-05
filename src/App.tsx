@@ -14,6 +14,8 @@ import { RangeMetadataEditor } from './components/RangeMetadataEditor'
 import { RangeNotation } from './components/RangeNotation'
 import { RangePerformance } from './components/RangePerformance'
 import { RangeShortcuts } from './components/RangeShortcuts'
+import { SharedRangePage } from './components/SharedRangePage'
+import { parseShareRoute } from './domain/shareRoute'
 import { assignedHands, summarizeActionAccuracy } from './domain/actionRange'
 import { setRangeArchived } from './domain/rangeArchive'
 import { duplicateRange } from './domain/rangeDuplication'
@@ -90,6 +92,17 @@ function importSharedRangeFromHash() {
 importSharedRangeFromHash()
 
 function App() {
+  // A `#/r/:id` share link shows the read-only shared page instead of the app.
+  // Parsed once at render; visiting a share link is a fresh page load.
+  const shareRoute = typeof window !== 'undefined' ? parseShareRoute(window.location.hash) : null
+  if (shareRoute) {
+    return <SharedRangePage id={shareRoute.id} token={shareRoute.token} />
+  }
+
+  return <AppShell />
+}
+
+function AppShell() {
   const auth = useAuthSession()
   const [selected, setSelected] = useState<Set<PokerHand>>(new Set())
   const [name, setName] = useState('')

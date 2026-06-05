@@ -127,6 +127,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 90 | Shareable range links (client-side URL-encoded range) | v3.2 — Import/export ecosystem | 2026-06-08 |
 | 91 | Range packs (export/import a bundle of ranges) | v3.2 — Import/export ecosystem | 2026-06-08 |
 | 92 | Shared-ranges backend (publish/fetch/unpublish repo + migration) | v3.2 — Import/export ecosystem | 2026-06-08 |
+| 93 | Read-only shared range page + `#/r/:id` hash route | v3.2 — Import/export ecosystem | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -625,30 +626,39 @@ both injectable), `getSharedRange(id, token?)` (no sign-in needed; calls the RPC
 matches), and `unpublishSharedRange(id)` (owner-scoped delete). Same injectable deps + unconfigured/
 signed-out errors as the other repos; fully unit-tested with a fake client. Not wired into the UI yet.
 
+Slice 93 added the visitor-facing read side. `src/domain/shareRoute.ts`'s `parseShareRoute(hash)`
+recognizes `#/r/:id` (optional `?t=`/`&t=` private token; percent-decoded; distinct from slice 90's
+`#range=`), unit-tested. The standalone read-only `SharedRangePage` component fetches via
+`getSharedRange` (injectable) and renders the range read-only — name + combos/percent + the existing
+`HandGrid` (or `ActionGrid` when `handActions` is present) with no-op handlers — across loading,
+unconfigured, not-found, and error states (initial state computed lazily so no synchronous setState
+runs in the effect). `App` now splits into a thin `App` (renders `SharedRangePage` when
+`parseShareRoute(location.hash)` matches) and `AppShell` (the full app), so visiting a share link
+shows the read-only page while local mode and the `#range=` import path keep working.
+
 ## Next slice
 
-- **Number:** 93
+- **Number:** 94
 - **Roadmap target:** v3.2 — Import/export ecosystem
-- **Working title:** Read-only shared range page + hash route (`#/r/:id`)
+- **Working title:** Publish / unpublish a range from the library (share-link UI)
 
 ### Prompt
 
-Continue v3.2's shared range pages with the visitor-facing read side. Add a small client-side route
-read (no router dependency): a pure helper in `src/domain/` — e.g. `parseShareRoute(hash):
-{ id: string; token?: string } | null` that recognizes `#/r/:id` (with an optional `?t=token` or
-`&t=`), unit-tested. Add a standalone read-only `SharedRangePage` component
-(`src/components/`) that, given an `id`/`token`, calls `getSharedRange` and renders the range
-read-only — reusing the existing grid (and action grid if `handActions` present) plus name/percent —
-with loading, not-found, and cloud-unconfigured states; fully tested with an injected fetch fn.
-Then wire `App` to render `SharedRangePage` instead of the normal app when `parseShareRoute(location.hash)`
-matches, so visiting a share link shows the read-only page. Keep local mode + the slice-90
-`#range=` import path working (distinct prefix).
+Complete v3.2's shared range pages with the author-facing publish side. In `AppShell`, for a
+signed-in user (`auth.session`), add a per-range "Share" action on the library card (or in the editor
+controls) that publishes the range via `publishSharedRange(range, isPublic)` — offer public vs
+private (e.g. a confirm or two buttons) — and on success builds the link
+`${origin}${pathname}#/r/${id}` (appending `?t=${token}` for private) and copies it to the clipboard
+(falling back to `window.prompt`), reporting via the existing `syncStatus`/alert pattern. Optionally
+add an "Unpublish" affordance calling `unpublishSharedRange(id)`. Hidden entirely when signed out or
+cloud-unconfigured (mirrors the existing cloud-sync block). Keep slices small — if publish + unpublish
+get large, ship publish first and queue unpublish as a follow-up slice.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Pure route parsing in `src/domain/`; cloud calls via `src/cloud/`; UI in `src/components/`. No new
-  deps. Small and reversible.
+- Cloud calls via `src/cloud/`; UI in `src/components/`/`App`. No new deps. Small and reversible.
+  Local/anonymous mode unaffected.
 
 Suggested commit message:
-- `feat: read-only shared range page at #/r/:id`
+- `feat: publish a range as a shareable link`
