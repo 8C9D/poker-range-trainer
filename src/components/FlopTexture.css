@@ -1,0 +1,56 @@
+.flop-texture {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.flop-cards {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.flop-card {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.2rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 6px;
+  font-weight: 600;
+  background: var(--code-bg, #2b2540);
+  border: 1px solid var(--accent-border, rgba(170, 59, 255, 0.5));
+}
+
+/* Suit accents: spades/clubs neutral, hearts red, diamonds blue. */
+.flop-card.suit-h {
+  color: #e5484d;
+}
+.flop-card.suit-d {
+  color: #4493f8;
+}
+.flop-card.suit-s,
+.flop-card.suit-c {
+  color: inherit;
+}
+
+.flop-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.flop-tag {
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  background: var(--accent-bg, rgba(170, 59, 255, 0.1));
+  border: 1px solid var(--accent-border, rgba(170, 59, 255, 0.5));
+}
+
+.flop-texture-error {
+  color: #e5484d;
+  margin: 0;
+}

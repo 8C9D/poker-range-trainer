@@ -131,6 +131,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 94 | Publish a range as a shareable cloud link (library UI) | v3.2 — Import/export ecosystem | 2026-06-08 |
 | 95 | Unpublish a shared range link (library UI) | v3.2 — Import/export ecosystem | 2026-06-08 |
 | 96 | Card model + flop texture tagging (pure domain) | v4 — Advanced poker training | 2026-06-08 |
+| 97 | Flop texture display component | v4 — Advanced poker training | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -677,27 +678,35 @@ or separated input, rejects malformed/duplicate cards). `src/domain/boardTexture
 `monotone`/`twoTone`/`rainbow`, `connected` with ace-low wheel handling, and a `wet`/`dry` summary).
 Both are fully unit-tested and entirely separate from the preflop range model.
 
+Slice 97 added the read-only `FlopTexture` component (+ CSS): it parses a board string via
+`parseBoard`, renders the three cards (suit-colored) and the `tagFlopTexture` tags as labeled chips
+(`FLOP_TEXTURE_TAGS` order + a `TAG_LABELS` map), and shows a clear inline `role="alert"` error
+instead of throwing on bad input. Presentational only, fully tested, not yet wired into the app.
+
 ## Next slice
 
-- **Number:** 97
+- **Number:** 98
 - **Roadmap target:** v4 — Advanced poker training
-- **Working title:** Flop texture display component (pure UI over `tagFlopTexture`)
+- **Working title:** Made-hand / draw categorization (pure domain)
 
 ### Prompt
 
-Continue **v4**. Add a small standalone, read-only `FlopTexture` component in `src/components/` that
-takes a board string (or `Card[]`), parses it via `parseBoard`, and renders the three cards plus
-their `tagFlopTexture` tags as labeled chips (use `FLOP_TEXTURE_TAGS` for a stable order and a
-`TAG_LABELS` map for display text). Show a clear inline error message (not a throw) when the input is
-not a valid three-card flop. Keep it presentational — no app wiring yet — and fully test it (renders
-tags for a known flop; shows the error state for bad input). This is the first piece of v4 UI; it
-does not touch the preflop flow.
+Continue **v4** with the roadmap's "Hand categories". Add a pure `src/domain/handCategory.ts` that,
+given a 2-card hand (`Card[]`, reuse `parseBoard`/`parseCard`) and a 3-card flop, classifies the
+hand's relationship to the board into a `HandCategory` union covering at least: `overpair`,
+`topPair`, `middlePair`, `bottomPair`, `pair` (pocket pair below top board card / underpair),
+`set`/`trips`, `twoPair`, `flushDraw`, `straightDraw` (open-ended or gutshot is fine as one tag),
+and `air`. Expose a `categorizeHand(hand, flop): HandCategory[]` returning all applicable tags in a
+canonical order (a hand can be e.g. top pair + flush draw). Keep the made-hand logic correct for the
+common cases and unit-test several (e.g. AK on K72 → topPair; 99 on K72 → pair/underpair; AhKh on
+Qh7h2c → flushDraw + air; 89 on T7x → straightDraw). Pure only — no UI/storage yet.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- UI in `src/components/`; reuse the existing pure domain (`cards.ts`, `boardTexture.ts`); no new
-  deps. Small and reversible. Preflop trainer unaffected.
+- Pure logic in `src/domain/`; reuse `cards.ts`; no new deps. Small and reversible. Preflop
+  trainer unaffected. (Full combo-level precision is later v4.1 work — hand-class/2-card level is
+  enough here.)
 
 Suggested commit message:
-- `feat: flop texture display component`
+- `feat: made-hand and draw categorization`
