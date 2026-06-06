@@ -133,6 +133,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 96 | Card model + flop texture tagging (pure domain) | v4 — Advanced poker training | 2026-06-08 |
 | 97 | Flop texture display component | v4 — Advanced poker training | 2026-06-08 |
 | 98 | Made-hand / draw categorization (pure domain) | v4 — Advanced poker training | 2026-06-08 |
+| 99 | Combo expansion + range-vs-board bucketing (pure domain) | v4 — Advanced poker training | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -690,31 +691,34 @@ a 2-card hand against a 3-card flop into canonical-ordered tags (`set`, `trips`,
 ace-high/low handling, `air`), supporting combined tags (e.g. top pair + flush draw). Pure,
 hand-class level (full combo precision is later v4.1), thoroughly unit-tested.
 
+Slice 99 added `src/domain/rangeVsBoard.ts`: `expandHandClass(hand)` expands a preflop class into its
+concrete combos (6 pairs / 4 suited / 12 offsuit), and `bucketRangeOnBoard(hands, flop)` expands a
+range, drops board-blocked combos, categorizes each remaining combo via `categorizeHand`, and tallies
+combos per `HandCategory` (each tag a combo carries is counted, so top-pair + flush-draw counts
+toward both). Pure, unit-tested; the data layer for a later range-vs-board view.
+
 ## Next slice
 
-- **Number:** 99
+- **Number:** 100
 - **Roadmap target:** v4 — Advanced poker training
-- **Working title:** Combo expansion + range-vs-board bucketing (pure domain)
+- **Working title:** Range-vs-board view component (board input + texture + category breakdown)
 
 ### Prompt
 
-Continue **v4** toward "Range-vs-board visualization". Add a pure `src/domain/rangeVsBoard.ts`
-building on `cards.ts` / `handCategory.ts`:
-1. `expandHandClass(hand: PokerHand): Card[][]` — expand a preflop hand class into its concrete
-   2-card combos (pairs → 6, suited → 4, offsuit → 12), reusing `RANKS`/`SUITS`. Unit-test the combo
-   counts.
-2. `bucketRangeOnBoard(hands: PokerHand[], flop: Card[]): Record<HandCategory, number>` — expand
-   every hand class, DROP combos that collide with a board card (blocker removal), categorize each
-   remaining combo via `categorizeHand`, and tally combos per category (count a combo once toward
-   its strongest made tag, but you may also tally draw tags separately — keep the shape simple and
-   documented). Unit-test a small range on a known flop.
-Pure only — no UI/storage yet; this is the data layer for a later range-vs-board view.
+Continue **v4**: surface the range-vs-board data layer in the UI. Add a standalone `RangeVsBoard`
+component in `src/components/` that takes a `SavedRange` (or its `hands`), shows a board text input
+(default empty), and when a valid three-card flop is entered renders: the `FlopTexture` display for
+that flop, plus a category breakdown from `bucketRangeOnBoard` — a small table/list of
+`HandCategory` → combo count (use a label map + `HAND_CATEGORIES` order, hiding zero-count rows or
+showing them muted). Show a clear inline error for an invalid board (reuse the parse error). Keep it
+presentational/self-contained (board input is local state); do NOT wire it into `App` yet. Fully
+test it (valid flop shows texture + a known non-zero category; bad input shows the error).
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Pure logic in `src/domain/`; reuse existing card/category/poker-hand helpers; no new deps. Small
-  and reversible. Preflop trainer unaffected.
+- UI in `src/components/`; reuse `cards.ts`, `boardTexture.ts`, `handCategory.ts`, `rangeVsBoard.ts`,
+  and the `FlopTexture` component; no new deps. Small and reversible. Preflop trainer unaffected.
 
 Suggested commit message:
-- `feat: combo expansion and range-vs-board bucketing`
+- `feat: range-vs-board breakdown component`
