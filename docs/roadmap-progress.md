@@ -132,6 +132,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 95 | Unpublish a shared range link (library UI) | v3.2 — Import/export ecosystem | 2026-06-08 |
 | 96 | Card model + flop texture tagging (pure domain) | v4 — Advanced poker training | 2026-06-08 |
 | 97 | Flop texture display component | v4 — Advanced poker training | 2026-06-08 |
+| 98 | Made-hand / draw categorization (pure domain) | v4 — Advanced poker training | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -683,30 +684,37 @@ Slice 97 added the read-only `FlopTexture` component (+ CSS): it parses a board 
 (`FLOP_TEXTURE_TAGS` order + a `TAG_LABELS` map), and shows a clear inline `role="alert"` error
 instead of throwing on bad input. Presentational only, fully tested, not yet wired into the app.
 
+Slice 98 added `src/domain/handCategory.ts`: `categorizeHand(hand, flop): HandCategory[]` classifies
+a 2-card hand against a 3-card flop into canonical-ordered tags (`set`, `trips`, `twoPair`,
+`overpair`, `topPair`, `middlePair`, `bottomPair`, `pair`/underpair, `flushDraw`, `straightDraw` with
+ace-high/low handling, `air`), supporting combined tags (e.g. top pair + flush draw). Pure,
+hand-class level (full combo precision is later v4.1), thoroughly unit-tested.
+
 ## Next slice
 
-- **Number:** 98
+- **Number:** 99
 - **Roadmap target:** v4 — Advanced poker training
-- **Working title:** Made-hand / draw categorization (pure domain)
+- **Working title:** Combo expansion + range-vs-board bucketing (pure domain)
 
 ### Prompt
 
-Continue **v4** with the roadmap's "Hand categories". Add a pure `src/domain/handCategory.ts` that,
-given a 2-card hand (`Card[]`, reuse `parseBoard`/`parseCard`) and a 3-card flop, classifies the
-hand's relationship to the board into a `HandCategory` union covering at least: `overpair`,
-`topPair`, `middlePair`, `bottomPair`, `pair` (pocket pair below top board card / underpair),
-`set`/`trips`, `twoPair`, `flushDraw`, `straightDraw` (open-ended or gutshot is fine as one tag),
-and `air`. Expose a `categorizeHand(hand, flop): HandCategory[]` returning all applicable tags in a
-canonical order (a hand can be e.g. top pair + flush draw). Keep the made-hand logic correct for the
-common cases and unit-test several (e.g. AK on K72 → topPair; 99 on K72 → pair/underpair; AhKh on
-Qh7h2c → flushDraw + air; 89 on T7x → straightDraw). Pure only — no UI/storage yet.
+Continue **v4** toward "Range-vs-board visualization". Add a pure `src/domain/rangeVsBoard.ts`
+building on `cards.ts` / `handCategory.ts`:
+1. `expandHandClass(hand: PokerHand): Card[][]` — expand a preflop hand class into its concrete
+   2-card combos (pairs → 6, suited → 4, offsuit → 12), reusing `RANKS`/`SUITS`. Unit-test the combo
+   counts.
+2. `bucketRangeOnBoard(hands: PokerHand[], flop: Card[]): Record<HandCategory, number>` — expand
+   every hand class, DROP combos that collide with a board card (blocker removal), categorize each
+   remaining combo via `categorizeHand`, and tally combos per category (count a combo once toward
+   its strongest made tag, but you may also tally draw tags separately — keep the shape simple and
+   documented). Unit-test a small range on a known flop.
+Pure only — no UI/storage yet; this is the data layer for a later range-vs-board view.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Pure logic in `src/domain/`; reuse `cards.ts`; no new deps. Small and reversible. Preflop
-  trainer unaffected. (Full combo-level precision is later v4.1 work — hand-class/2-card level is
-  enough here.)
+- Pure logic in `src/domain/`; reuse existing card/category/poker-hand helpers; no new deps. Small
+  and reversible. Preflop trainer unaffected.
 
 Suggested commit message:
-- `feat: made-hand and draw categorization`
+- `feat: combo expansion and range-vs-board bucketing`
