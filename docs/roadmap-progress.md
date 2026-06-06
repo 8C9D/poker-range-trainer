@@ -130,6 +130,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 93 | Read-only shared range page + `#/r/:id` hash route | v3.2 — Import/export ecosystem | 2026-06-08 |
 | 94 | Publish a range as a shareable cloud link (library UI) | v3.2 — Import/export ecosystem | 2026-06-08 |
 | 95 | Unpublish a shared range link (library UI) | v3.2 — Import/export ecosystem | 2026-06-08 |
+| 96 | Card model + flop texture tagging (pure domain) | v4 — Advanced poker training | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -669,29 +670,34 @@ gating + click.
 > so the loop proceeds — starting with a small pure-domain foundation (card model + flop texture
 > tagging) and keeping every existing preflop feature intact.
 
+Slice 96 began **v4** with a pure domain foundation, no UI. `src/domain/cards.ts` adds a card model
+(`RANKS`/`SUITS`, `Card`, `rankValue`, `formatCard`, `parseCard`, `parseBoard` — accepts concatenated
+or separated input, rejects malformed/duplicate cards). `src/domain/boardTexture.ts` adds
+`tagFlopTexture(board)` returning canonical-ordered `FlopTextureTag[]` (`aceHigh`, `paired`,
+`monotone`/`twoTone`/`rainbow`, `connected` with ace-low wheel handling, and a `wet`/`dry` summary).
+Both are fully unit-tested and entirely separate from the preflop range model.
+
 ## Next slice
 
-- **Number:** 96
+- **Number:** 97
 - **Roadmap target:** v4 — Advanced poker training
-- **Working title:** Card + flop-texture domain foundation (pure)
+- **Working title:** Flop texture display component (pure UI over `tagFlopTexture`)
 
 ### Prompt
 
-Begin **v4** with a pure, dependency-free domain foundation in `src/domain/` (e.g. `cards.ts` and
-`boardTexture.ts`) — no UI yet. Add a minimal card model: `RANKS`/`SUITS`, a `Card` type (rank +
-suit), and `parseCard`/`parseBoard` that turn strings like `"As"`, `"Td"`, `"7h"` (and a 3-card flop
-like `"AsKd7h"` or space-separated) into typed cards, throwing a clear `Error` on malformed/duplicate
-cards. Then add `tagFlopTexture(board): FlopTextureTag[]` returning the roadmap's texture tags:
-`'aceHigh'`, `'paired'`, `'monotone'`, `'rainbow'`, `'twoTone'`, `'connected'` (and a `'dry'`/`'wet'`
-summary if straightforward). Unit-test parsing (valid + error cases) and tagging across several flops
-(e.g. `AsKs2s` → monotone/aceHigh; `7h7d2c` → paired/rainbow; `9s8h7d` → connected). Keep it entirely
-pure and separate from the preflop range model; do NOT touch existing components or storage yet.
+Continue **v4**. Add a small standalone, read-only `FlopTexture` component in `src/components/` that
+takes a board string (or `Card[]`), parses it via `parseBoard`, and renders the three cards plus
+their `tagFlopTexture` tags as labeled chips (use `FLOP_TEXTURE_TAGS` for a stable order and a
+`TAG_LABELS` map for display text). Show a clear inline error message (not a throw) when the input is
+not a valid three-card flop. Keep it presentational — no app wiring yet — and fully test it (renders
+tags for a known flop; shows the error state for bad input). This is the first piece of v4 UI; it
+does not touch the preflop flow.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Pure logic in `src/domain/`; no new dependencies; no UI/storage changes. Small and reversible.
-  Preflop trainer must remain fast and unaffected.
+- UI in `src/components/`; reuse the existing pure domain (`cards.ts`, `boardTexture.ts`); no new
+  deps. Small and reversible. Preflop trainer unaffected.
 
 Suggested commit message:
-- `feat: card model and flop texture tagging`
+- `feat: flop texture display component`
