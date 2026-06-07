@@ -47,6 +47,7 @@ interface RangeLibraryProps {
   onArchive: (range: SavedRange) => void
   /** Open the per-hand performance view for the given saved range. */
   onViewPerformance: (range: SavedRange) => void
+  onViewBoard?: (range: SavedRange) => void
   /** Open the multi-action editor for the given saved range. */
   onEditActions: (range: SavedRange) => void
   /** Export the given saved range to a downloadable JSON file. */
@@ -133,6 +134,7 @@ export function RangeLibrary({
   onFavorite,
   onArchive,
   onViewPerformance,
+  onViewBoard = () => {},
   onEditActions,
   onExportRange = () => {},
   onExportRangeCsv = () => {},
@@ -388,6 +390,13 @@ export function RangeLibrary({
                         onClick={() => onViewPerformance(range)}
                       >
                         Stats
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Analyze ${range.name} vs a board`}
+                        onClick={() => onViewBoard(range)}
+                      >
+                        Board
                       </button>
                       <button
                         type="button"

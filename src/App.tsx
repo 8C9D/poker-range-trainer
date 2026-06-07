@@ -13,6 +13,7 @@ import { RangeLibrary } from './components/RangeLibrary'
 import { RangeMetadataEditor } from './components/RangeMetadataEditor'
 import { RangeNotation } from './components/RangeNotation'
 import { RangePerformance } from './components/RangePerformance'
+import { RangeVsBoard } from './components/RangeVsBoard'
 import { RangeShortcuts } from './components/RangeShortcuts'
 import { SharedRangePage } from './components/SharedRangePage'
 import { parseShareRoute } from './domain/shareRoute'
@@ -125,6 +126,7 @@ function AppShell() {
   // null = editor/library view; otherwise the saved range whose performance view
   // is open.
   const [performanceRange, setPerformanceRange] = useState<SavedRange | null>(null)
+  const [boardRange, setBoardRange] = useState<SavedRange | null>(null)
   // null = not viewing the review queue; otherwise the ranges due for review,
   // computed fresh when the queue is opened.
   const [dueToday, setDueToday] = useState<SavedRange[] | null>(null)
@@ -412,6 +414,10 @@ function AppShell() {
     setPerformanceRange(range)
   }
 
+  function handleViewBoard(range: SavedRange) {
+    setBoardRange(range)
+  }
+
   function handleViewDueToday() {
     // Compute the due list and streak in the handler (not during render) so no
     // impure Date/storage read happens while rendering. Archived ranges are excluded.
@@ -692,6 +698,8 @@ function AppShell() {
     } else {
       headerSubtitle = 'Choose how you want to practice.'
     }
+  } else if (boardRange) {
+    headerSubtitle = 'See how this range hits a flop.'
   } else if (performanceRange) {
     headerSubtitle = 'Review your per-hand accuracy.'
   } else if (dueToday !== null) {
@@ -801,6 +809,16 @@ function AppShell() {
             </div>
           </section>
         )
+      ) : boardRange ? (
+        <section className="practice-session" aria-label="Range vs board">
+          <header className="practice-header">
+            <h2>Board: {boardRange.name}</h2>
+            <button type="button" onClick={() => setBoardRange(null)}>
+              Back to library
+            </button>
+          </header>
+          <RangeVsBoard hands={boardRange.hands} />
+        </section>
       ) : performanceRange ? (
         <RangePerformance
           range={performanceRange}
@@ -948,6 +966,7 @@ function AppShell() {
             onFavorite={handleFavorite}
             onArchive={handleArchive}
             onViewPerformance={handleViewPerformance}
+            onViewBoard={handleViewBoard}
             onEditActions={handleEditActions}
             onExportRange={handleExportRange}
             onExportRangeCsv={handleExportRangeCsv}

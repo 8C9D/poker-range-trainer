@@ -135,6 +135,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 98 | Made-hand / draw categorization (pure domain) | v4 — Advanced poker training | 2026-06-08 |
 | 99 | Combo expansion + range-vs-board bucketing (pure domain) | v4 — Advanced poker training | 2026-06-08 |
 | 100 | Range-vs-board breakdown component | v4 — Advanced poker training | 2026-06-08 |
+| 101 | Open a range-vs-board view from the library | v4 — Advanced poker training | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -703,27 +704,42 @@ valid three-card flop, renders the `FlopTexture` display plus a `bucketRangeOnBo
 table (`CATEGORY_LABELS` + `HAND_CATEGORIES` order, zero rows muted), with an inline `role="alert"`
 error for bad input. Self-contained, fully tested, not yet wired into `App`.
 
+Slice 101 made `RangeVsBoard` reachable. `RangeLibrary` cards gained a "Board" action
+(`Analyze {name} vs a board`, optional `onViewBoard` prop); `AppShell` holds a `boardRange` state and
+renders the range-vs-board view (header + "Back to library") in the same view-switching chain as the
+performance/action views, passing the range's `hands`. An App test opens the view and checks the
+overpair breakdown for a saved range; preflop flow untouched.
+
+> ℹ️ **v4 progress.** Done so far: card model + flop texture tagging (96), texture display (97),
+> made-hand/draw categorization (98), combo expansion + range-vs-board bucketing (99), the
+> range-vs-board breakdown component (100) and its library wiring (101). Remaining v4 bullets:
+> a **postflop scenario builder** and **practice postflop decisions** (bet/check/call/raise/fold).
+> Next: the pure postflop-scenario model + decision-practice domain, then its UI.
+
 ## Next slice
 
-- **Number:** 101
+- **Number:** 102
 - **Roadmap target:** v4 — Advanced poker training
-- **Working title:** Wire the range-vs-board view into a per-range "Board" view
+- **Working title:** Postflop scenario model + decision vocab (pure domain)
 
 ### Prompt
 
-Continue **v4** by making `RangeVsBoard` reachable. Mirror the existing per-range view wiring (e.g.
-how "View stats" / "Edit actions" open `RangePerformance` / the action editor from a library card):
-add a "Board" action on each `RangeLibrary` card (`aria-label` like `Analyze {name} vs a board`) that
-opens a `RangeVsBoard` view for that range in `AppShell` (a new `boardRange` state + a back/close
-control, matching the other views' open/close pattern), passing the range's `hands`. Keep it behind
-the same view-switching structure already in `App`; do not disturb the preflop editor/practice flow.
-Adjust the relevant App/RangeLibrary tests.
+Continue **v4** toward "Practice postflop decisions". Add a pure `src/domain/postflopScenario.ts`
+(no UI). Define a `PostflopDecision` union (`'bet' | 'check' | 'call' | 'raise' | 'fold'`) with a
+`POSTFLOP_DECISIONS` array + `POSTFLOP_DECISION_LABELS` map, and a `PostflopScenario` type capturing
+the roadmap's fields: a `heroHand` (2 cards), a `flop` (3 cards), `potSize`, `stackDepth`, and
+`facing` (a short description of the action the user faces, e.g. "villain bets pot"). Add a pure
+`buildPostflopScenario(input)` that parses/validates the hand and flop (reuse `cards.ts`, ensuring no
+duplicate cards across hand+board) and returns the typed scenario (throwing a clear `Error` on bad
+input), plus a `describeHeroHand(scenario)` helper returning the hand's `categorizeHand` tags vs the
+flop. Unit-test construction (valid + duplicate-card rejection) and the hero-hand description.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- UI in `src/components/`/`App`; reuse the `RangeVsBoard` component; no new deps. Small and
-  reversible. Preflop trainer unaffected.
+- Pure logic in `src/domain/`; reuse `cards.ts` / `handCategory.ts`; no new deps. Small and
+  reversible. Preflop trainer unaffected. (No solver/EV — this is a self-graded decision drill
+  foundation; the actual "correct decision" model can be a simple heuristic in a later slice.)
 
 Suggested commit message:
-- `feat: open a range-vs-board view from the library`
+- `feat: postflop scenario model and decision vocabulary`

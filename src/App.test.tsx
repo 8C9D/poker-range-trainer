@@ -670,6 +670,25 @@ describe('Range performance view', () => {
     expect(within(library()).getByText('Pairs')).toBeInTheDocument()
   })
 
+  it('opens the range-vs-board view and breaks down a flop', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Pairs')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    await user.click(screen.getByRole('button', { name: 'Analyze Pairs vs a board' }))
+    expect(screen.getByRole('heading', { name: 'Board: Pairs' })).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('Flop'), 'Kd7c2h')
+    // AA = 6 overpair combos on a K-high board.
+    expect(screen.getByText('Overpair').closest('tr')).toHaveTextContent('6')
+
+    await user.click(screen.getByRole('button', { name: 'Back to library' }))
+    expect(screen.getByLabelText('Range name')).toBeInTheDocument()
+  })
+
   it('shows a per-hand row after practicing the range', async () => {
     const user = userEvent.setup()
     const { container } = render(<App />)
