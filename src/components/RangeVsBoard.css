@@ -1,0 +1,53 @@
+.range-vs-board {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.range-vs-board-input {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-width: 16rem;
+  font-weight: 600;
+}
+
+.range-vs-board-input input {
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--accent-border, rgba(170, 59, 255, 0.5));
+  background: var(--code-bg, #2b2540);
+  color: inherit;
+  font: inherit;
+}
+
+.range-vs-board-result {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.range-vs-board-table {
+  border-collapse: collapse;
+  min-width: 14rem;
+}
+
+.range-vs-board-table th,
+.range-vs-board-table td {
+  text-align: left;
+  padding: 0.25rem 0.75rem 0.25rem 0;
+}
+
+.range-vs-board-table td:last-child,
+.range-vs-board-table th:last-child {
+  text-align: right;
+}
+
+.range-vs-board-table tr.is-zero {
+  opacity: 0.45;
+}
+
+.range-vs-board-error {
+  color: #e5484d;
+  margin: 0;
+}

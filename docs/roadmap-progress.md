@@ -134,6 +134,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 97 | Flop texture display component | v4 — Advanced poker training | 2026-06-08 |
 | 98 | Made-hand / draw categorization (pure domain) | v4 — Advanced poker training | 2026-06-08 |
 | 99 | Combo expansion + range-vs-board bucketing (pure domain) | v4 — Advanced poker training | 2026-06-08 |
+| 100 | Range-vs-board breakdown component | v4 — Advanced poker training | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -697,28 +698,32 @@ range, drops board-blocked combos, categorizes each remaining combo via `categor
 combos per `HandCategory` (each tag a combo carries is counted, so top-pair + flush-draw counts
 toward both). Pure, unit-tested; the data layer for a later range-vs-board view.
 
+Slice 100 added the standalone `RangeVsBoard` component (+ CSS): a local board text input that, on a
+valid three-card flop, renders the `FlopTexture` display plus a `bucketRangeOnBoard` combo breakdown
+table (`CATEGORY_LABELS` + `HAND_CATEGORIES` order, zero rows muted), with an inline `role="alert"`
+error for bad input. Self-contained, fully tested, not yet wired into `App`.
+
 ## Next slice
 
-- **Number:** 100
+- **Number:** 101
 - **Roadmap target:** v4 — Advanced poker training
-- **Working title:** Range-vs-board view component (board input + texture + category breakdown)
+- **Working title:** Wire the range-vs-board view into a per-range "Board" view
 
 ### Prompt
 
-Continue **v4**: surface the range-vs-board data layer in the UI. Add a standalone `RangeVsBoard`
-component in `src/components/` that takes a `SavedRange` (or its `hands`), shows a board text input
-(default empty), and when a valid three-card flop is entered renders: the `FlopTexture` display for
-that flop, plus a category breakdown from `bucketRangeOnBoard` — a small table/list of
-`HandCategory` → combo count (use a label map + `HAND_CATEGORIES` order, hiding zero-count rows or
-showing them muted). Show a clear inline error for an invalid board (reuse the parse error). Keep it
-presentational/self-contained (board input is local state); do NOT wire it into `App` yet. Fully
-test it (valid flop shows texture + a known non-zero category; bad input shows the error).
+Continue **v4** by making `RangeVsBoard` reachable. Mirror the existing per-range view wiring (e.g.
+how "View stats" / "Edit actions" open `RangePerformance` / the action editor from a library card):
+add a "Board" action on each `RangeLibrary` card (`aria-label` like `Analyze {name} vs a board`) that
+opens a `RangeVsBoard` view for that range in `AppShell` (a new `boardRange` state + a back/close
+control, matching the other views' open/close pattern), passing the range's `hands`. Keep it behind
+the same view-switching structure already in `App`; do not disturb the preflop editor/practice flow.
+Adjust the relevant App/RangeLibrary tests.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- UI in `src/components/`; reuse `cards.ts`, `boardTexture.ts`, `handCategory.ts`, `rangeVsBoard.ts`,
-  and the `FlopTexture` component; no new deps. Small and reversible. Preflop trainer unaffected.
+- UI in `src/components/`/`App`; reuse the `RangeVsBoard` component; no new deps. Small and
+  reversible. Preflop trainer unaffected.
 
 Suggested commit message:
-- `feat: range-vs-board breakdown component`
+- `feat: open a range-vs-board view from the library`
