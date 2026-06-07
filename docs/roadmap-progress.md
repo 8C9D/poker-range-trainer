@@ -136,6 +136,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 99 | Combo expansion + range-vs-board bucketing (pure domain) | v4 — Advanced poker training | 2026-06-08 |
 | 100 | Range-vs-board breakdown component | v4 — Advanced poker training | 2026-06-08 |
 | 101 | Open a range-vs-board view from the library | v4 — Advanced poker training | 2026-06-08 |
+| 102 | Postflop scenario model + decision vocab (pure domain) | v4 — Advanced poker training | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -716,30 +717,35 @@ overpair breakdown for a saved range; preflop flow untouched.
 > a **postflop scenario builder** and **practice postflop decisions** (bet/check/call/raise/fold).
 > Next: the pure postflop-scenario model + decision-practice domain, then its UI.
 
+Slice 102 added `src/domain/postflopScenario.ts`: the `PostflopDecision` union
+(`bet`/`check`/`call`/`raise`/`fold`) + `POSTFLOP_DECISIONS`/`POSTFLOP_DECISION_LABELS`, the
+`PostflopScenario` type (heroHand, flop, potSize, stackDepth, facing), `buildPostflopScenario(input)`
+(parses/validates hand + flop, rejects duplicate cards across hand and board), and
+`describeHeroHand(scenario)` (the hero hand's `categorizeHand` tags). Pure, unit-tested.
+
 ## Next slice
 
-- **Number:** 102
+- **Number:** 103
 - **Roadmap target:** v4 — Advanced poker training
-- **Working title:** Postflop scenario model + decision vocab (pure domain)
+- **Working title:** Postflop decision heuristic (pure domain)
 
 ### Prompt
 
-Continue **v4** toward "Practice postflop decisions". Add a pure `src/domain/postflopScenario.ts`
-(no UI). Define a `PostflopDecision` union (`'bet' | 'check' | 'call' | 'raise' | 'fold'`) with a
-`POSTFLOP_DECISIONS` array + `POSTFLOP_DECISION_LABELS` map, and a `PostflopScenario` type capturing
-the roadmap's fields: a `heroHand` (2 cards), a `flop` (3 cards), `potSize`, `stackDepth`, and
-`facing` (a short description of the action the user faces, e.g. "villain bets pot"). Add a pure
-`buildPostflopScenario(input)` that parses/validates the hand and flop (reuse `cards.ts`, ensuring no
-duplicate cards across hand+board) and returns the typed scenario (throwing a clear `Error` on bad
-input), plus a `describeHeroHand(scenario)` helper returning the hand's `categorizeHand` tags vs the
-flop. Unit-test construction (valid + duplicate-card rejection) and the hero-hand description.
+Continue **v4**. Add a pure, transparent (non-solver) `suggestDecision(scenario): { decision:
+PostflopDecision; rationale: string }` to `src/domain/postflopScenario.ts` (or a sibling
+`postflopHeuristic.ts`). Base it on the hero hand's `categorizeHand` tags and whether the scenario is
+`facing` a bet (treat the `facing` string: contains "bet"/"raise" ⇒ facing aggression, else can act
+first): e.g. strong made hands (set/trips/twoPair/overpair/topPair) → raise/bet for value; decent
+draws (flushDraw/straightDraw) → call when facing a bet, bet/semi-bluff when checked to; weak/air →
+check when first to act, fold when facing a bet; medium pairs → call/check. Keep the rules simple,
+documented, and deterministic; return a short human `rationale`. Unit-test several scenarios covering
+each branch. This is a heuristic teaching tool, explicitly NOT GTO — note that in the doc comment.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Pure logic in `src/domain/`; reuse `cards.ts` / `handCategory.ts`; no new deps. Small and
-  reversible. Preflop trainer unaffected. (No solver/EV — this is a self-graded decision drill
-  foundation; the actual "correct decision" model can be a simple heuristic in a later slice.)
+- Pure logic in `src/domain/`; reuse the scenario + category helpers; no new deps. Small and
+  reversible. Preflop trainer unaffected.
 
 Suggested commit message:
-- `feat: postflop scenario model and decision vocabulary`
+- `feat: postflop decision heuristic`
