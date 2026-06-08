@@ -138,6 +138,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 101 | Open a range-vs-board view from the library | v4 — Advanced poker training | 2026-06-08 |
 | 102 | Postflop scenario model + decision vocab (pure domain) | v4 — Advanced poker training | 2026-06-08 |
 | 103 | Postflop decision heuristic (pure domain) | v4 — Advanced poker training | 2026-06-08 |
+| 104 | Postflop decision practice component (self-graded) | v4 — Advanced poker training | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -731,29 +732,34 @@ aggression is faced to a sensible line (strong made → bet/raise; draws → cal
 when checked to; medium pairs → call/check; air → fold vs bet / check first-in), each with a short
 rationale. Unit-tested across every branch.
 
+Slice 104 added the standalone `PostflopPractice` component: given a `PostflopScenario` it shows the
+hero hand, `FlopTexture`, pot/stack/`facing`, and the five `POSTFLOP_DECISIONS` as buttons; on answer
+it compares to `suggestDecision` and reports match/differ + the suggested decision and rationale
+(framed as a heuristic, self-graded, no persisted stats), with an `onExit`. Fully tested; not yet
+wired into `App`.
+
 ## Next slice
 
-- **Number:** 104
+- **Number:** 105
 - **Roadmap target:** v4 — Advanced poker training
-- **Working title:** Postflop decision practice component (self-graded drill)
+- **Working title:** Postflop drill launcher wired into App (scenario form)
 
 ### Prompt
 
-Continue **v4**: build the postflop decision practice UI. Add a standalone `PostflopPractice`
-component in `src/components/` that takes a `PostflopScenario` (built by the caller) and:
-1. shows the hero hand, the `FlopTexture` for the flop, the pot/stack, and the `facing` text;
-2. offers the five `POSTFLOP_DECISIONS` as answer buttons (`POSTFLOP_DECISION_LABELS`);
-3. on answer, compares to `suggestDecision` and shows whether it matches the heuristic's
-   suggestion plus the `rationale` (frame it as "the heuristic suggests…", not absolute truth);
-4. exposes an `onExit` callback. Keep scoring self-contained/local; this is a self-graded teaching
-   drill (no persisted stats yet). Reuse `FlopTexture`. Fully test it (renders the scenario; choosing
-   the suggested decision reports a match; choosing another reports the suggestion + rationale).
+Continue **v4** by making the postflop drill reachable. Add a small standalone `PostflopDrillSetup`
+component (`src/components/`) with inputs for hero hand, flop, pot size, stack depth, and the action
+faced; on submit it calls `buildPostflopScenario` and, on success, hands the scenario to a parent
+callback (showing the parse error inline on failure). Wire it into `AppShell` as a top-level entry
+(mirroring "Review due ranges"): a "Postflop drill" button opens a `postflop` view showing
+`PostflopDrillSetup`; once a scenario is built, render `PostflopPractice` with it; its `onExit`
+returns to the library. Keep it in the existing view-switching chain; do not disturb preflop flow.
+Add a focused App/component test (open the drill, submit a scenario, answer once).
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- UI in `src/components/`; reuse `postflopScenario.ts` + `FlopTexture`; no new deps. Small and
-  reversible. Not wired into `App` yet. Preflop trainer unaffected.
+- UI in `src/components/`/`App`; reuse `PostflopPractice` + `postflopScenario.ts`; no new deps.
+  Small and reversible. Preflop trainer unaffected.
 
 Suggested commit message:
-- `feat: postflop decision practice component`
+- `feat: postflop drill launcher`
