@@ -140,6 +140,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 103 | Postflop decision heuristic (pure domain) | v4 — Advanced poker training | 2026-06-08 |
 | 104 | Postflop decision practice component (self-graded) | v4 — Advanced poker training | 2026-06-08 |
 | 105 | Postflop drill launcher wired into App | v4 — Advanced poker training | 2026-06-08 |
+| 106 | Combo enumeration + dead-card removal (pure domain) | v4.1 — Combo-level precision | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -755,29 +756,33 @@ An App test runs setup → graded answer; preflop flow untouched.
 > board/dead-card removal, specific combo selection, blocker-aware practice). Start with a small pure
 > domain foundation; the preflop trainer must stay fast.
 
+Slice 106 began **v4.1** with `src/domain/combos.ts`: `handClassCombos(hand)` (6/4/12 combos),
+`rangeCombos(hands)`, `comboKey(combo)` (canonical order-independent id, higher card first), and
+`removeDeadCards(combos, dead)` (blocker/board removal). `rangeVsBoard.ts` now re-exports
+`expandHandClass = handClassCombos` (combo enumeration consolidated here). Pure, unit-tested.
+
 ## Next slice
 
-- **Number:** 106
+- **Number:** 107
 - **Roadmap target:** v4.1 — Combo-level precision
-- **Working title:** Combo enumeration + counts foundation (pure domain)
+- **Working title:** Combo-count helpers with board/dead-card removal (pure domain)
 
 ### Prompt
 
-Begin **v4.1**. Add a pure `src/domain/combos.ts` building on `cards.ts` (and reuse
-`rangeVsBoard.ts`'s `expandHandClass` if helpful — consider moving combo expansion here and
-re-exporting). Provide: `handClassCombos(hand: PokerHand): Card[][]` (the concrete combos: pair 6 /
-suited 4 / offsuit 12), `rangeCombos(hands: PokerHand[]): Card[][]` (all combos for a range),
-`comboKey(combo): string` (a canonical, order-independent id like "AsKh" with the higher card first
-so a combo has ONE key), and `removeDeadCards(combos, dead: Card[]): Card[][]` (drop combos that use
-any dead/board card). Unit-test combo counts, that `comboKey` is order-independent, and dead-card
-removal (e.g. removing one ace drops the expected number of AA/AK combos). Pure only — no UI/storage;
-this is the foundation for combo-level selection and blocker-aware practice.
+Continue **v4.1**. Add pure helpers in `src/domain/combos.ts` (or a sibling) that report combo counts
+with blocker awareness: `availableComboCount(hands: PokerHand[], dead: Card[]): number` (total combos
+of the range after `removeDeadCards`), and `comboCountByHandClass(hands, dead): Record<PokerHand,
+number>` (per-class remaining combo counts, so the UI can later show "AKs: 3 combos" after a board is
+known). Reuse `rangeCombos`/`handClassCombos`/`removeDeadCards`. Unit-test that with no dead cards the
+totals match the classic counts (e.g. a range's full combo count), and that removing board cards
+reduces the right classes. Pure only — no UI/storage yet; this feeds a later blocker-aware combo
+view/practice.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Pure logic in `src/domain/`; reuse `cards.ts`; no new deps. Keep `rangeVsBoard.ts` working (adjust
-  imports if you move `expandHandClass`). Small and reversible. Preflop trainer unaffected.
+- Pure logic in `src/domain/`; reuse the combo helpers + `cards.ts`; no new deps. Small and
+  reversible. Preflop trainer unaffected.
 
 Suggested commit message:
-- `feat: combo enumeration and dead-card removal`
+- `feat: blocker-aware combo counts`
