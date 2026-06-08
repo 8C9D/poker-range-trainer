@@ -139,6 +139,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 102 | Postflop scenario model + decision vocab (pure domain) | v4 — Advanced poker training | 2026-06-08 |
 | 103 | Postflop decision heuristic (pure domain) | v4 — Advanced poker training | 2026-06-08 |
 | 104 | Postflop decision practice component (self-graded) | v4 — Advanced poker training | 2026-06-08 |
+| 105 | Postflop drill launcher wired into App | v4 — Advanced poker training | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -738,28 +739,45 @@ it compares to `suggestDecision` and reports match/differ + the suggested decisi
 (framed as a heuristic, self-graded, no persisted stats), with an `onExit`. Fully tested; not yet
 wired into `App`.
 
+Slice 105 made the postflop drill reachable. `PostflopDrillSetup` is a form (hero hand, flop, pot,
+stack, facing) that builds a scenario via `buildPostflopScenario` (inline `role="alert"` on parse
+error). `AppShell` holds a `postflop` state (`'setup' | PostflopScenario | null`); a top-level
+"Postflop drill" button (next to "Review due ranges") opens the setup, a built scenario renders
+`PostflopPractice`, and `onExit` returns to the library — all in the existing view-switching chain.
+An App test runs setup → graded answer; preflop flow untouched.
+
+> ✅ **v4 — Advanced poker training is COMPLETE** (slices 96–105): a card model + flop texture
+> tagging, made-hand/draw categorization, combo expansion + range-vs-board bucketing with a wired
+> per-range "Board" view, and a postflop decision drill (scenario model + transparent heuristic +
+> self-graded practice + launcher). The roadmap's deeper postflop-scenario builder is covered by the
+> drill setup; full solver-grade play is explicitly out of scope (the heuristic is a teaching tool).
+> **The roadmap now moves to v4.1 — Combo-level precision** (expand hand classes to exact combos,
+> board/dead-card removal, specific combo selection, blocker-aware practice). Start with a small pure
+> domain foundation; the preflop trainer must stay fast.
+
 ## Next slice
 
-- **Number:** 105
-- **Roadmap target:** v4 — Advanced poker training
-- **Working title:** Postflop drill launcher wired into App (scenario form)
+- **Number:** 106
+- **Roadmap target:** v4.1 — Combo-level precision
+- **Working title:** Combo enumeration + counts foundation (pure domain)
 
 ### Prompt
 
-Continue **v4** by making the postflop drill reachable. Add a small standalone `PostflopDrillSetup`
-component (`src/components/`) with inputs for hero hand, flop, pot size, stack depth, and the action
-faced; on submit it calls `buildPostflopScenario` and, on success, hands the scenario to a parent
-callback (showing the parse error inline on failure). Wire it into `AppShell` as a top-level entry
-(mirroring "Review due ranges"): a "Postflop drill" button opens a `postflop` view showing
-`PostflopDrillSetup`; once a scenario is built, render `PostflopPractice` with it; its `onExit`
-returns to the library. Keep it in the existing view-switching chain; do not disturb preflop flow.
-Add a focused App/component test (open the drill, submit a scenario, answer once).
+Begin **v4.1**. Add a pure `src/domain/combos.ts` building on `cards.ts` (and reuse
+`rangeVsBoard.ts`'s `expandHandClass` if helpful — consider moving combo expansion here and
+re-exporting). Provide: `handClassCombos(hand: PokerHand): Card[][]` (the concrete combos: pair 6 /
+suited 4 / offsuit 12), `rangeCombos(hands: PokerHand[]): Card[][]` (all combos for a range),
+`comboKey(combo): string` (a canonical, order-independent id like "AsKh" with the higher card first
+so a combo has ONE key), and `removeDeadCards(combos, dead: Card[]): Card[][]` (drop combos that use
+any dead/board card). Unit-test combo counts, that `comboKey` is order-independent, and dead-card
+removal (e.g. removing one ace drops the expected number of AA/AK combos). Pure only — no UI/storage;
+this is the foundation for combo-level selection and blocker-aware practice.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- UI in `src/components/`/`App`; reuse `PostflopPractice` + `postflopScenario.ts`; no new deps.
-  Small and reversible. Preflop trainer unaffected.
+- Pure logic in `src/domain/`; reuse `cards.ts`; no new deps. Keep `rangeVsBoard.ts` working (adjust
+  imports if you move `expandHandClass`). Small and reversible. Preflop trainer unaffected.
 
 Suggested commit message:
-- `feat: postflop drill launcher`
+- `feat: combo enumeration and dead-card removal`

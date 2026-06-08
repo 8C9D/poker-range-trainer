@@ -689,6 +689,23 @@ describe('Range performance view', () => {
     expect(screen.getByLabelText('Range name')).toBeInTheDocument()
   })
 
+  it('runs a postflop drill from setup to a graded answer', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Postflop drill' }))
+    await user.type(screen.getByLabelText('Your hand'), 'AsKh')
+    await user.type(screen.getByLabelText('Flop'), 'Kd7c2h')
+    await user.click(screen.getByRole('button', { name: 'Start drill' }))
+
+    // Top pair facing a bet → heuristic suggests Raise.
+    await user.click(screen.getByRole('button', { name: 'Raise' }))
+    expect(screen.getByRole('status')).toHaveTextContent(/Matches the heuristic/)
+
+    await user.click(screen.getByRole('button', { name: 'Back to library' }))
+    expect(screen.getByLabelText('Range name')).toBeInTheDocument()
+  })
+
   it('shows a per-hand row after practicing the range', async () => {
     const user = userEvent.setup()
     const { container } = render(<App />)

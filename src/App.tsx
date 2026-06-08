@@ -14,6 +14,9 @@ import { RangeMetadataEditor } from './components/RangeMetadataEditor'
 import { RangeNotation } from './components/RangeNotation'
 import { RangePerformance } from './components/RangePerformance'
 import { RangeVsBoard } from './components/RangeVsBoard'
+import { PostflopDrillSetup } from './components/PostflopDrillSetup'
+import { PostflopPractice } from './components/PostflopPractice'
+import type { PostflopScenario } from './domain/postflopScenario'
 import { RangeShortcuts } from './components/RangeShortcuts'
 import { SharedRangePage } from './components/SharedRangePage'
 import { parseShareRoute } from './domain/shareRoute'
@@ -127,6 +130,8 @@ function AppShell() {
   // is open.
   const [performanceRange, setPerformanceRange] = useState<SavedRange | null>(null)
   const [boardRange, setBoardRange] = useState<SavedRange | null>(null)
+  // null = not in the postflop drill; 'setup' = building a scenario; otherwise the active scenario.
+  const [postflop, setPostflop] = useState<'setup' | PostflopScenario | null>(null)
   // null = not viewing the review queue; otherwise the ranges due for review,
   // computed fresh when the queue is opened.
   const [dueToday, setDueToday] = useState<SavedRange[] | null>(null)
@@ -418,6 +423,10 @@ function AppShell() {
     setBoardRange(range)
   }
 
+  function handleOpenPostflop() {
+    setPostflop('setup')
+  }
+
   function handleViewDueToday() {
     // Compute the due list and streak in the handler (not during render) so no
     // impure Date/storage read happens while rendering. Archived ranges are excluded.
@@ -698,6 +707,8 @@ function AppShell() {
     } else {
       headerSubtitle = 'Choose how you want to practice.'
     }
+  } else if (postflop) {
+    headerSubtitle = 'Practice a postflop decision.'
   } else if (boardRange) {
     headerSubtitle = 'See how this range hits a flop.'
   } else if (performanceRange) {
@@ -808,6 +819,15 @@ function AppShell() {
               </button>
             </div>
           </section>
+        )
+      ) : postflop ? (
+        postflop === 'setup' ? (
+          <PostflopDrillSetup
+            onStart={(scenario) => setPostflop(scenario)}
+            onExit={() => setPostflop(null)}
+          />
+        ) : (
+          <PostflopPractice scenario={postflop} onExit={() => setPostflop(null)} />
         )
       ) : boardRange ? (
         <section className="practice-session" aria-label="Range vs board">
@@ -922,6 +942,9 @@ function AppShell() {
           <div className="editor-controls">
             <button type="button" onClick={handleViewDueToday}>
               Review due ranges
+            </button>
+            <button type="button" onClick={handleOpenPostflop}>
+              Postflop drill
             </button>
             <button type="button" onClick={handleExportBackup}>
               Export backup
