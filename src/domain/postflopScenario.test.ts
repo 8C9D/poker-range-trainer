@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import { formatCard } from './cards'
-import { buildPostflopScenario, describeHeroHand } from './postflopScenario'
+import {
+  buildPostflopScenario,
+  describeHeroHand,
+  isFacingAggression,
+  suggestDecision,
+} from './postflopScenario'
 
 const base = {
   heroHand: 'AsKh',
@@ -35,5 +40,46 @@ describe('buildPostflopScenario', () => {
 describe('describeHeroHand', () => {
   it('returns the hero hand category tags vs the flop', () => {
     expect(describeHeroHand(buildPostflopScenario(base))).toEqual(['topPair'])
+  })
+})
+
+describe('isFacingAggression', () => {
+  it('detects a bet/raise in the facing text', () => {
+    expect(isFacingAggression(buildPostflopScenario({ ...base, facing: 'villain bets pot' }))).toBe(
+      true,
+    )
+    expect(
+      isFacingAggression(buildPostflopScenario({ ...base, facing: 'checked to you' })),
+    ).toBe(false)
+  })
+})
+
+describe('suggestDecision', () => {
+  function decide(input: Partial<typeof base>) {
+    return suggestDecision(buildPostflopScenario({ ...base, ...input })).decision
+  }
+
+  it('raises strong made hands versus a bet, bets when first to act', () => {
+    // AsKh on Kd7c2h = top pair.
+    expect(decide({ facing: 'villain bets pot' })).toBe('raise')
+    expect(decide({ facing: 'checked to you' })).toBe('bet')
+  })
+
+  it('calls draws versus a bet and semi-bluffs when checked to', () => {
+    // AhKh on Qh7h2c = flush draw, no pair.
+    expect(decide({ heroHand: 'AhKh', flop: 'Qh7h2c', facing: 'villain bets' })).toBe('call')
+    expect(decide({ heroHand: 'AhKh', flop: 'Qh7h2c', facing: 'checked to you' })).toBe('bet')
+  })
+
+  it('calls/checks medium pairs', () => {
+    // 7s5d on Kd7c2h = middle pair.
+    expect(decide({ heroHand: '7s5d', facing: 'villain bets' })).toBe('call')
+    expect(decide({ heroHand: '7s5d', facing: 'checked to you' })).toBe('check')
+  })
+
+  it('folds air to a bet and checks when first to act', () => {
+    // Js4d on Kd7c2h = air.
+    expect(decide({ heroHand: 'Js4d', facing: 'villain bets' })).toBe('fold')
+    expect(decide({ heroHand: 'Js4d', facing: 'checked to you' })).toBe('check')
   })
 })
