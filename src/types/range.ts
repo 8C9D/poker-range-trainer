@@ -136,6 +136,14 @@ export interface SavedRange {
    * `handActions` is the multi-action overlay (the two may coexist).
    */
   handActions?: Record<PokerHand, RangeAction>
+  /**
+   * Optional v4.1 combo-level selections, per hand class. Each value is a
+   * serialized list of selected `comboKey`s (see `domain/comboSelection.ts`).
+   * ABSENCE of the field, or of a hand's entry, means "all combos selected"
+   * (the default), so ranges saved before v4.1 are unaffected and need no
+   * migration.
+   */
+  comboSelections?: Record<PokerHand, string[]>
   /** ISO-8601 timestamp of when the range was created. */
   createdAt: string
   /** ISO-8601 timestamp of the most recent edit. */

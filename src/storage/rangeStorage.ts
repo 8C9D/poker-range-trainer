@@ -87,11 +87,41 @@ function normalizeHandActions(value: unknown): Record<PokerHand, RangeAction> | 
   return Object.keys(result).length > 0 ? result : undefined
 }
 
+/**
+ * Validate and sanitize an optional per-hand-class combo-selection map.
+ *
+ * Each entry must have a canonical hand-class key and an array of `comboKey`
+ * strings; non-array values and non-string keys/elements are dropped. As with
+ * `normalizeHandActions`, a malformed map never rejects the whole range, and an
+ * all-empty result collapses to `undefined` so `comboSelections: {}` is never
+ * persisted (absence = all combos selected, the default).
+ */
+function normalizeComboSelections(value: unknown): Record<PokerHand, string[]> | undefined {
+  if (typeof value !== 'object' || value === null) return undefined
+  const result: Record<PokerHand, string[]> = {}
+  for (const [hand, raw] of Object.entries(value as Record<string, unknown>)) {
+    if (!isValidHand(hand) || !Array.isArray(raw)) continue
+    const keys = raw.filter((key): key is string => typeof key === 'string')
+    result[hand] = keys
+  }
+  return Object.keys(result).length > 0 ? result : undefined
+}
+
 /** Validate a parsed value as a `SavedRange`, returning `null` if it is malformed. */
 function parseSavedRange(value: unknown): SavedRange | null {
   if (typeof value !== 'object' || value === null) return null
-  const { id, name, hands, createdAt, updatedAt, metadata, archived, favorite, handActions } =
-    value as Record<string, unknown>
+  const {
+    id,
+    name,
+    hands,
+    createdAt,
+    updatedAt,
+    metadata,
+    archived,
+    favorite,
+    handActions,
+    comboSelections,
+  } = value as Record<string, unknown>
 
   if (typeof id !== 'string' || id.length === 0) return null
   if (typeof name !== 'string') return null
@@ -109,6 +139,7 @@ function parseSavedRange(value: unknown): SavedRange | null {
   // Hands are valid, so normalize (de-dupe + canonical order) without throwing.
   const normalizedMetadata = normalizeMetadata(metadata)
   const normalizedHandActions = normalizeHandActions(handActions)
+  const normalizedComboSelections = normalizeComboSelections(comboSelections)
   return {
     id,
     name,
@@ -117,6 +148,7 @@ function parseSavedRange(value: unknown): SavedRange | null {
     hands: normalizeRangeHands(validatedHands),
     ...(normalizedMetadata ? { metadata: normalizedMetadata } : {}),
     ...(normalizedHandActions ? { handActions: normalizedHandActions } : {}),
+    ...(normalizedComboSelections ? { comboSelections: normalizedComboSelections } : {}),
     // Only a strict `true` persists; absent/false stays unarchived with no key.
     ...(archived === true ? { archived: true } : {}),
     // Same rule as archived: only a strict `true` persists the favorite flag.
@@ -161,14 +193,16 @@ export function findSavedRangeById(id: string): SavedRange | undefined {
  * before any write and leaves existing storage untouched.
  */
 export function saveSavedRange(range: SavedRange): void {
-  const { metadata, archived, favorite, handActions, ...rest } = range
+  const { metadata, archived, favorite, handActions, comboSelections, ...rest } = range
   const normalizedMetadata = normalizeMetadata(metadata)
   const normalizedHandActions = normalizeHandActions(handActions)
+  const normalizedComboSelections = normalizeComboSelections(comboSelections)
   const normalized: SavedRange = {
     ...rest,
     hands: normalizeRangeHands(range.hands),
     ...(normalizedMetadata ? { metadata: normalizedMetadata } : {}),
     ...(normalizedHandActions ? { handActions: normalizedHandActions } : {}),
+    ...(normalizedComboSelections ? { comboSelections: normalizedComboSelections } : {}),
     // Mirror parse: only a strict `true` is stored, so `false`/undefined drops the key.
     ...(archived === true ? { archived: true } : {}),
     // Same rule as archived: only a strict `true` is stored for favorite.

@@ -388,6 +388,52 @@ describe('handActions persistence', () => {
   })
 })
 
+describe('comboSelections persistence', () => {
+  it('round-trips a range saved with comboSelections', () => {
+    saveSavedRange(makeRange({ id: 'r1', comboSelections: { AKs: ['AhKh', 'AsKs'] } }))
+    expect(loadSavedRanges()[0].comboSelections).toEqual({ AKs: ['AhKh', 'AsKs'] })
+  })
+
+  it('loads a range without a comboSelections field', () => {
+    saveSavedRange(makeRange({ id: 'r1' }))
+    expect(loadSavedRanges()[0].comboSelections).toBeUndefined()
+  })
+
+  it('sanitizes malformed comboSelections on load (drops bad keys and non-array values)', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify([
+        {
+          id: 'r1',
+          name: 'R',
+          hands: ['AA'],
+          createdAt: 'T',
+          updatedAt: 'T',
+          comboSelections: { AKs: ['AhKh', 5], ZZ: ['AcKc'], QQ: 'not-an-array' },
+        },
+      ]),
+    )
+    expect(loadSavedRanges()[0].comboSelections).toEqual({ AKs: ['AhKh'] })
+  })
+
+  it('omits comboSelections entirely when no entries are valid', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify([
+        {
+          id: 'r1',
+          name: 'R',
+          hands: ['AA'],
+          createdAt: 'T',
+          updatedAt: 'T',
+          comboSelections: { ZZ: ['AcKc'], QQ: 'nope' },
+        },
+      ]),
+    )
+    expect(loadSavedRanges()[0].comboSelections).toBeUndefined()
+  })
+})
+
 describe('replaceSavedRanges', () => {
   it('replaces the whole library, discarding ranges not in the new list', () => {
     saveSavedRange(makeRange({ id: 'old' }))

@@ -144,6 +144,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 107 | Blocker-aware combo counts (pure domain) | v4.1 — Combo-level precision | 2026-06-08 |
 | 108 | Show blocker-aware combo counts vs a board | v4.1 — Combo-level precision | 2026-06-08 |
 | 109 | Specific-combo selection model (pure domain) | v4.1 — Combo-level precision | 2026-06-08 |
+| 110 | Persist combo-level selections on a saved range (storage) | v4.1 — Combo-level precision | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -789,34 +790,44 @@ seed an all-on selection, `toggleCombo(selection, combo)` returns a NEW selectio
 `deserializeComboSelection` round-trip it via a plain key array. Reuses `combos.ts`'s `comboKey`
 (so AhKh and KhAh are the same combo). Fully unit-tested; no UI/storage wiring yet.
 
+Slice 110 persisted combo selections on a saved range. `SavedRange` gained an optional
+`comboSelections?: Record<PokerHand, string[]>` (each value a serialized list of selected
+`comboKey`s for that hand class; ABSENCE = all combos selected, so pre-v4.1 ranges need no
+migration). `rangeStorage` gained `normalizeComboSelections` (mirroring `normalizeHandActions`):
+it keeps entries with a canonical hand-class key and an array value, drops non-string elements,
+and collapses an all-empty map to `undefined` so `comboSelections: {}` is never persisted. Wired
+into both `parseSavedRange` (load) and `saveSavedRange` (write). Round-trip + malformed-drop +
+all-invalid-omit are unit-tested; hands-only ranges are unaffected.
+
 ## Next slice
 
-- **Number:** 110
+- **Number:** 111
 - **Roadmap target:** v4.1 — Combo-level precision
-- **Working title:** Persist combo-level selections on a saved range (storage)
+- **Working title:** Combo-selection grid component (per-hand-class combo toggles)
 
 ### Prompt
 
-Continue **v4.1** by persisting specific-combo selections on a saved range. Building on slice 109's
-`comboSelection.ts` (a `ComboSelection` is a `Set<string>` of `comboKey`s, serialized via
-`serializeComboSelection`), add an OPTIONAL per-hand-class combo-selection map to the saved-range
-model so a user could later deselect e.g. AcKc while keeping AhKh.
+Continue **v4.1** with the FIRST UI for specific-combo selection: a small, standalone, presentational
+component that shows the concrete combos of ONE hand class and lets the user toggle individual combos
+on/off. Build on slice 109's `comboSelection.ts` and slice 110's persisted
+`comboSelections` shape.
 
-- In `src/types/range.ts`, add an optional field to `SavedRange`, e.g.
-  `comboSelections?: Record<PokerHand, string[]>` (each value a serialized list of selected
-  `comboKey`s for that hand class). Document that ABSENCE means "all combos selected" (the default),
-  so existing ranges are unaffected.
-- In `src/storage/rangeStorage.ts`, extend the sanitization (mirroring `normalizeHandActions`) to
-  round-trip a valid `comboSelections` map and DROP malformed entries (non-array values, non-string
-  keys). Hands-only ranges and ranges without the field must be unchanged.
-- Keep this storage-only: no UI yet. Add/extend unit tests in the rangeStorage test for the
-  round-trip and the malformed-drop behavior.
+- Add `src/components/ComboSelector.tsx` (+ a small CSS file if needed). Props (controlled, parent owns
+  state): a `hand: PokerHand`, the current `ComboSelection` (or the serialized `string[]` keys — pick
+  one and document it), and an `onToggle(combo)` callback. Render the hand class's combos via
+  `handClassCombos(hand)`, each as a button showing the two cards (suit-colored, reusing existing card
+  styling conventions if present) with `aria-pressed` reflecting `isComboSelected`. Show a
+  "{selected}/{total} combos" count.
+- Keep it pure/presentational: no storage, no `App` wiring yet (a later slice wires it into the range
+  editor). Make selection order-independent via `comboKey` (already handled by the domain helpers).
+- Add a component test (render for e.g. "AKs": 4 combo buttons, correct `aria-pressed`, clicking fires
+  `onToggle` with the combo).
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Types in `src/types/`, storage in `src/storage/`; reuse the existing sanitization pattern; no new
-  deps. Small, reversible, and backward-compatible (no migration needed — absence = all selected).
+- UI in `src/components/`; reuse `comboSelection.ts` + `combos.ts`; no new deps. Standalone and
+  reversible. Preflop trainer unaffected.
 
 Suggested commit message:
-- `feat: persist per-range combo-level selections`
+- `feat: combo-selection grid component`
