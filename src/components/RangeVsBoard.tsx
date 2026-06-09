@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { parseBoard } from '../domain/cards'
 import { HAND_CATEGORIES, type HandCategory } from '../domain/handCategory'
 import { bucketRangeOnBoard } from '../domain/rangeVsBoard'
+import { availableComboCount } from '../domain/combos'
 import type { PokerHand } from '../domain/pokerHands'
 import { FlopTexture } from './FlopTexture'
 import './RangeVsBoard.css'
@@ -37,12 +38,15 @@ export function RangeVsBoard({ hands }: RangeVsBoardProps) {
   const result = useMemo<
     | null
     | { error: string }
-    | { tally: Record<HandCategory, number> }
+    | { tally: Record<HandCategory, number>; comboCount: number }
   >(() => {
     if (board.trim() === '') return null
     try {
       const flop = parseBoard(board)
-      return { tally: bucketRangeOnBoard(hands, flop) }
+      return {
+        tally: bucketRangeOnBoard(hands, flop),
+        comboCount: availableComboCount(hands, flop),
+      }
     } catch (error) {
       return { error: error instanceof Error ? error.message : 'Invalid board.' }
     }
@@ -69,6 +73,9 @@ export function RangeVsBoard({ hands }: RangeVsBoardProps) {
       {result && 'tally' in result && (
         <div className="range-vs-board-result">
           <FlopTexture board={board} />
+          <p className="range-vs-board-combos">
+            {result.comboCount} combos remaining (after removing board cards)
+          </p>
           <table className="range-vs-board-table">
             <thead>
               <tr>

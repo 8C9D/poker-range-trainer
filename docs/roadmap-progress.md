@@ -142,6 +142,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 105 | Postflop drill launcher wired into App | v4 — Advanced poker training | 2026-06-08 |
 | 106 | Combo enumeration + dead-card removal (pure domain) | v4.1 — Combo-level precision | 2026-06-08 |
 | 107 | Blocker-aware combo counts (pure domain) | v4.1 — Combo-level precision | 2026-06-08 |
+| 108 | Show blocker-aware combo counts vs a board | v4.1 — Combo-level precision | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -775,27 +776,32 @@ Pure, unit-tested (no-dead totals match classic counts; board cards reduce the r
 > Per the skill's safety checkpoint the loop PAUSES here. Re-invoking `finish-roadmap` resumes from
 > slice 109. The repo is clean and fully pushed.
 
+Slice 108 surfaced the blocker-aware count in the UI: `RangeVsBoard` now also computes
+`availableComboCount(hands, flop)` and shows "{n} combos remaining (after removing board cards)"
+above the category table. Test updated (AA + AKs on a Kd board → 9 remaining).
+
 ## Next slice
 
-- **Number:** 108
+- **Number:** 109
 - **Roadmap target:** v4.1 — Combo-level precision
-- **Working title:** Blocker-aware combo count display in the range-vs-board view
+- **Working title:** Specific-combo selection model (pure domain)
 
 ### Prompt
 
-Continue **v4.1** by surfacing combo counts in the UI. Extend the `RangeVsBoard` component (or add a
-sibling section) so that, once a valid flop is entered, it shows the range's blocker-aware combo
-totals: the `availableComboCount` for the range given the board as dead cards, and optionally a
-small per-hand-class breakdown from `comboCountByHandClass` (e.g. top few classes, or all non-zero).
-Make clear these are board-adjusted counts (combos remaining after removing board cards). Keep it
-presentational; reuse the existing `RangeVsBoard` board-input/error handling. Add/adjust a focused
-test (a known range on a known flop shows the expected adjusted total).
+Continue **v4.1** toward "Specific combo selection" (e.g. AhKh selected but AcKc not). Add a pure
+`src/domain/comboSelection.ts` building on `combos.ts`: a model for a per-combo selection over a hand
+class or range — e.g. `allCombosSelected(hand)` (default: every combo on), `toggleCombo(selection,
+combo)`, `isComboSelected(selection, combo)` (keyed by `comboKey`), and `selectedComboCount`. Decide
+and document a simple representation (e.g. a `Set<string>` of `comboKey`s, or a `Record` of explicit
+deselections). Keep it pure and serializable-friendly so a later slice can persist combo-level
+selections on a range. Unit-test toggling, counting, and that selection is order-independent (via
+`comboKey`). No UI/storage wiring yet.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- UI in `src/components/`; reuse `combos.ts` + `cards.ts`; no new deps. Small and reversible.
-  Preflop trainer unaffected.
+- Pure logic in `src/domain/`; reuse `combos.ts`; no new deps. Small and reversible. Preflop trainer
+  unaffected.
 
 Suggested commit message:
-- `feat: show blocker-aware combo counts vs a board`
+- `feat: specific-combo selection model`

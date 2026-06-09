@@ -12,6 +12,8 @@ describe('RangeVsBoard', () => {
     // AA = 6 overpair combos appears in the breakdown table.
     const overpairRow = screen.getByText('Overpair').closest('tr')
     expect(overpairRow).toHaveTextContent('6')
+    // AA (6) + AKs (4 − 1 blocked by Kd) = 9 combos remaining.
+    expect(screen.getByText(/9 combos remaining/)).toBeInTheDocument()
   })
 
   it('shows an inline error for an invalid board', async () => {
