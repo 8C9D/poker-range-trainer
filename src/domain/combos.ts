@@ -79,3 +79,24 @@ export function removeDeadCards(combos: Card[][], dead: Card[]): Card[][] {
   const deadKeys = new Set(dead.map(formatCard))
   return combos.filter((combo) => !combo.some((card) => deadKeys.has(formatCard(card))))
 }
+
+/** Total combos of a range after removing any dead/board cards. */
+export function availableComboCount(hands: PokerHand[], dead: Card[] = []): number {
+  return removeDeadCards(rangeCombos(hands), dead).length
+}
+
+/**
+ * Per-hand-class remaining combo counts after dead-card removal, so the UI can
+ * show e.g. "AKs: 3 combos" once a board is known. Classes with zero remaining
+ * combos are included (count 0); duplicate hand classes are de-duplicated.
+ */
+export function comboCountByHandClass(
+  hands: PokerHand[],
+  dead: Card[] = [],
+): Record<PokerHand, number> {
+  const counts: Record<PokerHand, number> = {}
+  for (const hand of hands) {
+    counts[hand] = removeDeadCards(handClassCombos(hand), dead).length
+  }
+  return counts
+}

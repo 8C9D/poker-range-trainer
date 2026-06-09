@@ -141,6 +141,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 104 | Postflop decision practice component (self-graded) | v4 — Advanced poker training | 2026-06-08 |
 | 105 | Postflop drill launcher wired into App | v4 — Advanced poker training | 2026-06-08 |
 | 106 | Combo enumeration + dead-card removal (pure domain) | v4.1 — Combo-level precision | 2026-06-08 |
+| 107 | Blocker-aware combo counts (pure domain) | v4.1 — Combo-level precision | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -761,28 +762,40 @@ Slice 106 began **v4.1** with `src/domain/combos.ts`: `handClassCombos(hand)` (6
 `removeDeadCards(combos, dead)` (blocker/board removal). `rangeVsBoard.ts` now re-exports
 `expandHandClass = handClassCombos` (combo enumeration consolidated here). Pure, unit-tested.
 
+Slice 107 added blocker-aware combo counts to `combos.ts`: `availableComboCount(hands, dead)` (range
+total after `removeDeadCards`) and `comboCountByHandClass(hands, dead)` (per-class remaining counts).
+Pure, unit-tested (no-dead totals match classic counts; board cards reduce the right classes).
+
+> ⚠️ **finish-roadmap 20-slice safety checkpoint.** This run (slices 89–108) has built **20**
+> validated/committed/pushed slices: it FINISHED **v3.2** (SVG export, share links, range packs,
+> cloud public/private shared pages), completed **v4 — Advanced poker training** (card model, flop
+> texture, hand categorization, range-vs-board view, postflop decision drill), and began **v4.1 —
+> Combo-level precision** (combo enumeration, dead-card removal, blocker-aware counts). One
+> design-decision pause (shared-page hosting) was resolved by the user mid-run (Supabase + `/r/:id`).
+> Per the skill's safety checkpoint the loop PAUSES here. Re-invoking `finish-roadmap` resumes from
+> slice 109. The repo is clean and fully pushed.
+
 ## Next slice
 
-- **Number:** 107
+- **Number:** 108
 - **Roadmap target:** v4.1 — Combo-level precision
-- **Working title:** Combo-count helpers with board/dead-card removal (pure domain)
+- **Working title:** Blocker-aware combo count display in the range-vs-board view
 
 ### Prompt
 
-Continue **v4.1**. Add pure helpers in `src/domain/combos.ts` (or a sibling) that report combo counts
-with blocker awareness: `availableComboCount(hands: PokerHand[], dead: Card[]): number` (total combos
-of the range after `removeDeadCards`), and `comboCountByHandClass(hands, dead): Record<PokerHand,
-number>` (per-class remaining combo counts, so the UI can later show "AKs: 3 combos" after a board is
-known). Reuse `rangeCombos`/`handClassCombos`/`removeDeadCards`. Unit-test that with no dead cards the
-totals match the classic counts (e.g. a range's full combo count), and that removing board cards
-reduces the right classes. Pure only — no UI/storage yet; this feeds a later blocker-aware combo
-view/practice.
+Continue **v4.1** by surfacing combo counts in the UI. Extend the `RangeVsBoard` component (or add a
+sibling section) so that, once a valid flop is entered, it shows the range's blocker-aware combo
+totals: the `availableComboCount` for the range given the board as dead cards, and optionally a
+small per-hand-class breakdown from `comboCountByHandClass` (e.g. top few classes, or all non-zero).
+Make clear these are board-adjusted counts (combos remaining after removing board cards). Keep it
+presentational; reuse the existing `RangeVsBoard` board-input/error handling. Add/adjust a focused
+test (a known range on a known flop shows the expected adjusted total).
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Pure logic in `src/domain/`; reuse the combo helpers + `cards.ts`; no new deps. Small and
-  reversible. Preflop trainer unaffected.
+- UI in `src/components/`; reuse `combos.ts` + `cards.ts`; no new deps. Small and reversible.
+  Preflop trainer unaffected.
 
 Suggested commit message:
-- `feat: blocker-aware combo counts`
+- `feat: show blocker-aware combo counts vs a board`

@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import { parseBoard, parseCard } from './cards'
-import { comboKey, handClassCombos, rangeCombos, removeDeadCards } from './combos'
+import {
+  availableComboCount,
+  comboCountByHandClass,
+  comboKey,
+  handClassCombos,
+  rangeCombos,
+  removeDeadCards,
+} from './combos'
 
 describe('handClassCombos', () => {
   it('counts pair / suited / offsuit combos', () => {
@@ -45,5 +52,24 @@ describe('removeDeadCards', () => {
     // AKs has 4 combos; a board with the king of diamonds kills AdKd.
     const remaining = removeDeadCards(handClassCombos('AKs'), parseBoard('Kd7c2h'))
     expect(remaining).toHaveLength(3)
+  })
+})
+
+describe('availableComboCount', () => {
+  it('matches the classic counts with no dead cards', () => {
+    // AA (6) + AKs (4) + AKo (12) = 22.
+    expect(availableComboCount(['AA', 'AKs', 'AKo'])).toBe(22)
+  })
+
+  it('reduces when board cards are dead', () => {
+    // Board Kd kills AdKd from AKs (4 → 3); AA unaffected → 6 + 3 = 9.
+    expect(availableComboCount(['AA', 'AKs'], parseBoard('Kd7c2h'))).toBe(9)
+  })
+})
+
+describe('comboCountByHandClass', () => {
+  it('reports per-class remaining combos after removal', () => {
+    const counts = comboCountByHandClass(['AA', 'AKs'], parseBoard('Kd7c2h'))
+    expect(counts).toEqual({ AA: 6, AKs: 3 })
   })
 })
