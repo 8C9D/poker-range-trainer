@@ -143,6 +143,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 106 | Combo enumeration + dead-card removal (pure domain) | v4.1 — Combo-level precision | 2026-06-08 |
 | 107 | Blocker-aware combo counts (pure domain) | v4.1 — Combo-level precision | 2026-06-08 |
 | 108 | Show blocker-aware combo counts vs a board | v4.1 — Combo-level precision | 2026-06-08 |
+| 109 | Specific-combo selection model (pure domain) | v4.1 — Combo-level precision | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -780,28 +781,42 @@ Slice 108 surfaced the blocker-aware count in the UI: `RangeVsBoard` now also co
 `availableComboCount(hands, flop)` and shows "{n} combos remaining (after removing board cards)"
 above the category table. Test updated (AA + AKs on a Kd board → 9 remaining).
 
+Slice 109 added `src/domain/comboSelection.ts`: the pure specific-combo selection model. A
+`ComboSelection` is a `Set<string>` of canonical `comboKey`s (the ON combos), so it is
+order-independent and serializable-friendly. `allCombosSelected(hands)` / `allCombosForHand(hand)`
+seed an all-on selection, `toggleCombo(selection, combo)` returns a NEW selection (immutable input),
+`isComboSelected` / `selectedComboCount` query it, and `serializeComboSelection` /
+`deserializeComboSelection` round-trip it via a plain key array. Reuses `combos.ts`'s `comboKey`
+(so AhKh and KhAh are the same combo). Fully unit-tested; no UI/storage wiring yet.
+
 ## Next slice
 
-- **Number:** 109
+- **Number:** 110
 - **Roadmap target:** v4.1 — Combo-level precision
-- **Working title:** Specific-combo selection model (pure domain)
+- **Working title:** Persist combo-level selections on a saved range (storage)
 
 ### Prompt
 
-Continue **v4.1** toward "Specific combo selection" (e.g. AhKh selected but AcKc not). Add a pure
-`src/domain/comboSelection.ts` building on `combos.ts`: a model for a per-combo selection over a hand
-class or range — e.g. `allCombosSelected(hand)` (default: every combo on), `toggleCombo(selection,
-combo)`, `isComboSelected(selection, combo)` (keyed by `comboKey`), and `selectedComboCount`. Decide
-and document a simple representation (e.g. a `Set<string>` of `comboKey`s, or a `Record` of explicit
-deselections). Keep it pure and serializable-friendly so a later slice can persist combo-level
-selections on a range. Unit-test toggling, counting, and that selection is order-independent (via
-`comboKey`). No UI/storage wiring yet.
+Continue **v4.1** by persisting specific-combo selections on a saved range. Building on slice 109's
+`comboSelection.ts` (a `ComboSelection` is a `Set<string>` of `comboKey`s, serialized via
+`serializeComboSelection`), add an OPTIONAL per-hand-class combo-selection map to the saved-range
+model so a user could later deselect e.g. AcKc while keeping AhKh.
+
+- In `src/types/range.ts`, add an optional field to `SavedRange`, e.g.
+  `comboSelections?: Record<PokerHand, string[]>` (each value a serialized list of selected
+  `comboKey`s for that hand class). Document that ABSENCE means "all combos selected" (the default),
+  so existing ranges are unaffected.
+- In `src/storage/rangeStorage.ts`, extend the sanitization (mirroring `normalizeHandActions`) to
+  round-trip a valid `comboSelections` map and DROP malformed entries (non-array values, non-string
+  keys). Hands-only ranges and ranges without the field must be unchanged.
+- Keep this storage-only: no UI yet. Add/extend unit tests in the rangeStorage test for the
+  round-trip and the malformed-drop behavior.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Pure logic in `src/domain/`; reuse `combos.ts`; no new deps. Small and reversible. Preflop trainer
-  unaffected.
+- Types in `src/types/`, storage in `src/storage/`; reuse the existing sanitization pattern; no new
+  deps. Small, reversible, and backward-compatible (no migration needed — absence = all selected).
 
 Suggested commit message:
-- `feat: specific-combo selection model`
+- `feat: persist per-range combo-level selections`
