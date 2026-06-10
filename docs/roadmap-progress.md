@@ -146,6 +146,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 109 | Specific-combo selection model (pure domain) | v4.1 — Combo-level precision | 2026-06-08 |
 | 110 | Persist combo-level selections on a saved range (storage) | v4.1 — Combo-level precision | 2026-06-08 |
 | 111 | Combo-selection grid component (per-hand-class combo toggles) | v4.1 — Combo-level precision | 2026-06-08 |
+| 112 | Blocker-aware practice prompt selection (pure domain) | v4.1 — Combo-level precision | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -808,33 +809,43 @@ reflecting `isComboSelected`, plus a "{selected}/{total} combos" count. Order-in
 `comboKey`. Presentational only — no storage or App wiring yet. Component-tested (AKs → 4 buttons,
 aria-pressed state, onToggle fires with the clicked combo).
 
+Slice 112 added the pure `src/domain/blockerPractice.ts`: `availablePracticeCombos(hands, dead?,
+selection?)` returns a range's concrete combos after dead-card removal and (when a `ComboSelection`
+is given) restriction to selected combos (absence = all live combos), and `drawPracticeCombo(hands,
+dead?, selection?, random?)` draws one uniformly (injectable `random` defaulting to `Math.random`),
+throwing a clear `Error` when the pool is empty. Reuses `combos.ts` + `comboSelection.ts`; unit-
+tested for dead-card removal, selection restriction, seeded draw, and the empty-pool throw. No
+UI/storage wiring yet.
+
 ## Next slice
 
-- **Number:** 112
+- **Number:** 113
 - **Roadmap target:** v4.1 — Combo-level precision
-- **Working title:** Blocker-aware practice prompt selection (pure domain)
+- **Working title:** Blocker-aware combo practice component (self-graded combo drill)
 
 ### Prompt
 
-Continue **v4.1** toward "Blocker-aware practice": a pure domain helper that picks a practice prompt
-combo from a range while respecting dead/board cards (so blocked combos never appear). Build on
-`combos.ts` (`rangeCombos`, `removeDeadCards`, `comboKey`) and `comboSelection.ts`.
+Continue **v4.1** with a standalone practice component that drills concrete combos from a range,
+respecting board/dead cards. Build on slice 112's `blockerPractice.ts` (`drawPracticeCombo`,
+`availablePracticeCombos`) and the existing `parseBoard` / card helpers.
 
-- Add `src/domain/blockerPractice.ts` with a pure function, e.g.
-  `availablePracticeCombos(hands, dead?, selection?)` that returns the concrete combos of the range
-  after (a) dead-card removal and (b) restricting to a `ComboSelection` when one is given (absence =
-  all combos), and `drawPracticeCombo(hands, dead?, selection?, random?)` that draws one such combo
-  uniformly (injectable `random` defaulting to `Math.random`, like the existing weakness/mistake
-  draws), throwing a clear `Error` when the pool is empty.
-- Keep it pure in `src/domain/`; reuse the existing helpers; no new deps. No UI/storage wiring yet.
-- Unit-test: dead cards remove the right combos, a `ComboSelection` restricts the pool, the draw
-  stays within the pool (seeded `random`), and an empty pool throws.
+- Add `src/components/ComboBlockerDrill.tsx` (+ small CSS if needed). Props: a `hands: PokerHand[]`
+  (the range), and optionally a board string (default empty). The component parses the board (inline
+  `role="alert"` on bad input, like `FlopTexture`/`RangeVsBoard`), shows how many combos remain
+  (`availablePracticeCombos(...).length`), and presents a "Deal a combo" button that draws via
+  `drawPracticeCombo` and displays the two suit-colored cards. Handle the empty-pool case gracefully
+  (show a message instead of throwing). Include an `onExit` back action. Keep it self-graded /
+  exploratory (no persisted stats) — this surfaces blocker-aware combos, it does not score answers.
+- Standalone and presentational beyond the local board/drawn-combo state; reuse the existing card
+  styling conventions. No `App` wiring yet (a later slice adds a launcher).
+- Component-test: a valid board shows the remaining count; "Deal a combo" renders a combo that is not
+  blocked by the board; a fully-blocked range shows the empty message instead of crashing.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Pure logic in `src/domain/`; reuse `combos.ts` + `comboSelection.ts`; no new deps. Small,
+- UI in `src/components/`; reuse `blockerPractice.ts` + `cards.ts`; no new deps. Standalone,
   reversible. Preflop trainer unaffected.
 
 Suggested commit message:
-- `feat: blocker-aware practice prompt selection`
+- `feat: blocker-aware combo practice component`
