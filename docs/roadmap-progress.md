@@ -145,6 +145,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 108 | Show blocker-aware combo counts vs a board | v4.1 — Combo-level precision | 2026-06-08 |
 | 109 | Specific-combo selection model (pure domain) | v4.1 — Combo-level precision | 2026-06-08 |
 | 110 | Persist combo-level selections on a saved range (storage) | v4.1 — Combo-level precision | 2026-06-08 |
+| 111 | Combo-selection grid component (per-hand-class combo toggles) | v4.1 — Combo-level precision | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -799,35 +800,41 @@ and collapses an all-empty map to `undefined` so `comboSelections: {}` is never 
 into both `parseSavedRange` (load) and `saveSavedRange` (write). Round-trip + malformed-drop +
 all-invalid-omit are unit-tested; hands-only ranges are unaffected.
 
+Slice 111 added the first UI for specific-combo selection: the standalone, controlled
+`src/components/ComboSelector.tsx` (+ CSS). Given a `hand` class, the current `ComboSelection`
+(`Set` of `comboKey`s, owned by the parent), and an `onToggle(combo)` callback, it renders each
+combo from `handClassCombos(hand)` as a suit-colored two-card toggle button with `aria-pressed`
+reflecting `isComboSelected`, plus a "{selected}/{total} combos" count. Order-independent via
+`comboKey`. Presentational only — no storage or App wiring yet. Component-tested (AKs → 4 buttons,
+aria-pressed state, onToggle fires with the clicked combo).
+
 ## Next slice
 
-- **Number:** 111
+- **Number:** 112
 - **Roadmap target:** v4.1 — Combo-level precision
-- **Working title:** Combo-selection grid component (per-hand-class combo toggles)
+- **Working title:** Blocker-aware practice prompt selection (pure domain)
 
 ### Prompt
 
-Continue **v4.1** with the FIRST UI for specific-combo selection: a small, standalone, presentational
-component that shows the concrete combos of ONE hand class and lets the user toggle individual combos
-on/off. Build on slice 109's `comboSelection.ts` and slice 110's persisted
-`comboSelections` shape.
+Continue **v4.1** toward "Blocker-aware practice": a pure domain helper that picks a practice prompt
+combo from a range while respecting dead/board cards (so blocked combos never appear). Build on
+`combos.ts` (`rangeCombos`, `removeDeadCards`, `comboKey`) and `comboSelection.ts`.
 
-- Add `src/components/ComboSelector.tsx` (+ a small CSS file if needed). Props (controlled, parent owns
-  state): a `hand: PokerHand`, the current `ComboSelection` (or the serialized `string[]` keys — pick
-  one and document it), and an `onToggle(combo)` callback. Render the hand class's combos via
-  `handClassCombos(hand)`, each as a button showing the two cards (suit-colored, reusing existing card
-  styling conventions if present) with `aria-pressed` reflecting `isComboSelected`. Show a
-  "{selected}/{total} combos" count.
-- Keep it pure/presentational: no storage, no `App` wiring yet (a later slice wires it into the range
-  editor). Make selection order-independent via `comboKey` (already handled by the domain helpers).
-- Add a component test (render for e.g. "AKs": 4 combo buttons, correct `aria-pressed`, clicking fires
-  `onToggle` with the combo).
+- Add `src/domain/blockerPractice.ts` with a pure function, e.g.
+  `availablePracticeCombos(hands, dead?, selection?)` that returns the concrete combos of the range
+  after (a) dead-card removal and (b) restricting to a `ComboSelection` when one is given (absence =
+  all combos), and `drawPracticeCombo(hands, dead?, selection?, random?)` that draws one such combo
+  uniformly (injectable `random` defaulting to `Math.random`, like the existing weakness/mistake
+  draws), throwing a clear `Error` when the pool is empty.
+- Keep it pure in `src/domain/`; reuse the existing helpers; no new deps. No UI/storage wiring yet.
+- Unit-test: dead cards remove the right combos, a `ComboSelection` restricts the pool, the draw
+  stays within the pool (seeded `random`), and an empty pool throws.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- UI in `src/components/`; reuse `comboSelection.ts` + `combos.ts`; no new deps. Standalone and
+- Pure logic in `src/domain/`; reuse `combos.ts` + `comboSelection.ts`; no new deps. Small,
   reversible. Preflop trainer unaffected.
 
 Suggested commit message:
-- `feat: combo-selection grid component`
+- `feat: blocker-aware practice prompt selection`
