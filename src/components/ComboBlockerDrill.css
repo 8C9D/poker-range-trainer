@@ -1,0 +1,52 @@
+.combo-blocker-drill {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.combo-blocker-board {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.combo-blocker-remaining {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.85;
+}
+
+.combo-blocker-error {
+  margin: 0;
+  color: #e5484d;
+}
+
+.combo-blocker-empty {
+  margin: 0;
+  opacity: 0.8;
+}
+
+.combo-blocker-combo {
+  display: inline-flex;
+  gap: 0.3rem;
+  font-family: ui-monospace, monospace;
+  font-size: 1.6rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid var(--accent, #aa3bff);
+  background: var(--code-bg, #2b2540);
+}
+
+/* Suit accents: spades/clubs neutral, hearts red, diamonds blue. */
+.combo-card.suit-h {
+  color: #e5484d;
+}
+.combo-card.suit-d {
+  color: #4493f8;
+}
+.combo-card.suit-s,
+.combo-card.suit-c {
+  color: inherit;
+}

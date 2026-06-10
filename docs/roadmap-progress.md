@@ -147,6 +147,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 110 | Persist combo-level selections on a saved range (storage) | v4.1 — Combo-level precision | 2026-06-08 |
 | 111 | Combo-selection grid component (per-hand-class combo toggles) | v4.1 — Combo-level precision | 2026-06-08 |
 | 112 | Blocker-aware practice prompt selection (pure domain) | v4.1 — Combo-level precision | 2026-06-08 |
+| 113 | Blocker-aware combo practice component (self-graded combo drill) | v4.1 — Combo-level precision | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -817,35 +818,42 @@ throwing a clear `Error` when the pool is empty. Reuses `combos.ts` + `comboSele
 tested for dead-card removal, selection restriction, seeded draw, and the empty-pool throw. No
 UI/storage wiring yet.
 
+Slice 113 added the standalone self-graded `src/components/ComboBlockerDrill.tsx` (+ CSS). Given a
+range's `hands` and an optional board string, it parses the board as dead cards (inline `role="alert"`
+on bad input, like `RangeVsBoard`), shows "{n} combos available" via `availablePracticeCombos`, and a
+"Deal a combo" button draws one un-blocked combo (`drawPracticeCombo`) and renders it as two suit-
+colored cards. A fully-blocked range shows an empty message instead of crashing; an `onExit` back
+action is provided. Board/combo are the only local state (parsing + remaining count memoized).
+Component-tested (remaining count, dealt combo excludes a board card, empty message, invalid-board
+error). No `App` wiring yet.
+
 ## Next slice
 
-- **Number:** 113
+- **Number:** 114
 - **Roadmap target:** v4.1 — Combo-level precision
-- **Working title:** Blocker-aware combo practice component (self-graded combo drill)
+- **Working title:** Wire the blocker-aware combo drill into the library (launcher)
 
 ### Prompt
 
-Continue **v4.1** with a standalone practice component that drills concrete combos from a range,
-respecting board/dead cards. Build on slice 112's `blockerPractice.ts` (`drawPracticeCombo`,
-`availablePracticeCombos`) and the existing `parseBoard` / card helpers.
+Continue **v4.1** by making the blocker-aware combo drill (slice 113's `ComboBlockerDrill`) reachable
+from the app, mirroring how the range-vs-board view was wired (slice 101).
 
-- Add `src/components/ComboBlockerDrill.tsx` (+ small CSS if needed). Props: a `hands: PokerHand[]`
-  (the range), and optionally a board string (default empty). The component parses the board (inline
-  `role="alert"` on bad input, like `FlopTexture`/`RangeVsBoard`), shows how many combos remain
-  (`availablePracticeCombos(...).length`), and presents a "Deal a combo" button that draws via
-  `drawPracticeCombo` and displays the two suit-colored cards. Handle the empty-pool case gracefully
-  (show a message instead of throwing). Include an `onExit` back action. Keep it self-graded /
-  exploratory (no persisted stats) — this surfaces blocker-aware combos, it does not score answers.
-- Standalone and presentational beyond the local board/drawn-combo state; reuse the existing card
-  styling conventions. No `App` wiring yet (a later slice adds a launcher).
-- Component-test: a valid board shows the remaining count; "Deal a combo" renders a combo that is not
-  blocked by the board; a fully-blocked range shows the empty message instead of crashing.
+- In `src/components/RangeLibrary.tsx`, add an OPTIONAL card action — e.g. a "Combo drill" button
+  (`Deal combos for {name}`, optional `onComboDrill?` prop defaulting to no-op so existing renders are
+  unaffected) — next to the existing "Board" action.
+- In `App`/`AppShell`, hold a `comboDrillRange` state (a `SavedRange | null`) and render
+  `<ComboBlockerDrill hands={comboDrillRange.hands} onExit={...} />` (with a header + "Back to library")
+  in the SAME view-switching chain as the range-vs-board / performance / action views. Wire the
+  library button to open it; `onExit` returns to the library. Preflop flow must be untouched.
+- Add an `App`-level test: opening the combo drill for a saved range shows the remaining-count UI;
+  dealing a combo renders a combo. Keep it small.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- UI in `src/components/`; reuse `blockerPractice.ts` + `cards.ts`; no new deps. Standalone,
-  reversible. Preflop trainer unaffected.
+- UI in `src/components/`; reuse `ComboBlockerDrill`; no new deps. Follow the existing view-switch
+  pattern (boardRange). Small, reversible, preflop trainer unaffected. After this, v4.1's
+  blocker-aware practice is reachable end-to-end — note the v4.1 status in the progress write-up.
 
 Suggested commit message:
-- `feat: blocker-aware combo practice component`
+- `feat: wire blocker-aware combo drill into the library`
