@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ComboBlockerDrill } from './ComboBlockerDrill'
+import { selectionForRange } from '../domain/comboSelection'
 
 describe('ComboBlockerDrill', () => {
   it('shows the remaining count for a valid board', () => {
@@ -26,6 +27,13 @@ describe('ComboBlockerDrill', () => {
     render(<ComboBlockerDrill hands={['AA']} board="AsAhAdAc" onExit={vi.fn()} />)
     expect(screen.getByText(/every combo is blocked/i)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Deal a combo' })).not.toBeInTheDocument()
+  })
+
+  it('honors a combo selection (deselected combos are excluded from the count)', () => {
+    // AKs restricted to 1 of its 4 combos via comboSelections.
+    const selection = selectionForRange(['AKs'], { AKs: ['AhKh'] })
+    render(<ComboBlockerDrill hands={['AKs']} selection={selection} onExit={vi.fn()} />)
+    expect(screen.getByText('1 combos available')).toBeInTheDocument()
   })
 
   it('shows an inline error for an invalid board', () => {

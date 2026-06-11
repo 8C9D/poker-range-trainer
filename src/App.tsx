@@ -19,6 +19,7 @@ import { ComboSelector } from './components/ComboSelector'
 import {
   allCombosForHand,
   deserializeComboSelection,
+  selectionForRange,
   serializeComboSelection,
   toggleCombo,
   type ComboSelection,
@@ -908,6 +909,7 @@ function AppShell() {
           </header>
           <ComboBlockerDrill
             hands={comboDrillRange.hands}
+            selection={selectionForRange(comboDrillRange.hands, comboDrillRange.comboSelections)}
             onExit={() => setComboDrillRange(null)}
           />
         </section>

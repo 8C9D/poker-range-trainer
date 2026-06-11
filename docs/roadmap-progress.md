@@ -150,6 +150,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 113 | Blocker-aware combo practice component (self-graded combo drill) | v4.1 — Combo-level precision | 2026-06-08 |
 | 114 | Wire the blocker-aware combo drill into the library (launcher) | v4.1 — Combo-level precision | 2026-06-08 |
 | 115 | Combo-selection editor view (toggle + persist per-combo selections) | v4.1 — Combo-level precision | 2026-06-08 |
+| 116 | Combo drill honors a range's persisted combo selections | v4.1 — Combo-level precision | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -849,38 +850,54 @@ absence = default) and collapsing an empty map to `undefined`. An App test desel
 editable + persisted end-to-end** — the combo drill honoring those selections is the final v4.1
 step.
 
+Slice 116 closed out v4.1. `comboSelection.ts` gained the pure `selectionForRange(hands,
+comboSelections?)` that folds a range's per-hand-class `comboSelections` (or all-on defaults for
+classes without an entry) into ONE range-wide `ComboSelection`. `ComboBlockerDrill` gained an
+optional `selection?` prop threaded into `availablePracticeCombos` / `drawPracticeCombo` (memo dep
+updated), so both the remaining count and the deal honor it; `App` builds it from
+`comboDrillRange.comboSelections`. Domain + component tests cover the restriction (AKs → 1 combo).
+
+> ✅ **v4.1 — Combo-level precision is COMPLETE** (slices 106–116): combo enumeration + dead-card
+> removal, blocker-aware combo counts (domain + range-vs-board UI), the specific-combo selection model,
+> persisted per-range `comboSelections`, the combo-selection editor, the blocker-aware combo drill
+> (component + library launcher), and the drill honoring persisted selections. The roadmap now moves
+> to **v4.2 — Mixed-frequency strategies** — solver-like mixed actions per hand/combo (e.g. "A5s: 50%
+> 4-bet, 50% fold"). NOTE: `CLAUDE.md` lists "mixed frequencies" as out-of-default-scope, but the
+> `finish-roadmap` invocation is the explicit authorization for the whole remaining roadmap, so v4.2
+> proceeds. Start with a small pure domain foundation (a mixed-action/frequency model + validation),
+> not UI.
+
 ## Next slice
 
-- **Number:** 116
-- **Roadmap target:** v4.1 — Combo-level precision
-- **Working title:** Combo drill honors a range's persisted combo selections
+- **Number:** 117
+- **Roadmap target:** v4.2 — Mixed-frequency strategies
+- **Working title:** Mixed-action frequency model (pure domain)
 
 ### Prompt
 
-Close out **v4.1** by making the blocker-aware combo drill respect a range's persisted
-`comboSelections` (slice 110/115), so a range with deselected combos never deals them. Reuse
-`blockerPractice.ts` (which already accepts an optional `ComboSelection` PER the whole range) — but
-note its `selection` is range-wide while `comboSelections` is keyed per hand class, so first build a
-small pure helper to combine them.
+Begin **v4.2 — Mixed-frequency strategies** with a small, pure domain foundation only (no UI, no
+storage). Model a per-hand mixed strategy: a hand can have several actions each with a frequency
+(e.g. A5s → 50% fourBet, 50% fold). Reuse the existing `RangeAction` union from `types/range.ts`.
 
-- In `src/domain/comboSelection.ts` (or a small new helper), add a pure function that turns a
-  `Record<PokerHand, string[]>` (a range's `comboSelections`) + the range's `hands` into ONE range-wide
-  `ComboSelection`: for each hand class, use its serialized keys when present, else all of
-  `allCombosForHand(hand)`. Name it e.g. `selectionForRange(hands, comboSelections?)`. Unit-test that
-  absent entries default to all-on and present entries restrict.
-- Pass that combined selection into `ComboBlockerDrill` (new optional `selection?: ComboSelection`
-  prop) and through to `availablePracticeCombos` / `drawPracticeCombo`, so the remaining count and the
-  deal both honor it. In `App`, build it from `comboDrillRange.comboSelections` when opening the drill.
-- Tests: a component/domain test that a deselected combo is excluded from the drill pool; keep an
-  `App`-level assertion small (e.g. count reflects a restricted range), and update the slice-114 drill
-  test if needed.
+- Add `src/domain/mixedStrategy.ts` with:
+  - a `MixedAction` type `{ action: RangeAction; frequency: number }` (frequency 0–100), and a
+    `HandMixedStrategy = MixedAction[]` alias (per the roadmap's data model).
+  - `normalizeMixedStrategy(actions)`: drop non-positive/invalid frequencies, merge duplicate actions
+    (sum their frequencies), and return them in canonical `RANGE_ACTIONS` order.
+  - `totalFrequency(actions)` and `isValidMixedStrategy(actions)` (valid when the normalized total is
+    100, within a small epsilon).
+  - `primaryAction(actions)`: the highest-frequency action (ties broken by `RANGE_ACTIONS` order), or
+    `null` for an empty strategy.
+- Keep it pure and serializable-friendly so later slices can persist `Record<PokerHand,
+  HandMixedStrategy>` on a range and build a frequency editor / practice mode. No UI/storage wiring.
+- Unit-test normalization (dedupe + order + dropping invalid), `totalFrequency`, validity (sums to
+  100), and `primaryAction` (including tie-break and empty).
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Pure helper in `src/domain/`; UI reuse in `src/components/` + `App`; no new deps. Small, reversible,
-  preflop trainer unaffected. After this, note **v4.1 — Combo-level precision is COMPLETE** and the
-  roadmap moves to **v4.2 — Mixed-frequency strategies** (start with a small pure domain foundation).
+- Pure logic in `src/domain/`; reuse `RANGE_ACTIONS`/`RangeAction`; no new deps. Small, reversible,
+  preflop trainer unaffected. This is the v4.2 foundation — keep it conservative.
 
 Suggested commit message:
-- `feat: combo drill honors persisted combo selections`
+- `feat: mixed-action frequency model`

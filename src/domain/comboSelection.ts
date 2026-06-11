@@ -56,3 +56,23 @@ export function deserializeComboSelection(keys: string[]): ComboSelection {
 export function allCombosForHand(hand: PokerHand): ComboSelection {
   return new Set(handClassCombos(hand).map(comboKey))
 }
+
+/**
+ * Combine a range's per-hand-class `comboSelections` (each a serialized list of
+ * `comboKey`s) with its `hands` into ONE range-wide `ComboSelection`. A hand
+ * class with a stored entry uses those keys; a hand class without one defaults
+ * to all of its combos on (absence = all selected). Used to feed blocker-aware
+ * practice, which works over a single range-wide selection.
+ */
+export function selectionForRange(
+  hands: PokerHand[],
+  comboSelections?: Record<PokerHand, string[]>,
+): ComboSelection {
+  const result: ComboSelection = new Set()
+  for (const hand of hands) {
+    const saved = comboSelections?.[hand]
+    const selection = saved ? new Set(saved) : allCombosForHand(hand)
+    for (const key of selection) result.add(key)
+  }
+  return result
+}

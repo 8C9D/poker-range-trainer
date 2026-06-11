@@ -6,9 +6,11 @@ import {
   deserializeComboSelection,
   isComboSelected,
   selectedComboCount,
+  selectionForRange,
   serializeComboSelection,
   toggleCombo,
 } from './comboSelection'
+import { comboKey } from './combos'
 
 const ahkh = [parseCard('Ah'), parseCard('Kh')]
 const ackc = [parseCard('Ac'), parseCard('Kc')]
@@ -45,6 +47,22 @@ describe('toggleCombo', () => {
     const off = toggleCombo(selection, khah)
     expect(isComboSelected(off, ahkh)).toBe(false)
     expect(selectedComboCount(off)).toBe(3)
+  })
+})
+
+describe('selectionForRange', () => {
+  it('defaults hand classes without a stored entry to all-on', () => {
+    const selection = selectionForRange(['AKs', 'AA'])
+    expect(selectedComboCount(selection)).toBe(4 + 6)
+    expect(isComboSelected(selection, ahkh)).toBe(true)
+  })
+
+  it('restricts hand classes that have a stored entry', () => {
+    const selection = selectionForRange(['AKs', 'AA'], { AKs: ['AhKh'] })
+    // AKs restricted to 1 combo; AA defaults to all 6.
+    expect(selectedComboCount(selection)).toBe(1 + 6)
+    expect(selection.has(comboKey(ahkh))).toBe(true)
+    expect(isComboSelected(selection, ackc)).toBe(false)
   })
 })
 

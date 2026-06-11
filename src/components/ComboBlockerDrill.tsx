@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { formatCard, parseBoard, type Card } from '../domain/cards'
 import { availablePracticeCombos, drawPracticeCombo } from '../domain/blockerPractice'
+import type { ComboSelection } from '../domain/comboSelection'
 import type { PokerHand } from '../domain/pokerHands'
 import './ComboBlockerDrill.css'
 
@@ -9,6 +10,8 @@ interface ComboBlockerDrillProps {
   hands: PokerHand[]
   /** Optional starting board string (dead cards), e.g. "AsKd7h". */
   board?: string
+  /** Optional range-wide combo selection; absent = every combo eligible. */
+  selection?: ComboSelection
   /** Back action. */
   onExit: () => void
 }
@@ -18,23 +21,28 @@ interface ComboBlockerDrillProps {
  * concrete combo from the range that those cards do not block. Exploratory, no
  * persisted stats — it surfaces which combos remain available given the board.
  */
-export function ComboBlockerDrill({ hands, board: initialBoard = '', onExit }: ComboBlockerDrillProps) {
+export function ComboBlockerDrill({
+  hands,
+  board: initialBoard = '',
+  selection,
+  onExit,
+}: ComboBlockerDrillProps) {
   const [board, setBoard] = useState(initialBoard)
   const [combo, setCombo] = useState<Card[] | null>(null)
 
   const parsed = useMemo<{ dead: Card[]; remaining: number } | { error: string }>(() => {
     try {
       const dead = board.trim() === '' ? [] : parseBoard(board)
-      return { dead, remaining: availablePracticeCombos(hands, dead).length }
+      return { dead, remaining: availablePracticeCombos(hands, dead, selection).length }
     } catch (error) {
       return { error: error instanceof Error ? error.message : 'Invalid board.' }
     }
-  }, [board, hands])
+  }, [board, hands, selection])
 
   const deal = () => {
     if ('error' in parsed) return
     try {
-      setCombo(drawPracticeCombo(hands, parsed.dead))
+      setCombo(drawPracticeCombo(hands, parsed.dead, selection))
     } catch {
       setCombo(null)
     }
