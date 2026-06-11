@@ -151,6 +151,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 114 | Wire the blocker-aware combo drill into the library (launcher) | v4.1 — Combo-level precision | 2026-06-08 |
 | 115 | Combo-selection editor view (toggle + persist per-combo selections) | v4.1 — Combo-level precision | 2026-06-08 |
 | 116 | Combo drill honors a range's persisted combo selections | v4.1 — Combo-level precision | 2026-06-08 |
+| 117 | Mixed-action frequency model (pure domain) | v4.2 — Mixed-frequency strategies | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -867,37 +868,43 @@ updated), so both the remaining count and the deal honor it; `App` builds it fro
 > proceeds. Start with a small pure domain foundation (a mixed-action/frequency model + validation),
 > not UI.
 
+Slice 117 began **v4.2 — Mixed-frequency strategies** with the pure `src/domain/mixedStrategy.ts`:
+the `MixedAction` type (`{ action: RangeAction; frequency: number }`) + `HandMixedStrategy` alias,
+`normalizeMixedStrategy` (drops invalid/non-positive frequencies, merges duplicate actions, returns
+canonical `RANGE_ACTIONS` order), `totalFrequency`, `isValidMixedStrategy` (sums to 100 within an
+epsilon), and `primaryAction` (highest frequency, canonical-order tie-break, `null` when empty).
+Pure, serializable-friendly, fully unit-tested. No UI/storage wiring.
+
 ## Next slice
 
-- **Number:** 117
+- **Number:** 118
 - **Roadmap target:** v4.2 — Mixed-frequency strategies
-- **Working title:** Mixed-action frequency model (pure domain)
+- **Working title:** Persist per-hand mixed strategies on a saved range (storage)
 
 ### Prompt
 
-Begin **v4.2 — Mixed-frequency strategies** with a small, pure domain foundation only (no UI, no
-storage). Model a per-hand mixed strategy: a hand can have several actions each with a frequency
-(e.g. A5s → 50% fourBet, 50% fold). Reuse the existing `RangeAction` union from `types/range.ts`.
+Continue **v4.2** by persisting mixed-frequency strategies on a saved range, mirroring how
+`comboSelections` (slice 110) and `handActions` (slice 55) were persisted.
 
-- Add `src/domain/mixedStrategy.ts` with:
-  - a `MixedAction` type `{ action: RangeAction; frequency: number }` (frequency 0–100), and a
-    `HandMixedStrategy = MixedAction[]` alias (per the roadmap's data model).
-  - `normalizeMixedStrategy(actions)`: drop non-positive/invalid frequencies, merge duplicate actions
-    (sum their frequencies), and return them in canonical `RANGE_ACTIONS` order.
-  - `totalFrequency(actions)` and `isValidMixedStrategy(actions)` (valid when the normalized total is
-    100, within a small epsilon).
-  - `primaryAction(actions)`: the highest-frequency action (ties broken by `RANGE_ACTIONS` order), or
-    `null` for an empty strategy.
-- Keep it pure and serializable-friendly so later slices can persist `Record<PokerHand,
-  HandMixedStrategy>` on a range and build a frequency editor / practice mode. No UI/storage wiring.
-- Unit-test normalization (dedupe + order + dropping invalid), `totalFrequency`, validity (sums to
-  100), and `primaryAction` (including tie-break and empty).
+- In `src/types/range.ts`, add an OPTIONAL field to `SavedRange`, e.g.
+  `mixedStrategies?: Record<PokerHand, HandMixedStrategy>` (import the type from
+  `domain/mixedStrategy.ts`). Document that absence means the range has no mixed-frequency overlay, so
+  pre-v4.2 ranges are unaffected and need no migration.
+- In `src/storage/rangeStorage.ts`, add a `normalizeMixedStrategies` sanitizer (mirroring
+  `normalizeComboSelections`/`normalizeHandActions`): keep entries with a canonical hand-class key
+  whose value is an array, run each through `normalizeMixedStrategy` (dropping bad frequencies/unknown
+  actions), DROP entries that normalize to empty, and collapse an all-empty map to `undefined` so
+  `mixedStrategies: {}` is never persisted. Wire it into BOTH `parseSavedRange` (load) and
+  `saveSavedRange` (write). Hands-only ranges and ranges without the field must be unchanged.
+- Storage-only: no UI yet. Add/extend unit tests in the rangeStorage test for the round-trip, the
+  per-entry normalization (e.g. duplicate actions merged), the malformed-drop, and the all-invalid
+  omit.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Pure logic in `src/domain/`; reuse `RANGE_ACTIONS`/`RangeAction`; no new deps. Small, reversible,
-  preflop trainer unaffected. This is the v4.2 foundation — keep it conservative.
+- Types in `src/types/`, storage in `src/storage/`; reuse `mixedStrategy.ts` + the existing
+  sanitization pattern; no new deps. Small, reversible, backward-compatible (absence = no overlay).
 
 Suggested commit message:
-- `feat: mixed-action frequency model`
+- `feat: persist per-range mixed-frequency strategies`
