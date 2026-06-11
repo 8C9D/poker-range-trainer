@@ -15,6 +15,15 @@ import { RangeNotation } from './components/RangeNotation'
 import { RangePerformance } from './components/RangePerformance'
 import { RangeVsBoard } from './components/RangeVsBoard'
 import { ComboBlockerDrill } from './components/ComboBlockerDrill'
+import { ComboSelector } from './components/ComboSelector'
+import {
+  allCombosForHand,
+  deserializeComboSelection,
+  serializeComboSelection,
+  toggleCombo,
+  type ComboSelection,
+} from './domain/comboSelection'
+import type { Card } from './domain/cards'
 import { PostflopDrillSetup } from './components/PostflopDrillSetup'
 import { PostflopPractice } from './components/PostflopPractice'
 import type { PostflopScenario } from './domain/postflopScenario'
@@ -132,6 +141,10 @@ function AppShell() {
   const [performanceRange, setPerformanceRange] = useState<SavedRange | null>(null)
   const [boardRange, setBoardRange] = useState<SavedRange | null>(null)
   const [comboDrillRange, setComboDrillRange] = useState<SavedRange | null>(null)
+  // The range whose per-combo selections are being edited, with `comboDraft`
+  // holding the in-progress per-hand-class selections.
+  const [comboEditRange, setComboEditRange] = useState<SavedRange | null>(null)
+  const [comboDraft, setComboDraft] = useState<Record<PokerHand, ComboSelection>>({})
   // null = not in the postflop drill; 'setup' = building a scenario; otherwise the active scenario.
   const [postflop, setPostflop] = useState<'setup' | PostflopScenario | null>(null)
   // null = not viewing the review queue; otherwise the ranges due for review,
@@ -429,6 +442,45 @@ function AppShell() {
     setComboDrillRange(range)
   }
 
+  function handleEditCombos(range: SavedRange) {
+    setComboEditRange(range)
+    // Seed each hand class from its saved selection, or default to all-on.
+    const draft: Record<PokerHand, ComboSelection> = {}
+    for (const hand of range.hands) {
+      const saved = range.comboSelections?.[hand]
+      draft[hand] = saved ? deserializeComboSelection(saved) : allCombosForHand(hand)
+    }
+    setComboDraft(draft)
+  }
+
+  function setDraftCombo(hand: PokerHand, combo: Card[]) {
+    setComboDraft((prev) => ({
+      ...prev,
+      [hand]: toggleCombo(prev[hand] ?? allCombosForHand(hand), combo),
+    }))
+  }
+
+  function handleSaveCombos() {
+    if (!comboEditRange) return
+    // Persist only hand classes that are NOT fully selected, so an all-on range
+    // stays without the field (absence = all combos selected, the default).
+    const comboSelections: Record<PokerHand, string[]> = {}
+    for (const hand of comboEditRange.hands) {
+      const selection = comboDraft[hand] ?? allCombosForHand(hand)
+      const full = allCombosForHand(hand).size
+      if (selection.size < full) {
+        comboSelections[hand] = serializeComboSelection(selection)
+      }
+    }
+    saveSavedRange({
+      ...comboEditRange,
+      comboSelections: Object.keys(comboSelections).length > 0 ? comboSelections : undefined,
+      updatedAt: new Date().toISOString(),
+    })
+    setSavedRanges(loadSavedRanges())
+    setComboEditRange(null)
+  }
+
   function handleOpenPostflop() {
     setPostflop('setup')
   }
@@ -719,6 +771,8 @@ function AppShell() {
     headerSubtitle = 'See how this range hits a flop.'
   } else if (comboDrillRange) {
     headerSubtitle = 'Deal blocker-aware combos from this range.'
+  } else if (comboEditRange) {
+    headerSubtitle = 'Select which exact combos are in this range.'
   } else if (performanceRange) {
     headerSubtitle = 'Review your per-hand accuracy.'
   } else if (dueToday !== null) {
@@ -856,6 +910,28 @@ function AppShell() {
             hands={comboDrillRange.hands}
             onExit={() => setComboDrillRange(null)}
           />
+        </section>
+      ) : comboEditRange ? (
+        <section className="practice-session" aria-label="Combo selection editor">
+          <header className="practice-header">
+            <h2>Combos: {comboEditRange.name}</h2>
+            <button type="button" className="primary" onClick={handleSaveCombos}>
+              Save combos
+            </button>
+            <button type="button" onClick={() => setComboEditRange(null)}>
+              Back to library
+            </button>
+          </header>
+          {comboEditRange.hands.map((hand) => (
+            <div key={hand} className="combo-edit-hand">
+              <h3>{hand}</h3>
+              <ComboSelector
+                hand={hand}
+                selection={comboDraft[hand] ?? allCombosForHand(hand)}
+                onToggle={(combo) => setDraftCombo(hand, combo)}
+              />
+            </div>
+          ))}
         </section>
       ) : performanceRange ? (
         <RangePerformance
@@ -1009,6 +1085,7 @@ function AppShell() {
             onViewPerformance={handleViewPerformance}
             onViewBoard={handleViewBoard}
             onComboDrill={handleComboDrill}
+            onEditCombos={handleEditCombos}
             onEditActions={handleEditActions}
             onExportRange={handleExportRange}
             onExportRangeCsv={handleExportRangeCsv}

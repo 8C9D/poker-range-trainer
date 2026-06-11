@@ -149,6 +149,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 112 | Blocker-aware practice prompt selection (pure domain) | v4.1 — Combo-level precision | 2026-06-08 |
 | 113 | Blocker-aware combo practice component (self-graded combo drill) | v4.1 — Combo-level precision | 2026-06-08 |
 | 114 | Wire the blocker-aware combo drill into the library (launcher) | v4.1 — Combo-level precision | 2026-06-08 |
+| 115 | Combo-selection editor view (toggle + persist per-combo selections) | v4.1 — Combo-level precision | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -837,37 +838,49 @@ Preflop flow untouched. **v4.1's blocker-aware practice is now reachable end-to-
 drill always uses ALL combos; honoring a range's persisted `comboSelections` (slice 110) is the next
 step to fully close the "specific combo selection" loop.
 
+Slice 115 added the per-range combo-selection editor. `RangeLibrary` cards gained an optional
+"Edit combos" action (`Edit combos for {name}`, `onEditCombos?`). `App` holds `comboEditRange` +
+`comboDraft` (`Record<PokerHand, ComboSelection>`); `handleEditCombos` seeds each hand class from
+`range.comboSelections` (`deserializeComboSelection`) or `allCombosForHand` (default all-on), the
+view renders a `ComboSelector` per hand class, `setDraftCombo` toggles, and `handleSaveCombos`
+persists via `saveSavedRange` writing only NOT-fully-selected classes (so all-on stays field-less,
+absence = default) and collapsing an empty map to `undefined`. An App test deselects a combo
+(4/4 → 3/4), saves, reopens, and confirms the 3/4 persisted. **"Specific combo selection" is now
+editable + persisted end-to-end** — the combo drill honoring those selections is the final v4.1
+step.
+
 ## Next slice
 
-- **Number:** 115
+- **Number:** 116
 - **Roadmap target:** v4.1 — Combo-level precision
-- **Working title:** Combo-selection editor view (toggle + persist per-combo selections)
+- **Working title:** Combo drill honors a range's persisted combo selections
 
 ### Prompt
 
-Continue **v4.1** by letting users actually EDIT and PERSIST specific-combo selections, closing the
-"AhKh selected but AcKc not" loop. Reuse slice 111's `ComboSelector`, slice 109's `comboSelection.ts`,
-and slice 110's persisted `comboSelections` shape.
+Close out **v4.1** by making the blocker-aware combo drill respect a range's persisted
+`comboSelections` (slice 110/115), so a range with deselected combos never deals them. Reuse
+`blockerPractice.ts` (which already accepts an optional `ComboSelection` PER the whole range) — but
+note its `selection` is range-wide while `comboSelections` is keyed per hand class, so first build a
+small pure helper to combine them.
 
-- Add a per-range "Combos" view, wired like the "Board"/"Combo drill" actions: an optional
-  `onEditCombos?` prop + "Edit combos" button (`Edit combos for {name}`) on `RangeLibrary` cards, and a
-  `comboEditRange` state in `App`. The view lists the range's selected hand classes (`range.hands`),
-  each rendered with a `ComboSelector`. The active selection per hand class is seeded from
-  `range.comboSelections?.[hand]` (via `deserializeComboSelection`) or, when absent, `allCombosForHand`
-  (default all on). Toggling a combo updates a draft map in `App` state.
-- A "Save combos" button persists the draft via `saveSavedRange`, writing
-  `comboSelections` as `Record<hand, serializeComboSelection(selection)>` — but OMIT entries that are
-  "all combos selected" so a fully-on range stays without the field (keep absence = default). A "Back
-  to library" returns without saving. Refresh `savedRanges` after save.
-- Add an `App` test: open the combos view for a saved range, deselect a combo, save, reopen, and assert
-  the deselection persisted (the count shows fewer than the full combos).
+- In `src/domain/comboSelection.ts` (or a small new helper), add a pure function that turns a
+  `Record<PokerHand, string[]>` (a range's `comboSelections`) + the range's `hands` into ONE range-wide
+  `ComboSelection`: for each hand class, use its serialized keys when present, else all of
+  `allCombosForHand(hand)`. Name it e.g. `selectionForRange(hands, comboSelections?)`. Unit-test that
+  absent entries default to all-on and present entries restrict.
+- Pass that combined selection into `ComboBlockerDrill` (new optional `selection?: ComboSelection`
+  prop) and through to `availablePracticeCombos` / `drawPracticeCombo`, so the remaining count and the
+  deal both honor it. In `App`, build it from `comboDrillRange.comboSelections` when opening the drill.
+- Tests: a component/domain test that a deselected combo is excluded from the drill pool; keep an
+  `App`-level assertion small (e.g. count reflects a restricted range), and update the slice-114 drill
+  test if needed.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- UI in `src/components/` / `App`; storage via existing `saveSavedRange`; reuse `comboSelection.ts` +
-  `ComboSelector`; no new deps. Follow the existing view-switch + draft-state pattern (the action
-  editor is the closest analog). Small, reversible, preflop trainer unaffected.
+- Pure helper in `src/domain/`; UI reuse in `src/components/` + `App`; no new deps. Small, reversible,
+  preflop trainer unaffected. After this, note **v4.1 — Combo-level precision is COMPLETE** and the
+  roadmap moves to **v4.2 — Mixed-frequency strategies** (start with a small pure domain foundation).
 
 Suggested commit message:
-- `feat: per-range combo-selection editor`
+- `feat: combo drill honors persisted combo selections`

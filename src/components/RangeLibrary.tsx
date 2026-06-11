@@ -50,6 +50,8 @@ interface RangeLibraryProps {
   onViewBoard?: (range: SavedRange) => void
   /** Open the blocker-aware combo drill for the given saved range. */
   onComboDrill?: (range: SavedRange) => void
+  /** Open the per-combo selection editor for the given saved range. */
+  onEditCombos?: (range: SavedRange) => void
   /** Open the multi-action editor for the given saved range. */
   onEditActions: (range: SavedRange) => void
   /** Export the given saved range to a downloadable JSON file. */
@@ -138,6 +140,7 @@ export function RangeLibrary({
   onViewPerformance,
   onViewBoard = () => {},
   onComboDrill = () => {},
+  onEditCombos = () => {},
   onEditActions,
   onExportRange = () => {},
   onExportRangeCsv = () => {},
@@ -407,6 +410,13 @@ export function RangeLibrary({
                         onClick={() => onComboDrill(range)}
                       >
                         Combo drill
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Edit combos for ${range.name}`}
+                        onClick={() => onEditCombos(range)}
+                      >
+                        Edit combos
                       </button>
                       <button
                         type="button"

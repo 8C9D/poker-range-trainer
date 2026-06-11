@@ -709,6 +709,30 @@ describe('Range performance view', () => {
     expect(screen.getByLabelText('Range name')).toBeInTheDocument()
   })
 
+  it('edits and persists per-combo selections for a range', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Suited')
+    await user.click(screen.getByRole('button', { name: 'AKs' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    await user.click(screen.getByRole('button', { name: 'Edit combos for Suited' }))
+    expect(screen.getByRole('heading', { name: 'Combos: Suited' })).toBeInTheDocument()
+    // AKs has 4 combos, all selected by default.
+    expect(screen.getByText('4/4 combos')).toBeInTheDocument()
+
+    // Deselect one combo and save.
+    const grid = screen.getByLabelText('Combos for AKs')
+    await user.click(within(grid).getAllByRole('button')[0])
+    expect(screen.getByText('3/4 combos')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Save combos' }))
+
+    // Reopen: the deselection persisted.
+    await user.click(screen.getByRole('button', { name: 'Edit combos for Suited' }))
+    expect(screen.getByText('3/4 combos')).toBeInTheDocument()
+  })
+
   it('runs a postflop drill from setup to a graded answer', async () => {
     const user = userEvent.setup()
     render(<App />)
