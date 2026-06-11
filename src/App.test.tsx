@@ -689,6 +689,26 @@ describe('Range performance view', () => {
     expect(screen.getByLabelText('Range name')).toBeInTheDocument()
   })
 
+  it('opens the blocker-aware combo drill and deals a combo', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Aces')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    await user.click(screen.getByRole('button', { name: 'Deal combos for Aces' }))
+    expect(screen.getByRole('heading', { name: 'Combo drill: Aces' })).toBeInTheDocument()
+    // AA has 6 combos, none blocked with an empty board.
+    expect(screen.getByText('6 combos available')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Deal a combo' }))
+    expect(screen.getByLabelText('Dealt combo')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Back' }))
+    expect(screen.getByLabelText('Range name')).toBeInTheDocument()
+  })
+
   it('runs a postflop drill from setup to a graded answer', async () => {
     const user = userEvent.setup()
     render(<App />)

@@ -14,6 +14,7 @@ import { RangeMetadataEditor } from './components/RangeMetadataEditor'
 import { RangeNotation } from './components/RangeNotation'
 import { RangePerformance } from './components/RangePerformance'
 import { RangeVsBoard } from './components/RangeVsBoard'
+import { ComboBlockerDrill } from './components/ComboBlockerDrill'
 import { PostflopDrillSetup } from './components/PostflopDrillSetup'
 import { PostflopPractice } from './components/PostflopPractice'
 import type { PostflopScenario } from './domain/postflopScenario'
@@ -130,6 +131,7 @@ function AppShell() {
   // is open.
   const [performanceRange, setPerformanceRange] = useState<SavedRange | null>(null)
   const [boardRange, setBoardRange] = useState<SavedRange | null>(null)
+  const [comboDrillRange, setComboDrillRange] = useState<SavedRange | null>(null)
   // null = not in the postflop drill; 'setup' = building a scenario; otherwise the active scenario.
   const [postflop, setPostflop] = useState<'setup' | PostflopScenario | null>(null)
   // null = not viewing the review queue; otherwise the ranges due for review,
@@ -423,6 +425,10 @@ function AppShell() {
     setBoardRange(range)
   }
 
+  function handleComboDrill(range: SavedRange) {
+    setComboDrillRange(range)
+  }
+
   function handleOpenPostflop() {
     setPostflop('setup')
   }
@@ -711,6 +717,8 @@ function AppShell() {
     headerSubtitle = 'Practice a postflop decision.'
   } else if (boardRange) {
     headerSubtitle = 'See how this range hits a flop.'
+  } else if (comboDrillRange) {
+    headerSubtitle = 'Deal blocker-aware combos from this range.'
   } else if (performanceRange) {
     headerSubtitle = 'Review your per-hand accuracy.'
   } else if (dueToday !== null) {
@@ -838,6 +846,16 @@ function AppShell() {
             </button>
           </header>
           <RangeVsBoard hands={boardRange.hands} />
+        </section>
+      ) : comboDrillRange ? (
+        <section className="practice-session" aria-label="Combo drill">
+          <header className="practice-header">
+            <h2>Combo drill: {comboDrillRange.name}</h2>
+          </header>
+          <ComboBlockerDrill
+            hands={comboDrillRange.hands}
+            onExit={() => setComboDrillRange(null)}
+          />
         </section>
       ) : performanceRange ? (
         <RangePerformance
@@ -990,6 +1008,7 @@ function AppShell() {
             onArchive={handleArchive}
             onViewPerformance={handleViewPerformance}
             onViewBoard={handleViewBoard}
+            onComboDrill={handleComboDrill}
             onEditActions={handleEditActions}
             onExportRange={handleExportRange}
             onExportRangeCsv={handleExportRangeCsv}
