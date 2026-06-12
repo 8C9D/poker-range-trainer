@@ -434,6 +434,77 @@ describe('comboSelections persistence', () => {
   })
 })
 
+describe('mixedStrategies persistence', () => {
+  it('round-trips a range saved with mixed strategies', () => {
+    saveSavedRange(
+      makeRange({
+        id: 'r1',
+        mixedStrategies: {
+          A5s: [
+            { action: 'fourBet', frequency: 50 },
+            { action: 'fold', frequency: 50 },
+          ],
+        },
+      }),
+    )
+    expect(loadSavedRanges()[0].mixedStrategies).toEqual({
+      A5s: [
+        { action: 'fold', frequency: 50 },
+        { action: 'fourBet', frequency: 50 },
+      ],
+    })
+  })
+
+  it('loads a range without a mixedStrategies field', () => {
+    saveSavedRange(makeRange({ id: 'r1' }))
+    expect(loadSavedRanges()[0].mixedStrategies).toBeUndefined()
+  })
+
+  it('normalizes each entry on load (merges duplicates, drops bad actions/keys)', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify([
+        {
+          id: 'r1',
+          name: 'R',
+          hands: ['AA'],
+          createdAt: 'T',
+          updatedAt: 'T',
+          mixedStrategies: {
+            AA: [
+              { action: 'raise', frequency: 40 },
+              { action: 'raise', frequency: 60 },
+              { action: 'bogus', frequency: 10 },
+            ],
+            ZZ: [{ action: 'fold', frequency: 100 }],
+            QQ: 'not-an-array',
+          },
+        },
+      ]),
+    )
+    expect(loadSavedRanges()[0].mixedStrategies).toEqual({
+      AA: [{ action: 'raise', frequency: 100 }],
+    })
+  })
+
+  it('omits mixedStrategies entirely when no entries are valid', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify([
+        {
+          id: 'r1',
+          name: 'R',
+          hands: ['AA'],
+          createdAt: 'T',
+          updatedAt: 'T',
+          mixedStrategies: { AA: [{ action: 'fold', frequency: 0 }], ZZ: [] },
+        },
+      ]),
+    )
+    expect(loadSavedRanges()[0].mixedStrategies).toBeUndefined()
+  })
+})
+
 describe('replaceSavedRanges', () => {
   it('replaces the whole library, discarding ranges not in the new list', () => {
     saveSavedRange(makeRange({ id: 'old' }))

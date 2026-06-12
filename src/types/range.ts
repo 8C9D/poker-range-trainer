@@ -1,4 +1,5 @@
 import type { PokerHand } from '../domain/pokerHands'
+import type { HandMixedStrategy } from '../domain/mixedStrategy'
 
 /**
  * Scenario metadata vocabularies.
@@ -144,6 +145,13 @@ export interface SavedRange {
    * migration.
    */
   comboSelections?: Record<PokerHand, string[]>
+  /**
+   * Optional v4.2 per-hand mixed-frequency strategies (e.g. `{ 'A5s': [{ action:
+   * 'fourBet', frequency: 50 }, { action: 'fold', frequency: 50 }] }`). Absence
+   * means the range has no mixed-frequency overlay, so pre-v4.2 ranges are
+   * unaffected and need no migration.
+   */
+  mixedStrategies?: Record<PokerHand, HandMixedStrategy>
   /** ISO-8601 timestamp of when the range was created. */
   createdAt: string
   /** ISO-8601 timestamp of the most recent edit. */

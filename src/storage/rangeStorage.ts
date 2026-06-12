@@ -1,5 +1,6 @@
 import { isValidHand, type PokerHand } from '../domain/pokerHands'
 import { normalizeRangeHands } from '../domain/rangeMath'
+import { normalizeMixedStrategy, type HandMixedStrategy } from '../domain/mixedStrategy'
 import {
   ACTION_TYPES,
   GAME_TYPES,
@@ -107,6 +108,28 @@ function normalizeComboSelections(value: unknown): Record<PokerHand, string[]> |
   return Object.keys(result).length > 0 ? result : undefined
 }
 
+/**
+ * Validate and sanitize an optional per-hand mixed-frequency strategy map.
+ *
+ * Each entry must have a canonical hand-class key and an array value; the value
+ * is run through `normalizeMixedStrategy` (dropping bad frequencies / unknown
+ * actions, merging duplicates, canonical order). Entries that normalize to empty
+ * are dropped, and an all-empty result collapses to `undefined` so
+ * `mixedStrategies: {}` is never persisted (absence = no overlay).
+ */
+function normalizeMixedStrategies(
+  value: unknown,
+): Record<PokerHand, HandMixedStrategy> | undefined {
+  if (typeof value !== 'object' || value === null) return undefined
+  const result: Record<PokerHand, HandMixedStrategy> = {}
+  for (const [hand, raw] of Object.entries(value as Record<string, unknown>)) {
+    if (!isValidHand(hand) || !Array.isArray(raw)) continue
+    const normalized = normalizeMixedStrategy(raw as HandMixedStrategy)
+    if (normalized.length > 0) result[hand] = normalized
+  }
+  return Object.keys(result).length > 0 ? result : undefined
+}
+
 /** Validate a parsed value as a `SavedRange`, returning `null` if it is malformed. */
 function parseSavedRange(value: unknown): SavedRange | null {
   if (typeof value !== 'object' || value === null) return null
@@ -121,6 +144,7 @@ function parseSavedRange(value: unknown): SavedRange | null {
     favorite,
     handActions,
     comboSelections,
+    mixedStrategies,
   } = value as Record<string, unknown>
 
   if (typeof id !== 'string' || id.length === 0) return null
@@ -140,6 +164,7 @@ function parseSavedRange(value: unknown): SavedRange | null {
   const normalizedMetadata = normalizeMetadata(metadata)
   const normalizedHandActions = normalizeHandActions(handActions)
   const normalizedComboSelections = normalizeComboSelections(comboSelections)
+  const normalizedMixedStrategies = normalizeMixedStrategies(mixedStrategies)
   return {
     id,
     name,
@@ -149,6 +174,7 @@ function parseSavedRange(value: unknown): SavedRange | null {
     ...(normalizedMetadata ? { metadata: normalizedMetadata } : {}),
     ...(normalizedHandActions ? { handActions: normalizedHandActions } : {}),
     ...(normalizedComboSelections ? { comboSelections: normalizedComboSelections } : {}),
+    ...(normalizedMixedStrategies ? { mixedStrategies: normalizedMixedStrategies } : {}),
     // Only a strict `true` persists; absent/false stays unarchived with no key.
     ...(archived === true ? { archived: true } : {}),
     // Same rule as archived: only a strict `true` persists the favorite flag.
@@ -193,16 +219,19 @@ export function findSavedRangeById(id: string): SavedRange | undefined {
  * before any write and leaves existing storage untouched.
  */
 export function saveSavedRange(range: SavedRange): void {
-  const { metadata, archived, favorite, handActions, comboSelections, ...rest } = range
+  const { metadata, archived, favorite, handActions, comboSelections, mixedStrategies, ...rest } =
+    range
   const normalizedMetadata = normalizeMetadata(metadata)
   const normalizedHandActions = normalizeHandActions(handActions)
   const normalizedComboSelections = normalizeComboSelections(comboSelections)
+  const normalizedMixedStrategies = normalizeMixedStrategies(mixedStrategies)
   const normalized: SavedRange = {
     ...rest,
     hands: normalizeRangeHands(range.hands),
     ...(normalizedMetadata ? { metadata: normalizedMetadata } : {}),
     ...(normalizedHandActions ? { handActions: normalizedHandActions } : {}),
     ...(normalizedComboSelections ? { comboSelections: normalizedComboSelections } : {}),
+    ...(normalizedMixedStrategies ? { mixedStrategies: normalizedMixedStrategies } : {}),
     // Mirror parse: only a strict `true` is stored, so `false`/undefined drops the key.
     ...(archived === true ? { archived: true } : {}),
     // Same rule as archived: only a strict `true` is stored for favorite.

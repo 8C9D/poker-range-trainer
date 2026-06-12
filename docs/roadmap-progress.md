@@ -152,6 +152,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 115 | Combo-selection editor view (toggle + persist per-combo selections) | v4.1 — Combo-level precision | 2026-06-08 |
 | 116 | Combo drill honors a range's persisted combo selections | v4.1 — Combo-level precision | 2026-06-08 |
 | 117 | Mixed-action frequency model (pure domain) | v4.2 — Mixed-frequency strategies | 2026-06-08 |
+| 118 | Persist per-hand mixed strategies on a saved range (storage) | v4.2 — Mixed-frequency strategies | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -875,36 +876,45 @@ canonical `RANGE_ACTIONS` order), `totalFrequency`, `isValidMixedStrategy` (sums
 epsilon), and `primaryAction` (highest frequency, canonical-order tie-break, `null` when empty).
 Pure, serializable-friendly, fully unit-tested. No UI/storage wiring.
 
+Slice 118 persisted mixed strategies on a saved range. `SavedRange` gained an optional
+`mixedStrategies?: Record<PokerHand, HandMixedStrategy>` (type-only import from `mixedStrategy.ts`;
+absence = no overlay). `rangeStorage` gained `normalizeMixedStrategies`: it keeps entries with a
+canonical hand-class key + array value, runs each through `normalizeMixedStrategy` (merging
+duplicates, dropping bad frequencies/unknown actions, canonical order), drops entries that normalize
+to empty, and collapses an all-empty map to `undefined`. Wired into both `parseSavedRange` and
+`saveSavedRange`. Round-trip, per-entry normalization, malformed-drop, and all-invalid-omit are
+unit-tested; hands-only ranges unaffected.
+
 ## Next slice
 
-- **Number:** 118
+- **Number:** 119
 - **Roadmap target:** v4.2 — Mixed-frequency strategies
-- **Working title:** Persist per-hand mixed strategies on a saved range (storage)
+- **Working title:** Mixed-frequency editor component (frequency sliders for one hand)
 
 ### Prompt
 
-Continue **v4.2** by persisting mixed-frequency strategies on a saved range, mirroring how
-`comboSelections` (slice 110) and `handActions` (slice 55) were persisted.
+Continue **v4.2** with a standalone, controlled UI for editing ONE hand's mixed strategy via frequency
+sliders. Reuse slice 117's `mixedStrategy.ts` (`MixedAction`, `HandMixedStrategy`,
+`normalizeMixedStrategy`, `totalFrequency`, `isValidMixedStrategy`) and the existing
+`RANGE_ACTIONS`/`RANGE_ACTION_LABELS`.
 
-- In `src/types/range.ts`, add an OPTIONAL field to `SavedRange`, e.g.
-  `mixedStrategies?: Record<PokerHand, HandMixedStrategy>` (import the type from
-  `domain/mixedStrategy.ts`). Document that absence means the range has no mixed-frequency overlay, so
-  pre-v4.2 ranges are unaffected and need no migration.
-- In `src/storage/rangeStorage.ts`, add a `normalizeMixedStrategies` sanitizer (mirroring
-  `normalizeComboSelections`/`normalizeHandActions`): keep entries with a canonical hand-class key
-  whose value is an array, run each through `normalizeMixedStrategy` (dropping bad frequencies/unknown
-  actions), DROP entries that normalize to empty, and collapse an all-empty map to `undefined` so
-  `mixedStrategies: {}` is never persisted. Wire it into BOTH `parseSavedRange` (load) and
-  `saveSavedRange` (write). Hands-only ranges and ranges without the field must be unchanged.
-- Storage-only: no UI yet. Add/extend unit tests in the rangeStorage test for the round-trip, the
-  per-entry normalization (e.g. duplicate actions merged), the malformed-drop, and the all-invalid
-  omit.
+- Add `src/components/MixedStrategyEditor.tsx` (+ small CSS if needed). Props (controlled, parent owns
+  state): a `HandMixedStrategy` (the current actions) and `onChange(next: HandMixedStrategy)`. Render
+  one row per `RANGE_ACTION` with a `range` slider (0–100, label = `RANGE_ACTION_LABELS[action]`,
+  current value from the strategy or 0); changing a slider rebuilds the strategy
+  (action→frequency, dropping zeros) and calls `onChange`. Show the live `totalFrequency` and a clear
+  indicator of whether it is valid (`isValidMixedStrategy`, i.e. sums to 100).
+- Keep it pure/presentational beyond reflecting the prop; no storage, no `App` wiring (a later slice
+  wires it into a per-range editor over the action grid). Reuse the `action-{action}` color classes
+  from `ActionPalette.css` for the row swatches if convenient.
+- Component-test: sliders render for every action with the right initial values; moving a slider fires
+  `onChange` with the updated frequency; the total + validity indicator reflect the strategy.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Types in `src/types/`, storage in `src/storage/`; reuse `mixedStrategy.ts` + the existing
-  sanitization pattern; no new deps. Small, reversible, backward-compatible (absence = no overlay).
+- UI in `src/components/`; reuse `mixedStrategy.ts` + `types/range.ts`; no new deps. Standalone,
+  reversible. Preflop trainer unaffected.
 
 Suggested commit message:
-- `feat: persist per-range mixed-frequency strategies`
+- `feat: mixed-frequency slider editor for one hand`
