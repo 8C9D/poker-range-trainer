@@ -733,6 +733,30 @@ describe('Range performance view', () => {
     expect(screen.getByText('3/4 combos')).toBeInTheDocument()
   })
 
+  it('edits and persists per-hand mixed frequencies for a range', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Mix')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    await user.click(screen.getByRole('button', { name: 'Edit frequencies for Mix' }))
+    expect(screen.getByRole('heading', { name: 'Frequencies: Mix' })).toBeInTheDocument()
+
+    // AA is the only/active hand; set a 50/50 raise/fold mix.
+    fireEvent.change(screen.getByLabelText('Raise'), { target: { value: '50' } })
+    fireEvent.change(screen.getByLabelText('Fold'), { target: { value: '50' } })
+    await user.click(screen.getByRole('button', { name: 'Save frequencies' }))
+
+    // Reopen: the grid shows AA's primary action.
+    await user.click(screen.getByRole('button', { name: 'Edit frequencies for Mix' }))
+    expect(screen.getByText('AA', { selector: '.action-cell' })).toHaveAttribute(
+      'data-primary',
+      'fold',
+    )
+  })
+
   it('runs a postflop drill from setup to a graded answer', async () => {
     const user = userEvent.setup()
     render(<App />)

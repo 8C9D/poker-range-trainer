@@ -155,6 +155,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 118 | Persist per-hand mixed strategies on a saved range (storage) | v4.2 — Mixed-frequency strategies | 2026-06-08 |
 | 119 | Mixed-frequency editor component (frequency sliders for one hand) | v4.2 — Mixed-frequency strategies | 2026-06-08 |
 | 120 | Mixed-frequency grid visualization (read-only) | v4.2 — Mixed-frequency strategies | 2026-06-08 |
+| 121 | Per-range mixed-frequency editor view (grid + sliders, wired + persisted) | v4.2 — Mixed-frequency strategies | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -900,38 +901,47 @@ shared `action-{action}` classes) and exposes `data-primary`; hands without a st
 (`is-muted`, `data-primary="none"`). Presentational only — no clicks/state. Component-tested
 (primary color + muted no-primary).
 
+Slice 121 wired the per-range mixed-frequency editor into the app. `RangeLibrary` cards gained an
+optional "Frequencies" action (`Edit frequencies for {name}`, `onEditFrequencies?`). `App` holds
+`freqEditRange` + `freqDraft` (`Record<PokerHand, HandMixedStrategy>`, seeded from
+`range.mixedStrategies`) + `freqActiveHand` (defaulting to the first hand). The view renders a
+`MixedStrategyGrid` over the draft, a `<select>` of `range.hands` to pick the active hand, and a
+`MixedStrategyEditor` bound to that hand's draft; `handleSaveFrequencies` persists via
+`saveSavedRange` (storage normalizes/drops empties). An App test sets AA to a 50/50 raise/fold mix,
+saves, reopens, and confirms the grid shows `data-primary="fold"` (canonical tie-break). Preflop
+flow untouched.
+
 ## Next slice
 
-- **Number:** 121
+- **Number:** 122
 - **Roadmap target:** v4.2 — Mixed-frequency strategies
-- **Working title:** Per-range mixed-frequency editor view (grid + sliders, wired + persisted)
+- **Working title:** Mixed-frequency practice: primary-action quiz (pure domain + component)
 
 ### Prompt
 
-Continue **v4.2** by wiring a per-range mixed-frequency editor into the app, combining slice 120's
-`MixedStrategyGrid` (pick a hand) with slice 119's `MixedStrategyEditor` (edit that hand's mix), and
-persisting via slice 118's `mixedStrategies` storage. Mirror the action-editor wiring (slices 56).
+Continue **v4.2** with a practice mode that quizzes the user on a mixed chart's PRIMARY action per
+hand (the roadmap's "User may be asked for primary action"). Reuse slice 117's `mixedStrategy.ts`
+(`primaryAction`) and the `RANGE_ACTIONS`/labels.
 
-- Add a per-range "Frequencies" view, wired like the "Actions"/"Edit combos" actions: an optional
-  `onEditFrequencies?` prop + button (`Edit frequencies for {name}`) on `RangeLibrary` cards, and a
-  `freqEditRange` state in `App`, with a `freqDraft` (`Record<PokerHand, HandMixedStrategy>`) seeded
-  from `range.mixedStrategies ?? {}`.
-- The view: a `MixedStrategyGrid` showing the draft, a way to pick the active hand (e.g. clicking a
-  grid cell OR a small hand selector — since `MixedStrategyGrid` is read-only, add an
-  `onSelectHand?` callback to it OR render a simple `<select>`/list of `range.hands`; pick the
-  simplest), and a `MixedStrategyEditor` bound to the active hand's draft strategy. Editing updates
-  `freqDraft[hand]`. A "Save frequencies" button persists via `saveSavedRange` (writing `freqDraft`,
-  letting storage normalize/drop empties), a "Back to library" returns without saving; refresh
-  `savedRanges` after save.
-- Add an `App` test: open the frequencies view for a saved range, set a hand's mix (e.g. 50/50), save,
-  reopen, and assert the grid shows that hand's primary action (`data-primary`).
+- First a tiny pure helper (if not already trivial): in `mixedStrategy.ts` (or reuse `primaryAction`),
+  ensure there's a clean way to get the set of hands that HAVE a mixed strategy and the correct
+  primary action for one — e.g. `handsWithMixedStrategy(mixedStrategies)` returning the hands (in
+  canonical matrix order) that have a non-empty strategy. Unit-test it.
+- Add `src/components/MixedActionQuiz.tsx` (mirror the existing `ActionQuiz` component, slice 58): it
+  takes a range (or its `mixedStrategies`), draws a prompt hand from `handsWithMixedStrategy`, shows
+  the `RANGE_ACTIONS` as colored answer buttons, scores the answer against `primaryAction` of that
+  hand's strategy, tracks running stats + feedback, and has an empty state when no hand has a
+  strategy. Include an `onExit`. Keep stats in-component (no persistence in this slice). Reuse the
+  `action-{action}` colors.
+- Component-test: a range with one mixed hand quizzes it; choosing its primary action scores correct,
+  a wrong action scores incorrect; the no-strategy empty state renders.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- UI in `src/components/` / `App`; storage via existing `saveSavedRange`; reuse `MixedStrategyGrid` +
-  `MixedStrategyEditor` + `mixedStrategy.ts`; no new deps. Follow the action-editor view-switch +
-  draft pattern. Small, reversible, preflop trainer unaffected.
+- Domain in `src/domain/`, UI in `src/components/`; reuse `mixedStrategy.ts` + `ActionQuiz` patterns;
+  no new deps. Standalone (no `App` wiring yet — a later slice adds it to the practice picker). Small,
+  reversible, preflop trainer unaffected.
 
 Suggested commit message:
-- `feat: per-range mixed-frequency editor view`
+- `feat: mixed-frequency primary-action quiz`

@@ -16,6 +16,9 @@ import { RangePerformance } from './components/RangePerformance'
 import { RangeVsBoard } from './components/RangeVsBoard'
 import { ComboBlockerDrill } from './components/ComboBlockerDrill'
 import { ComboSelector } from './components/ComboSelector'
+import { MixedStrategyGrid } from './components/MixedStrategyGrid'
+import { MixedStrategyEditor } from './components/MixedStrategyEditor'
+import type { HandMixedStrategy } from './domain/mixedStrategy'
 import {
   allCombosForHand,
   deserializeComboSelection,
@@ -146,6 +149,11 @@ function AppShell() {
   // holding the in-progress per-hand-class selections.
   const [comboEditRange, setComboEditRange] = useState<SavedRange | null>(null)
   const [comboDraft, setComboDraft] = useState<Record<PokerHand, ComboSelection>>({})
+  // The range whose mixed-frequency strategies are being edited, with `freqDraft`
+  // holding the in-progress per-hand mixes and `freqActiveHand` the selected hand.
+  const [freqEditRange, setFreqEditRange] = useState<SavedRange | null>(null)
+  const [freqDraft, setFreqDraft] = useState<Record<PokerHand, HandMixedStrategy>>({})
+  const [freqActiveHand, setFreqActiveHand] = useState<PokerHand | null>(null)
   // null = not in the postflop drill; 'setup' = building a scenario; otherwise the active scenario.
   const [postflop, setPostflop] = useState<'setup' | PostflopScenario | null>(null)
   // null = not viewing the review queue; otherwise the ranges due for review,
@@ -461,6 +469,27 @@ function AppShell() {
     }))
   }
 
+  function handleEditFrequencies(range: SavedRange) {
+    setFreqEditRange(range)
+    setFreqDraft({ ...(range.mixedStrategies ?? {}) })
+    setFreqActiveHand(range.hands[0] ?? null)
+  }
+
+  function setFreqStrategy(hand: PokerHand, strategy: HandMixedStrategy) {
+    setFreqDraft((prev) => ({ ...prev, [hand]: strategy }))
+  }
+
+  function handleSaveFrequencies() {
+    if (!freqEditRange) return
+    saveSavedRange({
+      ...freqEditRange,
+      mixedStrategies: freqDraft,
+      updatedAt: new Date().toISOString(),
+    })
+    setSavedRanges(loadSavedRanges())
+    setFreqEditRange(null)
+  }
+
   function handleSaveCombos() {
     if (!comboEditRange) return
     // Persist only hand classes that are NOT fully selected, so an all-on range
@@ -774,6 +803,8 @@ function AppShell() {
     headerSubtitle = 'Deal blocker-aware combos from this range.'
   } else if (comboEditRange) {
     headerSubtitle = 'Select which exact combos are in this range.'
+  } else if (freqEditRange) {
+    headerSubtitle = 'Assign mixed action frequencies per hand.'
   } else if (performanceRange) {
     headerSubtitle = 'Review your per-hand accuracy.'
   } else if (dueToday !== null) {
@@ -935,6 +966,38 @@ function AppShell() {
             </div>
           ))}
         </section>
+      ) : freqEditRange ? (
+        <section className="practice-session" aria-label="Mixed-frequency editor">
+          <header className="practice-header">
+            <h2>Frequencies: {freqEditRange.name}</h2>
+            <button type="button" className="primary" onClick={handleSaveFrequencies}>
+              Save frequencies
+            </button>
+            <button type="button" onClick={() => setFreqEditRange(null)}>
+              Back to library
+            </button>
+          </header>
+          <MixedStrategyGrid mixedStrategies={freqDraft} />
+          <label className="freq-hand-select">
+            Hand
+            <select
+              value={freqActiveHand ?? ''}
+              onChange={(event) => setFreqActiveHand(event.target.value as PokerHand)}
+            >
+              {freqEditRange.hands.map((hand) => (
+                <option key={hand} value={hand}>
+                  {hand}
+                </option>
+              ))}
+            </select>
+          </label>
+          {freqActiveHand && (
+            <MixedStrategyEditor
+              strategy={freqDraft[freqActiveHand] ?? []}
+              onChange={(next) => setFreqStrategy(freqActiveHand, next)}
+            />
+          )}
+        </section>
       ) : performanceRange ? (
         <RangePerformance
           range={performanceRange}
@@ -1088,6 +1151,7 @@ function AppShell() {
             onViewBoard={handleViewBoard}
             onComboDrill={handleComboDrill}
             onEditCombos={handleEditCombos}
+            onEditFrequencies={handleEditFrequencies}
             onEditActions={handleEditActions}
             onExportRange={handleExportRange}
             onExportRangeCsv={handleExportRangeCsv}

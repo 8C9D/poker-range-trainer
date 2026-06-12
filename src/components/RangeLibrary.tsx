@@ -52,6 +52,8 @@ interface RangeLibraryProps {
   onComboDrill?: (range: SavedRange) => void
   /** Open the per-combo selection editor for the given saved range. */
   onEditCombos?: (range: SavedRange) => void
+  /** Open the mixed-frequency editor for the given saved range. */
+  onEditFrequencies?: (range: SavedRange) => void
   /** Open the multi-action editor for the given saved range. */
   onEditActions: (range: SavedRange) => void
   /** Export the given saved range to a downloadable JSON file. */
@@ -141,6 +143,7 @@ export function RangeLibrary({
   onViewBoard = () => {},
   onComboDrill = () => {},
   onEditCombos = () => {},
+  onEditFrequencies = () => {},
   onEditActions,
   onExportRange = () => {},
   onExportRangeCsv = () => {},
@@ -417,6 +420,13 @@ export function RangeLibrary({
                         onClick={() => onEditCombos(range)}
                       >
                         Edit combos
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Edit frequencies for ${range.name}`}
+                        onClick={() => onEditFrequencies(range)}
+                      >
+                        Frequencies
                       </button>
                       <button
                         type="button"
