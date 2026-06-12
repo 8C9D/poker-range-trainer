@@ -1,0 +1,35 @@
+.mixed-strategy-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.mixed-strategy-row {
+  display: grid;
+  grid-template-columns: 1.2rem 4.5rem 1fr 3rem;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.mixed-strategy-swatch {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 3px;
+}
+
+.mixed-strategy-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.mixed-strategy-total {
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+  opacity: 0.85;
+}
+
+.mixed-strategy-total.is-valid {
+  color: #46a758;
+  opacity: 1;
+}

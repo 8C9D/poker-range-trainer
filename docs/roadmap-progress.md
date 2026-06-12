@@ -153,6 +153,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 116 | Combo drill honors a range's persisted combo selections | v4.1 — Combo-level precision | 2026-06-08 |
 | 117 | Mixed-action frequency model (pure domain) | v4.2 — Mixed-frequency strategies | 2026-06-08 |
 | 118 | Persist per-hand mixed strategies on a saved range (storage) | v4.2 — Mixed-frequency strategies | 2026-06-08 |
+| 119 | Mixed-frequency editor component (frequency sliders for one hand) | v4.2 — Mixed-frequency strategies | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -885,36 +886,42 @@ to empty, and collapses an all-empty map to `undefined`. Wired into both `parseS
 `saveSavedRange`. Round-trip, per-entry normalization, malformed-drop, and all-invalid-omit are
 unit-tested; hands-only ranges unaffected.
 
+Slice 119 added the standalone, controlled `src/components/MixedStrategyEditor.tsx` (+ CSS): a 0–100
+frequency slider per `RangeAction` (labeled via `RANGE_ACTION_LABELS`, swatch via the shared
+`action-{action}` classes) for ONE hand's `HandMixedStrategy`. Moving a slider rebuilds the strategy
+(dropping zeros, `normalizeMixedStrategy` to canonical order) and reports it via `onChange`; the live
+`totalFrequency` + an `isValidMixedStrategy` (sums-to-100) indicator are shown. Presentational only,
+component-tested (slider values, total/validity, onChange on change). No storage/App wiring yet.
+
 ## Next slice
 
-- **Number:** 119
+- **Number:** 120
 - **Roadmap target:** v4.2 — Mixed-frequency strategies
-- **Working title:** Mixed-frequency editor component (frequency sliders for one hand)
+- **Working title:** Mixed-frequency grid visualization (read-only)
 
 ### Prompt
 
-Continue **v4.2** with a standalone, controlled UI for editing ONE hand's mixed strategy via frequency
-sliders. Reuse slice 117's `mixedStrategy.ts` (`MixedAction`, `HandMixedStrategy`,
-`normalizeMixedStrategy`, `totalFrequency`, `isValidMixedStrategy`) and the existing
-`RANGE_ACTIONS`/`RANGE_ACTION_LABELS`.
+Continue **v4.2** with a read-only 13×13 visualization of a range's mixed strategies, so a chart's
+per-hand action mixes are visible at a glance. Reuse slice 117's `mixedStrategy.ts` (`primaryAction`,
+`HandMixedStrategy`), the matrix order from `domain/pokerHands.ts` (look at how `HandHeatmap` /
+`ActionGrid` iterate the 13×13 matrix), and the shared `action-{action}` color classes.
 
-- Add `src/components/MixedStrategyEditor.tsx` (+ small CSS if needed). Props (controlled, parent owns
-  state): a `HandMixedStrategy` (the current actions) and `onChange(next: HandMixedStrategy)`. Render
-  one row per `RANGE_ACTION` with a `range` slider (0–100, label = `RANGE_ACTION_LABELS[action]`,
-  current value from the strategy or 0); changing a slider rebuilds the strategy
-  (action→frequency, dropping zeros) and calls `onChange`. Show the live `totalFrequency` and a clear
-  indicator of whether it is valid (`isValidMixedStrategy`, i.e. sums to 100).
-- Keep it pure/presentational beyond reflecting the prop; no storage, no `App` wiring (a later slice
-  wires it into a per-range editor over the action grid). Reuse the `action-{action}` color classes
-  from `ActionPalette.css` for the row swatches if convenient.
-- Component-test: sliders render for every action with the right initial values; moving a slider fires
-  `onChange` with the updated frequency; the total + validity indicator reflect the strategy.
+- Add `src/components/MixedStrategyGrid.tsx` (+ CSS if needed). Props: `mixedStrategies:
+  Record<PokerHand, HandMixedStrategy>` (read-only). Render the 13×13 matrix; for each hand with a
+  strategy, color the cell by its `primaryAction` (via the `action-{action}` class) and expose a
+  `data-primary` attribute (the action) for tests; hands without a strategy render muted/empty. Keep
+  it purely presentational (no clicks, no state). Optionally show the hand label in each cell like the
+  existing grids.
+- Mirror the existing grid components' matrix iteration so ordering stays consistent. No `App` wiring
+  yet (a later slice combines grid + `MixedStrategyEditor` into a per-range mixed editor view).
+- Component-test: a strategy whose primary action is e.g. `fourBet` renders that cell with
+  `data-primary="fourBet"`; a hand with no strategy has no primary.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- UI in `src/components/`; reuse `mixedStrategy.ts` + `types/range.ts`; no new deps. Standalone,
+- UI in `src/components/`; reuse `mixedStrategy.ts` + `pokerHands.ts`; no new deps. Standalone,
   reversible. Preflop trainer unaffected.
 
 Suggested commit message:
-- `feat: mixed-frequency slider editor for one hand`
+- `feat: mixed-frequency grid visualization`
