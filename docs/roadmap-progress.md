@@ -156,6 +156,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 119 | Mixed-frequency editor component (frequency sliders for one hand) | v4.2 — Mixed-frequency strategies | 2026-06-08 |
 | 120 | Mixed-frequency grid visualization (read-only) | v4.2 — Mixed-frequency strategies | 2026-06-08 |
 | 121 | Per-range mixed-frequency editor view (grid + sliders, wired + persisted) | v4.2 — Mixed-frequency strategies | 2026-06-08 |
+| 122 | Mixed-frequency practice: primary-action quiz (domain + component) | v4.2 — Mixed-frequency strategies | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -911,37 +912,41 @@ optional "Frequencies" action (`Edit frequencies for {name}`, `onEditFrequencies
 saves, reopens, and confirms the grid shows `data-primary="fold"` (canonical tie-break). Preflop
 flow untouched.
 
+Slice 122 added mixed-frequency practice. `mixedStrategy.ts` gained `handsWithMixedStrategy
+(mixedStrategies)` (hands with a non-empty normalized strategy, canonical matrix order), unit-tested.
+The standalone `src/components/MixedActionQuiz.tsx` (mirroring `ActionQuiz`) draws a prompt hand from
+that pool, shows the `RANGE_ACTIONS` as colored answer buttons, scores against `primaryAction` of the
+hand's strategy, tracks running stats + feedback, and has a no-frequencies empty state. In-component
+stats only (no persistence). Component-tested (correct/incorrect scoring + empty state). Not yet
+wired into the practice picker.
+
 ## Next slice
 
-- **Number:** 122
+- **Number:** 123
 - **Roadmap target:** v4.2 — Mixed-frequency strategies
-- **Working title:** Mixed-frequency practice: primary-action quiz (pure domain + component)
+- **Working title:** Wire the mixed-frequency quiz into the practice-mode picker
 
 ### Prompt
 
-Continue **v4.2** with a practice mode that quizzes the user on a mixed chart's PRIMARY action per
-hand (the roadmap's "User may be asked for primary action"). Reuse slice 117's `mixedStrategy.ts`
-(`primaryAction`) and the `RANGE_ACTIONS`/labels.
+Continue **v4.2** by wiring slice 122's `MixedActionQuiz` into the practice-mode picker, mirroring how
+the mode-2 `ActionQuiz` was wired (slice 59).
 
-- First a tiny pure helper (if not already trivial): in `mixedStrategy.ts` (or reuse `primaryAction`),
-  ensure there's a clean way to get the set of hands that HAVE a mixed strategy and the correct
-  primary action for one — e.g. `handsWithMixedStrategy(mixedStrategies)` returning the hands (in
-  canonical matrix order) that have a non-empty strategy. Unit-test it.
-- Add `src/components/MixedActionQuiz.tsx` (mirror the existing `ActionQuiz` component, slice 58): it
-  takes a range (or its `mixedStrategies`), draws a prompt hand from `handsWithMixedStrategy`, shows
-  the `RANGE_ACTIONS` as colored answer buttons, scores the answer against `primaryAction` of that
-  hand's strategy, tracks running stats + feedback, and has an empty state when no hand has a
-  strategy. Include an `onExit`. Keep stats in-component (no persistence in this slice). Reuse the
-  `action-{action}` colors.
-- Component-test: a range with one mixed hand quizzes it; choosing its primary action scores correct,
-  a wrong action scores incorrect; the no-strategy empty state renders.
+- In `App`/`AppShell`'s practice-mode picker: add a `practiceMode` member `'mixed'`, and show a
+  "Frequency quiz" button in the picker ONLY when the practiced range has a mixed chart
+  (`practicingRange.mixedStrategies && handsWithMixedStrategy(practicingRange.mixedStrategies).length >
+  0`). Choosing it routes to `<MixedActionQuiz range={practicingRange} onExit={exitPractice} />` (no
+  stats recorded yet — mixed-action accuracy could be a later slice). Add the header subtitle + a
+  one-line note in the picker description, matching how `'action'` was added.
+- Add an `App` test: a range WITH mixed frequencies shows the "Frequency quiz" picker button and can
+  run it (answer one question), while a range WITHOUT frequencies does not show the button.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Domain in `src/domain/`, UI in `src/components/`; reuse `mixedStrategy.ts` + `ActionQuiz` patterns;
-  no new deps. Standalone (no `App` wiring yet — a later slice adds it to the practice picker). Small,
-  reversible, preflop trainer unaffected.
+- UI in `App`; reuse `MixedActionQuiz` + `handsWithMixedStrategy`; no new deps. Follow the existing
+  practice-mode-picker pattern (the `'action'` mode is the closest analog). Small, reversible, preflop
+  trainer unaffected. After this, note v4.2's remaining bullet is frequency export/import (notation)
+  and the "approximate frequency" practice variant.
 
 Suggested commit message:
-- `feat: mixed-frequency primary-action quiz`
+- `feat: wire mixed-frequency quiz into the practice picker`

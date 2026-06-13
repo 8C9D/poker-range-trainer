@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  handsWithMixedStrategy,
   isValidMixedStrategy,
   normalizeMixedStrategy,
   primaryAction,
@@ -53,6 +54,26 @@ describe('isValidMixedStrategy', () => {
   it('is false when frequencies do not sum to 100', () => {
     expect(isValidMixedStrategy([{ action: 'fold', frequency: 70 }])).toBe(false)
     expect(isValidMixedStrategy([])).toBe(false)
+  })
+})
+
+describe('handsWithMixedStrategy', () => {
+  it('returns hands with a non-empty strategy in canonical matrix order', () => {
+    expect(
+      handsWithMixedStrategy({
+        KK: [{ action: 'raise', frequency: 100 }],
+        AA: [{ action: 'fold', frequency: 100 }],
+      }),
+    ).toEqual(['AA', 'KK'])
+  })
+
+  it('excludes hands whose strategy normalizes to empty', () => {
+    expect(
+      handsWithMixedStrategy({
+        AA: [{ action: 'fold', frequency: 0 }],
+        KK: [{ action: 'raise', frequency: 100 }],
+      }),
+    ).toEqual(['KK'])
   })
 })
 

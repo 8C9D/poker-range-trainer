@@ -1,4 +1,5 @@
 import { RANGE_ACTIONS, type RangeAction } from '../types/range'
+import { generateHandMatrix, type PokerHand } from './pokerHands'
 
 /**
  * Mixed-frequency strategy model (v4.2 "mixed-frequency strategies").
@@ -20,6 +21,9 @@ export type HandMixedStrategy = MixedAction[]
 
 /** Frequencies within this epsilon of 100 count as a complete strategy. */
 const VALID_EPSILON = 0.01
+
+/** The 13x13 matrix order, built once for canonical hand ordering. */
+const MATRIX_HANDS = generateHandMatrix().flat()
 
 /**
  * Normalize a mixed strategy: drop entries with a non-positive or non-finite
@@ -47,6 +51,19 @@ export function totalFrequency(actions: HandMixedStrategy): number {
 /** Whether the strategy's frequencies sum to 100 (within a small epsilon). */
 export function isValidMixedStrategy(actions: HandMixedStrategy): boolean {
   return Math.abs(totalFrequency(actions) - 100) <= VALID_EPSILON
+}
+
+/**
+ * The hands that carry a non-empty mixed strategy, in canonical matrix order.
+ * The quiz pool: hands whose normalized strategy has at least one action.
+ */
+export function handsWithMixedStrategy(
+  mixedStrategies: Record<PokerHand, HandMixedStrategy>,
+): PokerHand[] {
+  return MATRIX_HANDS.filter((hand) => {
+    const strategy = mixedStrategies[hand]
+    return strategy !== undefined && normalizeMixedStrategy(strategy).length > 0
+  })
 }
 
 /**
