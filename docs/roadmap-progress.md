@@ -157,6 +157,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 120 | Mixed-frequency grid visualization (read-only) | v4.2 — Mixed-frequency strategies | 2026-06-08 |
 | 121 | Per-range mixed-frequency editor view (grid + sliders, wired + persisted) | v4.2 — Mixed-frequency strategies | 2026-06-08 |
 | 122 | Mixed-frequency practice: primary-action quiz (domain + component) | v4.2 — Mixed-frequency strategies | 2026-06-08 |
+| 123 | Wire the mixed-frequency quiz into the practice-mode picker | v4.2 — Mixed-frequency strategies | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -920,33 +921,43 @@ hand's strategy, tracks running stats + feedback, and has a no-frequencies empty
 stats only (no persistence). Component-tested (correct/incorrect scoring + empty state). Not yet
 wired into the practice picker.
 
+Slice 123 wired the mixed-frequency quiz into the practice-mode picker. `practiceMode` gained a
+`'mixed'` member; the picker shows a "Frequency quiz" button ONLY when the practiced range has a
+mixed chart (`handsWithMixedStrategy(...).length > 0`), routing to `<MixedActionQuiz range onExit>`
+(no stats recorded yet). Added a header subtitle + a one-line picker-description note, matching the
+`'action'` mode. An App test confirms the button is absent for a plain range, appears after adding a
+mixed chart, and runs (answering correctly). Preflop flow untouched.
+
 ## Next slice
 
-- **Number:** 123
+- **Number:** 124
 - **Roadmap target:** v4.2 — Mixed-frequency strategies
-- **Working title:** Wire the mixed-frequency quiz into the practice-mode picker
+- **Working title:** Mixed-frequency notation export/import (pure domain)
 
 ### Prompt
 
-Continue **v4.2** by wiring slice 122's `MixedActionQuiz` into the practice-mode picker, mirroring how
-the mode-2 `ActionQuiz` was wired (slice 59).
+Continue **v4.2** toward "Frequency export/import" with a PURE domain foundation for a textual
+notation of mixed-frequency charts (no UI in this slice). Reuse slice 117's `mixedStrategy.ts`
+(`normalizeMixedStrategy`, `HandMixedStrategy`), `RANGE_ACTIONS`/`RANGE_ACTION_LABELS`, and the
+matrix order.
 
-- In `App`/`AppShell`'s practice-mode picker: add a `practiceMode` member `'mixed'`, and show a
-  "Frequency quiz" button in the picker ONLY when the practiced range has a mixed chart
-  (`practicingRange.mixedStrategies && handsWithMixedStrategy(practicingRange.mixedStrategies).length >
-  0`). Choosing it routes to `<MixedActionQuiz range={practicingRange} onExit={exitPractice} />` (no
-  stats recorded yet — mixed-action accuracy could be a later slice). Add the header subtitle + a
-  one-line note in the picker description, matching how `'action'` was added.
-- Add an `App` test: a range WITH mixed frequencies shows the "Frequency quiz" picker button and can
-  run it (answer one question), while a range WITHOUT frequencies does not show the button.
+- Add `src/domain/mixedNotation.ts` with:
+  - `formatMixedNotation(mixedStrategies)`: emit one line per hand that has a non-empty strategy, in
+    canonical matrix order, e.g. `AA: raise 60, fold 40` (action token = a stable lowercase id from
+    `RANGE_ACTIONS`, not the display label, so it round-trips; frequencies as integers/numbers).
+    Return `""` for an empty/`{}` map.
+  - `parseMixedNotation(input)`: parse those lines back into a `Record<PokerHand, HandMixedStrategy>`,
+    validating the hand (via `isValidHand`), each `action freq` pair (known action, numeric freq), and
+    running each through `normalizeMixedStrategy`. Throw a clear `Error` on a malformed line, unknown
+    action, invalid hand, or non-numeric frequency. Round-trip with `formatMixedNotation`.
+- Keep it pure in `src/domain/`; no UI/storage wiring. Unit-test the round-trip, canonical ordering,
+  and each rejection path.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- UI in `App`; reuse `MixedActionQuiz` + `handsWithMixedStrategy`; no new deps. Follow the existing
-  practice-mode-picker pattern (the `'action'` mode is the closest analog). Small, reversible, preflop
-  trainer unaffected. After this, note v4.2's remaining bullet is frequency export/import (notation)
-  and the "approximate frequency" practice variant.
+- Pure logic in `src/domain/`; reuse `mixedStrategy.ts` + `pokerHands.ts`; no new deps. Mirror the
+  existing `actionRange.ts` notation helpers' style. Small, reversible, preflop trainer unaffected.
 
 Suggested commit message:
-- `feat: wire mixed-frequency quiz into the practice picker`
+- `feat: mixed-frequency notation export/import`

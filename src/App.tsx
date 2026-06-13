@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { ActionNotation } from './components/ActionNotation'
 import { AuthPanel } from './components/AuthPanel'
 import { ActionQuiz } from './components/ActionQuiz'
+import { MixedActionQuiz } from './components/MixedActionQuiz'
+import { handsWithMixedStrategy } from './domain/mixedStrategy'
 import { BuildFromMemoryPractice } from './components/BuildFromMemoryPractice'
 import { DueToday } from './components/DueToday'
 import { HandGrid } from './components/HandGrid'
@@ -173,7 +175,7 @@ function AppShell() {
   // Which practice mode is active for `practicingRange`. null = the mode picker is
   // showing (no mode chosen yet); chosen modes route to their components.
   const [practiceMode, setPracticeMode] = useState<
-    'recognize' | 'build' | 'timed' | 'weakness' | 'action' | null
+    'recognize' | 'build' | 'timed' | 'weakness' | 'action' | 'mixed' | null
   >(null)
   // Optional scenario metadata. '' means "unset" for the dropdowns; stackDepth
   // is raw input text ('' means no stack depth). These are descriptive only and
@@ -792,6 +794,8 @@ function AppShell() {
       headerSubtitle = 'Drill your weak spots.'
     } else if (practiceMode === 'action') {
       headerSubtitle = 'Pick the correct action for each hand.'
+    } else if (practiceMode === 'mixed') {
+      headerSubtitle = 'Pick the primary action for each mixed hand.'
     } else {
       headerSubtitle = 'Choose how you want to practice.'
     }
@@ -855,6 +859,8 @@ function AppShell() {
           <WeaknessFocusedDrill range={practicingRange} onExit={handleEndPractice} />
         ) : practiceMode === 'action' ? (
           <ActionQuiz range={practicingRange} onExit={handleEndActionQuiz} />
+        ) : practiceMode === 'mixed' ? (
+          <MixedActionQuiz range={practicingRange} onExit={exitPractice} />
         ) : (
           <section className="practice-session" aria-label="Choose practice mode">
             <header className="practice-header">
@@ -866,6 +872,7 @@ function AppShell() {
               Timed drill: answer as many hands as you can before the clock runs out.
               Weakness drill: practice with the hands you keep getting wrong showing up more.
               Pick the correct action: name the assigned action for each hand (action charts only).
+              Frequency quiz: name the primary action for each hand (mixed-frequency charts only).
             </p>
             <div className="practice-answers">
               <button
@@ -904,6 +911,16 @@ function AppShell() {
                     onClick={() => setPracticeMode('action')}
                   >
                     Pick the correct action
+                  </button>
+                )}
+              {practicingRange.mixedStrategies &&
+                handsWithMixedStrategy(practicingRange.mixedStrategies).length > 0 && (
+                  <button
+                    type="button"
+                    className="primary"
+                    onClick={() => setPracticeMode('mixed')}
+                  >
+                    Frequency quiz
                   </button>
                 )}
             </div>

@@ -757,6 +757,31 @@ describe('Range performance view', () => {
     )
   })
 
+  it('shows the frequency quiz in the picker only for ranges with mixed charts', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    // Range WITHOUT mixed frequencies: no "Frequency quiz" picker option.
+    await user.type(screen.getByLabelText('Range name'), 'Plain')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+    await user.click(screen.getByRole('button', { name: 'Practice range Plain' }))
+    expect(screen.queryByRole('button', { name: 'Frequency quiz' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Back to library' }))
+
+    // Add a mixed chart, then the picker offers the quiz and it runs.
+    await user.click(screen.getByRole('button', { name: 'Edit frequencies for Plain' }))
+    fireEvent.change(screen.getByLabelText('Raise'), { target: { value: '60' } })
+    fireEvent.change(screen.getByLabelText('Fold'), { target: { value: '40' } })
+    await user.click(screen.getByRole('button', { name: 'Save frequencies' }))
+
+    await user.click(screen.getByRole('button', { name: 'Practice range Plain' }))
+    await user.click(screen.getByRole('button', { name: 'Frequency quiz' }))
+    expect(screen.getByText('What is the primary action?')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Raise' }))
+    expect(screen.getByText('Correct!')).toBeInTheDocument()
+  })
+
   it('runs a postflop drill from setup to a graded answer', async () => {
     const user = userEvent.setup()
     render(<App />)
