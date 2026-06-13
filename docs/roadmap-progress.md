@@ -158,6 +158,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 121 | Per-range mixed-frequency editor view (grid + sliders, wired + persisted) | v4.2 — Mixed-frequency strategies | 2026-06-08 |
 | 122 | Mixed-frequency practice: primary-action quiz (domain + component) | v4.2 — Mixed-frequency strategies | 2026-06-08 |
 | 123 | Wire the mixed-frequency quiz into the practice-mode picker | v4.2 — Mixed-frequency strategies | 2026-06-08 |
+| 124 | Mixed-frequency notation export/import (pure domain) | v4.2 — Mixed-frequency strategies | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -928,36 +929,45 @@ mixed chart (`handsWithMixedStrategy(...).length > 0`), routing to `<MixedAction
 `'action'` mode. An App test confirms the button is absent for a plain range, appears after adding a
 mixed chart, and runs (answering correctly). Preflop flow untouched.
 
+Slice 124 added the pure `src/domain/mixedNotation.ts`: `formatMixedNotation(mixedStrategies)` emits
+one `"{hand}: {action} {freq}, ..."` line per hand with a non-empty strategy (canonical matrix order,
+stable lowercase `RangeAction` tokens, normalizer's canonical action order — e.g. `AA: fold 40, raise
+60`), `""` for an empty map; `parseMixedNotation(input)` parses them back into a `Record<PokerHand,
+HandMixedStrategy>`, validating hand/action/frequency and throwing a clear `Error` on a colonless
+line, invalid hand, unknown action, or non-numeric frequency. Round-trip + each rejection path
+unit-tested. No UI/storage wiring.
+
 ## Next slice
 
-- **Number:** 124
+- **Number:** 125
 - **Roadmap target:** v4.2 — Mixed-frequency strategies
-- **Working title:** Mixed-frequency notation export/import (pure domain)
+- **Working title:** MixedNotation component + wire into the frequency editor
 
 ### Prompt
 
-Continue **v4.2** toward "Frequency export/import" with a PURE domain foundation for a textual
-notation of mixed-frequency charts (no UI in this slice). Reuse slice 117's `mixedStrategy.ts`
-(`normalizeMixedStrategy`, `HandMixedStrategy`), `RANGE_ACTIONS`/`RANGE_ACTION_LABELS`, and the
-matrix order.
+Finish **v4.2** by surfacing slice 124's mixed-frequency notation in the UI, mirroring how
+`ActionNotation` (slice 67/68) was built and wired.
 
-- Add `src/domain/mixedNotation.ts` with:
-  - `formatMixedNotation(mixedStrategies)`: emit one line per hand that has a non-empty strategy, in
-    canonical matrix order, e.g. `AA: raise 60, fold 40` (action token = a stable lowercase id from
-    `RANGE_ACTIONS`, not the display label, so it round-trips; frequencies as integers/numbers).
-    Return `""` for an empty/`{}` map.
-  - `parseMixedNotation(input)`: parse those lines back into a `Record<PokerHand, HandMixedStrategy>`,
-    validating the hand (via `isValidHand`), each `action freq` pair (known action, numeric freq), and
-    running each through `normalizeMixedStrategy`. Throw a clear `Error` on a malformed line, unknown
-    action, invalid hand, or non-numeric frequency. Round-trip with `formatMixedNotation`.
-- Keep it pure in `src/domain/`; no UI/storage wiring. Unit-test the round-trip, canonical ordering,
-  and each rejection path.
+- Add `src/components/MixedNotation.tsx` (mirror `ActionNotation`, reuse `RangeNotation.css`): a
+  read-only "Current frequencies" field from `formatMixedNotation(mixedStrategies)`, plus an import
+  textarea + an "Apply Frequency Notation" button that runs `parseMixedNotation` and reports the
+  parsed `Record<PokerHand, HandMixedStrategy>` via `onReplace(...)` (or shows the error in a
+  `role="alert"`). Props: `mixedStrategies` + `onReplace`. Standalone, component-tested (round-trip
+  display + apply + error path).
+- Wire it into `App`'s mixed-frequency editor view (slice 121), below the `MixedStrategyEditor`, fed
+  by `freqDraft` / `setFreqDraft`: applying notation replaces the whole draft, and the read-only field
+  reflects the current draft. "Save frequencies" then persists an imported chart. Keep the active-hand
+  selector working (reset/keep `freqActiveHand` sensibly after a replace).
+- Add/adjust an `App` test: pasting frequency notation into the editor and saving persists it (grid
+  shows the primary), OR extend the existing frequency test.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Pure logic in `src/domain/`; reuse `mixedStrategy.ts` + `pokerHands.ts`; no new deps. Mirror the
-  existing `actionRange.ts` notation helpers' style. Small, reversible, preflop trainer unaffected.
+- UI in `src/components/` / `App`; reuse `mixedNotation.ts`; no new deps. After this, **v4.2 —
+  Mixed-frequency strategies is COMPLETE**; the roadmap moves to **v5 — Solver and study-tool
+  integrations** (a large version — start with a small pure-domain foundation, e.g. range comparison /
+  diff). Note the v4.2 completion in the progress write-up.
 
 Suggested commit message:
-- `feat: mixed-frequency notation export/import`
+- `feat: mixed-frequency notation panel wired into the editor`
