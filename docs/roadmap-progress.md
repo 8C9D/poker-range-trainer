@@ -160,6 +160,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 123 | Wire the mixed-frequency quiz into the practice-mode picker | v4.2 — Mixed-frequency strategies | 2026-06-08 |
 | 124 | Mixed-frequency notation export/import (pure domain) | v4.2 — Mixed-frequency strategies | 2026-06-08 |
 | 125 | MixedNotation component + wire into the frequency editor | v4.2 — Mixed-frequency strategies | 2026-06-08 |
+| 126 | Range diff foundation (pure domain) | v5 — Solver and study-tool integrations | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -955,32 +956,35 @@ the active hand; "Save frequencies" persists an imported chart.
 > specified, not an infrastructure decision, so the loop proceeds — starting with a small pure-domain
 > foundation: range comparison / diff.
 
+Slice 126 began **v5 — Solver and study-tool integrations** with the pure `src/domain/rangeDiff.ts`:
+`diffRanges(a, b)` compares two hand lists (de-duped/normalized) into `{ common, onlyA, onlyB }` in
+canonical matrix order, and `diffSummary(diff)` returns the three counts. Unit-tested (overlap,
+identical, disjoint, de-dup, ordering). No UI/storage wiring.
+
 ## Next slice
 
-- **Number:** 126
+- **Number:** 127
 - **Roadmap target:** v5 — Solver and study-tool integrations
-- **Working title:** Range diff foundation (pure domain)
+- **Working title:** Range diff view component (two-range comparison grid)
 
 ### Prompt
 
-Begin **v5 — Solver and study-tool integrations** with a small, pure domain foundation for comparing
-two ranges (the roadmap's "Compare two ranges" / "Range diff view"). No UI in this slice.
+Continue **v5** with a standalone, read-only component that visualizes slice 126's `diffRanges` over a
+13×13 grid, so a user can compare two ranges (e.g. their range vs a target). No `App` wiring yet.
 
-- Add `src/domain/rangeDiff.ts` with a pure `diffRanges(a, b)` that takes two hand lists
-  (`PokerHand[]`, e.g. a user range vs a target range, or two versions of a range) and returns the
-  membership diff in canonical matrix order: `{ common: PokerHand[]; onlyA: PokerHand[]; onlyB:
-  PokerHand[] }` (hands in both, only in A, only in B). Normalize/de-dupe inputs (reuse
-  `normalizeRangeHands` or matrix ordering). Optionally add a tiny `diffSummary(diff)` returning the
-  three counts.
-- Keep it pure in `src/domain/`; no UI/storage wiring. Unit-test: disjoint ranges, identical ranges
-  (all common, empty onlyA/onlyB), partial overlap, canonical ordering, and de-duplication.
+- Add `src/components/RangeDiffView.tsx` (+ CSS if needed). Props: two hand lists (e.g. `handsA`,
+  `handsB`) and optional labels (default "A"/"B"). Compute `diffRanges(handsA, handsB)` and render the
+  169-hand matrix (mirror `HandHeatmap`/`MixedStrategyGrid` iteration), coloring each cell by its
+  bucket: common / only-A / only-B / neither, with a `data-bucket` attribute for tests. Show a small
+  legend + the `diffSummary` counts. Purely presentational (no clicks, no state).
+- Component-test: a cell in both ranges has `data-bucket="common"`, an only-A hand has
+  `data-bucket="onlyA"`, an only-B hand `data-bucket="onlyB"`, and the summary counts render.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Pure logic in `src/domain/`; reuse `pokerHands.ts` / `rangeMath.ts`; no new deps. Small, reversible,
-  preflop trainer unaffected. This is the v5 foundation — keep it conservative; the diff VIEW + a
-  range picker come in later slices.
+- UI in `src/components/`; reuse `rangeDiff.ts` + `pokerHands.ts`; no new deps. Standalone, reversible,
+  preflop trainer unaffected. A later slice wires it into the library with a range picker.
 
 Suggested commit message:
-- `feat: range diff foundation`
+- `feat: range diff view component`
