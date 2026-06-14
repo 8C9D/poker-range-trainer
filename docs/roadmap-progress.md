@@ -159,6 +159,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 122 | Mixed-frequency practice: primary-action quiz (domain + component) | v4.2 — Mixed-frequency strategies | 2026-06-08 |
 | 123 | Wire the mixed-frequency quiz into the practice-mode picker | v4.2 — Mixed-frequency strategies | 2026-06-08 |
 | 124 | Mixed-frequency notation export/import (pure domain) | v4.2 — Mixed-frequency strategies | 2026-06-08 |
+| 125 | MixedNotation component + wire into the frequency editor | v4.2 — Mixed-frequency strategies | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -937,37 +938,49 @@ HandMixedStrategy>`, validating hand/action/frequency and throwing a clear `Erro
 line, invalid hand, unknown action, or non-numeric frequency. Round-trip + each rejection path
 unit-tested. No UI/storage wiring.
 
+Slice 125 surfaced mixed-frequency notation in the UI. `src/components/MixedNotation.tsx` (mirroring
+`ActionNotation`, reusing `RangeNotation.css`) shows a read-only "Current frequencies" field from
+`formatMixedNotation` plus an import textarea + "Apply Frequency Notation" that runs
+`parseMixedNotation` and reports the parsed map via `onReplace` (errors in a `role="alert"`).
+Component-tested (mirror display, apply, error). Wired into `App`'s frequency editor below the
+`MixedStrategyEditor`, fed by `freqDraft`/`setFreqDraft`: applying replaces the whole draft and resets
+the active hand; "Save frequencies" persists an imported chart.
+
+> ✅ **v4.2 — Mixed-frequency strategies is COMPLETE** (slices 117–125): the mixed-action frequency
+> model, persisted per-range `mixedStrategies`, the slider editor + read-only primary-action grid, the
+> per-range frequency editor view (grid + sliders + hand picker), the primary-action practice quiz
+> (picker-wired), and frequency notation import/export (domain + panel + wiring). **With v1–v4.2 all
+> done, the roadmap now moves to v5 — Solver and study-tool integrations** (range comparison/diff,
+> hand-linked notes, source/reference attribution, CSV/JSON/clipboard imports). It is product-
+> specified, not an infrastructure decision, so the loop proceeds — starting with a small pure-domain
+> foundation: range comparison / diff.
+
 ## Next slice
 
-- **Number:** 125
-- **Roadmap target:** v4.2 — Mixed-frequency strategies
-- **Working title:** MixedNotation component + wire into the frequency editor
+- **Number:** 126
+- **Roadmap target:** v5 — Solver and study-tool integrations
+- **Working title:** Range diff foundation (pure domain)
 
 ### Prompt
 
-Finish **v4.2** by surfacing slice 124's mixed-frequency notation in the UI, mirroring how
-`ActionNotation` (slice 67/68) was built and wired.
+Begin **v5 — Solver and study-tool integrations** with a small, pure domain foundation for comparing
+two ranges (the roadmap's "Compare two ranges" / "Range diff view"). No UI in this slice.
 
-- Add `src/components/MixedNotation.tsx` (mirror `ActionNotation`, reuse `RangeNotation.css`): a
-  read-only "Current frequencies" field from `formatMixedNotation(mixedStrategies)`, plus an import
-  textarea + an "Apply Frequency Notation" button that runs `parseMixedNotation` and reports the
-  parsed `Record<PokerHand, HandMixedStrategy>` via `onReplace(...)` (or shows the error in a
-  `role="alert"`). Props: `mixedStrategies` + `onReplace`. Standalone, component-tested (round-trip
-  display + apply + error path).
-- Wire it into `App`'s mixed-frequency editor view (slice 121), below the `MixedStrategyEditor`, fed
-  by `freqDraft` / `setFreqDraft`: applying notation replaces the whole draft, and the read-only field
-  reflects the current draft. "Save frequencies" then persists an imported chart. Keep the active-hand
-  selector working (reset/keep `freqActiveHand` sensibly after a replace).
-- Add/adjust an `App` test: pasting frequency notation into the editor and saving persists it (grid
-  shows the primary), OR extend the existing frequency test.
+- Add `src/domain/rangeDiff.ts` with a pure `diffRanges(a, b)` that takes two hand lists
+  (`PokerHand[]`, e.g. a user range vs a target range, or two versions of a range) and returns the
+  membership diff in canonical matrix order: `{ common: PokerHand[]; onlyA: PokerHand[]; onlyB:
+  PokerHand[] }` (hands in both, only in A, only in B). Normalize/de-dupe inputs (reuse
+  `normalizeRangeHands` or matrix ordering). Optionally add a tiny `diffSummary(diff)` returning the
+  three counts.
+- Keep it pure in `src/domain/`; no UI/storage wiring. Unit-test: disjoint ranges, identical ranges
+  (all common, empty onlyA/onlyB), partial overlap, canonical ordering, and de-duplication.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- UI in `src/components/` / `App`; reuse `mixedNotation.ts`; no new deps. After this, **v4.2 —
-  Mixed-frequency strategies is COMPLETE**; the roadmap moves to **v5 — Solver and study-tool
-  integrations** (a large version — start with a small pure-domain foundation, e.g. range comparison /
-  diff). Note the v4.2 completion in the progress write-up.
+- Pure logic in `src/domain/`; reuse `pokerHands.ts` / `rangeMath.ts`; no new deps. Small, reversible,
+  preflop trainer unaffected. This is the v5 foundation — keep it conservative; the diff VIEW + a
+  range picker come in later slices.
 
 Suggested commit message:
-- `feat: mixed-frequency notation panel wired into the editor`
+- `feat: range diff foundation`

@@ -3,6 +3,7 @@ import { ActionNotation } from './components/ActionNotation'
 import { AuthPanel } from './components/AuthPanel'
 import { ActionQuiz } from './components/ActionQuiz'
 import { MixedActionQuiz } from './components/MixedActionQuiz'
+import { MixedNotation } from './components/MixedNotation'
 import { handsWithMixedStrategy } from './domain/mixedStrategy'
 import { BuildFromMemoryPractice } from './components/BuildFromMemoryPractice'
 import { DueToday } from './components/DueToday'
@@ -1014,6 +1015,13 @@ function AppShell() {
               onChange={(next) => setFreqStrategy(freqActiveHand, next)}
             />
           )}
+          <MixedNotation
+            mixedStrategies={freqDraft}
+            onReplace={(next) => {
+              setFreqDraft(next)
+              setFreqActiveHand(freqEditRange.hands[0] ?? null)
+            }}
+          />
         </section>
       ) : performanceRange ? (
         <RangePerformance
