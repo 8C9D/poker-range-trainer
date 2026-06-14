@@ -161,6 +161,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 124 | Mixed-frequency notation export/import (pure domain) | v4.2 — Mixed-frequency strategies | 2026-06-08 |
 | 125 | MixedNotation component + wire into the frequency editor | v4.2 — Mixed-frequency strategies | 2026-06-08 |
 | 126 | Range diff foundation (pure domain) | v5 — Solver and study-tool integrations | 2026-06-08 |
+| 127 | Range diff view component (two-range comparison grid) | v5 — Solver and study-tool integrations | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -961,30 +962,40 @@ Slice 126 began **v5 — Solver and study-tool integrations** with the pure `src
 canonical matrix order, and `diffSummary(diff)` returns the three counts. Unit-tested (overlap,
 identical, disjoint, de-dup, ordering). No UI/storage wiring.
 
+Slice 127 added the standalone read-only `src/components/RangeDiffView.tsx` (+ CSS): a 13×13 grid
+(reusing the `action-grid` layout) coloring each hand by its `diffRanges` bucket
+(common/onlyA/onlyB/none, `data-bucket` for tests), with a labeled legend showing the `diffSummary`
+counts. Props: `handsA`/`handsB` + optional `labelA`/`labelB`. Presentational only. Component-tested
+(bucket colors + summary). Not yet wired into App.
+
 ## Next slice
 
-- **Number:** 127
+- **Number:** 128
 - **Roadmap target:** v5 — Solver and study-tool integrations
-- **Working title:** Range diff view component (two-range comparison grid)
+- **Working title:** Wire the range diff view into the library (range-vs-range picker)
 
 ### Prompt
 
-Continue **v5** with a standalone, read-only component that visualizes slice 126's `diffRanges` over a
-13×13 grid, so a user can compare two ranges (e.g. their range vs a target). No `App` wiring yet.
+Continue **v5** by making slice 127's `RangeDiffView` reachable: compare a saved range against another
+saved range, mirroring the existing per-range view wiring (e.g. "Board"/"Combo drill", slices
+101/114).
 
-- Add `src/components/RangeDiffView.tsx` (+ CSS if needed). Props: two hand lists (e.g. `handsA`,
-  `handsB`) and optional labels (default "A"/"B"). Compute `diffRanges(handsA, handsB)` and render the
-  169-hand matrix (mirror `HandHeatmap`/`MixedStrategyGrid` iteration), coloring each cell by its
-  bucket: common / only-A / only-B / neither, with a `data-bucket` attribute for tests. Show a small
-  legend + the `diffSummary` counts. Purely presentational (no clicks, no state).
-- Component-test: a cell in both ranges has `data-bucket="common"`, an only-A hand has
-  `data-bucket="onlyA"`, an only-B hand `data-bucket="onlyB"`, and the summary counts render.
+- In `src/components/RangeLibrary.tsx`, add an OPTIONAL "Compare" card action
+  (`Compare {name} with another range`, `onCompareRange?` defaulting to no-op).
+- In `App`/`AppShell`, hold a `diffRange` state (the saved range being compared) plus a
+  `diffOtherId` state. Render a diff view in the existing view-switching chain: a `<select>` of the
+  OTHER saved ranges (by id/name) to pick the comparison target, and `<RangeDiffView
+  handsA={diffRange.hands} handsB={other.hands} labelA={diffRange.name} labelB={other.name} />` once a
+  target is chosen (empty/hint state when none). Header + "Back to library". Wire the library button to
+  open it; reset on exit. Preflop flow untouched.
+- Add an `App` test: save two ranges, open Compare on one, pick the other in the select, and assert a
+  shared hand shows `data-bucket="common"`.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- UI in `src/components/`; reuse `rangeDiff.ts` + `pokerHands.ts`; no new deps. Standalone, reversible,
-  preflop trainer unaffected. A later slice wires it into the library with a range picker.
+- UI in `src/components/` / `App`; reuse `RangeDiffView`; no new deps. Follow the existing
+  view-switch pattern (boardRange / comboDrillRange). Small, reversible, preflop trainer unaffected.
 
 Suggested commit message:
-- `feat: range diff view component`
+- `feat: wire range diff view into the library`

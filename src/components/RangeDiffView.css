@@ -1,0 +1,45 @@
+.range-diff-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.range-diff-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.range-diff-swatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+
+.range-diff-grid .action-cell.bucket-common,
+.range-diff-swatch.bucket-common {
+  background: #46a758;
+  color: #fff;
+}
+
+.range-diff-grid .action-cell.bucket-onlyA,
+.range-diff-swatch.bucket-onlyA {
+  background: #4493f8;
+  color: #fff;
+}
+
+.range-diff-grid .action-cell.bucket-onlyB,
+.range-diff-swatch.bucket-onlyB {
+  background: #e5484d;
+  color: #fff;
+}
+
+.range-diff-grid .action-cell.bucket-none {
+  opacity: 0.4;
+}
