@@ -4,6 +4,7 @@ import { AuthPanel } from './components/AuthPanel'
 import { ActionQuiz } from './components/ActionQuiz'
 import { MixedActionQuiz } from './components/MixedActionQuiz'
 import { MixedNotation } from './components/MixedNotation'
+import { RangeDiffView } from './components/RangeDiffView'
 import { handsWithMixedStrategy } from './domain/mixedStrategy'
 import { BuildFromMemoryPractice } from './components/BuildFromMemoryPractice'
 import { DueToday } from './components/DueToday'
@@ -157,6 +158,9 @@ function AppShell() {
   const [freqEditRange, setFreqEditRange] = useState<SavedRange | null>(null)
   const [freqDraft, setFreqDraft] = useState<Record<PokerHand, HandMixedStrategy>>({})
   const [freqActiveHand, setFreqActiveHand] = useState<PokerHand | null>(null)
+  // The range being compared against another, and the chosen comparison target id.
+  const [diffRange, setDiffRange] = useState<SavedRange | null>(null)
+  const [diffOtherId, setDiffOtherId] = useState<string>('')
   // null = not in the postflop drill; 'setup' = building a scenario; otherwise the active scenario.
   const [postflop, setPostflop] = useState<'setup' | PostflopScenario | null>(null)
   // null = not viewing the review queue; otherwise the ranges due for review,
@@ -452,6 +456,11 @@ function AppShell() {
 
   function handleComboDrill(range: SavedRange) {
     setComboDrillRange(range)
+  }
+
+  function handleCompareRange(range: SavedRange) {
+    setDiffRange(range)
+    setDiffOtherId('')
   }
 
   function handleEditCombos(range: SavedRange) {
@@ -806,6 +815,8 @@ function AppShell() {
     headerSubtitle = 'See how this range hits a flop.'
   } else if (comboDrillRange) {
     headerSubtitle = 'Deal blocker-aware combos from this range.'
+  } else if (diffRange) {
+    headerSubtitle = 'Compare this range against another.'
   } else if (comboEditRange) {
     headerSubtitle = 'Select which exact combos are in this range.'
   } else if (freqEditRange) {
@@ -962,6 +973,45 @@ function AppShell() {
             onExit={() => setComboDrillRange(null)}
           />
         </section>
+      ) : diffRange ? (
+        (() => {
+          const others = savedRanges.filter((r) => r.id !== diffRange.id)
+          const other = others.find((r) => r.id === diffOtherId) ?? null
+          return (
+            <section className="practice-session" aria-label="Range comparison">
+              <header className="practice-header">
+                <h2>Compare: {diffRange.name}</h2>
+                <button type="button" onClick={() => setDiffRange(null)}>
+                  Back to library
+                </button>
+              </header>
+              <label className="diff-range-select">
+                Compare with
+                <select
+                  value={diffOtherId}
+                  onChange={(event) => setDiffOtherId(event.target.value)}
+                >
+                  <option value="">Select a range…</option>
+                  {others.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {other ? (
+                <RangeDiffView
+                  handsA={diffRange.hands}
+                  handsB={other.hands}
+                  labelA={diffRange.name}
+                  labelB={other.name}
+                />
+              ) : (
+                <p className="practice-expected">Pick a range to compare against.</p>
+              )}
+            </section>
+          )
+        })()
       ) : comboEditRange ? (
         <section className="practice-session" aria-label="Combo selection editor">
           <header className="practice-header">
@@ -1175,6 +1225,7 @@ function AppShell() {
             onViewPerformance={handleViewPerformance}
             onViewBoard={handleViewBoard}
             onComboDrill={handleComboDrill}
+            onCompareRange={handleCompareRange}
             onEditCombos={handleEditCombos}
             onEditFrequencies={handleEditFrequencies}
             onEditActions={handleEditActions}

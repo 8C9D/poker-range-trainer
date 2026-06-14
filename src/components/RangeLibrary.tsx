@@ -50,6 +50,8 @@ interface RangeLibraryProps {
   onViewBoard?: (range: SavedRange) => void
   /** Open the blocker-aware combo drill for the given saved range. */
   onComboDrill?: (range: SavedRange) => void
+  /** Open the range-vs-range comparison view for the given saved range. */
+  onCompareRange?: (range: SavedRange) => void
   /** Open the per-combo selection editor for the given saved range. */
   onEditCombos?: (range: SavedRange) => void
   /** Open the mixed-frequency editor for the given saved range. */
@@ -142,6 +144,7 @@ export function RangeLibrary({
   onViewPerformance,
   onViewBoard = () => {},
   onComboDrill = () => {},
+  onCompareRange = () => {},
   onEditCombos = () => {},
   onEditFrequencies = () => {},
   onEditActions,
@@ -413,6 +416,13 @@ export function RangeLibrary({
                         onClick={() => onComboDrill(range)}
                       >
                         Combo drill
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Compare ${range.name} with another range`}
+                        onClick={() => onCompareRange(range)}
+                      >
+                        Compare
                       </button>
                       <button
                         type="button"

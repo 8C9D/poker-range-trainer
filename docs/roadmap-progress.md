@@ -162,6 +162,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 125 | MixedNotation component + wire into the frequency editor | v4.2 — Mixed-frequency strategies | 2026-06-08 |
 | 126 | Range diff foundation (pure domain) | v5 — Solver and study-tool integrations | 2026-06-08 |
 | 127 | Range diff view component (two-range comparison grid) | v5 — Solver and study-tool integrations | 2026-06-08 |
+| 128 | Wire the range diff view into the library (range-vs-range picker) | v5 — Solver and study-tool integrations | 2026-06-08 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -968,34 +969,51 @@ Slice 127 added the standalone read-only `src/components/RangeDiffView.tsx` (+ C
 counts. Props: `handsA`/`handsB` + optional `labelA`/`labelB`. Presentational only. Component-tested
 (bucket colors + summary). Not yet wired into App.
 
+Slice 128 wired the range diff view into the library. `RangeLibrary` cards gained an optional
+"Compare" action (`Compare {name} with another range`, `onCompareRange?`). `App` holds `diffRange` +
+`diffOtherId`; the comparison view (in the existing view-switch chain) renders a `<select>` of the
+OTHER saved ranges and, once one is chosen, `<RangeDiffView>` with both ranges' hands + names (hint
+state otherwise). An App test saves two KK-sharing ranges, opens Compare, picks the other, and
+confirms KK shows `data-bucket="common"`. Preflop flow untouched.
+
+> ⚠️ **finish-roadmap 20-slice safety checkpoint.** This run (slices 109–128) has built **20**
+> validated/committed/pushed slices: it COMPLETED **v4.1 — Combo-level precision** (specific-combo
+> selection model + storage + editor, blocker-aware combo drill + library launcher honoring
+> selections), COMPLETED **v4.2 — Mixed-frequency strategies** (mixed-action model + storage, slider
+> editor + grid + per-range editor view, primary-action practice quiz picker-wired, notation
+> import/export domain + panel), and began **v5 — Solver and study-tool integrations** (range diff
+> domain + view + library wiring). All three validation commands passed for every slice; the repo is
+> clean and fully pushed. Per the skill's safety checkpoint the loop PAUSES here. Re-invoking
+> `finish-roadmap` resumes from slice 129.
+
 ## Next slice
 
-- **Number:** 128
+- **Number:** 129
 - **Roadmap target:** v5 — Solver and study-tool integrations
-- **Working title:** Wire the range diff view into the library (range-vs-range picker)
+- **Working title:** Per-range source/reference attribution (type + storage)
 
 ### Prompt
 
-Continue **v5** by making slice 127's `RangeDiffView` reachable: compare a saved range against another
-saved range, mirroring the existing per-range view wiring (e.g. "Board"/"Combo drill", slices
-101/114).
+Continue **v5** toward "Attach source/reference to a range" (coach / course / solver sim / book /
+personal study). Add an OPTIONAL source field to the saved-range model and persist it, mirroring the
+metadata/`comboSelections` storage pattern (slices 55/110/118).
 
-- In `src/components/RangeLibrary.tsx`, add an OPTIONAL "Compare" card action
-  (`Compare {name} with another range`, `onCompareRange?` defaulting to no-op).
-- In `App`/`AppShell`, hold a `diffRange` state (the saved range being compared) plus a
-  `diffOtherId` state. Render a diff view in the existing view-switching chain: a `<select>` of the
-  OTHER saved ranges (by id/name) to pick the comparison target, and `<RangeDiffView
-  handsA={diffRange.hands} handsB={other.hands} labelA={diffRange.name} labelB={other.name} />` once a
-  target is chosen (empty/hint state when none). Header + "Back to library". Wire the library button to
-  open it; reset on exit. Preflop flow untouched.
-- Add an `App` test: save two ranges, open Compare on one, pick the other in the select, and assert a
-  shared hand shows `data-bucket="common"`.
+- In `src/types/range.ts`, add an optional `source?: RangeSource` to `SavedRange` (or fold it into the
+  existing `RangeMetadata` — pick the cleaner option and document it). Define a small
+  `RANGE_SOURCE_KINDS` tuple (`coach`/`course`/`solver`/`book`/`personal`) + `RangeSourceKind` union +
+  a `RANGE_SOURCE_KIND_LABELS` map, and a `RangeSource` shape like `{ kind: RangeSourceKind;
+  reference?: string }` (reference = a free-text citation/URL). Document that absence = no source.
+- In `src/storage/rangeStorage.ts`, sanitize it (drop an unknown `kind`, trim `reference`, collapse an
+  empty source to `undefined`), wired into BOTH load and save. Ranges without a source must be
+  unchanged.
+- Storage-only: no UI yet (a later slice adds the editor field + library display). Unit-test the
+  round-trip, the unknown-kind drop, and the empty-collapse.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- UI in `src/components/` / `App`; reuse `RangeDiffView`; no new deps. Follow the existing
-  view-switch pattern (boardRange / comboDrillRange). Small, reversible, preflop trainer unaffected.
+- Types in `src/types/`, storage in `src/storage/`; reuse the existing sanitization pattern; no new
+  deps. Small, reversible, backward-compatible (absence = no source).
 
 Suggested commit message:
-- `feat: wire range diff view into the library`
+- `feat: per-range source/reference attribution model`

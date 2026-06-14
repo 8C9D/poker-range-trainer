@@ -782,6 +782,36 @@ describe('Range performance view', () => {
     expect(screen.getByText('Correct!')).toBeInTheDocument()
   })
 
+  it('compares a saved range against another from the library', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    // Save two ranges sharing KK.
+    await user.type(screen.getByLabelText('Range name'), 'First')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'KK' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    await user.click(screen.getByRole('button', { name: 'New Range' }))
+    await user.type(screen.getByLabelText('Range name'), 'Second')
+    await user.click(screen.getByRole('button', { name: 'KK' }))
+    await user.click(screen.getByRole('button', { name: 'QQ' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    await user.click(screen.getByRole('button', { name: 'Compare First with another range' }))
+    expect(screen.getByRole('heading', { name: 'Compare: First' })).toBeInTheDocument()
+
+    await user.selectOptions(screen.getByLabelText('Compare with'), 'Second')
+    // KK is in both ranges.
+    expect(screen.getByText('KK', { selector: '.action-cell' })).toHaveAttribute(
+      'data-bucket',
+      'common',
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Back to library' }))
+    expect(screen.getByLabelText('Range name')).toBeInTheDocument()
+  })
+
   it('runs a postflop drill from setup to a graded answer', async () => {
     const user = userEvent.setup()
     render(<App />)
