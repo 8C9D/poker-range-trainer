@@ -163,6 +163,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 126 | Range diff foundation (pure domain) | v5 — Solver and study-tool integrations | 2026-06-08 |
 | 127 | Range diff view component (two-range comparison grid) | v5 — Solver and study-tool integrations | 2026-06-08 |
 | 128 | Wire the range diff view into the library (range-vs-range picker) | v5 — Solver and study-tool integrations | 2026-06-08 |
+| 129 | Per-range source/reference attribution (type + storage) | v5 — Solver and study-tool integrations | 2026-06-12 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -986,34 +987,61 @@ confirms KK shows `data-bucket="common"`. Preflop flow untouched.
 > clean and fully pushed. Per the skill's safety checkpoint the loop PAUSES here. Re-invoking
 > `finish-roadmap` resumes from slice 129.
 
+Slice 129 began **v5**'s "Attach source/reference to a range". `src/types/range.ts` gained the
+provenance vocabulary — `RANGE_SOURCE_KINDS` (`coach`/`course`/`solver`/`book`/`personal`) +
+`RangeSourceKind` + `RANGE_SOURCE_KIND_LABELS` — and a `RangeSource` shape (`{ kind: RangeSourceKind;
+reference?: string }`), surfaced as an optional top-level `SavedRange.source` (kept distinct from
+`RangeMetadata`, which describes *when* a range applies vs. *where it came from*; absence = no source).
+`rangeStorage.ts` gained `normalizeSource` (mirroring `normalizeMetadata`): a missing/unknown `kind`
+collapses the whole source to `undefined`, `reference` is trimmed and dropped when blank, and a
+non-object source is ignored — wired into BOTH `parseSavedRange` and `saveSavedRange`. Round-trip
+(full + kind-only), reference-trim, unknown-kind drop, no-valid-kind collapse, and non-object cases are
+unit-tested; ranges without a source are unaffected. Storage-only — the editor field + library display
+come next.
+
 ## Next slice
 
-- **Number:** 129
+- **Number:** 130
 - **Roadmap target:** v5 — Solver and study-tool integrations
-- **Working title:** Per-range source/reference attribution (type + storage)
+- **Working title:** Source/reference fields in the range editor (wired + persisted)
 
 ### Prompt
 
-Continue **v5** toward "Attach source/reference to a range" (coach / course / solver sim / book /
-personal study). Add an OPTIONAL source field to the saved-range model and persist it, mirroring the
-metadata/`comboSelections` storage pattern (slices 55/110/118).
+Continue **v5** by giving the user a way to SET a range's source (slice 129 added the
+`SavedRange.source` model + storage but no UI). Add a source **kind** dropdown and a free-text
+**reference** input to the range editor, wired through `App` so saving persists `range.source`.
 
-- In `src/types/range.ts`, add an optional `source?: RangeSource` to `SavedRange` (or fold it into the
-  existing `RangeMetadata` — pick the cleaner option and document it). Define a small
-  `RANGE_SOURCE_KINDS` tuple (`coach`/`course`/`solver`/`book`/`personal`) + `RangeSourceKind` union +
-  a `RANGE_SOURCE_KIND_LABELS` map, and a `RangeSource` shape like `{ kind: RangeSourceKind;
-  reference?: string }` (reference = a free-text citation/URL). Document that absence = no source.
-- In `src/storage/rangeStorage.ts`, sanitize it (drop an unknown `kind`, trim `reference`, collapse an
-  empty source to `undefined`), wired into BOTH load and save. Ranges without a source must be
-  unchanged.
-- Storage-only: no UI yet (a later slice adds the editor field + library display). Unit-test the
-  round-trip, the unknown-kind drop, and the empty-collapse.
+Context:
+- The descriptive editor is `src/components/RangeMetadataEditor.tsx` — a fully controlled "Scenario
+  details" form that owns no state and reads/writes only through props; `App` holds the per-field draft
+  state and assembles the saved range. The source is top-level `SavedRange.source` (NOT inside
+  `RangeMetadata`), but the editing UI belongs in this same descriptive form.
+- The vocabulary already exists in `src/types/range.ts`: `RANGE_SOURCE_KINDS`, `RangeSourceKind`,
+  `RANGE_SOURCE_KIND_LABELS`, and the `RangeSource` shape (`{ kind; reference? }`).
+
+Task:
+- Extend `RangeMetadataEditor` with two new controlled fields, mirroring the existing dropdown +
+  textarea pattern: a "Source" `<select>` (blank option `—` + one option per `RANGE_SOURCE_KINDS`
+  rendered through `RANGE_SOURCE_KIND_LABELS`) and a "Reference" text input (free-text citation/URL).
+  Add props `sourceKind: RangeSourceKind | ''`, `sourceReference: string`, `onSourceKindChange`,
+  `onSourceReferenceChange`. Keep it fully controlled (no internal state). Update its doc comment to note
+  it now also surfaces the optional source/provenance (persisted to `range.source`, not `metadata`).
+- In `App.tsx`, add `sourceKind` / `sourceReference` draft state to the editor, seed it from
+  `editingRange?.source` when opening the editor (kind → '' when absent), pass the four props down, and
+  on save assemble `source` from the draft: a chosen kind builds `{ kind, ...(reference.trim() ?
+  { reference: reference.trim() } : {}) }`; a blank kind means `source: undefined` (omit it). Storage
+  already trims/sanitizes, so the assembly can stay simple. Clear the draft on editor close/reset like
+  the other fields.
+- Tests: extend `RangeMetadataEditor.test.tsx` for the two new fields (render options, value reflects
+  props, change handlers fire). Add/extend an `App` test that sets a source kind + reference, saves,
+  reopens the editor, and confirms the values round-trip (and that clearing the kind drops the source).
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Types in `src/types/`, storage in `src/storage/`; reuse the existing sanitization pattern; no new
-  deps. Small, reversible, backward-compatible (absence = no source).
+- UI in `src/components/`, wiring in `App.tsx`; reuse the existing controlled-field pattern and the
+  shared label maps; no new deps. Small, reversible, backward-compatible (a range with no source edits
+  to/from blank cleanly). Do not add the library-card source display yet — that is the next slice.
 
 Suggested commit message:
-- `feat: per-range source/reference attribution model`
+- `feat: edit a range's source/reference in the range editor`

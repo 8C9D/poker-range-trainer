@@ -6,9 +6,11 @@ import {
   GAME_TYPES,
   POSITIONS,
   RANGE_ACTIONS,
+  RANGE_SOURCE_KINDS,
   TABLE_SIZES,
   type RangeAction,
   type RangeMetadata,
+  type RangeSource,
   type SavedRange,
 } from '../types/range'
 import { asMember, readJson } from './storageHelpers'
@@ -130,6 +132,30 @@ function normalizeMixedStrategies(
   return Object.keys(result).length > 0 ? result : undefined
 }
 
+/**
+ * Validate and sanitize an optional range source/reference (provenance).
+ *
+ * `kind` is required and must be a recognized `RangeSourceKind`; an unknown or
+ * missing kind collapses the whole source to `undefined` (a source with no kind
+ * is meaningless). `reference` is trimmed, and a whitespace-only or non-string
+ * reference is dropped. Like the other normalizers, a malformed source never
+ * rejects the whole range, and absence means "no source recorded".
+ */
+function normalizeSource(value: unknown): RangeSource | undefined {
+  if (typeof value !== 'object' || value === null) return undefined
+  const raw = value as Record<string, unknown>
+
+  const kind = asMember(RANGE_SOURCE_KINDS, raw.kind)
+  if (!kind) return undefined
+
+  const source: RangeSource = { kind }
+  if (typeof raw.reference === 'string') {
+    const trimmed = raw.reference.trim()
+    if (trimmed.length > 0) source.reference = trimmed
+  }
+  return source
+}
+
 /** Validate a parsed value as a `SavedRange`, returning `null` if it is malformed. */
 function parseSavedRange(value: unknown): SavedRange | null {
   if (typeof value !== 'object' || value === null) return null
@@ -140,6 +166,7 @@ function parseSavedRange(value: unknown): SavedRange | null {
     createdAt,
     updatedAt,
     metadata,
+    source,
     archived,
     favorite,
     handActions,
@@ -162,6 +189,7 @@ function parseSavedRange(value: unknown): SavedRange | null {
 
   // Hands are valid, so normalize (de-dupe + canonical order) without throwing.
   const normalizedMetadata = normalizeMetadata(metadata)
+  const normalizedSource = normalizeSource(source)
   const normalizedHandActions = normalizeHandActions(handActions)
   const normalizedComboSelections = normalizeComboSelections(comboSelections)
   const normalizedMixedStrategies = normalizeMixedStrategies(mixedStrategies)
@@ -172,6 +200,7 @@ function parseSavedRange(value: unknown): SavedRange | null {
     updatedAt,
     hands: normalizeRangeHands(validatedHands),
     ...(normalizedMetadata ? { metadata: normalizedMetadata } : {}),
+    ...(normalizedSource ? { source: normalizedSource } : {}),
     ...(normalizedHandActions ? { handActions: normalizedHandActions } : {}),
     ...(normalizedComboSelections ? { comboSelections: normalizedComboSelections } : {}),
     ...(normalizedMixedStrategies ? { mixedStrategies: normalizedMixedStrategies } : {}),
@@ -219,9 +248,18 @@ export function findSavedRangeById(id: string): SavedRange | undefined {
  * before any write and leaves existing storage untouched.
  */
 export function saveSavedRange(range: SavedRange): void {
-  const { metadata, archived, favorite, handActions, comboSelections, mixedStrategies, ...rest } =
-    range
+  const {
+    metadata,
+    source,
+    archived,
+    favorite,
+    handActions,
+    comboSelections,
+    mixedStrategies,
+    ...rest
+  } = range
   const normalizedMetadata = normalizeMetadata(metadata)
+  const normalizedSource = normalizeSource(source)
   const normalizedHandActions = normalizeHandActions(handActions)
   const normalizedComboSelections = normalizeComboSelections(comboSelections)
   const normalizedMixedStrategies = normalizeMixedStrategies(mixedStrategies)
@@ -229,6 +267,7 @@ export function saveSavedRange(range: SavedRange): void {
     ...rest,
     hands: normalizeRangeHands(range.hands),
     ...(normalizedMetadata ? { metadata: normalizedMetadata } : {}),
+    ...(normalizedSource ? { source: normalizedSource } : {}),
     ...(normalizedHandActions ? { handActions: normalizedHandActions } : {}),
     ...(normalizedComboSelections ? { comboSelections: normalizedComboSelections } : {}),
     ...(normalizedMixedStrategies ? { mixedStrategies: normalizedMixedStrategies } : {}),

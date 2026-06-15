@@ -119,6 +119,40 @@ export interface RangeMetadata {
 }
 
 /**
+ * Range source/reference provenance vocabulary (v5).
+ *
+ * Where a range came from: a coach, a course, a solver sim, a book, or the
+ * user's own study. Declared as a `const` tuple so the union derives from it
+ * and the storage layer can validate against a single source of truth.
+ */
+export const RANGE_SOURCE_KINDS = ['coach', 'course', 'solver', 'book', 'personal'] as const
+export type RangeSourceKind = (typeof RANGE_SOURCE_KINDS)[number]
+
+export const RANGE_SOURCE_KIND_LABELS: Record<RangeSourceKind, string> = {
+  coach: 'Coach',
+  course: 'Course',
+  solver: 'Solver sim',
+  book: 'Book',
+  personal: 'Personal study',
+}
+
+/**
+ * Optional provenance for a saved range: what kind of source it came from and
+ * an optional free-text citation or URL.
+ *
+ * Distinct from {@link RangeMetadata}, which describes *when* a range applies
+ * (the poker situation); this describes *where it came from*. `kind` is
+ * required (a source with no kind is meaningless and collapses to absence);
+ * `reference` is optional. Absence of the whole field = no source recorded.
+ */
+export interface RangeSource {
+  /** The kind of source (coach, course, solver sim, book, personal study). */
+  kind: RangeSourceKind
+  /** Optional free-text citation or URL. Absent when not provided. */
+  reference?: string
+}
+
+/**
  * A user-created, named preflop range of starting hands.
  *
  * Named `SavedRange` rather than `Range` to avoid shadowing the DOM `Range`
@@ -158,6 +192,12 @@ export interface SavedRange {
   updatedAt: string
   /** Optional scenario metadata; absent on ranges saved before v1.3. */
   metadata?: RangeMetadata
+  /**
+   * Optional v5 source/reference attribution (provenance): where this range
+   * came from. Absence = no source recorded, so pre-v5 ranges are unaffected
+   * and need no migration.
+   */
+  source?: RangeSource
   /**
    * Library archive state; absent/false = active. Hidden-by-default filtering
    * comes in a later slice.

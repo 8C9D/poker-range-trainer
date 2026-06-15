@@ -505,6 +505,80 @@ describe('mixedStrategies persistence', () => {
   })
 })
 
+describe('range source attribution', () => {
+  it('round-trips a range saved with a full source (kind + reference)', () => {
+    const range = makeRange({ id: 'r1', source: { kind: 'solver', reference: 'PioSolver sim #4' } })
+    saveSavedRange(range)
+    expect(loadSavedRanges()).toEqual([range])
+  })
+
+  it('round-trips a kind-only source (no reference)', () => {
+    saveSavedRange(makeRange({ id: 'r1', source: { kind: 'personal' } }))
+    expect(loadSavedRanges()[0].source).toEqual({ kind: 'personal' })
+  })
+
+  it('loads a range without a source field', () => {
+    saveSavedRange(makeRange({ id: 'r1' }))
+    expect(loadSavedRanges()[0].source).toBeUndefined()
+  })
+
+  it('trims the reference when saving', () => {
+    saveSavedRange(
+      makeRange({ id: 'r1', source: { kind: 'book', reference: '  Modern Poker Theory  ' } }),
+    )
+    expect(loadSavedRanges()[0].source).toEqual({ kind: 'book', reference: 'Modern Poker Theory' })
+  })
+
+  it('drops a whitespace-only reference but keeps the kind', () => {
+    saveSavedRange(makeRange({ id: 'r1', source: { kind: 'coach', reference: '   ' } }))
+    expect(loadSavedRanges()[0].source).toEqual({ kind: 'coach' })
+  })
+
+  it('drops an unknown source kind, collapsing the source to undefined', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify([
+        {
+          id: 'r1',
+          name: 'R',
+          hands: ['AA'],
+          createdAt: 'T',
+          updatedAt: 'T',
+          source: { kind: 'youtube', reference: 'a video' },
+        },
+      ]),
+    )
+    const [loaded] = loadSavedRanges()
+    expect(loaded).not.toHaveProperty('source')
+    expect(loaded.hands).toEqual(['AA'])
+  })
+
+  it('collapses a source with no valid kind to undefined', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify([
+        {
+          id: 'r1',
+          name: 'R',
+          hands: ['AA'],
+          createdAt: 'T',
+          updatedAt: 'T',
+          source: { reference: 'orphan reference, no kind' },
+        },
+      ]),
+    )
+    expect(loadSavedRanges()[0]).not.toHaveProperty('source')
+  })
+
+  it('ignores a non-object source and keeps the range', () => {
+    const stored = { ...makeRange({ id: 'r1' }), source: 'not-an-object' }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([stored]))
+    const [loaded] = loadSavedRanges()
+    expect(loaded).not.toHaveProperty('source')
+    expect(loaded.id).toBe('r1')
+  })
+})
+
 describe('replaceSavedRanges', () => {
   it('replaces the whole library, discarding ranges not in the new list', () => {
     saveSavedRange(makeRange({ id: 'old' }))
