@@ -652,6 +652,66 @@ describe('RangeLibrary', () => {
     expect(screen.getByText('Standard button open')).toBeInTheDocument()
   })
 
+  it('shows the source kind and reference when a source is present', () => {
+    render(
+      <RangeLibrary
+        ranges={[makeRange({ source: { kind: 'solver', reference: 'PioSolver sim #4' } })]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+        onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
+        onFavorite={vi.fn()}
+        onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
+      />,
+    )
+    expect(
+      screen.getByText('Source: Solver sim · PioSolver sim #4', {
+        selector: '.range-item-source',
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('shows only the source kind when there is no reference', () => {
+    render(
+      <RangeLibrary
+        ranges={[makeRange({ source: { kind: 'personal' } })]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+        onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
+        onFavorite={vi.fn()}
+        onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
+      />,
+    )
+    expect(
+      screen.getByText('Source: Personal study', { selector: '.range-item-source' }),
+    ).toBeInTheDocument()
+  })
+
+  it('shows no source line when a range has no source', () => {
+    const { container } = render(
+      <RangeLibrary
+        ranges={[makeRange()]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+        onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
+        onFavorite={vi.fn()}
+        onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
+      />,
+    )
+    expect(container.querySelector('.range-item-source')).toBeNull()
+  })
+
   it('shows game type, table size, stack depth, and versus position as one scenario line', () => {
     render(
       <RangeLibrary

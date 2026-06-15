@@ -22,6 +22,7 @@ import {
   GAME_TYPES,
   POSITION_LABELS,
   POSITIONS,
+  RANGE_SOURCE_KIND_LABELS,
   TABLE_SIZE_LABELS,
   type ActionType,
   type GameType,
@@ -353,6 +354,16 @@ export function RangeLibrary({
 
                 const notes = meta?.notes
 
+                // Source/provenance line, built from the top-level range.source
+                // (separate from metadata). Shown only when a source is set; the
+                // reference is truncated like notes so long URLs stay tidy.
+                const source = range.source
+                const sourceSummary = source
+                  ? `Source: ${RANGE_SOURCE_KIND_LABELS[source.kind]}${
+                      source.reference ? ` · ${previewNotes(source.reference)}` : ''
+                    }`
+                  : null
+
                 // Performance line, shown only once the range has recorded
                 // attempts; the accuracy percentage is derived in the domain so
                 // the component owns no stats math of its own.
@@ -383,6 +394,9 @@ export function RangeLibrary({
                         <span className="range-item-scenario">{scenarioParts.join(' · ')}</span>
                       )}
                       {notes && <span className="range-item-notes">{previewNotes(notes)}</span>}
+                      {sourceSummary && (
+                        <span className="range-item-source">{sourceSummary}</span>
+                      )}
                       {practiceSummary && (
                         <span className="range-item-practice">{practiceSummary}</span>
                       )}

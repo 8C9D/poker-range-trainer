@@ -165,6 +165,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 128 | Wire the range diff view into the library (range-vs-range picker) | v5 — Solver and study-tool integrations | 2026-06-08 |
 | 129 | Per-range source/reference attribution (type + storage) | v5 — Solver and study-tool integrations | 2026-06-12 |
 | 130 | Source/reference fields in the range editor (wired + persisted) | v5 — Solver and study-tool integrations | 2026-06-12 |
+| 131 | Show a range's source on its library card | v5 — Solver and study-tool integrations | 2026-06-12 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -1012,46 +1013,53 @@ the saved range like `metadata`. Covered by extended `RangeMetadataEditor.test.t
 change) and new `App` tests (kind+reference round-trip on save+reopen, kind-only, blank-kind drops
 source, clearing the kind drops it on an existing range). The library-card source DISPLAY is next.
 
+Slice 131 surfaced the source on library cards, completing "Attach source/reference to a range".
+`RangeLibrary` now imports `RANGE_SOURCE_KIND_LABELS` and, per card, builds a `sourceSummary` from the
+top-level `range.source` (separate from `metadata`): `Source: {label}` plus ` · {reference}` when a
+reference is set (truncated via the existing `previewNotes` so long URLs stay tidy), rendered as a
+`range-item-source` span next to the scenario/notes lines and omitted entirely when there is no source.
+A matching `.range-item-source` style was added to `RangeLibrary.css` (mirroring `.range-item-notes`).
+Component tests cover label+reference, kind-only, and the no-source (no line) case. **"Attach
+source/reference to a range" is COMPLETE** (model + storage + editor + library display).
+
 ## Next slice
 
-- **Number:** 131
+- **Number:** 132
 - **Roadmap target:** v5 — Solver and study-tool integrations
-- **Working title:** Show a range's source on its library card
+- **Working title:** Per-hand notes model (type + storage)
 
 ### Prompt
 
-Continue **v5** by DISPLAYING a range's source on its library card (slices 129–130 added the model,
-storage, and editor; nothing surfaces it in the library yet). This closes out "Attach source/reference
-to a range".
+Continue **v5** toward "Notes linked to specific hands". Add an OPTIONAL per-hand notes map to the
+saved-range model and persist it, mirroring the `handActions` / `comboSelections` / source storage
+pattern (slices 55/110/118/129). Storage-only — no UI this slice.
 
 Context:
-- `src/components/RangeLibrary.tsx` already builds a compact scenario summary line per card (see the
-  `scenarioParts` block ~lines 331–353 and the `range-item-scenario` / `range-item-notes` spans in the
-  card JSX). Source lives at top-level `range.source` (`{ kind: RangeSourceKind; reference?: string }`),
-  separate from `range.metadata`.
-- The label map `RANGE_SOURCE_KIND_LABELS` is in `src/types/range.ts` (already imported alongside the
-  other label maps the file uses — add it to the import).
+- `SavedRange` (in `src/types/range.ts`) already carries optional per-hand overlays (`handActions`,
+  `comboSelections`, `mixedStrategies`) and the top-level `source`. Hand-linked notes are a separate
+  overlay: free-text attached to individual starting hands (e.g. `{ 'AKs': 'always 4-bet vs UTG' }`).
+- `src/storage/rangeStorage.ts` has a consistent `normalize*` pattern: validate a canonical hand-class
+  key (`isValidHand`), sanitize the value, drop bad/empty entries, collapse an all-empty map to
+  `undefined`, and wire it into BOTH `parseSavedRange` (load) and `saveSavedRange` (write).
 
 Task:
-- In `RangeLibrary.tsx`, when `range.source` is present, render a small source line on the card (e.g. a
-  `range-item-source` span) reading `Source: {RANGE_SOURCE_KIND_LABELS[kind]}` and, when a `reference`
-  is set, append `· {reference}` (reuse `previewNotes`-style truncation only if a reference can be long;
-  a plain join is fine for now). Place it near the scenario/notes lines. When there is no source, render
-  nothing (no empty label), exactly like the metadata summary.
-- Add a `.range-item-source` style in `RangeLibrary.css` consistent with `.range-item-scenario` /
-  `.range-item-notes` (small, muted). Reuse an existing class instead if it already fits — pick the
-  cleaner option.
-- Tests: extend `RangeLibrary.test.tsx` (a range with a `source` shows the label + reference; a range
-  without one shows no source line). Optionally extend an `App` test to confirm the source appears on
-  the card after saving with a source.
+- In `src/types/range.ts`, add an optional `handNotes?: Record<PokerHand, string>` to `SavedRange` with
+  a doc comment (each value is the free-text note for that hand class; absence of the field or of a
+  hand's entry = no note, so pre-v5 ranges need no migration).
+- In `rangeStorage.ts`, add `normalizeHandNotes(value)`: keep entries whose key is a valid hand class
+  and whose value is a string that is non-empty AFTER trimming (store the trimmed text); drop everything
+  else; return `undefined` when nothing survives so `handNotes: {}` is never persisted. Wire it into
+  `parseSavedRange` and `saveSavedRange` exactly like `normalizeHandActions`.
+- Unit-test in `rangeStorage.test.ts`: round-trip a range with hand notes (including a value that gets
+  trimmed), drop a bad hand key / non-string / whitespace-only value, and omit `handNotes` entirely when
+  no entry is valid. Hands-only ranges must be unaffected.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- UI only in `src/components/`; reuse the existing card-summary pattern and the shared label map; no new
-  deps, no model/storage changes. Small, reversible, backward-compatible (no source = no line). With
-  this, "Attach source/reference to a range" is COMPLETE; the next v5 area is hand-linked notes (start
-  with a small pure-domain/storage foundation).
+- Types in `src/types/`, storage in `src/storage/`; reuse the existing sanitization pattern; no new
+  deps. Small, reversible, backward-compatible (absence = no notes). No UI yet — the per-hand notes
+  editor + display come in later slices.
 
 Suggested commit message:
-- `feat: show a range's source on its library card`
+- `feat: per-hand notes model and storage`
