@@ -164,6 +164,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 127 | Range diff view component (two-range comparison grid) | v5 — Solver and study-tool integrations | 2026-06-08 |
 | 128 | Wire the range diff view into the library (range-vs-range picker) | v5 — Solver and study-tool integrations | 2026-06-08 |
 | 129 | Per-range source/reference attribution (type + storage) | v5 — Solver and study-tool integrations | 2026-06-12 |
+| 130 | Source/reference fields in the range editor (wired + persisted) | v5 — Solver and study-tool integrations | 2026-06-12 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -999,49 +1000,58 @@ non-object source is ignored — wired into BOTH `parseSavedRange` and `saveSave
 unit-tested; ranges without a source are unaffected. Storage-only — the editor field + library display
 come next.
 
+Slice 130 added the editing UI. `RangeMetadataEditor` gained two controlled fields mirroring its
+existing dropdown/input pattern: a "Source" `<select>` (blank `—` + one option per `RANGE_SOURCE_KINDS`
+via `RANGE_SOURCE_KIND_LABELS`) in the fields grid and a full-width "Reference" text input, driven by
+new `sourceKind` / `sourceReference` props + `onSourceKindChange` / `onSourceReferenceChange` (its doc
+comment now notes the source persists to `SavedRange.source`, not `metadata`). `App` holds
+`sourceKind` / `sourceReference` draft state: `handleLoad` seeds them from `range.source`, `resetEditor`
+clears them, and `handleSave` assembles `source` from the draft (a chosen kind builds `{ kind,
+...(trimmedReference ? { reference } : {}) }`; a blank kind drops the source) and attaches/removes it on
+the saved range like `metadata`. Covered by extended `RangeMetadataEditor.test.tsx` (render/reflect/
+change) and new `App` tests (kind+reference round-trip on save+reopen, kind-only, blank-kind drops
+source, clearing the kind drops it on an existing range). The library-card source DISPLAY is next.
+
 ## Next slice
 
-- **Number:** 130
+- **Number:** 131
 - **Roadmap target:** v5 — Solver and study-tool integrations
-- **Working title:** Source/reference fields in the range editor (wired + persisted)
+- **Working title:** Show a range's source on its library card
 
 ### Prompt
 
-Continue **v5** by giving the user a way to SET a range's source (slice 129 added the
-`SavedRange.source` model + storage but no UI). Add a source **kind** dropdown and a free-text
-**reference** input to the range editor, wired through `App` so saving persists `range.source`.
+Continue **v5** by DISPLAYING a range's source on its library card (slices 129–130 added the model,
+storage, and editor; nothing surfaces it in the library yet). This closes out "Attach source/reference
+to a range".
 
 Context:
-- The descriptive editor is `src/components/RangeMetadataEditor.tsx` — a fully controlled "Scenario
-  details" form that owns no state and reads/writes only through props; `App` holds the per-field draft
-  state and assembles the saved range. The source is top-level `SavedRange.source` (NOT inside
-  `RangeMetadata`), but the editing UI belongs in this same descriptive form.
-- The vocabulary already exists in `src/types/range.ts`: `RANGE_SOURCE_KINDS`, `RangeSourceKind`,
-  `RANGE_SOURCE_KIND_LABELS`, and the `RangeSource` shape (`{ kind; reference? }`).
+- `src/components/RangeLibrary.tsx` already builds a compact scenario summary line per card (see the
+  `scenarioParts` block ~lines 331–353 and the `range-item-scenario` / `range-item-notes` spans in the
+  card JSX). Source lives at top-level `range.source` (`{ kind: RangeSourceKind; reference?: string }`),
+  separate from `range.metadata`.
+- The label map `RANGE_SOURCE_KIND_LABELS` is in `src/types/range.ts` (already imported alongside the
+  other label maps the file uses — add it to the import).
 
 Task:
-- Extend `RangeMetadataEditor` with two new controlled fields, mirroring the existing dropdown +
-  textarea pattern: a "Source" `<select>` (blank option `—` + one option per `RANGE_SOURCE_KINDS`
-  rendered through `RANGE_SOURCE_KIND_LABELS`) and a "Reference" text input (free-text citation/URL).
-  Add props `sourceKind: RangeSourceKind | ''`, `sourceReference: string`, `onSourceKindChange`,
-  `onSourceReferenceChange`. Keep it fully controlled (no internal state). Update its doc comment to note
-  it now also surfaces the optional source/provenance (persisted to `range.source`, not `metadata`).
-- In `App.tsx`, add `sourceKind` / `sourceReference` draft state to the editor, seed it from
-  `editingRange?.source` when opening the editor (kind → '' when absent), pass the four props down, and
-  on save assemble `source` from the draft: a chosen kind builds `{ kind, ...(reference.trim() ?
-  { reference: reference.trim() } : {}) }`; a blank kind means `source: undefined` (omit it). Storage
-  already trims/sanitizes, so the assembly can stay simple. Clear the draft on editor close/reset like
-  the other fields.
-- Tests: extend `RangeMetadataEditor.test.tsx` for the two new fields (render options, value reflects
-  props, change handlers fire). Add/extend an `App` test that sets a source kind + reference, saves,
-  reopens the editor, and confirms the values round-trip (and that clearing the kind drops the source).
+- In `RangeLibrary.tsx`, when `range.source` is present, render a small source line on the card (e.g. a
+  `range-item-source` span) reading `Source: {RANGE_SOURCE_KIND_LABELS[kind]}` and, when a `reference`
+  is set, append `· {reference}` (reuse `previewNotes`-style truncation only if a reference can be long;
+  a plain join is fine for now). Place it near the scenario/notes lines. When there is no source, render
+  nothing (no empty label), exactly like the metadata summary.
+- Add a `.range-item-source` style in `RangeLibrary.css` consistent with `.range-item-scenario` /
+  `.range-item-notes` (small, muted). Reuse an existing class instead if it already fits — pick the
+  cleaner option.
+- Tests: extend `RangeLibrary.test.tsx` (a range with a `source` shows the label + reference; a range
+  without one shows no source line). Optionally extend an `App` test to confirm the source appears on
+  the card after saving with a source.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- UI in `src/components/`, wiring in `App.tsx`; reuse the existing controlled-field pattern and the
-  shared label maps; no new deps. Small, reversible, backward-compatible (a range with no source edits
-  to/from blank cleanly). Do not add the library-card source display yet — that is the next slice.
+- UI only in `src/components/`; reuse the existing card-summary pattern and the shared label map; no new
+  deps, no model/storage changes. Small, reversible, backward-compatible (no source = no line). With
+  this, "Attach source/reference to a range" is COMPLETE; the next v5 area is hand-linked notes (start
+  with a small pure-domain/storage foundation).
 
 Suggested commit message:
-- `feat: edit a range's source/reference in the range editor`
+- `feat: show a range's source on its library card`

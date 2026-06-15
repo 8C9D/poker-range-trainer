@@ -79,6 +79,8 @@ import type {
   Position,
   RangeAction,
   RangeMetadata,
+  RangeSource,
+  RangeSourceKind,
   SavedRange,
   TableSize,
 } from './types/range'
@@ -192,6 +194,10 @@ function AppShell() {
   const [versusPosition, setVersusPosition] = useState<Position | ''>('')
   const [actionType, setActionType] = useState<ActionType | ''>('')
   const [notes, setNotes] = useState('')
+  // Optional source/provenance for the range (persists to SavedRange.source, not
+  // metadata). '' kind means "no source"; reference is raw input text.
+  const [sourceKind, setSourceKind] = useState<RangeSourceKind | ''>('')
+  const [sourceReference, setSourceReference] = useState('')
 
   // Idempotently set a hand's membership. Used for both click-toggle and
   // drag-paint; returning the previous set when nothing changes avoids a
@@ -277,6 +283,8 @@ function AppShell() {
     setVersusPosition('')
     setActionType('')
     setNotes('')
+    setSourceKind('')
+    setSourceReference('')
   }
 
   function handleSave() {
@@ -306,6 +314,14 @@ function AppShell() {
     else delete metadata.notes
     const hasMetadata = Object.keys(metadata).length > 0
 
+    // Build the optional source/provenance from the draft: a chosen kind makes a
+    // source (with a trimmed reference when present); a blank kind drops it.
+    // Storage re-normalizes, so this only needs to be well-formed.
+    const trimmedReference = sourceReference.trim()
+    const source: RangeSource | undefined = sourceKind
+      ? { kind: sourceKind, ...(trimmedReference ? { reference: trimmedReference } : {}) }
+      : undefined
+
     // Updating an existing range keeps its id and createdAt; a new one gets both fresh.
     let range: SavedRange
     if (editingRange) {
@@ -314,6 +330,8 @@ function AppShell() {
       // mutates the stored range; clearing every field removes metadata entirely.
       if (hasMetadata) range.metadata = metadata
       else delete range.metadata
+      if (source) range.source = source
+      else delete range.source
     } else {
       range = {
         id: createRangeId(),
@@ -323,6 +341,7 @@ function AppShell() {
         updatedAt: now,
       }
       if (hasMetadata) range.metadata = metadata
+      if (source) range.source = source
     }
 
     saveSavedRange(range)
@@ -345,6 +364,8 @@ function AppShell() {
     setVersusPosition(range.metadata?.versusPosition ?? '')
     setActionType(range.metadata?.actionType ?? '')
     setNotes(range.metadata?.notes ?? '')
+    setSourceKind(range.source?.kind ?? '')
+    setSourceReference(range.source?.reference ?? '')
   }
 
   function handleDelete(id: string) {
@@ -1152,6 +1173,8 @@ function AppShell() {
             versusPosition={versusPosition}
             actionType={actionType}
             notes={notes}
+            sourceKind={sourceKind}
+            sourceReference={sourceReference}
             onGameTypeChange={setGameType}
             onTableSizeChange={setTableSize}
             onStackDepthChange={setStackDepth}
@@ -1159,6 +1182,8 @@ function AppShell() {
             onVersusPositionChange={setVersusPosition}
             onActionTypeChange={setActionType}
             onNotesChange={setNotes}
+            onSourceKindChange={setSourceKind}
+            onSourceReferenceChange={setSourceReference}
           />
 
           <RangeShortcuts onAddHands={addShortcutHands} />

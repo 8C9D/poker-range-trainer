@@ -64,6 +64,14 @@ function notesInput() {
   return screen.getByLabelText('Notes')
 }
 
+function sourceSelect() {
+  return screen.getByLabelText('Source')
+}
+
+function referenceInput() {
+  return screen.getByLabelText('Reference')
+}
+
 describe('Range editor validation', () => {
   it('renders a range name input', () => {
     render(<App />)
@@ -1666,5 +1674,85 @@ describe('Scenario metadata', () => {
     const [saved] = loadSavedRanges()
     expect(saved.metadata).toEqual({ position: 'btn' })
     expect(saved.metadata?.stackDepthBb).toBeUndefined()
+  })
+})
+
+describe('Range source attribution', () => {
+  it('persists a source kind and reference when saving a range', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Solver Range')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.selectOptions(sourceSelect(), 'solver')
+    await user.type(referenceInput(), 'PioSolver sim #4')
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    const [saved] = loadSavedRanges()
+    expect(saved.source).toEqual({ kind: 'solver', reference: 'PioSolver sim #4' })
+  })
+
+  it('persists a kind-only source when no reference is given', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'My Study')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.selectOptions(sourceSelect(), 'personal')
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    expect(loadSavedRanges()[0].source).toEqual({ kind: 'personal' })
+  })
+
+  it('saves no source when the kind is left blank', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'No Source')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    // A reference without a kind cannot form a source.
+    await user.type(referenceInput(), 'orphan reference')
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    expect(loadSavedRanges()[0].source).toBeUndefined()
+  })
+
+  it('restores the source fields when a saved range is loaded', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Sourced')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.selectOptions(sourceSelect(), 'book')
+    await user.type(referenceInput(), 'Modern Poker Theory')
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+    await user.click(screen.getByRole('button', { name: 'New Range' }))
+
+    // New Range cleared the source controls back to their blank defaults.
+    expect(sourceSelect()).toHaveValue('')
+    expect(referenceInput()).toHaveValue('')
+
+    await user.click(screen.getByRole('button', { name: 'Load range Sourced' }))
+
+    expect(sourceSelect()).toHaveValue('book')
+    expect(referenceInput()).toHaveValue('Modern Poker Theory')
+  })
+
+  it('drops the source when the kind is cleared on an existing range', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Toggle')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.selectOptions(sourceSelect(), 'coach')
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+    expect(loadSavedRanges()[0].source).toEqual({ kind: 'coach' })
+
+    // Still editing the same range: clear the kind back to blank and re-save.
+    await user.selectOptions(sourceSelect(), '')
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    expect(loadSavedRanges()).toHaveLength(1)
+    expect(loadSavedRanges()[0].source).toBeUndefined()
   })
 })

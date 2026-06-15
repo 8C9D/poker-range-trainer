@@ -5,11 +5,14 @@ import {
   GAME_TYPE_LABELS,
   POSITIONS,
   POSITION_LABELS,
+  RANGE_SOURCE_KINDS,
+  RANGE_SOURCE_KIND_LABELS,
   TABLE_SIZES,
   TABLE_SIZE_LABELS,
   type ActionType,
   type GameType,
   type Position,
+  type RangeSourceKind,
   type TableSize,
 } from '../types/range'
 import './RangeMetadataEditor.css'
@@ -31,6 +34,10 @@ interface RangeMetadataEditorProps {
   actionType: ActionType | ''
   /** Free-form scenario notes. */
   notes: string
+  /** Selected source/provenance kind, or '' when unset. */
+  sourceKind: RangeSourceKind | ''
+  /** Free-text source reference (citation or URL). */
+  sourceReference: string
   onGameTypeChange: (gameType: GameType | '') => void
   onTableSizeChange: (tableSize: TableSize | '') => void
   onStackDepthChange: (stackDepth: string) => void
@@ -38,6 +45,8 @@ interface RangeMetadataEditorProps {
   onVersusPositionChange: (versusPosition: Position | '') => void
   onActionTypeChange: (actionType: ActionType | '') => void
   onNotesChange: (notes: string) => void
+  onSourceKindChange: (kind: RangeSourceKind | '') => void
+  onSourceReferenceChange: (reference: string) => void
 }
 
 /**
@@ -46,8 +55,10 @@ interface RangeMetadataEditorProps {
  * Fully controlled: it owns no state and reads/writes only through props, so the
  * parent stays the single source of truth for the editor fields. It surfaces all
  * RangeMetadata fields — game type, table size, stack depth, hero/versus
- * position, action type, and notes. Editing these values is descriptive only —
- * it never touches the selected hands or the range notation.
+ * position, action type, and notes — plus the optional source/provenance (kind +
+ * reference). NOTE: the source persists to the top-level `SavedRange.source`, not
+ * inside `metadata`; it lives in this form only because both are descriptive.
+ * Editing these values never touches the selected hands or the range notation.
  *
  * Every dropdown includes a blank option so metadata stays optional, and their
  * options are derived from the const tuples (rendered through the shared label
@@ -63,6 +74,8 @@ export function RangeMetadataEditor({
   versusPosition,
   actionType,
   notes,
+  sourceKind,
+  sourceReference,
   onGameTypeChange,
   onTableSizeChange,
   onStackDepthChange,
@@ -70,6 +83,8 @@ export function RangeMetadataEditor({
   onVersusPositionChange,
   onActionTypeChange,
   onNotesChange,
+  onSourceKindChange,
+  onSourceReferenceChange,
 }: RangeMetadataEditorProps) {
   return (
     <section className="range-metadata" aria-label="Scenario details">
@@ -180,6 +195,33 @@ export function RangeMetadataEditor({
             ))}
           </select>
         </div>
+
+        <div className="range-metadata-group">
+          <label htmlFor="range-metadata-source">Source</label>
+          <select
+            id="range-metadata-source"
+            value={sourceKind}
+            onChange={(event) => onSourceKindChange(event.target.value as RangeSourceKind | '')}
+          >
+            <option value="">—</option>
+            {RANGE_SOURCE_KINDS.map((value) => (
+              <option key={value} value={value}>
+                {RANGE_SOURCE_KIND_LABELS[value]}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="range-metadata-group">
+        <label htmlFor="range-metadata-reference">Reference</label>
+        <input
+          id="range-metadata-reference"
+          type="text"
+          value={sourceReference}
+          onChange={(event) => onSourceReferenceChange(event.target.value)}
+          placeholder="Optional citation or URL"
+        />
       </div>
 
       <div className="range-metadata-group">
