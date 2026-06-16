@@ -167,6 +167,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 130 | Source/reference fields in the range editor (wired + persisted) | v5 — Solver and study-tool integrations | 2026-06-12 |
 | 131 | Show a range's source on its library card | v5 — Solver and study-tool integrations | 2026-06-12 |
 | 132 | Per-hand notes model (type + storage) | v5 — Solver and study-tool integrations | 2026-06-12 |
+| 133 | Standalone per-hand notes editor component | v5 — Solver and study-tool integrations | 2026-06-12 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -1032,47 +1033,63 @@ collapses an all-empty map to `undefined` — wired into BOTH `parseSavedRange` 
 Round-trip (with trimming), malformed-drop, and all-invalid-omit are unit-tested; hands-only ranges are
 unaffected. The per-hand notes editor + display come next.
 
+Slice 133 added the standalone controlled `src/components/HandNotesEditor.tsx` (+ CSS). Props: `hands`
+(the range's notable hands), `notes` (the parent-owned `Record<PokerHand, string>` map), and
+`onChange`. It renders a `<select>` of the hands in canonical matrix order (via `ALL_HANDS.filter`,
+order-independent of the input) to pick the active hand, plus a `<textarea>` bound to that hand's note;
+editing produces a NEW map immutably (a non-blank note sets the hand's entry, a blank/whitespace-only
+note deletes the key) reported via `onChange`. The active-hand selection is internal state (guarded so a
+hand removed from the range falls back to the first); an empty range shows a short message. Fully
+component-tested (canonical ordering, reflect existing note, typing updates the map, clearing removes
+the key, switching hands). Presentational only — App wiring + persistence is next.
+
+NOTE (env): mid-run, `node_modules/` was wiped by something outside this loop (all packages + `.bin`
+gone). Recovered with `npm ci` (246 packages restored from the lockfile); validation then ran clean.
+
 ## Next slice
 
-- **Number:** 133
+- **Number:** 134
 - **Roadmap target:** v5 — Solver and study-tool integrations
-- **Working title:** Standalone per-hand notes editor component
+- **Working title:** Wire the per-hand notes editor into a per-range "Notes" view
 
 ### Prompt
 
-Continue **v5** "Notes linked to specific hands" by building the standalone editor UI for per-hand notes
-(slice 132 added the `handNotes` model + storage; nothing edits it yet). Build a controlled component
-only — App wiring + persistence is the NEXT slice (mirrors how `MixedStrategyEditor` was standalone in
-slice 119, then wired in 121).
+Continue **v5** by wiring `HandNotesEditor` (slice 133) into the app and PERSISTING per-hand notes
+(slice 132's `handNotes` model). Add a per-range "Notes" view reached from a library card, mirroring the
+existing per-range editor views (combos/frequencies/actions).
 
 Context:
-- The model is `SavedRange.handNotes?: Record<PokerHand, string>` (free text per hand class; a hand with
-  no entry has no note). `PokerHand` + canonical ordering helpers live in `src/domain/pokerHands.ts`.
-- Prior standalone controlled editors to mirror for style: `src/components/MixedStrategyEditor.tsx`
-  (owns no data, reports via `onChange`) and the frequency-editor hand picker pattern (a `<select>` of
-  the range's hands to choose the active hand). Follow their controlled-component conventions and CSS
-  approach.
+- `App.tsx` already has the per-range view-switching pattern: a library-card action sets a
+  `<thing>EditRange` state + a draft state, the view renders the editor over the draft, and a "Save …"
+  button persists via `saveSavedRange` then refreshes `savedRanges`. The closest mirror is the
+  frequency editor: `freqEditRange` + `freqDraft` opened from `onEditFrequencies`, saved by
+  `handleSaveFrequencies` (see slices 115/121).
+- `RangeLibrary` cards already expose optional per-range actions (`onEditActions`, `onEditCombos`,
+  `onEditFrequencies`, …) gated by passing the handler. The editor is `HandNotesEditor` (controlled:
+  `hands`, `notes`, `onChange`). The persisted field is `SavedRange.handNotes` (storage already
+  sanitizes it).
 
 Task:
-- Add `src/components/HandNotesEditor.tsx` (+ a small CSS file). Props:
-  `hands: PokerHand[]` (the range's hands, the notable set), `notes: Record<PokerHand, string>`
-  (current map, parent-owned), and `onChange: (notes: Record<PokerHand, string>) => void`. Render a
-  `<select>` listing `hands` (in canonical order — sort with the existing pokerHands ordering helper if
-  `hands` is not already ordered) to pick the active hand, plus a `<textarea>` bound to that hand's
-  current note. On textarea change, produce a NEW notes map: set the active hand's note, or DELETE the
-  key when the text is blank/whitespace-only, and call `onChange` (immutably; never mutate the prop).
-  Keep the active-hand selection as internal state (default to the first hand); the notes map stays
-  parent-owned. Handle an empty `hands` array with a short "no hands" message.
-- Tests (`HandNotesEditor.test.tsx`): renders the hand picker + textarea; reflects an existing note for
-  the selected hand; typing reports an updated map via `onChange`; clearing the text reports a map with
-  that hand's key removed; switching the active hand shows that hand's note. Presentational only — no
-  storage/App wiring.
+- In `RangeLibrary.tsx`, add an optional "Notes" card action (e.g. `onEditNotes?(range)`, accessible
+  name like `Edit notes for {name}`), following the existing optional-action pattern (default no-op so
+  current renders/tests are unaffected). Add a focused test for the action.
+- In `App.tsx`, add `notesEditRange` + `notesDraft` (`Record<PokerHand, string>`) state. `handleEditNotes`
+  seeds `notesDraft` from `range.handNotes ?? {}` and opens the view; the view (in the existing
+  view-switch chain, with a header + "Back to library") renders `<HandNotesEditor hands={range.hands}
+  notes={notesDraft} onChange={setNotesDraft} />`; `handleSaveNotes` writes
+  `saveSavedRange({ ...range, handNotes: notesDraft })` (storage drops blanks / collapses empty), then
+  refreshes `savedRanges` and closes the view. Reset the draft on exit like the other editors.
+- Tests: extend an `App` test — open Notes for a saved range, type a note for a hand, save, reopen, and
+  confirm it round-trips (and that clearing a note removes it). Reuse the existing editor-view test
+  patterns.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- UI only in `src/components/`; controlled (owns no notes data); reuse existing editor/CSS conventions;
-  no new deps. Small, reversible. Do NOT wire it into App or persist yet — that is the next slice.
+- UI/wiring in `src/components/` + `App.tsx`; reuse the existing per-range editor-view pattern; no new
+  deps, no model/storage changes. Small, reversible, backward-compatible. The per-hand notes DISPLAY
+  (e.g. on the grid/performance view) can be a later slice; with edit+persist done, "Notes linked to
+  specific hands" is functionally usable.
 
 Suggested commit message:
-- `feat: standalone per-hand notes editor component`
+- `feat: per-range notes editor view (wired + persisted)`
