@@ -893,6 +893,50 @@ describe('Range performance view', () => {
   })
 })
 
+describe('Per-hand notes editor', () => {
+  it('edits, persists, and reopens a per-hand note for a range', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Noted')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    await user.click(screen.getByRole('button', { name: 'Edit notes for Noted' }))
+    expect(screen.getByRole('heading', { name: 'Notes: Noted' })).toBeInTheDocument()
+
+    // AA is the only/active hand; attach a note and save.
+    await user.type(screen.getByRole('textbox'), 'open always')
+    await user.click(screen.getByRole('button', { name: 'Save notes' }))
+
+    expect(loadSavedRanges()[0].handNotes).toEqual({ AA: 'open always' })
+
+    // Reopen: the note round-trips into the editor.
+    await user.click(screen.getByRole('button', { name: 'Edit notes for Noted' }))
+    expect(screen.getByRole('textbox')).toHaveValue('open always')
+  })
+
+  it('clearing a note removes it on save', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Range name'), 'Noted')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    await user.click(screen.getByRole('button', { name: 'Edit notes for Noted' }))
+    await user.type(screen.getByRole('textbox'), 'temp')
+    await user.click(screen.getByRole('button', { name: 'Save notes' }))
+    expect(loadSavedRanges()[0].handNotes).toEqual({ AA: 'temp' })
+
+    // Reopen, clear the note, and save: handNotes collapses away entirely.
+    await user.click(screen.getByRole('button', { name: 'Edit notes for Noted' }))
+    await user.clear(screen.getByRole('textbox'))
+    await user.click(screen.getByRole('button', { name: 'Save notes' }))
+    expect(loadSavedRanges()[0].handNotes).toBeUndefined()
+  })
+})
+
 describe('Due-today review queue', () => {
   it('opens the queue listing a never-practiced range as due', async () => {
     const user = userEvent.setup()

@@ -9,6 +9,7 @@ import { handsWithMixedStrategy } from './domain/mixedStrategy'
 import { BuildFromMemoryPractice } from './components/BuildFromMemoryPractice'
 import { DueToday } from './components/DueToday'
 import { HandGrid } from './components/HandGrid'
+import { HandNotesEditor } from './components/HandNotesEditor'
 import { MultiActionEditor } from './components/MultiActionEditor'
 import { PracticeSession } from './components/PracticeSession'
 import { TimedDrillSession } from './components/TimedDrillSession'
@@ -160,6 +161,10 @@ function AppShell() {
   const [freqEditRange, setFreqEditRange] = useState<SavedRange | null>(null)
   const [freqDraft, setFreqDraft] = useState<Record<PokerHand, HandMixedStrategy>>({})
   const [freqActiveHand, setFreqActiveHand] = useState<PokerHand | null>(null)
+  // The range whose per-hand notes are being edited, with `notesDraft` holding
+  // the in-progress per-hand note map.
+  const [notesEditRange, setNotesEditRange] = useState<SavedRange | null>(null)
+  const [notesDraft, setNotesDraft] = useState<Record<PokerHand, string>>({})
   // The range being compared against another, and the chosen comparison target id.
   const [diffRange, setDiffRange] = useState<SavedRange | null>(null)
   const [diffOtherId, setDiffOtherId] = useState<string>('')
@@ -523,6 +528,24 @@ function AppShell() {
     setFreqEditRange(null)
   }
 
+  function handleEditNotes(range: SavedRange) {
+    setNotesEditRange(range)
+    setNotesDraft({ ...(range.handNotes ?? {}) })
+  }
+
+  function handleSaveNotes() {
+    if (!notesEditRange) return
+    // Storage drops blank notes and collapses an empty map to undefined, so the
+    // draft can be written as-is.
+    saveSavedRange({
+      ...notesEditRange,
+      handNotes: notesDraft,
+      updatedAt: new Date().toISOString(),
+    })
+    setSavedRanges(loadSavedRanges())
+    setNotesEditRange(null)
+  }
+
   function handleSaveCombos() {
     if (!comboEditRange) return
     // Persist only hand classes that are NOT fully selected, so an all-on range
@@ -842,6 +865,8 @@ function AppShell() {
     headerSubtitle = 'Select which exact combos are in this range.'
   } else if (freqEditRange) {
     headerSubtitle = 'Assign mixed action frequencies per hand.'
+  } else if (notesEditRange) {
+    headerSubtitle = 'Attach a note to individual hands.'
   } else if (performanceRange) {
     headerSubtitle = 'Review your per-hand accuracy.'
   } else if (dueToday !== null) {
@@ -1094,6 +1119,23 @@ function AppShell() {
             }}
           />
         </section>
+      ) : notesEditRange ? (
+        <section className="practice-session" aria-label="Hand notes editor">
+          <header className="practice-header">
+            <h2>Notes: {notesEditRange.name}</h2>
+            <button type="button" className="primary" onClick={handleSaveNotes}>
+              Save notes
+            </button>
+            <button type="button" onClick={() => setNotesEditRange(null)}>
+              Back to library
+            </button>
+          </header>
+          <HandNotesEditor
+            hands={notesEditRange.hands}
+            notes={notesDraft}
+            onChange={setNotesDraft}
+          />
+        </section>
       ) : performanceRange ? (
         <RangePerformance
           range={performanceRange}
@@ -1253,6 +1295,7 @@ function AppShell() {
             onCompareRange={handleCompareRange}
             onEditCombos={handleEditCombos}
             onEditFrequencies={handleEditFrequencies}
+            onEditNotes={handleEditNotes}
             onEditActions={handleEditActions}
             onExportRange={handleExportRange}
             onExportRangeCsv={handleExportRangeCsv}

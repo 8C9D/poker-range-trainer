@@ -57,6 +57,8 @@ interface RangeLibraryProps {
   onEditCombos?: (range: SavedRange) => void
   /** Open the mixed-frequency editor for the given saved range. */
   onEditFrequencies?: (range: SavedRange) => void
+  /** Open the per-hand notes editor for the given saved range. */
+  onEditNotes?: (range: SavedRange) => void
   /** Open the multi-action editor for the given saved range. */
   onEditActions: (range: SavedRange) => void
   /** Export the given saved range to a downloadable JSON file. */
@@ -148,6 +150,7 @@ export function RangeLibrary({
   onCompareRange = () => {},
   onEditCombos = () => {},
   onEditFrequencies = () => {},
+  onEditNotes = () => {},
   onEditActions,
   onExportRange = () => {},
   onExportRangeCsv = () => {},
@@ -451,6 +454,13 @@ export function RangeLibrary({
                         onClick={() => onEditFrequencies(range)}
                       >
                         Frequencies
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Edit notes for ${range.name}`}
+                        onClick={() => onEditNotes(range)}
+                      >
+                        Notes
                       </button>
                       <button
                         type="button"

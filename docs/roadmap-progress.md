@@ -168,6 +168,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 131 | Show a range's source on its library card | v5 — Solver and study-tool integrations | 2026-06-12 |
 | 132 | Per-hand notes model (type + storage) | v5 — Solver and study-tool integrations | 2026-06-12 |
 | 133 | Standalone per-hand notes editor component | v5 — Solver and study-tool integrations | 2026-06-12 |
+| 134 | Per-range notes editor view (wired + persisted) | v5 — Solver and study-tool integrations | 2026-06-12 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -1046,50 +1047,52 @@ the key, switching hands). Presentational only — App wiring + persistence is n
 NOTE (env): mid-run, `node_modules/` was wiped by something outside this loop (all packages + `.bin`
 gone). Recovered with `npm ci` (246 packages restored from the lockfile); validation then ran clean.
 
+Slice 134 wired the per-hand notes editor into the app and persists notes. `RangeLibrary` cards gained
+an optional "Notes" action (`Edit notes for {name}`, `onEditNotes?` defaulting to no-op). `App` holds
+`notesEditRange` + `notesDraft` (`Record<PokerHand, string>`); `handleEditNotes` seeds the draft from
+`range.handNotes ?? {}` and opens a "Notes: {name}" view (in the existing view-switch chain, header +
+"Back to library") rendering `<HandNotesEditor hands notes={notesDraft} onChange={setNotesDraft} />`;
+`handleSaveNotes` persists `{ ...range, handNotes: notesDraft }` via `saveSavedRange` (storage drops
+blanks / collapses an empty map) and refreshes `savedRanges`. A library test covers the action firing;
+App tests cover the round-trip (type then save then reopen) and clearing a note collapsing `handNotes`
+away. **"Notes linked to specific hands" is now functionally usable** (model + storage + editor +
+wiring); a library-card indicator is a small polish next.
+
 ## Next slice
 
-- **Number:** 134
+- **Number:** 135
 - **Roadmap target:** v5 — Solver and study-tool integrations
-- **Working title:** Wire the per-hand notes editor into a per-range "Notes" view
+- **Working title:** Show a hand-notes count on the library card
 
 ### Prompt
 
-Continue **v5** by wiring `HandNotesEditor` (slice 133) into the app and PERSISTING per-hand notes
-(slice 132's `handNotes` model). Add a per-range "Notes" view reached from a library card, mirroring the
-existing per-range editor views (combos/frequencies/actions).
+Continue **v5** by surfacing, on each library card, that a range carries per-hand notes (slices 132-134
+added the model, storage, editor, and wiring; nothing in the library hints that notes exist). Add a
+small count line, mirroring the existing source/scenario/practice summary lines.
 
 Context:
-- `App.tsx` already has the per-range view-switching pattern: a library-card action sets a
-  `<thing>EditRange` state + a draft state, the view renders the editor over the draft, and a "Save …"
-  button persists via `saveSavedRange` then refreshes `savedRanges`. The closest mirror is the
-  frequency editor: `freqEditRange` + `freqDraft` opened from `onEditFrequencies`, saved by
-  `handleSaveFrequencies` (see slices 115/121).
-- `RangeLibrary` cards already expose optional per-range actions (`onEditActions`, `onEditCombos`,
-  `onEditFrequencies`, …) gated by passing the handler. The editor is `HandNotesEditor` (controlled:
-  `hands`, `notes`, `onChange`). The persisted field is `SavedRange.handNotes` (storage already
-  sanitizes it).
+- `src/components/RangeLibrary.tsx` builds per-card summary spans (`range-item-scenario`,
+  `range-item-notes`, `range-item-source`, `range-item-practice`). Per-hand notes live at
+  `range.handNotes?: Record<PokerHand, string>` (absence or empty = none).
+- Note the naming: `range-item-notes` is ALREADY used for the whole-range `metadata.notes` preview.
+  Use a DISTINCT class (e.g. `range-item-hand-notes`) so the two do not collide.
 
 Task:
-- In `RangeLibrary.tsx`, add an optional "Notes" card action (e.g. `onEditNotes?(range)`, accessible
-  name like `Edit notes for {name}`), following the existing optional-action pattern (default no-op so
-  current renders/tests are unaffected). Add a focused test for the action.
-- In `App.tsx`, add `notesEditRange` + `notesDraft` (`Record<PokerHand, string>`) state. `handleEditNotes`
-  seeds `notesDraft` from `range.handNotes ?? {}` and opens the view; the view (in the existing
-  view-switch chain, with a header + "Back to library") renders `<HandNotesEditor hands={range.hands}
-  notes={notesDraft} onChange={setNotesDraft} />`; `handleSaveNotes` writes
-  `saveSavedRange({ ...range, handNotes: notesDraft })` (storage drops blanks / collapses empty), then
-  refreshes `savedRanges` and closes the view. Reset the draft on exit like the other editors.
-- Tests: extend an `App` test — open Notes for a saved range, type a note for a hand, save, reopen, and
-  confirm it round-trips (and that clearing a note removes it). Reuse the existing editor-view test
-  patterns.
+- In `RangeLibrary.tsx`, compute the hand-notes count (`Object.keys(range.handNotes ?? {}).length`).
+  When it is > 0, render a small line like `{n} hand note{n === 1 ? '' : 's'}` in a
+  `range-item-hand-notes` span near the other summary lines. Render nothing when there are no hand notes.
+- Add a `.range-item-hand-notes` style in `RangeLibrary.css` consistent with the sibling summary lines
+  (small, muted).
+- Tests: extend `RangeLibrary.test.tsx` - a range with two hand notes shows "2 hand notes"; a range with
+  one shows "1 hand note" (singular); a range without hand notes shows no such line.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- UI/wiring in `src/components/` + `App.tsx`; reuse the existing per-range editor-view pattern; no new
-  deps, no model/storage changes. Small, reversible, backward-compatible. The per-hand notes DISPLAY
-  (e.g. on the grid/performance view) can be a later slice; with edit+persist done, "Notes linked to
-  specific hands" is functionally usable.
+- UI only in `src/components/`; reuse the existing card-summary pattern; no new deps, no model/storage
+  changes. Small, reversible, backward-compatible (no hand notes = no line). After this, consider v5's
+  remaining import/conversion bullets (CSV/clipboard imports, "convert solver strategy into simplified
+  practice ranges") - start the next one with a small pure-domain foundation.
 
 Suggested commit message:
-- `feat: per-range notes editor view (wired + persisted)`
+- `feat: show a hand-notes count on the library card`

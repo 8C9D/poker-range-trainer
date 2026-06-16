@@ -191,6 +191,31 @@ describe('RangeLibrary', () => {
     expect(onEditActions).toHaveBeenCalledExactlyOnceWith(range)
   })
 
+  it('calls onEditNotes with the range when Notes is clicked', async () => {
+    const user = userEvent.setup()
+    const onEditNotes = vi.fn()
+    const range = makeRange({ name: 'Pairs' })
+    render(
+      <RangeLibrary
+        ranges={[range]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+        onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
+        onFavorite={vi.fn()}
+        onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
+        onEditNotes={onEditNotes}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Edit notes for Pairs' }))
+
+    expect(onEditNotes).toHaveBeenCalledExactlyOnceWith(range)
+  })
+
   it('calls onExportRange with the range when Export JSON is clicked', async () => {
     const user = userEvent.setup()
     const onExportRange = vi.fn()
