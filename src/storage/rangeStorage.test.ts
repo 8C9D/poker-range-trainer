@@ -505,6 +505,57 @@ describe('mixedStrategies persistence', () => {
   })
 })
 
+describe('handNotes persistence', () => {
+  it('round-trips a range saved with hand notes, trimming values', () => {
+    saveSavedRange(
+      makeRange({ id: 'r1', handNotes: { AKs: '  always 4-bet vs UTG  ', KK: 'flat vs UTG' } }),
+    )
+    expect(loadSavedRanges()[0].handNotes).toEqual({
+      AKs: 'always 4-bet vs UTG',
+      KK: 'flat vs UTG',
+    })
+  })
+
+  it('loads a range without a handNotes field', () => {
+    saveSavedRange(makeRange({ id: 'r1' }))
+    expect(loadSavedRanges()[0].handNotes).toBeUndefined()
+  })
+
+  it('sanitizes malformed handNotes on load (drops bad keys, non-strings, and blanks)', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify([
+        {
+          id: 'r1',
+          name: 'R',
+          hands: ['AA'],
+          createdAt: 'T',
+          updatedAt: 'T',
+          handNotes: { AKs: 'good note', ZZ: 'bad key', KK: 42, QQ: '   ' },
+        },
+      ]),
+    )
+    expect(loadSavedRanges()[0].handNotes).toEqual({ AKs: 'good note' })
+  })
+
+  it('omits handNotes entirely when no entries are valid', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify([
+        {
+          id: 'r1',
+          name: 'R',
+          hands: ['AA'],
+          createdAt: 'T',
+          updatedAt: 'T',
+          handNotes: { ZZ: 'bad key', KK: '   ' },
+        },
+      ]),
+    )
+    expect(loadSavedRanges()[0].handNotes).toBeUndefined()
+  })
+})
+
 describe('range source attribution', () => {
   it('round-trips a range saved with a full source (kind + reference)', () => {
     const range = makeRange({ id: 'r1', source: { kind: 'solver', reference: 'PioSolver sim #4' } })

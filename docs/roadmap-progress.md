@@ -166,6 +166,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 129 | Per-range source/reference attribution (type + storage) | v5 — Solver and study-tool integrations | 2026-06-12 |
 | 130 | Source/reference fields in the range editor (wired + persisted) | v5 — Solver and study-tool integrations | 2026-06-12 |
 | 131 | Show a range's source on its library card | v5 — Solver and study-tool integrations | 2026-06-12 |
+| 132 | Per-hand notes model (type + storage) | v5 — Solver and study-tool integrations | 2026-06-12 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -1022,44 +1023,56 @@ A matching `.range-item-source` style was added to `RangeLibrary.css` (mirroring
 Component tests cover label+reference, kind-only, and the no-source (no line) case. **"Attach
 source/reference to a range" is COMPLETE** (model + storage + editor + library display).
 
+Slice 132 began "Notes linked to specific hands" with the model + storage (no UI). `SavedRange` gained
+an optional `handNotes?: Record<PokerHand, string>` (free text per hand class, e.g. `{ AKs: 'always
+4-bet vs UTG' }`; absence = no note; distinct from the whole-range `metadata.notes`). `rangeStorage`
+gained `normalizeHandNotes` (mirroring `normalizeHandActions`): it keeps entries with a valid hand-class
+key and a non-blank trimmed string value, drops bad keys / non-strings / whitespace-only notes, and
+collapses an all-empty map to `undefined` — wired into BOTH `parseSavedRange` and `saveSavedRange`.
+Round-trip (with trimming), malformed-drop, and all-invalid-omit are unit-tested; hands-only ranges are
+unaffected. The per-hand notes editor + display come next.
+
 ## Next slice
 
-- **Number:** 132
+- **Number:** 133
 - **Roadmap target:** v5 — Solver and study-tool integrations
-- **Working title:** Per-hand notes model (type + storage)
+- **Working title:** Standalone per-hand notes editor component
 
 ### Prompt
 
-Continue **v5** toward "Notes linked to specific hands". Add an OPTIONAL per-hand notes map to the
-saved-range model and persist it, mirroring the `handActions` / `comboSelections` / source storage
-pattern (slices 55/110/118/129). Storage-only — no UI this slice.
+Continue **v5** "Notes linked to specific hands" by building the standalone editor UI for per-hand notes
+(slice 132 added the `handNotes` model + storage; nothing edits it yet). Build a controlled component
+only — App wiring + persistence is the NEXT slice (mirrors how `MixedStrategyEditor` was standalone in
+slice 119, then wired in 121).
 
 Context:
-- `SavedRange` (in `src/types/range.ts`) already carries optional per-hand overlays (`handActions`,
-  `comboSelections`, `mixedStrategies`) and the top-level `source`. Hand-linked notes are a separate
-  overlay: free-text attached to individual starting hands (e.g. `{ 'AKs': 'always 4-bet vs UTG' }`).
-- `src/storage/rangeStorage.ts` has a consistent `normalize*` pattern: validate a canonical hand-class
-  key (`isValidHand`), sanitize the value, drop bad/empty entries, collapse an all-empty map to
-  `undefined`, and wire it into BOTH `parseSavedRange` (load) and `saveSavedRange` (write).
+- The model is `SavedRange.handNotes?: Record<PokerHand, string>` (free text per hand class; a hand with
+  no entry has no note). `PokerHand` + canonical ordering helpers live in `src/domain/pokerHands.ts`.
+- Prior standalone controlled editors to mirror for style: `src/components/MixedStrategyEditor.tsx`
+  (owns no data, reports via `onChange`) and the frequency-editor hand picker pattern (a `<select>` of
+  the range's hands to choose the active hand). Follow their controlled-component conventions and CSS
+  approach.
 
 Task:
-- In `src/types/range.ts`, add an optional `handNotes?: Record<PokerHand, string>` to `SavedRange` with
-  a doc comment (each value is the free-text note for that hand class; absence of the field or of a
-  hand's entry = no note, so pre-v5 ranges need no migration).
-- In `rangeStorage.ts`, add `normalizeHandNotes(value)`: keep entries whose key is a valid hand class
-  and whose value is a string that is non-empty AFTER trimming (store the trimmed text); drop everything
-  else; return `undefined` when nothing survives so `handNotes: {}` is never persisted. Wire it into
-  `parseSavedRange` and `saveSavedRange` exactly like `normalizeHandActions`.
-- Unit-test in `rangeStorage.test.ts`: round-trip a range with hand notes (including a value that gets
-  trimmed), drop a bad hand key / non-string / whitespace-only value, and omit `handNotes` entirely when
-  no entry is valid. Hands-only ranges must be unaffected.
+- Add `src/components/HandNotesEditor.tsx` (+ a small CSS file). Props:
+  `hands: PokerHand[]` (the range's hands, the notable set), `notes: Record<PokerHand, string>`
+  (current map, parent-owned), and `onChange: (notes: Record<PokerHand, string>) => void`. Render a
+  `<select>` listing `hands` (in canonical order — sort with the existing pokerHands ordering helper if
+  `hands` is not already ordered) to pick the active hand, plus a `<textarea>` bound to that hand's
+  current note. On textarea change, produce a NEW notes map: set the active hand's note, or DELETE the
+  key when the text is blank/whitespace-only, and call `onChange` (immutably; never mutate the prop).
+  Keep the active-hand selection as internal state (default to the first hand); the notes map stays
+  parent-owned. Handle an empty `hands` array with a short "no hands" message.
+- Tests (`HandNotesEditor.test.tsx`): renders the hand picker + textarea; reflects an existing note for
+  the selected hand; typing reports an updated map via `onChange`; clearing the text reports a map with
+  that hand's key removed; switching the active hand shows that hand's note. Presentational only — no
+  storage/App wiring.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Types in `src/types/`, storage in `src/storage/`; reuse the existing sanitization pattern; no new
-  deps. Small, reversible, backward-compatible (absence = no notes). No UI yet — the per-hand notes
-  editor + display come in later slices.
+- UI only in `src/components/`; controlled (owns no notes data); reuse existing editor/CSS conventions;
+  no new deps. Small, reversible. Do NOT wire it into App or persist yet — that is the next slice.
 
 Suggested commit message:
-- `feat: per-hand notes model and storage`
+- `feat: standalone per-hand notes editor component`

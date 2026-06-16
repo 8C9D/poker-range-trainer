@@ -133,6 +133,26 @@ function normalizeMixedStrategies(
 }
 
 /**
+ * Validate and sanitize an optional per-hand notes map.
+ *
+ * Each entry must have a canonical hand-class key and a string value that is
+ * non-empty after trimming (the trimmed text is stored). Bad keys, non-string
+ * values, and blank/whitespace-only notes are dropped, and an all-empty result
+ * collapses to `undefined` so `handNotes: {}` is never persisted (absence = no
+ * notes).
+ */
+function normalizeHandNotes(value: unknown): Record<PokerHand, string> | undefined {
+  if (typeof value !== 'object' || value === null) return undefined
+  const result: Record<PokerHand, string> = {}
+  for (const [hand, raw] of Object.entries(value as Record<string, unknown>)) {
+    if (!isValidHand(hand) || typeof raw !== 'string') continue
+    const trimmed = raw.trim()
+    if (trimmed.length > 0) result[hand] = trimmed
+  }
+  return Object.keys(result).length > 0 ? result : undefined
+}
+
+/**
  * Validate and sanitize an optional range source/reference (provenance).
  *
  * `kind` is required and must be a recognized `RangeSourceKind`; an unknown or
@@ -172,6 +192,7 @@ function parseSavedRange(value: unknown): SavedRange | null {
     handActions,
     comboSelections,
     mixedStrategies,
+    handNotes,
   } = value as Record<string, unknown>
 
   if (typeof id !== 'string' || id.length === 0) return null
@@ -193,6 +214,7 @@ function parseSavedRange(value: unknown): SavedRange | null {
   const normalizedHandActions = normalizeHandActions(handActions)
   const normalizedComboSelections = normalizeComboSelections(comboSelections)
   const normalizedMixedStrategies = normalizeMixedStrategies(mixedStrategies)
+  const normalizedHandNotes = normalizeHandNotes(handNotes)
   return {
     id,
     name,
@@ -204,6 +226,7 @@ function parseSavedRange(value: unknown): SavedRange | null {
     ...(normalizedHandActions ? { handActions: normalizedHandActions } : {}),
     ...(normalizedComboSelections ? { comboSelections: normalizedComboSelections } : {}),
     ...(normalizedMixedStrategies ? { mixedStrategies: normalizedMixedStrategies } : {}),
+    ...(normalizedHandNotes ? { handNotes: normalizedHandNotes } : {}),
     // Only a strict `true` persists; absent/false stays unarchived with no key.
     ...(archived === true ? { archived: true } : {}),
     // Same rule as archived: only a strict `true` persists the favorite flag.
@@ -256,6 +279,7 @@ export function saveSavedRange(range: SavedRange): void {
     handActions,
     comboSelections,
     mixedStrategies,
+    handNotes,
     ...rest
   } = range
   const normalizedMetadata = normalizeMetadata(metadata)
@@ -263,6 +287,7 @@ export function saveSavedRange(range: SavedRange): void {
   const normalizedHandActions = normalizeHandActions(handActions)
   const normalizedComboSelections = normalizeComboSelections(comboSelections)
   const normalizedMixedStrategies = normalizeMixedStrategies(mixedStrategies)
+  const normalizedHandNotes = normalizeHandNotes(handNotes)
   const normalized: SavedRange = {
     ...rest,
     hands: normalizeRangeHands(range.hands),
@@ -271,6 +296,7 @@ export function saveSavedRange(range: SavedRange): void {
     ...(normalizedHandActions ? { handActions: normalizedHandActions } : {}),
     ...(normalizedComboSelections ? { comboSelections: normalizedComboSelections } : {}),
     ...(normalizedMixedStrategies ? { mixedStrategies: normalizedMixedStrategies } : {}),
+    ...(normalizedHandNotes ? { handNotes: normalizedHandNotes } : {}),
     // Mirror parse: only a strict `true` is stored, so `false`/undefined drops the key.
     ...(archived === true ? { archived: true } : {}),
     // Same rule as archived: only a strict `true` is stored for favorite.

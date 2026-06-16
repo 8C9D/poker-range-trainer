@@ -186,6 +186,14 @@ export interface SavedRange {
    * unaffected and need no migration.
    */
   mixedStrategies?: Record<PokerHand, HandMixedStrategy>
+  /**
+   * Optional v5 per-hand notes: free-text attached to individual starting hands
+   * (e.g. `{ 'AKs': 'always 4-bet vs UTG' }`). Absence of the field, or of a
+   * hand's entry, means no note, so pre-v5 ranges are unaffected and need no
+   * migration. Separate from the descriptive scenario `metadata.notes`, which
+   * is a single note for the whole range.
+   */
+  handNotes?: Record<PokerHand, string>
   /** ISO-8601 timestamp of when the range was created. */
   createdAt: string
   /** ISO-8601 timestamp of the most recent edit. */
