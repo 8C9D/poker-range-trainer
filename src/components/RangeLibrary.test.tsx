@@ -737,6 +737,64 @@ describe('RangeLibrary', () => {
     expect(container.querySelector('.range-item-source')).toBeNull()
   })
 
+  it('shows a pluralized hand-notes count when a range has hand notes', () => {
+    render(
+      <RangeLibrary
+        ranges={[makeRange({ handNotes: { AA: 'open always', KK: 'flat vs UTG' } })]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+        onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
+        onFavorite={vi.fn()}
+        onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
+      />,
+    )
+    expect(
+      screen.getByText('2 hand notes', { selector: '.range-item-hand-notes' }),
+    ).toBeInTheDocument()
+  })
+
+  it('uses the singular for a single hand note', () => {
+    render(
+      <RangeLibrary
+        ranges={[makeRange({ handNotes: { AA: 'open always' } })]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+        onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
+        onFavorite={vi.fn()}
+        onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
+      />,
+    )
+    expect(
+      screen.getByText('1 hand note', { selector: '.range-item-hand-notes' }),
+    ).toBeInTheDocument()
+  })
+
+  it('shows no hand-notes line when a range has no hand notes', () => {
+    const { container } = render(
+      <RangeLibrary
+        ranges={[makeRange()]}
+        activeId={null}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onPractice={vi.fn()}
+        onDuplicate={vi.fn()}
+        onArchive={vi.fn()}
+        onFavorite={vi.fn()}
+        onViewPerformance={vi.fn()}
+        onEditActions={vi.fn()}
+      />,
+    )
+    expect(container.querySelector('.range-item-hand-notes')).toBeNull()
+  })
+
   it('shows game type, table size, stack depth, and versus position as one scenario line', () => {
     render(
       <RangeLibrary

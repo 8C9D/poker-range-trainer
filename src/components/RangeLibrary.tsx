@@ -367,6 +367,10 @@ export function RangeLibrary({
                     }`
                   : null
 
+                // Count of per-hand notes (distinct from the whole-range
+                // metadata.notes preview above).
+                const handNoteCount = Object.keys(range.handNotes ?? {}).length
+
                 // Performance line, shown only once the range has recorded
                 // attempts; the accuracy percentage is derived in the domain so
                 // the component owns no stats math of its own.
@@ -399,6 +403,11 @@ export function RangeLibrary({
                       {notes && <span className="range-item-notes">{previewNotes(notes)}</span>}
                       {sourceSummary && (
                         <span className="range-item-source">{sourceSummary}</span>
+                      )}
+                      {handNoteCount > 0 && (
+                        <span className="range-item-hand-notes">
+                          {handNoteCount} hand note{handNoteCount === 1 ? '' : 's'}
+                        </span>
                       )}
                       {practiceSummary && (
                         <span className="range-item-practice">{practiceSummary}</span>

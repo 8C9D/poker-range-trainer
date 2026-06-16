@@ -136,6 +136,11 @@
   overflow-wrap: anywhere;
 }
 
+.range-item-hand-notes {
+  font-size: 13px;
+  color: var(--text);
+}
+
 .range-item-practice {
   font-family: var(--mono);
   font-size: 13px;

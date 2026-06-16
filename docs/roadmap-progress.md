@@ -169,6 +169,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 132 | Per-hand notes model (type + storage) | v5 — Solver and study-tool integrations | 2026-06-12 |
 | 133 | Standalone per-hand notes editor component | v5 — Solver and study-tool integrations | 2026-06-12 |
 | 134 | Per-range notes editor view (wired + persisted) | v5 — Solver and study-tool integrations | 2026-06-12 |
+| 135 | Show a hand-notes count on the library card | v5 — Solver and study-tool integrations | 2026-06-12 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -1058,41 +1059,52 @@ App tests cover the round-trip (type then save then reopen) and clearing a note 
 away. **"Notes linked to specific hands" is now functionally usable** (model + storage + editor +
 wiring); a library-card indicator is a small polish next.
 
+Slice 135 surfaced a per-hand-notes indicator on each library card, completing "Notes linked to
+specific hands". `RangeLibrary` computes `Object.keys(range.handNotes ?? {}).length` and, when > 0,
+renders a `range-item-hand-notes` span reading `{n} hand note(s)` (pluralized) next to the other summary
+lines; nothing renders when there are none. A matching `.range-item-hand-notes` style was added (a
+distinct class from `.range-item-notes`, which is the whole-range `metadata.notes` preview). Component
+tests cover the plural, the singular, and the no-notes (no line) cases. **"Notes linked to specific
+hands" is COMPLETE** (model + storage + standalone editor + per-range view wiring + library indicator).
+
 ## Next slice
 
-- **Number:** 135
+- **Number:** 136
 - **Roadmap target:** v5 — Solver and study-tool integrations
-- **Working title:** Show a hand-notes count on the library card
+- **Working title:** CSV range import parser (pure domain)
 
 ### Prompt
 
-Continue **v5** by surfacing, on each library card, that a range carries per-hand notes (slices 132-134
-added the model, storage, editor, and wiring; nothing in the library hints that notes exist). Add a
-small count line, mirroring the existing source/scenario/practice summary lines.
+Continue **v5** toward its "CSV imports" integration. Add a PURE-DOMAIN parser that reads the CSV
+produced by `formatRangeCsv` back into a range's name + hands. No UI this slice (a later slice wires an
+"Import CSV" control); this is the symmetric counterpart to the existing CSV export.
 
 Context:
-- `src/components/RangeLibrary.tsx` builds per-card summary spans (`range-item-scenario`,
-  `range-item-notes`, `range-item-source`, `range-item-practice`). Per-hand notes live at
-  `range.handNotes?: Record<PokerHand, string>` (absence or empty = none).
-- Note the naming: `range-item-notes` is ALREADY used for the whole-range `metadata.notes` preview.
-  Use a DISTINCT class (e.g. `range-item-hand-notes`) so the two do not collide.
+- `src/domain/rangeTransfer.ts` has `formatRangeCsv(range)` (slice 88). Its output is:
+  a `field,value` summary block (`name,<name>` / `hands,<n>` / `combos,<n>` / `percentage,<p>`), a BLANK
+  line, then a `hand` header line, then one CSV-escaped hand per line in stored order. There is already a
+  private `csvEscape`; add a matching unescape helper (handle the quoted `""`-doubled form). Validate
+  hands via `isValidHand` from `domain/pokerHands.ts`. The module also has `parseRangeExport` /
+  `parseRangePack` as style references for "validate, else throw a clear Error".
 
 Task:
-- In `RangeLibrary.tsx`, compute the hand-notes count (`Object.keys(range.handNotes ?? {}).length`).
-  When it is > 0, render a small line like `{n} hand note{n === 1 ? '' : 's'}` in a
-  `range-item-hand-notes` span near the other summary lines. Render nothing when there are no hand notes.
-- Add a `.range-item-hand-notes` style in `RangeLibrary.css` consistent with the sibling summary lines
-  (small, muted).
-- Tests: extend `RangeLibrary.test.tsx` - a range with two hand notes shows "2 hand notes"; a range with
-  one shows "1 hand note" (singular); a range without hand notes shows no such line.
+- Add `parseRangeCsv(csv: string): { name?: string; hands: PokerHand[] }` to `rangeTransfer.ts`:
+  - Split into lines (tolerate `\r\n`); locate the `hand` header line (a line equal to `hand` after
+    trimming). Treat every subsequent non-blank line as a hand value (CSV-unescaped), validating each
+    with `isValidHand`; throw a clear `Error` on an invalid hand. De-dupe is not required (storage
+    normalizes later), but DO ignore a trailing blank line.
+  - Read the optional `name` from the summary block's `name,<value>` row (CSV-unescaped) when present.
+  - Throw a clear `Error` when there is no `hand` header/column at all, or when the hand column is empty.
+- Unit-test in `rangeTransfer.test.ts`: round-trip `formatRangeCsv` → `parseRangeCsv` recovers the name
+  and hands (try a range whose name contains a comma so escaping/unescaping is exercised); reject input
+  with an invalid hand; reject input with no `hand` column.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- UI only in `src/components/`; reuse the existing card-summary pattern; no new deps, no model/storage
-  changes. Small, reversible, backward-compatible (no hand notes = no line). After this, consider v5's
-  remaining import/conversion bullets (CSV/clipboard imports, "convert solver strategy into simplified
-  practice ranges") - start the next one with a small pure-domain foundation.
+- Pure domain in `src/domain/`; no UI, no storage, no new deps. Small, reversible. The "Import CSV" UI
+  control (add as a NEW range via `createRangeId` + timestamps, like the JSON range import) is the next
+  slice.
 
 Suggested commit message:
-- `feat: show a hand-notes count on the library card`
+- `feat: CSV range import parser`
