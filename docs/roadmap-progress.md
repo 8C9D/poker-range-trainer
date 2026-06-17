@@ -173,6 +173,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 136 | CSV range import parser (pure domain) | v5 — Solver and study-tool integrations | 2026-06-12 |
 | 137 | Wire CSV range import into the app (new range) | v5 — Solver and study-tool integrations | 2026-06-13 |
 | 138 | Fork a shared range into the local library | v5.1 — Coaching, sharing, and community features | 2026-06-13 |
+| 139 | Shared range packs backend (migration + repo) | v5.1 — Coaching, sharing, and community features | 2026-06-13 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -1111,45 +1112,70 @@ timestamps })`). Component tests cover the fork-then-confirm flow, the button's 
 `onForkRange`, and its absence in the not-found state. The App glue (a 6-line handler reusing the tested
 `saveSavedRange`/`createRangeId`) is intentionally not given a brittle hash-route test.
 
-> ⛔ **DESIGN-DECISION PAUSE (finish-roadmap).** With slice 138, the only v5.1 feature buildable on the
-> existing infrastructure is done. The REMAINING v5.1 features — public/private range PACK hosting,
-> study groups, group leaderboards, coach-created assignments, comments on ranges, shared version
-> history — all require a MULTI-USER BACKEND model the roadmap does not pin down: new schema (groups,
-> memberships, assignments, comments, pack rows), roles/permissions, moderation, and a public-sharing
-> policy. Per the `finish-roadmap` design-decision gate, the loop STOPS here and asks the user how to
-> approach v5.1 before building slice 139. The repo is clean and fully pushed through slice 138.
+> ✅ **DESIGN DECISION (2026-06-13):** at the v5.1 pause the user chose **range-pack sharing** — extend
+> the existing Supabase share/fork machinery to PACKS (publish + fork a BUNDLE of ranges), deferring the
+> heavy social features (study groups, leaderboards, coach assignments, comments, shared version
+> history). The loop resumed on that path: small slices reusing the `shared_ranges` publish / `#/r/:id` /
+> fork model for packs.
+
+Slice 139 built the shared-pack BACKEND foundation, mirroring `sharedRangesRepo` (slice 92).
+`supabase/migrations/0004_shared_packs.sql` documents a `shared_packs` table (owner-only RLS for
+insert/update/delete/owner-select) + a `get_shared_pack(p_id, p_token)` SECURITY DEFINER RPC returning
+the payload when the row is public or the token matches (granted to anon + authenticated; not run by
+app/tests). `src/cloud/sharedPacksRepo.ts` adds `publishSharedPack(pack, isPublic)` (signed-in insert;
+generates the id and, for private, a token), `getSharedPack(id, token?): Promise<RangePack | null>` (no
+sign-in needed; calls the RPC; null when nothing matches), and `unpublishSharedPack(id)` (owner-scoped
+delete). Same injectable deps (`client` / `resolveUserId` / `generateId`) + unconfigured/signed-out
+errors as the other repos; the payload is a `RangePack` (the existing v3.2 envelope). Fully unit-tested
+with a fake client (10 tests). Not wired into the UI yet.
 
 ## Next slice
 
-- **Number:** 139
-- **Roadmap target:** v5.1 — Coaching, sharing, and community features (PENDING a design decision)
-- **Working title:** v5.1 community/backend model — AWAITING USER DECISION
+- **Number:** 140
+- **Roadmap target:** v5.1 — Coaching, sharing, and community features
+- **Working title:** Read-only shared pack page + `#/p/:id` route
 
 ### Prompt
 
-**BLOCKED — needs a user design decision before any slice is built.** v5.1's remaining features
-(public/private range PACK hosting, study groups, group leaderboards, coach-created assignments,
-comments on ranges, shared version history) all sit on a multi-user backend the roadmap does not
-specify. Building them blindly would bake in schema, roles, moderation, and a public-sharing policy that
-should be the user's call. The current backend is Supabase (managed Postgres + auth + RLS, per the v3
-decision) with `shared_ranges` already powering single-range public/private links.
+Continue **v5.1 range-pack sharing** by adding the VISITOR read side for shared packs: a `#/p/:id`
+route and a read-only `SharedPackPage`, mirroring the single-range share page (slice 93). Slice 139 added
+the `shared_packs` backend (`getSharedPack`). No publish UI yet (that is a later slice).
 
-Decision needed from the user — pick the v5.1 direction:
-1. **Incremental, no heavy social** — extend the existing Supabase sharing to PACKS (a `shared_packs`
-   row, or reuse `shared_ranges` with a pack payload) so users can publish/fork a BUNDLE of ranges,
-   reusing the publish/`#/r/:id`/fork machinery. Defer groups/leaderboards/coach/comments. Smallest,
-   lowest-risk, stays in the current architecture.
-2. **Full community backend** — design new tables for study groups, memberships, coach assignments,
-   per-range comments, group leaderboards, and shared version history, with roles/permissions +
-   moderation. Much larger; needs schema + RLS + auth-role decisions up front.
-3. **Skip v5.1 social, go to v6** — treat the heavy community features as out of scope for now and move
-   the loop to **v6 — Final polished product** (onboarding, polish, analytics, reliability), which is
-   buildable on what already exists.
+Context:
+- `src/domain/shareRoute.ts` has `parseShareRoute(hash)` recognizing `#/r/:id` with an optional `?t=` /
+  `&t=` private token (percent-decoded), returning `{ id, token? } | null`. Mirror it for packs.
+- `src/components/SharedRangePage.tsx` is the read-only range page: lazy-initialized `LoadState`
+  (loading / unconfigured / not-found / error / ready), an effect that calls the injectable
+  `fetchSharedRange` and sets state, and a `ready` render. `getSharedPack(id, token?)` (slice 139,
+  `src/cloud/sharedPacksRepo.ts`) returns a `RangePack | null` (`RangePack` = `{ kind, version, name?,
+  ranges: SavedRange[] }` from `domain/rangeTransfer`).
+- `App.tsx`'s thin `App` wrapper renders `<SharedRangePage>` when `parseShareRoute` matches, else
+  `<AppShell>`.
 
-When the user picks, write the concrete slice-139 plan for that path (small first slice: e.g. for (1) a
-`shared_packs` migration + repo with publish/fetch/unpublish, mirroring `sharedRangesRepo`; for (3) a
-small v6 onboarding/empty-state or polish slice) and resume the loop.
+Task:
+- In `shareRoute.ts`, add `parsePackShareRoute(hash): { id: string; token?: string } | null` recognizing
+  `#/p/:id` (optional `?t=`/`&t=` token, percent-decoded), mirroring `parseShareRoute` exactly (keep the
+  `#/r/` parser unchanged). Unit-test it (match, token, no-match, non-pack hash).
+- Add `src/components/SharedPackPage.tsx` (+ reuse `SharedRangePage`'s CSS class or add a small one),
+  mirroring `SharedRangePage`'s state machine but fetching via an injectable `fetchSharedPack =
+  getSharedPack` and `cloudConfigured = isCloudConfigured`. In the `ready` branch render the pack name
+  (fallback "Shared pack" when absent) and, for EACH range in `pack.ranges`, its name + combos/percent
+  summary (reuse `countSelectedCombos` / `calculateRangePercentage`) and a read-only `HandGrid` (or
+  `ActionGrid` when the range has `handActions`), with no-op handlers — keep it presentational. Handle an
+  empty `ranges` array gracefully.
+- In `App.tsx`'s thin wrapper, render `<SharedPackPage id token />` when `parsePackShareRoute(hash)`
+  matches (check it alongside `parseShareRoute`). No fork yet — forking the pack into the local library
+  is the next slice.
+- Tests: `SharedPackPage.test.tsx` mirroring `SharedRangePage.test.tsx` (unconfigured message; renders
+  the pack name + each range once loaded; passes id/token to the fetcher; not-found; error). Extend
+  `shareRoute.test.ts` for the new parser.
 
-Validation (whatever slice 139 becomes): `npm run lint`, `npm run test:run`, `npm run build`.
+Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
-Suggested commit message: (depends on the chosen slice 139)
+Constraints:
+- Domain in `src/domain/`, UI in `src/components/`, thin wiring in `App.tsx`; reuse the read-only grids;
+  injectable fetch so tests need no network; no new deps. Small, reversible. Next slices: "Save pack to
+  my library" (fork all ranges), then publish/unpublish a pack from the library UI.
+
+Suggested commit message:
+- `feat: read-only shared pack page and #/p/:id route`
