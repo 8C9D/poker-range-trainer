@@ -123,7 +123,17 @@ function App() {
   // Parsed once at render; visiting a share link is a fresh page load.
   const shareRoute = typeof window !== 'undefined' ? parseShareRoute(window.location.hash) : null
   if (shareRoute) {
-    return <SharedRangePage id={shareRoute.id} token={shareRoute.token} />
+    return (
+      <SharedRangePage
+        id={shareRoute.id}
+        token={shareRoute.token}
+        onForkRange={(range) => {
+          // Fork: save the shared range into the local library as a new range.
+          const now = new Date().toISOString()
+          saveSavedRange({ ...range, id: createRangeId(), createdAt: now, updatedAt: now })
+        }}
+      />
+    )
   }
 
   return <AppShell />

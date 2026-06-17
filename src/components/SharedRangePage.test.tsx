@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import type { SavedRange } from '../types/range'
 import { SharedRangePage } from './SharedRangePage'
 
@@ -72,5 +73,51 @@ describe('SharedRangePage', () => {
       />,
     )
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('db down'))
+  })
+
+  it('forks the range to the local library and then confirms', async () => {
+    const user = userEvent.setup()
+    const range = makeRange()
+    const onForkRange = vi.fn()
+    render(
+      <SharedRangePage
+        id="abc"
+        fetchSharedRange={vi.fn().mockResolvedValue(range)}
+        cloudConfigured={configured}
+        onForkRange={onForkRange}
+      />,
+    )
+
+    const button = await screen.findByRole('button', { name: 'Save to my library' })
+    await user.click(button)
+
+    expect(onForkRange).toHaveBeenCalledExactlyOnceWith(range)
+    expect(screen.getByText('Saved to your library.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Save to my library' })).not.toBeInTheDocument()
+  })
+
+  it('shows no fork button when onForkRange is not provided', async () => {
+    render(
+      <SharedRangePage
+        id="abc"
+        fetchSharedRange={vi.fn().mockResolvedValue(makeRange())}
+        cloudConfigured={configured}
+      />,
+    )
+    await screen.findByRole('heading', { name: 'BTN open' })
+    expect(screen.queryByRole('button', { name: 'Save to my library' })).not.toBeInTheDocument()
+  })
+
+  it('shows no fork button when the range is not found', async () => {
+    render(
+      <SharedRangePage
+        id="missing"
+        fetchSharedRange={vi.fn().mockResolvedValue(null)}
+        cloudConfigured={configured}
+        onForkRange={vi.fn()}
+      />,
+    )
+    await screen.findByText(/was not found/i)
+    expect(screen.queryByRole('button', { name: 'Save to my library' })).not.toBeInTheDocument()
   })
 })

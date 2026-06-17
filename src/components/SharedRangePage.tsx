@@ -14,6 +14,12 @@ interface SharedRangePageProps {
   fetchSharedRange?: (id: string, token?: string) => Promise<SavedRange | null>
   /** Injectable cloud-config check (defaults to env-gated detection). */
   cloudConfigured?: () => boolean
+  /**
+   * Save this shared range into the viewer's own library ("fork"). When
+   * provided, a "Save to my library" button appears on a loaded range. The
+   * parent owns the actual storage write; the page only invokes the callback.
+   */
+  onForkRange?: (range: SavedRange) => void
 }
 
 type LoadState =
@@ -35,12 +41,15 @@ export function SharedRangePage({
   token,
   fetchSharedRange = getSharedRange,
   cloudConfigured = isCloudConfigured,
+  onForkRange,
 }: SharedRangePageProps) {
   // Initialize lazily so the unconfigured case never needs a synchronous
   // setState inside the effect (which the lint config forbids).
   const [state, setState] = useState<LoadState>(() =>
     cloudConfigured() ? { status: 'loading' } : { status: 'unconfigured' },
   )
+  // Whether the viewer has already forked this range into their library.
+  const [forked, setForked] = useState(false)
 
   useEffect(() => {
     if (!cloudConfigured()) return
@@ -111,6 +120,23 @@ export function SharedRangePage({
         <HandGrid selected={new Set<PokerHand>(range.hands)} onSetSelected={noop} />
       )}
       <p className="shared-range-note">Read-only shared range.</p>
+      {onForkRange &&
+        (forked ? (
+          <p className="shared-range-forked" role="status">
+            Saved to your library.
+          </p>
+        ) : (
+          <button
+            type="button"
+            className="primary"
+            onClick={() => {
+              onForkRange(range)
+              setForked(true)
+            }}
+          >
+            Save to my library
+          </button>
+        ))}
     </main>
   )
 }

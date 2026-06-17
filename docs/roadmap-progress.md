@@ -172,6 +172,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 135 | Show a hand-notes count on the library card | v5 — Solver and study-tool integrations | 2026-06-12 |
 | 136 | CSV range import parser (pure domain) | v5 — Solver and study-tool integrations | 2026-06-12 |
 | 137 | Wire CSV range import into the app (new range) | v5 — Solver and study-tool integrations | 2026-06-13 |
+| 138 | Fork a shared range into the local library | v5.1 — Coaching, sharing, and community features | 2026-06-13 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -1100,51 +1101,55 @@ with a defined `text()` since jsdom 29 may not implement `Blob.text()`. **Single
 > v5.1 item buildable with no new infrastructure is "fork a public range into personal library" — purely
 > client-side on the existing share page + local storage — so it is queued first.
 
+Slice 138 began **v5.1** with "Fork a public range into personal library" — purely client-side, no new
+backend. `SharedRangePage` gained an optional `onForkRange?(range)` prop: on a loaded (`ready`) range it
+renders a "Save to my library" button that calls the callback and flips a local `forked` state to a
+"Saved to your library." confirmation (role="status"), hiding the button so it cannot double-save; the
+component stays presentational (no storage import). The thin `App` wrapper passes `onForkRange` that
+saves the shared range locally as a NEW range (`saveSavedRange({ ...range, id: createRangeId(), fresh
+timestamps })`). Component tests cover the fork-then-confirm flow, the button's absence without
+`onForkRange`, and its absence in the not-found state. The App glue (a 6-line handler reusing the tested
+`saveSavedRange`/`createRangeId`) is intentionally not given a brittle hash-route test.
+
+> ⛔ **DESIGN-DECISION PAUSE (finish-roadmap).** With slice 138, the only v5.1 feature buildable on the
+> existing infrastructure is done. The REMAINING v5.1 features — public/private range PACK hosting,
+> study groups, group leaderboards, coach-created assignments, comments on ranges, shared version
+> history — all require a MULTI-USER BACKEND model the roadmap does not pin down: new schema (groups,
+> memberships, assignments, comments, pack rows), roles/permissions, moderation, and a public-sharing
+> policy. Per the `finish-roadmap` design-decision gate, the loop STOPS here and asks the user how to
+> approach v5.1 before building slice 139. The repo is clean and fully pushed through slice 138.
+
 ## Next slice
 
-- **Number:** 138
-- **Roadmap target:** v5.1 — Coaching, sharing, and community features
-- **Working title:** Fork a shared range into the local library
+- **Number:** 139
+- **Roadmap target:** v5.1 — Coaching, sharing, and community features (PENDING a design decision)
+- **Working title:** v5.1 community/backend model — AWAITING USER DECISION
 
 ### Prompt
 
-Begin **v5.1** with "Fork a public range into personal library": let a visitor viewing a shared range
-SAVE it to their own local library. This is purely client-side (reuses the existing shared page +
-`saveSavedRange`), so it needs NO backend/multi-user decision.
+**BLOCKED — needs a user design decision before any slice is built.** v5.1's remaining features
+(public/private range PACK hosting, study groups, group leaderboards, coach-created assignments,
+comments on ranges, shared version history) all sit on a multi-user backend the roadmap does not
+specify. Building them blindly would bake in schema, roles, moderation, and a public-sharing policy that
+should be the user's call. The current backend is Supabase (managed Postgres + auth + RLS, per the v3
+decision) with `shared_ranges` already powering single-range public/private links.
 
-Context:
-- `src/components/SharedRangePage.tsx` is the read-only `#/r/:id` page. It fetches a `SavedRange` and,
-  in its `state.status === 'ready'` branch, renders the name + combo summary + a read-only grid. It is
-  presentational/self-contained (injectable `fetchSharedRange`).
-- `App.tsx` splits into a thin `App` that renders `<SharedRangePage … />` when
-  `parseShareRoute(location.hash)` matches, and `AppShell` (the full app). The thin wrapper is where the
-  fork handler belongs (it can import `saveSavedRange` from `storage/rangeStorage` and `createRangeId`).
-  The local-range "add as new with fresh id + timestamps" recipe is the same one `handleImportRange` /
-  `handleImportRangeCsv` use.
+Decision needed from the user — pick the v5.1 direction:
+1. **Incremental, no heavy social** — extend the existing Supabase sharing to PACKS (a `shared_packs`
+   row, or reuse `shared_ranges` with a pack payload) so users can publish/fork a BUNDLE of ranges,
+   reusing the publish/`#/r/:id`/fork machinery. Defer groups/leaderboards/coach/comments. Smallest,
+   lowest-risk, stays in the current architecture.
+2. **Full community backend** — design new tables for study groups, memberships, coach assignments,
+   per-range comments, group leaderboards, and shared version history, with roles/permissions +
+   moderation. Much larger; needs schema + RLS + auth-role decisions up front.
+3. **Skip v5.1 social, go to v6** — treat the heavy community features as out of scope for now and move
+   the loop to **v6 — Final polished product** (onboarding, polish, analytics, reliability), which is
+   buildable on what already exists.
 
-Task:
-- Add an optional `onForkRange?: (range: SavedRange) => void` prop to `SharedRangePage`. In the `ready`
-  branch, when `onForkRange` is provided, render a "Save to my library" button; clicking it calls
-  `onForkRange(range)` and flips a local `forked` state to show a "Saved to your library." confirmation
-  (and hide/disable the button so it is not double-saved). No storage import inside the component — it
-  only invokes the callback (keep it presentational).
-- In `App.tsx`'s thin wrapper, pass `onForkRange={handleForkSharedRange}` where `handleForkSharedRange`
-  saves the range locally as a NEW range: `saveSavedRange({ ...range, id: createRangeId(), createdAt:
-  now, updatedAt: now })`. (No need to refresh any list — the shared page is its own view; the next
-  visit to the app loads it from storage.)
-- Tests: extend `SharedRangePage.test.tsx` — with a ready range and an `onForkRange` spy, the button
-  calls it with the range and then shows the confirmation; the button is absent without `onForkRange`
-  and in non-ready states. Optionally an `App`-level test that the fork writes to `loadSavedRanges()`.
+When the user picks, write the concrete slice-139 plan for that path (small first slice: e.g. for (1) a
+`shared_packs` migration + repo with publish/fetch/unpublish, mirroring `sharedRangesRepo`; for (3) a
+small v6 onboarding/empty-state or polish slice) and resume the loop.
 
-Validation: `npm run lint`, `npm run test:run`, `npm run build`.
+Validation (whatever slice 139 becomes): `npm run lint`, `npm run test:run`, `npm run build`.
 
-Constraints:
-- UI in `src/components/`, thin wiring in `App.tsx`; reuse `saveSavedRange` + `createRangeId`; no new
-  deps, no backend/schema changes. Small, reversible. AFTER this slice, the remaining v5.1 features
-  (public/private range PACK hosting, study groups, group leaderboard, coach assignments, comments,
-  shared version history) require a MULTI-USER BACKEND design decision (schema/roles/moderation) the
-  roadmap does not pin down — the `finish-roadmap` loop must PAUSE and ask the user how to approach v5.1's
-  community/backend model before building them.
-
-Suggested commit message:
-- `feat: fork a shared range into the local library`
+Suggested commit message: (depends on the chosen slice 139)
