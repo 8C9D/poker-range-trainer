@@ -171,6 +171,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 134 | Per-range notes editor view (wired + persisted) | v5 — Solver and study-tool integrations | 2026-06-12 |
 | 135 | Show a hand-notes count on the library card | v5 — Solver and study-tool integrations | 2026-06-12 |
 | 136 | CSV range import parser (pure domain) | v5 — Solver and study-tool integrations | 2026-06-12 |
+| 137 | Wire CSV range import into the app (new range) | v5 — Solver and study-tool integrations | 2026-06-13 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -1077,48 +1078,73 @@ is empty, or a value is not a valid hand (tolerates `\r\n` and a trailing blank 
 file order, storage normalizes on save). Unit-tested: round-trip from `formatRangeCsv` with a
 comma-containing name, a bare hand-only column, and the three rejection paths. No UI yet.
 
+Slice 137 wired CSV import into the app. `App` gained `handleImportRangeCsv` (mirroring
+`handleImportRange`): it reads the file text, runs `parseRangeCsv`, builds a NEW `SavedRange` with a
+fresh `createRangeId()` + timestamps (name = the CSV's `name` row, else the file name sans `.csv`, else
+`'Imported range'`), `saveSavedRange`s it, refreshes `savedRanges`, and `alert`s on a parse error; the
+input is reset so the same file re-imports. An "Import CSV" file input (`accept=".csv,text/csv"`) sits
+next to "Import range" in the editor controls. App tests cover importing a bare hand-column CSV (fallback
+name from the file), a CSV with a name row, and a malformed CSV (alert, nothing added) — using a `File`
+with a defined `text()` since jsdom 29 may not implement `Blob.text()`. **Single-range CSV interchange
+(export + import) is complete.**
+
+> ✅ **v5 — Solver and study-tool integrations is COMPLETE** (slices 126–137): range diff/compare
+> (domain + view + library), per-range source/reference attribution (model + storage + editor + card),
+> per-hand notes (model + storage + editor + per-range view + card indicator), and CSV import (parser +
+> wired) on top of the already-shipped JSON import (87), notation/action/mixed-frequency import (solver-
+> style chart mapping), and clipboard/notation paste. Image-based range extraction is explicitly an
+> out-of-scope "future advanced feature". **The roadmap now moves to v5.1 — Coaching, sharing, and
+> community features.** Most of v5.1 (study groups, group leaderboards, coach-created assignments,
+> comments on ranges, shared version history) needs a MULTI-USER BACKEND design decision (roles,
+> membership, moderation, schema) and is a `finish-roadmap` design-decision PAUSE when reached. The ONE
+> v5.1 item buildable with no new infrastructure is "fork a public range into personal library" — purely
+> client-side on the existing share page + local storage — so it is queued first.
+
 ## Next slice
 
-- **Number:** 137
-- **Roadmap target:** v5 — Solver and study-tool integrations
-- **Working title:** Wire CSV range import into the app (new range)
+- **Number:** 138
+- **Roadmap target:** v5.1 — Coaching, sharing, and community features
+- **Working title:** Fork a shared range into the local library
 
 ### Prompt
 
-Continue **v5** by wiring the CSV import parser (slice 136 `parseRangeCsv`) into the app: an "Import
-CSV" control that adds a NEW range from a CSV file. Mirror the existing JSON single-range import exactly.
+Begin **v5.1** with "Fork a public range into personal library": let a visitor viewing a shared range
+SAVE it to their own local library. This is purely client-side (reuses the existing shared page +
+`saveSavedRange`), so it needs NO backend/multi-user decision.
 
 Context:
-- `App.tsx` already has `handleImportRange` (slice 87): a file `<input type="file">` labeled "Import
-  range" in the `editor-controls` block reads `await file.text()`, runs `parseRangeExport`, builds a NEW
-  `SavedRange` with `createRangeId()` + `new Date().toISOString()` timestamps (never clobbering an
-  existing range), `saveSavedRange`s it, refreshes `savedRanges`, and `alert`s on a parse error. Find it
-  and mirror it.
-- `parseRangeCsv(csv)` returns `{ name?: string; hands: PokerHand[] }`. The CSV may omit a name, so
-  supply a sensible fallback name when `parsed.name` is absent/blank (e.g. the uploaded file's name
-  without extension, or `'Imported range'`).
+- `src/components/SharedRangePage.tsx` is the read-only `#/r/:id` page. It fetches a `SavedRange` and,
+  in its `state.status === 'ready'` branch, renders the name + combo summary + a read-only grid. It is
+  presentational/self-contained (injectable `fetchSharedRange`).
+- `App.tsx` splits into a thin `App` that renders `<SharedRangePage … />` when
+  `parseShareRoute(location.hash)` matches, and `AppShell` (the full app). The thin wrapper is where the
+  fork handler belongs (it can import `saveSavedRange` from `storage/rangeStorage` and `createRangeId`).
+  The local-range "add as new with fresh id + timestamps" recipe is the same one `handleImportRange` /
+  `handleImportRangeCsv` use.
 
 Task:
-- In `App.tsx`, add `handleImportRangeCsv` mirroring `handleImportRange`: read the file text, run
-  `parseRangeCsv`, build a NEW `SavedRange` (`id: createRangeId()`, `name: parsed.name?.trim() ||
-  fallback`, `hands: parsed.hands`, fresh `createdAt`/`updatedAt`), `saveSavedRange`, then
-  `setSavedRanges(loadSavedRanges())`; `alert` the error message on a thrown parse error. Reset the
-  input value so the same file can be re-imported (match how `handleImportRange` does it, if it does).
-- Add an "Import CSV" file input (`accept=".csv,text/csv"`) in the `editor-controls` block next to
-  "Import range", following the existing `label.import-backup` markup pattern.
-- Tests: add an `App` test mirroring the existing "Import range" test — upload a `File` containing CSV
-  (e.g. `'hand\nAA\nKK'`) and assert a new range with those hands appears in the library /
-  `loadSavedRanges()`. (Reuse the existing import test's File/`userEvent.upload` or `fireEvent` approach,
-  and any `File.prototype.text` setup it relies on.)
+- Add an optional `onForkRange?: (range: SavedRange) => void` prop to `SharedRangePage`. In the `ready`
+  branch, when `onForkRange` is provided, render a "Save to my library" button; clicking it calls
+  `onForkRange(range)` and flips a local `forked` state to show a "Saved to your library." confirmation
+  (and hide/disable the button so it is not double-saved). No storage import inside the component — it
+  only invokes the callback (keep it presentational).
+- In `App.tsx`'s thin wrapper, pass `onForkRange={handleForkSharedRange}` where `handleForkSharedRange`
+  saves the range locally as a NEW range: `saveSavedRange({ ...range, id: createRangeId(), createdAt:
+  now, updatedAt: now })`. (No need to refresh any list — the shared page is its own view; the next
+  visit to the app loads it from storage.)
+- Tests: extend `SharedRangePage.test.tsx` — with a ready range and an `onForkRange` spy, the button
+  calls it with the range and then shows the confirmation; the button is absent without `onForkRange`
+  and in non-ready states. Optionally an `App`-level test that the fork writes to `loadSavedRanges()`.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- UI/wiring in `App.tsx`; reuse the existing import pattern; no new deps, no domain/storage changes
-  (`parseRangeCsv` + `saveSavedRange` already exist). Small, reversible, backward-compatible (import only
-  ADDS a range). With CSV import done, v5's import bullets are well covered; next, take stock of any
-  remaining v5 item (e.g. "convert solver strategy into simplified practice ranges") or declare v5
-  complete and move to **v5.1**, whose community/coaching features need a DESIGN-DECISION pause.
+- UI in `src/components/`, thin wiring in `App.tsx`; reuse `saveSavedRange` + `createRangeId`; no new
+  deps, no backend/schema changes. Small, reversible. AFTER this slice, the remaining v5.1 features
+  (public/private range PACK hosting, study groups, group leaderboard, coach assignments, comments,
+  shared version history) require a MULTI-USER BACKEND design decision (schema/roles/moderation) the
+  roadmap does not pin down — the `finish-roadmap` loop must PAUSE and ask the user how to approach v5.1's
+  community/backend model before building them.
 
 Suggested commit message:
-- `feat: import a range from a CSV file`
+- `feat: fork a shared range into the local library`

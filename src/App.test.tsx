@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, within, fireEvent, act } from '@testing-library/react'
+import { render, screen, within, fireEvent, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
 import { loadActionAccuracy } from './storage/actionAccuracyStorage'
@@ -1798,5 +1798,46 @@ describe('Range source attribution', () => {
 
     expect(loadSavedRanges()).toHaveLength(1)
     expect(loadSavedRanges()[0].source).toBeUndefined()
+  })
+})
+
+describe('CSV range import', () => {
+  it('imports a range from a CSV file as a new range', async () => {
+    render(<App />)
+
+    const csv = 'hand\nAA\nKK'
+    const file = new File([csv], 'imp.csv', { type: 'text/csv' })
+    // jsdom may not implement Blob.text(); guarantee the file read resolves.
+    Object.defineProperty(file, 'text', { value: () => Promise.resolve(csv) })
+
+    fireEvent.change(screen.getByLabelText('Import CSV'), { target: { files: [file] } })
+
+    await waitFor(() => expect(loadSavedRanges()).toHaveLength(1))
+    const [saved] = loadSavedRanges()
+    expect(saved.hands).toEqual(['AA', 'KK'])
+    // No name row in the CSV, so the file name (sans .csv) is the fallback.
+    expect(saved.name).toBe('imp')
+    expect(within(library()).getByText('imp')).toBeInTheDocument()
+  })
+
+  it('uses the CSV name row when present and reports a parse error', async () => {
+    render(<App />)
+
+    // A full CSV with a name row round-trips the name.
+    const csv = 'field,value\nname,BTN Open\n\nhand\nAA'
+    const file = new File([csv], 'btn.csv', { type: 'text/csv' })
+    Object.defineProperty(file, 'text', { value: () => Promise.resolve(csv) })
+    fireEvent.change(screen.getByLabelText('Import CSV'), { target: { files: [file] } })
+    await waitFor(() => expect(loadSavedRanges()).toHaveLength(1))
+    expect(loadSavedRanges()[0].name).toBe('BTN Open')
+
+    // A malformed CSV alerts and adds nothing more.
+    const alert = vi.spyOn(window, 'alert').mockImplementation(() => {})
+    const bad = new File(['hand\nZZ'], 'bad.csv', { type: 'text/csv' })
+    Object.defineProperty(bad, 'text', { value: () => Promise.resolve('hand\nZZ') })
+    fireEvent.change(screen.getByLabelText('Import CSV'), { target: { files: [bad] } })
+    await waitFor(() => expect(alert).toHaveBeenCalled())
+    expect(loadSavedRanges()).toHaveLength(1)
+    alert.mockRestore()
   })
 })

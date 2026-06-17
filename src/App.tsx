@@ -68,6 +68,7 @@ import {
   encodeRangeToHash,
   formatRangeCsv,
   formatRangeSvg,
+  parseRangeCsv,
   parseRangeExport,
   parseRangePack,
   serializeRangeExport,
@@ -706,6 +707,31 @@ function AppShell() {
     setSavedRanges(loadSavedRanges())
   }
 
+  async function handleImportRangeCsv(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    // Reset the input so re-selecting the same file fires change again.
+    event.target.value = ''
+    if (!file) return
+    let parsed: { name?: string; hands: PokerHand[] }
+    try {
+      parsed = parseRangeCsv(await file.text())
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Could not import CSV file.')
+      return
+    }
+    // The CSV may omit a name; fall back to the file name (sans extension).
+    const fallbackName = file.name.replace(/\.csv$/i, '').trim() || 'Imported range'
+    const now = new Date().toISOString()
+    saveSavedRange({
+      id: createRangeId(),
+      name: parsed.name?.trim() || fallbackName,
+      hands: parsed.hands,
+      createdAt: now,
+      updatedAt: now,
+    })
+    setSavedRanges(loadSavedRanges())
+  }
+
   async function handleImportBackup(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     // Reset the input so re-selecting the same file fires change again.
@@ -1265,6 +1291,10 @@ function AppShell() {
                 accept="application/json,.json"
                 onChange={handleImportRange}
               />
+            </label>
+            <label className="import-backup">
+              Import CSV
+              <input type="file" accept=".csv,text/csv" onChange={handleImportRangeCsv} />
             </label>
             <button type="button" onClick={handleExportPack}>
               Export pack
