@@ -8,6 +8,7 @@ import {
   encodeRangeToHash,
   formatRangeCsv,
   formatRangeSvg,
+  parseRangeCsv,
   parseRangeExport,
   parseRangePack,
   serializeRangeExport,
@@ -99,6 +100,33 @@ describe('formatRangeCsv', () => {
   it('CSV-escapes names containing commas', () => {
     const csv = formatRangeCsv(makeRange({ name: 'BTN, vs BB', hands: ['AA'] }))
     expect(csv).toContain('name,"BTN, vs BB"')
+  })
+})
+
+describe('parseRangeCsv', () => {
+  it('round-trips name and hands from formatRangeCsv (name with a comma)', () => {
+    const range = makeRange({ name: 'BTN, 100bb', hands: ['AA', 'KK', 'AKs'] })
+    const parsed = parseRangeCsv(formatRangeCsv(range))
+    expect(parsed.name).toBe('BTN, 100bb')
+    expect(parsed.hands).toEqual(['AA', 'KK', 'AKs'])
+  })
+
+  it('parses a bare hand column with no summary block', () => {
+    const parsed = parseRangeCsv('hand\nAA\nAKo\n')
+    expect(parsed.name).toBeUndefined()
+    expect(parsed.hands).toEqual(['AA', 'AKo'])
+  })
+
+  it('throws on an invalid hand', () => {
+    expect(() => parseRangeCsv('hand\nAA\nZZ')).toThrow(/invalid hand/i)
+  })
+
+  it('throws when there is no hand column', () => {
+    expect(() => parseRangeCsv('field,value\nname,Foo')).toThrow(/hand/i)
+  })
+
+  it('throws when the hand column is empty', () => {
+    expect(() => parseRangeCsv('hand\n')).toThrow(/empty/i)
   })
 })
 

@@ -1,6 +1,6 @@
 import type { SavedRange } from '../types/range'
 import { RANGE_ACTIONS, type RangeAction } from '../types/range'
-import { generateHandMatrix } from './pokerHands'
+import { generateHandMatrix, isValidHand, type PokerHand } from './pokerHands'
 import { calculateRangePercentage, countSelectedCombos } from './rangeMath'
 
 /**
@@ -84,6 +84,54 @@ export function formatRangeCsv(range: SavedRange): string {
 }
 
 /**
+ * Parse a range CSV produced by {@link formatRangeCsv} back into a name + hands.
+ *
+ * Reads the optional `name,<value>` summary row and the `hand` column (every
+ * non-blank line after the `hand` header). Values are CSV-unescaped and each
+ * hand is validated via `isValidHand`. Throws a clear `Error` when there is no
+ * `hand` column, the column is empty, or a value is not a valid hand. Hands are
+ * returned in file order; the storage layer normalizes (de-dupes, orders) on
+ * save.
+ */
+export function parseRangeCsv(csv: string): { name?: string; hands: PokerHand[] } {
+  const lines = csv.split(/\r?\n/)
+
+  // Scan the summary block for an optional name, stopping at the `hand` header.
+  let name: string | undefined
+  let headerIndex = -1
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].trim() === 'hand') {
+      headerIndex = i
+      break
+    }
+    if (name === undefined && lines[i].startsWith('name,')) {
+      name = csvUnescape(lines[i].slice('name,'.length))
+    }
+  }
+
+  if (headerIndex === -1) {
+    throw new Error('CSV has no "hand" column.')
+  }
+
+  const hands: PokerHand[] = []
+  for (let i = headerIndex + 1; i < lines.length; i++) {
+    const raw = lines[i].trim()
+    if (raw.length === 0) continue
+    const hand = csvUnescape(raw)
+    if (!isValidHand(hand)) {
+      throw new Error(`CSV contains an invalid hand: "${hand}".`)
+    }
+    hands.push(hand)
+  }
+
+  if (hands.length === 0) {
+    throw new Error('CSV "hand" column is empty.')
+  }
+
+  return name !== undefined ? { name, hands } : { hands }
+}
+
+/**
  * Action fill colors for the SVG export, mirroring `ActionPalette.css` so an
  * exported image matches the on-screen multi-color grid.
  */
@@ -156,6 +204,14 @@ function xmlEscape(value: string): string {
 
 function csvEscape(value: string): string {
   return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value
+}
+
+/** Inverse of {@link csvEscape}: unwrap a quoted field and undouble `""`. */
+function csvUnescape(value: string): string {
+  if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) {
+    return value.slice(1, -1).replace(/""/g, '"')
+  }
+  return value
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

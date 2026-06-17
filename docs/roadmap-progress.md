@@ -170,6 +170,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 133 | Standalone per-hand notes editor component | v5 — Solver and study-tool integrations | 2026-06-12 |
 | 134 | Per-range notes editor view (wired + persisted) | v5 — Solver and study-tool integrations | 2026-06-12 |
 | 135 | Show a hand-notes count on the library card | v5 — Solver and study-tool integrations | 2026-06-12 |
+| 136 | CSV range import parser (pure domain) | v5 — Solver and study-tool integrations | 2026-06-12 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -1067,44 +1068,57 @@ distinct class from `.range-item-notes`, which is the whole-range `metadata.note
 tests cover the plural, the singular, and the no-notes (no line) cases. **"Notes linked to specific
 hands" is COMPLETE** (model + storage + standalone editor + per-range view wiring + library indicator).
 
+Slice 136 added the pure-domain CSV import parser, the symmetric counterpart to `formatRangeCsv` (slice
+88). `src/domain/rangeTransfer.ts` gained `csvUnescape` (inverse of `csvEscape`: unwrap a quoted field +
+undouble `""`) and `parseRangeCsv(csv): { name?; hands }`: it scans the summary block for an optional
+`name,<value>` row, finds the `hand` header line, reads every non-blank following line as a CSV-unescaped
+hand validated via `isValidHand`, and throws a clear `Error` when there is no `hand` column, the column
+is empty, or a value is not a valid hand (tolerates `\r\n` and a trailing blank line; hands returned in
+file order, storage normalizes on save). Unit-tested: round-trip from `formatRangeCsv` with a
+comma-containing name, a bare hand-only column, and the three rejection paths. No UI yet.
+
 ## Next slice
 
-- **Number:** 136
+- **Number:** 137
 - **Roadmap target:** v5 — Solver and study-tool integrations
-- **Working title:** CSV range import parser (pure domain)
+- **Working title:** Wire CSV range import into the app (new range)
 
 ### Prompt
 
-Continue **v5** toward its "CSV imports" integration. Add a PURE-DOMAIN parser that reads the CSV
-produced by `formatRangeCsv` back into a range's name + hands. No UI this slice (a later slice wires an
-"Import CSV" control); this is the symmetric counterpart to the existing CSV export.
+Continue **v5** by wiring the CSV import parser (slice 136 `parseRangeCsv`) into the app: an "Import
+CSV" control that adds a NEW range from a CSV file. Mirror the existing JSON single-range import exactly.
 
 Context:
-- `src/domain/rangeTransfer.ts` has `formatRangeCsv(range)` (slice 88). Its output is:
-  a `field,value` summary block (`name,<name>` / `hands,<n>` / `combos,<n>` / `percentage,<p>`), a BLANK
-  line, then a `hand` header line, then one CSV-escaped hand per line in stored order. There is already a
-  private `csvEscape`; add a matching unescape helper (handle the quoted `""`-doubled form). Validate
-  hands via `isValidHand` from `domain/pokerHands.ts`. The module also has `parseRangeExport` /
-  `parseRangePack` as style references for "validate, else throw a clear Error".
+- `App.tsx` already has `handleImportRange` (slice 87): a file `<input type="file">` labeled "Import
+  range" in the `editor-controls` block reads `await file.text()`, runs `parseRangeExport`, builds a NEW
+  `SavedRange` with `createRangeId()` + `new Date().toISOString()` timestamps (never clobbering an
+  existing range), `saveSavedRange`s it, refreshes `savedRanges`, and `alert`s on a parse error. Find it
+  and mirror it.
+- `parseRangeCsv(csv)` returns `{ name?: string; hands: PokerHand[] }`. The CSV may omit a name, so
+  supply a sensible fallback name when `parsed.name` is absent/blank (e.g. the uploaded file's name
+  without extension, or `'Imported range'`).
 
 Task:
-- Add `parseRangeCsv(csv: string): { name?: string; hands: PokerHand[] }` to `rangeTransfer.ts`:
-  - Split into lines (tolerate `\r\n`); locate the `hand` header line (a line equal to `hand` after
-    trimming). Treat every subsequent non-blank line as a hand value (CSV-unescaped), validating each
-    with `isValidHand`; throw a clear `Error` on an invalid hand. De-dupe is not required (storage
-    normalizes later), but DO ignore a trailing blank line.
-  - Read the optional `name` from the summary block's `name,<value>` row (CSV-unescaped) when present.
-  - Throw a clear `Error` when there is no `hand` header/column at all, or when the hand column is empty.
-- Unit-test in `rangeTransfer.test.ts`: round-trip `formatRangeCsv` → `parseRangeCsv` recovers the name
-  and hands (try a range whose name contains a comma so escaping/unescaping is exercised); reject input
-  with an invalid hand; reject input with no `hand` column.
+- In `App.tsx`, add `handleImportRangeCsv` mirroring `handleImportRange`: read the file text, run
+  `parseRangeCsv`, build a NEW `SavedRange` (`id: createRangeId()`, `name: parsed.name?.trim() ||
+  fallback`, `hands: parsed.hands`, fresh `createdAt`/`updatedAt`), `saveSavedRange`, then
+  `setSavedRanges(loadSavedRanges())`; `alert` the error message on a thrown parse error. Reset the
+  input value so the same file can be re-imported (match how `handleImportRange` does it, if it does).
+- Add an "Import CSV" file input (`accept=".csv,text/csv"`) in the `editor-controls` block next to
+  "Import range", following the existing `label.import-backup` markup pattern.
+- Tests: add an `App` test mirroring the existing "Import range" test — upload a `File` containing CSV
+  (e.g. `'hand\nAA\nKK'`) and assert a new range with those hands appears in the library /
+  `loadSavedRanges()`. (Reuse the existing import test's File/`userEvent.upload` or `fireEvent` approach,
+  and any `File.prototype.text` setup it relies on.)
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Pure domain in `src/domain/`; no UI, no storage, no new deps. Small, reversible. The "Import CSV" UI
-  control (add as a NEW range via `createRangeId` + timestamps, like the JSON range import) is the next
-  slice.
+- UI/wiring in `App.tsx`; reuse the existing import pattern; no new deps, no domain/storage changes
+  (`parseRangeCsv` + `saveSavedRange` already exist). Small, reversible, backward-compatible (import only
+  ADDS a range). With CSV import done, v5's import bullets are well covered; next, take stock of any
+  remaining v5 item (e.g. "convert solver strategy into simplified practice ranges") or declare v5
+  complete and move to **v5.1**, whose community/coaching features need a DESIGN-DECISION pause.
 
 Suggested commit message:
-- `feat: CSV range import parser`
+- `feat: import a range from a CSV file`
