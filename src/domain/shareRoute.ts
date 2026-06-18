@@ -25,3 +25,19 @@ export function parseShareRoute(hash: string): ShareRoute | null {
   const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : undefined
   return token ? { id, token } : { id }
 }
+
+/**
+ * Parse a location hash into a shared-PACK route (`#/p/:id`), or null when it is
+ * not one. Mirrors {@link parseShareRoute} for the v5.1 pack page (slice 139's
+ * `shared_packs`); distinct from the `#/r/:id` single-range route so the two
+ * never collide.
+ */
+export function parsePackShareRoute(hash: string): ShareRoute | null {
+  const match = /^#?\/p\/([^/?&#]+)(.*)$/.exec(hash)
+  if (!match) return null
+  const id = decodeURIComponent(match[1])
+  if (!id) return null
+  const tokenMatch = /[?&]t=([^&]+)/.exec(match[2])
+  const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : undefined
+  return token ? { id, token } : { id }
+}

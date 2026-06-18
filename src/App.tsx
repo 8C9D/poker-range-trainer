@@ -38,7 +38,8 @@ import { PostflopPractice } from './components/PostflopPractice'
 import type { PostflopScenario } from './domain/postflopScenario'
 import { RangeShortcuts } from './components/RangeShortcuts'
 import { SharedRangePage } from './components/SharedRangePage'
-import { parseShareRoute } from './domain/shareRoute'
+import { SharedPackPage } from './components/SharedPackPage'
+import { parsePackShareRoute, parseShareRoute } from './domain/shareRoute'
 import { assignedHands, summarizeActionAccuracy } from './domain/actionRange'
 import { setRangeArchived } from './domain/rangeArchive'
 import { duplicateRange } from './domain/rangeDuplication'
@@ -134,6 +135,13 @@ function App() {
         }}
       />
     )
+  }
+
+  // A `#/p/:id` link shows the read-only shared PACK page (bundle of ranges).
+  const packRoute =
+    typeof window !== 'undefined' ? parsePackShareRoute(window.location.hash) : null
+  if (packRoute) {
+    return <SharedPackPage id={packRoute.id} token={packRoute.token} />
   }
 
   return <AppShell />

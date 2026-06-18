@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseShareRoute } from './shareRoute'
+import { parsePackShareRoute, parseShareRoute } from './shareRoute'
 
 describe('parseShareRoute', () => {
   it('parses a public share route', () => {
@@ -23,5 +23,30 @@ describe('parseShareRoute', () => {
     expect(parseShareRoute('#range=abc')).toBeNull()
     expect(parseShareRoute('#/r/')).toBeNull()
     expect(parseShareRoute('#/other')).toBeNull()
+  })
+
+  it('returns null for a pack route', () => {
+    expect(parseShareRoute('#/p/abc')).toBeNull()
+  })
+})
+
+describe('parsePackShareRoute', () => {
+  it('parses a public pack route', () => {
+    expect(parsePackShareRoute('#/p/pack123')).toEqual({ id: 'pack123' })
+  })
+
+  it('parses a private pack route with a token', () => {
+    expect(parsePackShareRoute('#/p/pack123?t=secret')).toEqual({ id: 'pack123', token: 'secret' })
+  })
+
+  it('decodes percent-encoded values', () => {
+    expect(parsePackShareRoute('#/p/a%20b?t=x%26y')).toEqual({ id: 'a b', token: 'x&y' })
+  })
+
+  it('returns null for non-pack hashes (including range routes)', () => {
+    expect(parsePackShareRoute('')).toBeNull()
+    expect(parsePackShareRoute('#/p/')).toBeNull()
+    expect(parsePackShareRoute('#/r/abc')).toBeNull()
+    expect(parsePackShareRoute('#range=abc')).toBeNull()
   })
 })

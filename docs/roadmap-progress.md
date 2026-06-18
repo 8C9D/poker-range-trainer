@@ -174,6 +174,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 137 | Wire CSV range import into the app (new range) | v5 — Solver and study-tool integrations | 2026-06-13 |
 | 138 | Fork a shared range into the local library | v5.1 — Coaching, sharing, and community features | 2026-06-13 |
 | 139 | Shared range packs backend (migration + repo) | v5.1 — Coaching, sharing, and community features | 2026-06-13 |
+| 140 | Read-only shared pack page + #/p/:id route | v5.1 — Coaching, sharing, and community features | 2026-06-13 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -1129,53 +1130,59 @@ delete). Same injectable deps (`client` / `resolveUserId` / `generateId`) + unco
 errors as the other repos; the payload is a `RangePack` (the existing v3.2 envelope). Fully unit-tested
 with a fake client (10 tests). Not wired into the UI yet.
 
+Slice 140 added the visitor read side for shared packs, mirroring the single-range page (slice 93).
+`domain/shareRoute.ts` gained `parsePackShareRoute(hash)` recognizing `#/p/:id` (optional `?t=`/`&t=`
+token, percent-decoded), distinct from the `#/r/:id` parser (each returns null for the other's route;
+unit-tested). `src/components/SharedPackPage.tsx` mirrors `SharedRangePage`'s lazy-init state machine
+(loading/unconfigured/not-found/error/ready) but fetches via the injectable `fetchSharedPack =
+getSharedPack` and, when ready, renders the pack name (fallback "Shared pack") + range count and, per
+contained range, its name + combos/percent summary + a read-only `HandGrid` (or `ActionGrid` when the
+range has `handActions`); an empty pack renders a message. The thin `App` wrapper renders
+`<SharedPackPage>` when `parsePackShareRoute(hash)` matches (checked after the `#/r/` route). Component
+tests mirror the range page (unconfigured, ready w/ name + each range, id/token passthrough, not-found,
+error). No fork/publish yet.
+
 ## Next slice
 
-- **Number:** 140
+- **Number:** 141
 - **Roadmap target:** v5.1 — Coaching, sharing, and community features
-- **Working title:** Read-only shared pack page + `#/p/:id` route
+- **Working title:** Fork a shared pack into the local library (save all ranges)
 
 ### Prompt
 
-Continue **v5.1 range-pack sharing** by adding the VISITOR read side for shared packs: a `#/p/:id`
-route and a read-only `SharedPackPage`, mirroring the single-range share page (slice 93). Slice 139 added
-the `shared_packs` backend (`getSharedPack`). No publish UI yet (that is a later slice).
+Continue **v5.1 range-pack sharing** by letting a visitor FORK a shared pack into their local library —
+the bundle counterpart of slice 138's single-range fork ("Save all to my library" saves every range in
+the pack as new local ranges).
 
 Context:
-- `src/domain/shareRoute.ts` has `parseShareRoute(hash)` recognizing `#/r/:id` with an optional `?t=` /
-  `&t=` private token (percent-decoded), returning `{ id, token? } | null`. Mirror it for packs.
-- `src/components/SharedRangePage.tsx` is the read-only range page: lazy-initialized `LoadState`
-  (loading / unconfigured / not-found / error / ready), an effect that calls the injectable
-  `fetchSharedRange` and sets state, and a `ready` render. `getSharedPack(id, token?)` (slice 139,
-  `src/cloud/sharedPacksRepo.ts`) returns a `RangePack | null` (`RangePack` = `{ kind, version, name?,
-  ranges: SavedRange[] }` from `domain/rangeTransfer`).
-- `App.tsx`'s thin `App` wrapper renders `<SharedRangePage>` when `parseShareRoute` matches, else
-  `<AppShell>`.
+- `src/components/SharedPackPage.tsx` (slice 140) renders a `RangePack` read-only in its `ready` branch.
+  `RangePack.ranges` is `SavedRange[]`.
+- Slice 138's pattern: `SharedRangePage` has an optional `onForkRange?(range)` prop; in `ready` it shows
+  a "Save to my library" button that calls the callback and flips a local `forked` state to a
+  confirmation, hiding the button. The thin `App` wrapper passes a handler that saves the range locally
+  with a fresh `createRangeId()` + timestamps. Mirror this for packs.
 
 Task:
-- In `shareRoute.ts`, add `parsePackShareRoute(hash): { id: string; token?: string } | null` recognizing
-  `#/p/:id` (optional `?t=`/`&t=` token, percent-decoded), mirroring `parseShareRoute` exactly (keep the
-  `#/r/` parser unchanged). Unit-test it (match, token, no-match, non-pack hash).
-- Add `src/components/SharedPackPage.tsx` (+ reuse `SharedRangePage`'s CSS class or add a small one),
-  mirroring `SharedRangePage`'s state machine but fetching via an injectable `fetchSharedPack =
-  getSharedPack` and `cloudConfigured = isCloudConfigured`. In the `ready` branch render the pack name
-  (fallback "Shared pack" when absent) and, for EACH range in `pack.ranges`, its name + combos/percent
-  summary (reuse `countSelectedCombos` / `calculateRangePercentage`) and a read-only `HandGrid` (or
-  `ActionGrid` when the range has `handActions`), with no-op handlers — keep it presentational. Handle an
-  empty `ranges` array gracefully.
-- In `App.tsx`'s thin wrapper, render `<SharedPackPage id token />` when `parsePackShareRoute(hash)`
-  matches (check it alongside `parseShareRoute`). No fork yet — forking the pack into the local library
-  is the next slice.
-- Tests: `SharedPackPage.test.tsx` mirroring `SharedRangePage.test.tsx` (unconfigured message; renders
-  the pack name + each range once loaded; passes id/token to the fetcher; not-found; error). Extend
-  `shareRoute.test.ts` for the new parser.
+- Add an optional `onForkPack?: (pack: RangePack) => void` prop to `SharedPackPage`. In the `ready`
+  branch, when provided, render a "Save all to my library" button (place it near the pack header);
+  clicking calls `onForkPack(pack)` and flips a local `forked` state to a "Saved N ranges to your
+  library." confirmation (use `pack.ranges.length`), hiding the button so it cannot double-save. Keep
+  the component presentational (no storage import). Declare the `forked` state at the top with the other
+  hook (before the early returns).
+- In `App.tsx`'s thin wrapper, pass `onForkPack={handleForkPack}` where `handleForkPack` saves EACH
+  range in `pack.ranges` locally as a NEW range: for each, `saveSavedRange({ ...range, id:
+  createRangeId(), createdAt: now, updatedAt: now })`. (A shared id within the pack must not clobber an
+  existing local range — always mint a fresh id.)
+- Tests: extend `SharedPackPage.test.tsx` — with a ready pack and an `onForkPack` spy, the button calls
+  it with the pack and then shows the "Saved N ranges" confirmation; the button is absent without
+  `onForkPack` and in non-ready states.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Domain in `src/domain/`, UI in `src/components/`, thin wiring in `App.tsx`; reuse the read-only grids;
-  injectable fetch so tests need no network; no new deps. Small, reversible. Next slices: "Save pack to
-  my library" (fork all ranges), then publish/unpublish a pack from the library UI.
+- UI in `src/components/`, thin wiring in `App.tsx`; reuse `saveSavedRange` + `createRangeId`; no new
+  deps, no backend/schema changes. Small, reversible. Next: publish all ranges as a shared pack link
+  from the library UI (mirroring slice 94's single-range publish), then unpublish (slice 95).
 
 Suggested commit message:
-- `feat: read-only shared pack page and #/p/:id route`
+- `feat: fork a shared pack into the local library`
