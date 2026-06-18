@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import type { SavedRange } from '../types/range'
 import { buildRangePack, type RangePack } from '../domain/rangeTransfer'
 import { SharedPackPage } from './SharedPackPage'
@@ -81,5 +82,57 @@ describe('SharedPackPage', () => {
       />,
     )
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('db down'))
+  })
+
+  it('forks the whole pack to the local library and then confirms', async () => {
+    const user = userEvent.setup()
+    const pack = makePack()
+    const onForkPack = vi.fn()
+    render(
+      <SharedPackPage
+        id="abc"
+        fetchSharedPack={vi.fn().mockResolvedValue(pack)}
+        cloudConfigured={configured}
+        onForkPack={onForkPack}
+      />,
+    )
+
+    const button = await screen.findByRole('button', { name: 'Save all to my library' })
+    await user.click(button)
+
+    expect(onForkPack).toHaveBeenCalledExactlyOnceWith(pack)
+    expect(screen.getByText('Saved 2 ranges to your library.')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Save all to my library' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('shows no fork button when onForkPack is not provided', async () => {
+    render(
+      <SharedPackPage
+        id="abc"
+        fetchSharedPack={vi.fn().mockResolvedValue(makePack())}
+        cloudConfigured={configured}
+      />,
+    )
+    await screen.findByRole('heading', { name: 'Cash openers' })
+    expect(
+      screen.queryByRole('button', { name: 'Save all to my library' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('shows no fork button when the pack is not found', async () => {
+    render(
+      <SharedPackPage
+        id="missing"
+        fetchSharedPack={vi.fn().mockResolvedValue(null)}
+        cloudConfigured={configured}
+        onForkPack={vi.fn()}
+      />,
+    )
+    await screen.findByText(/was not found/i)
+    expect(
+      screen.queryByRole('button', { name: 'Save all to my library' }),
+    ).not.toBeInTheDocument()
   })
 })

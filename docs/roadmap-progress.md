@@ -175,6 +175,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 138 | Fork a shared range into the local library | v5.1 — Coaching, sharing, and community features | 2026-06-13 |
 | 139 | Shared range packs backend (migration + repo) | v5.1 — Coaching, sharing, and community features | 2026-06-13 |
 | 140 | Read-only shared pack page + #/p/:id route | v5.1 — Coaching, sharing, and community features | 2026-06-13 |
+| 141 | Fork a shared pack into the local library | v5.1 — Coaching, sharing, and community features | 2026-06-13 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -1142,47 +1143,58 @@ range has `handActions`); an empty pack renders a message. The thin `App` wrappe
 tests mirror the range page (unconfigured, ready w/ name + each range, id/token passthrough, not-found,
 error). No fork/publish yet.
 
+Slice 141 added forking a shared pack into the local library, the bundle counterpart of slice 138.
+`SharedPackPage` gained an optional `onForkPack?(pack)` prop: on a loaded pack it renders a "Save all to
+my library" button that calls the callback and flips a local `forked` state to a "Saved N ranges to your
+library." confirmation (using `pack.ranges.length`), hiding the button so it cannot double-save; the
+component stays presentational. The thin `App` wrapper passes `onForkPack` that saves EACH range in the
+pack locally as a NEW range (fresh `createRangeId()` + timestamps per range, so a shared id never
+clobbers an existing one). Component tests cover the fork-then-confirm flow, the button's absence without
+`onForkPack`, and its absence in the not-found state.
+
 ## Next slice
 
-- **Number:** 141
+- **Number:** 142
 - **Roadmap target:** v5.1 — Coaching, sharing, and community features
-- **Working title:** Fork a shared pack into the local library (save all ranges)
+- **Working title:** Publish all ranges as a shared pack link (signed-in UI)
 
 ### Prompt
 
-Continue **v5.1 range-pack sharing** by letting a visitor FORK a shared pack into their local library —
-the bundle counterpart of slice 138's single-range fork ("Save all to my library" saves every range in
-the pack as new local ranges).
+Continue **v5.1 range-pack sharing** by letting a signed-in user PUBLISH all their ranges as one
+shareable pack link, mirroring the single-range publish (slice 94) for the `#/p/:id` pack page.
 
 Context:
-- `src/components/SharedPackPage.tsx` (slice 140) renders a `RangePack` read-only in its `ready` branch.
-  `RangePack.ranges` is `SavedRange[]`.
-- Slice 138's pattern: `SharedRangePage` has an optional `onForkRange?(range)` prop; in `ready` it shows
-  a "Save to my library" button that calls the callback and flips a local `forked` state to a
-  confirmation, hiding the button. The thin `App` wrapper passes a handler that saves the range locally
-  with a fresh `createRangeId()` + timestamps. Mirror this for packs.
+- `App.tsx` has `handlePublishRange(range)` (slice 94): it `confirm`s public-vs-private, calls
+  `publishSharedRange`, builds `${origin}${pathname}#/r/${id}` (`?t=${token}` for private), copies it to
+  the clipboard (falling back to `window.prompt`), and reports via `setSyncStatus`. Mirror it.
+- `buildRangePack(name, ranges)` (`domain/rangeTransfer`) builds the `RangePack` envelope; `handleExportPack`
+  already calls `serializeRangePack('', savedRanges)` to bundle ALL ranges. `publishSharedPack(pack,
+  isPublic)` (slice 139, `cloud/sharedPacksRepo`) returns `{ id, isPublic, token }`.
+- The signed-in `cloud-sync` block in the header (`{auth.session && (<div className="cloud-sync">…)}`,
+  with Push/Pull/Delete buttons + the `syncStatus` line) is the right home for a global pack action.
 
 Task:
-- Add an optional `onForkPack?: (pack: RangePack) => void` prop to `SharedPackPage`. In the `ready`
-  branch, when provided, render a "Save all to my library" button (place it near the pack header);
-  clicking calls `onForkPack(pack)` and flips a local `forked` state to a "Saved N ranges to your
-  library." confirmation (use `pack.ranges.length`), hiding the button so it cannot double-save. Keep
-  the component presentational (no storage import). Declare the `forked` state at the top with the other
-  hook (before the early returns).
-- In `App.tsx`'s thin wrapper, pass `onForkPack={handleForkPack}` where `handleForkPack` saves EACH
-  range in `pack.ranges` locally as a NEW range: for each, `saveSavedRange({ ...range, id:
-  createRangeId(), createdAt: now, updatedAt: now })`. (A shared id within the pack must not clobber an
-  existing local range — always mint a fresh id.)
-- Tests: extend `SharedPackPage.test.tsx` — with a ready pack and an `onForkPack` spy, the button calls
-  it with the pack and then shows the "Saved N ranges" confirmation; the button is absent without
-  `onForkPack` and in non-ready states.
+- In `App.tsx`, add `handlePublishPack()` mirroring `handlePublishRange`: no-op (or status "No ranges to
+  publish.") when `savedRanges.length === 0`; otherwise `confirm` public-vs-private, build the pack via
+  `buildRangePack('', savedRanges)`, call `publishSharedPack(pack, isPublic)`, build
+  `${origin}${pathname}#/p/${id}` (+ `?t=${token}` for private), copy to clipboard (fallback
+  `window.prompt`), and report via `setSyncStatus`. Add a `publishedPackId` state set to the returned id
+  on success (the next slice's "Unpublish pack" uses it). Import `buildRangePack` + `publishSharedPack`.
+- Add a "Publish pack link" button inside the existing `cloud-sync` block (signed-in only), calling
+  `() => void handlePublishPack()`, next to Push/Pull/Delete.
+- Tests: an App-level test can confirm the button is ABSENT when signed out (the default test state has
+  no Supabase env, so the `cloud-sync` block does not render) — a light gating check. The handler itself
+  is glue over the already-tested `publishSharedPack` + `buildRangePack`; do not fake a signed-in cloud
+  session just to test it.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- UI in `src/components/`, thin wiring in `App.tsx`; reuse `saveSavedRange` + `createRangeId`; no new
-  deps, no backend/schema changes. Small, reversible. Next: publish all ranges as a shared pack link
-  from the library UI (mirroring slice 94's single-range publish), then unpublish (slice 95).
+- Wiring in `App.tsx`; reuse the `handlePublishRange` pattern + `buildRangePack`/`publishSharedPack`; no
+  new deps, no backend/schema changes. Small, reversible, signed-in-gated (local users see nothing new).
+  Next: "Unpublish pack" (slice 143, mirroring slice 95) using `publishedPackId`, which COMPLETES the
+  in-scope v5.1 range-pack-sharing arc; the loop then moves to **v6 — Final polished product** (the
+  deferred social features stay deferred per the v5.1 decision).
 
 Suggested commit message:
-- `feat: fork a shared pack into the local library`
+- `feat: publish all ranges as a shared pack link`

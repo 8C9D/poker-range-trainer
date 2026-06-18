@@ -14,6 +14,12 @@ interface SharedPackPageProps {
   fetchSharedPack?: (id: string, token?: string) => Promise<RangePack | null>
   /** Injectable cloud-config check (defaults to env-gated detection). */
   cloudConfigured?: () => boolean
+  /**
+   * Save every range in this pack into the viewer's own library ("fork"). When
+   * provided, a "Save all to my library" button appears on a loaded pack. The
+   * parent owns the actual storage writes; the page only invokes the callback.
+   */
+  onForkPack?: (pack: RangePack) => void
 }
 
 type LoadState =
@@ -35,12 +41,15 @@ export function SharedPackPage({
   token,
   fetchSharedPack = getSharedPack,
   cloudConfigured = isCloudConfigured,
+  onForkPack,
 }: SharedPackPageProps) {
   // Initialize lazily so the unconfigured case never needs a synchronous
   // setState inside the effect (which the lint config forbids).
   const [state, setState] = useState<LoadState>(() =>
     cloudConfigured() ? { status: 'loading' } : { status: 'unconfigured' },
   )
+  // Whether the viewer has already forked this pack into their library.
+  const [forked, setForked] = useState(false)
 
   useEffect(() => {
     if (!cloudConfigured()) return
@@ -101,6 +110,23 @@ export function SharedPackPage({
       <p>
         {pack.ranges.length} range{pack.ranges.length === 1 ? '' : 's'}
       </p>
+      {onForkPack &&
+        (forked ? (
+          <p className="shared-range-forked" role="status">
+            Saved {pack.ranges.length} range{pack.ranges.length === 1 ? '' : 's'} to your library.
+          </p>
+        ) : (
+          <button
+            type="button"
+            className="primary"
+            onClick={() => {
+              onForkPack(pack)
+              setForked(true)
+            }}
+          >
+            Save all to my library
+          </button>
+        ))}
       {pack.ranges.length === 0 ? (
         <p>This pack has no ranges.</p>
       ) : (

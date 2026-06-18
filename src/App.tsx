@@ -141,7 +141,20 @@ function App() {
   const packRoute =
     typeof window !== 'undefined' ? parsePackShareRoute(window.location.hash) : null
   if (packRoute) {
-    return <SharedPackPage id={packRoute.id} token={packRoute.token} />
+    return (
+      <SharedPackPage
+        id={packRoute.id}
+        token={packRoute.token}
+        onForkPack={(pack) => {
+          // Fork: save every range in the pack locally as a NEW range, minting a
+          // fresh id for each so a shared id never clobbers an existing range.
+          const now = new Date().toISOString()
+          for (const range of pack.ranges) {
+            saveSavedRange({ ...range, id: createRangeId(), createdAt: now, updatedAt: now })
+          }
+        }}
+      />
+    )
   }
 
   return <AppShell />
