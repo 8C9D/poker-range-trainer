@@ -62,9 +62,11 @@ import { loadSessionHistory, recordPracticeSessionHistory } from './storage/sess
 import { deleteSavedRange, loadSavedRanges, saveSavedRange } from './storage/rangeStorage'
 import { deleteBackup, pullBackup, pushBackup } from './cloud/backupRepo'
 import { publishSharedRange, unpublishSharedRange } from './cloud/sharedRangesRepo'
+import { publishSharedPack, unpublishSharedPack } from './cloud/sharedPacksRepo'
 import { buildBackup, parseBackup, restoreBackup, serializeBackup } from './storage/backup'
 import { useAuthSession } from './cloud/useAuthSession'
 import {
+  buildRangePack,
   decodeRangeFromHash,
   encodeRangeToHash,
   formatRangeCsv,
@@ -794,6 +796,8 @@ function AppShell() {
   const [syncStatus, setSyncStatus] = useState('')
   // Share ids published this session, keyed by range id, so they can be unpublished.
   const [publishedShareIds, setPublishedShareIds] = useState<Record<string, string>>({})
+  // The pack share id published this session (if any), so it can be unpublished.
+  const [publishedPackId, setPublishedPackId] = useState<string | null>(null)
 
   async function handlePublishRange(range: SavedRange) {
     // OK = public (anyone with the link); Cancel = private (link carries a token).
@@ -816,6 +820,46 @@ function AppShell() {
       }
     } catch (error) {
       setSyncStatus(error instanceof Error ? error.message : 'Publish failed.')
+    }
+  }
+
+  async function handlePublishPack() {
+    if (savedRanges.length === 0) {
+      setSyncStatus('No ranges to publish.')
+      return
+    }
+    // OK = public (anyone with the link); Cancel = private (link carries a token).
+    const isPublic = window.confirm(
+      `Publish all ${savedRanges.length} ranges as a shareable pack link?\n\nOK = public (anyone with the link can view)\nCancel = private (link includes a secret token)`,
+    )
+    setSyncStatus('Publishing pack…')
+    try {
+      const { id, token } = await publishSharedPack(buildRangePack('', savedRanges), isPublic)
+      // Remember the pack share id so this session can unpublish it later.
+      setPublishedPackId(id)
+      const base = `${window.location.origin}${window.location.pathname}#/p/${id}`
+      const link = token ? `${base}?t=${token}` : base
+      try {
+        await navigator.clipboard.writeText(link)
+        setSyncStatus('Pack link copied to clipboard.')
+      } catch {
+        window.prompt('Copy this pack link:', link)
+        setSyncStatus('Pack link ready.')
+      }
+    } catch (error) {
+      setSyncStatus(error instanceof Error ? error.message : 'Publish failed.')
+    }
+  }
+
+  async function handleUnpublishPack() {
+    if (!publishedPackId) return
+    setSyncStatus('Unpublishing pack…')
+    try {
+      await unpublishSharedPack(publishedPackId)
+      setPublishedPackId(null)
+      setSyncStatus('Pack link unpublished.')
+    } catch (error) {
+      setSyncStatus(error instanceof Error ? error.message : 'Unpublish failed.')
     }
   }
 
@@ -954,6 +998,14 @@ function AppShell() {
             <button type="button" onClick={() => void handleDeleteCloudData()}>
               Delete cloud data
             </button>
+            <button type="button" onClick={() => void handlePublishPack()}>
+              Publish pack link
+            </button>
+            {publishedPackId && (
+              <button type="button" onClick={() => void handleUnpublishPack()}>
+                Unpublish pack
+              </button>
+            )}
             {syncStatus && <span className="cloud-sync-status">{syncStatus}</span>}
           </div>
         )}

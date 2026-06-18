@@ -176,6 +176,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 139 | Shared range packs backend (migration + repo) | v5.1 — Coaching, sharing, and community features | 2026-06-13 |
 | 140 | Read-only shared pack page + #/p/:id route | v5.1 — Coaching, sharing, and community features | 2026-06-13 |
 | 141 | Fork a shared pack into the local library | v5.1 — Coaching, sharing, and community features | 2026-06-13 |
+| 142 | Publish + unpublish all ranges as a shared pack link | v5.1 — Coaching, sharing, and community features | 2026-06-13 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -1152,49 +1153,66 @@ pack locally as a NEW range (fresh `createRangeId()` + timestamps per range, so 
 clobbers an existing one). Component tests cover the fork-then-confirm flow, the button's absence without
 `onForkPack`, and its absence in the not-found state.
 
+Slice 142 added publishing AND unpublishing a shared pack link (signed-in UI), mirroring the
+single-range publish/unpublish (slices 94/95). `App.handlePublishPack` confirms public-vs-private, builds
+the pack via `buildRangePack('', savedRanges)`, calls `publishSharedPack`, builds `${origin}${pathname}
+#/p/${id}` (+ `?t=${token}` for private), copies it to the clipboard (falling back to `window.prompt`),
+reports via `syncStatus`, and stores the returned id in a `publishedPackId` state (status "No ranges to
+publish." when the library is empty). `handleUnpublishPack` calls `unpublishSharedPack(publishedPackId)`
+and clears it. A "Publish pack link" button (and a conditional "Unpublish pack" button when
+`publishedPackId` is set) live in the signed-in `cloud-sync` header block. (Publish + unpublish were
+merged into one slice: a single global pack has one published id, and storing `publishedPackId` is only
+lint-clean once something reads it.) An App test confirms both controls are absent when signed out; the
+handlers are glue over the already-tested `publishSharedPack`/`unpublishSharedPack`/`buildRangePack`.
+
+> ✅ **v5.1 range-pack sharing is COMPLETE** (slices 139–142): `shared_packs` backend (migration + repo),
+> the read-only `#/p/:id` pack page, fork-a-pack into the local library, and publish/unpublish a pack
+> link — reusing the `shared_ranges` publish / route / fork model end-to-end. Per the user's v5.1 design
+> decision (2026-06-13), the HEAVY community features (study groups, group leaderboards, coach-created
+> assignments, comments on ranges, shared version history) are intentionally DEFERRED (they need a
+> multi-user backend the roadmap does not pin down). **The roadmap now moves to v6 — Final polished
+> product**, the last version: it is mostly a recap of already-built features, so the net-new work is
+> onboarding, UI polish, and an analytics overview — all buildable on what exists, no design decision.
+> Start with a small onboarding slice.
+
 ## Next slice
 
-- **Number:** 142
-- **Roadmap target:** v5.1 — Coaching, sharing, and community features
-- **Working title:** Publish all ranges as a shared pack link (signed-in UI)
+- **Number:** 143
+- **Roadmap target:** v6 — Final polished product
+- **Working title:** Onboarding getting-started panel for an empty library
 
 ### Prompt
 
-Continue **v5.1 range-pack sharing** by letting a signed-in user PUBLISH all their ranges as one
-shareable pack link, mirroring the single-range publish (slice 94) for the `#/p/:id` pack page.
+Begin **v6 — Final polished product** with a small onboarding win: a getting-started panel shown to a
+NEW user whose library is empty, so the first run explains how to build/import a range instead of just
+showing an empty list.
 
 Context:
-- `App.tsx` has `handlePublishRange(range)` (slice 94): it `confirm`s public-vs-private, calls
-  `publishSharedRange`, builds `${origin}${pathname}#/r/${id}` (`?t=${token}` for private), copies it to
-  the clipboard (falling back to `window.prompt`), and reports via `setSyncStatus`. Mirror it.
-- `buildRangePack(name, ranges)` (`domain/rangeTransfer`) builds the `RangePack` envelope; `handleExportPack`
-  already calls `serializeRangePack('', savedRanges)` to bundle ALL ranges. `publishSharedPack(pack,
-  isPublic)` (slice 139, `cloud/sharedPacksRepo`) returns `{ id, isPublic, token }`.
-- The signed-in `cloud-sync` block in the header (`{auth.session && (<div className="cloud-sync">…)}`,
-  with Push/Pull/Delete buttons + the `syncStatus` line) is the right home for a global pack action.
+- `src/components/RangeLibrary.tsx` already renders a terse "no saved ranges" empty message when
+  `ranges` is empty (search for the empty branch). The full app (`AppShell`) renders the editor + grid
+  above the library.
+- This is purely presentational/local — no storage, no backend. Keep the existing empty message OR
+  fold it into the new panel.
 
 Task:
-- In `App.tsx`, add `handlePublishPack()` mirroring `handlePublishRange`: no-op (or status "No ranges to
-  publish.") when `savedRanges.length === 0`; otherwise `confirm` public-vs-private, build the pack via
-  `buildRangePack('', savedRanges)`, call `publishSharedPack(pack, isPublic)`, build
-  `${origin}${pathname}#/p/${id}` (+ `?t=${token}` for private), copy to clipboard (fallback
-  `window.prompt`), and report via `setSyncStatus`. Add a `publishedPackId` state set to the returned id
-  on success (the next slice's "Unpublish pack" uses it). Import `buildRangePack` + `publishSharedPack`.
-- Add a "Publish pack link" button inside the existing `cloud-sync` block (signed-in only), calling
-  `() => void handlePublishPack()`, next to Push/Pull/Delete.
-- Tests: an App-level test can confirm the button is ABSENT when signed out (the default test state has
-  no Supabase env, so the `cloud-sync` block does not render) — a light gating check. The handler itself
-  is glue over the already-tested `publishSharedPack` + `buildRangePack`; do not fake a signed-in cloud
-  session just to test it.
+- Add `src/components/GettingStarted.tsx` (+ a small CSS file): a presentational panel with a short
+  welcome line and 3–4 concise steps (e.g. "1. Click hands on the grid to build a range. 2. Name it and
+  click Save Range. 3. Practice it from the library. 4. Or import a range/CSV/JSON or a shared link.").
+  No props needed (or an optional `className`). Keep copy tight and accurate to THIS app's actual
+  controls (Save Range, Practice, Import range/CSV/pack).
+- In `AppShell`, render `<GettingStarted />` only when `savedRanges.length === 0` AND the user is on the
+  main editor view (not inside a practice/editor sub-view) — place it just above or in place of the
+  library's empty state. Do not show it once the user has any saved range.
+- Tests: `GettingStarted.test.tsx` (renders the heading + the step text). Extend an `App` test: a fresh
+  render (empty library) shows the getting-started panel; after saving a range it is gone.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Wiring in `App.tsx`; reuse the `handlePublishRange` pattern + `buildRangePack`/`publishSharedPack`; no
-  new deps, no backend/schema changes. Small, reversible, signed-in-gated (local users see nothing new).
-  Next: "Unpublish pack" (slice 143, mirroring slice 95) using `publishedPackId`, which COMPLETES the
-  in-scope v5.1 range-pack-sharing arc; the loop then moves to **v6 — Final polished product** (the
-  deferred social features stay deferred per the v5.1 decision).
+- UI only in `src/components/` + a thin conditional in `AppShell`; no new deps, no storage/backend
+  changes. Small, reversible. Keep the copy honest about existing features only. After this, other v6
+  polish slices (e.g. a performance/analytics overview across ranges, or UI refinements) can follow;
+  v6 is the final version, so the loop ends when its slices are exhausted.
 
 Suggested commit message:
-- `feat: publish all ranges as a shared pack link`
+- `feat: getting-started onboarding panel for an empty library`

@@ -1841,3 +1841,13 @@ describe('CSV range import', () => {
     alert.mockRestore()
   })
 })
+
+describe('Shared pack publishing', () => {
+  it('does not show the pack publish/unpublish controls when signed out', () => {
+    render(<App />)
+    // The cloud-sync block (and its pack controls) only render for a signed-in
+    // user; local-only mode in tests has no Supabase env.
+    expect(screen.queryByRole('button', { name: 'Publish pack link' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Unpublish pack' })).not.toBeInTheDocument()
+  })
+})
