@@ -8,6 +8,7 @@ import { RangeDiffView } from './components/RangeDiffView'
 import { handsWithMixedStrategy } from './domain/mixedStrategy'
 import { BuildFromMemoryPractice } from './components/BuildFromMemoryPractice'
 import { DueToday } from './components/DueToday'
+import { GettingStarted } from './components/GettingStarted'
 import { HandGrid } from './components/HandGrid'
 import { HandNotesEditor } from './components/HandNotesEditor'
 import { MultiActionEditor } from './components/MultiActionEditor'
@@ -1391,6 +1392,8 @@ function AppShell() {
               />
             </label>
           </div>
+
+          {savedRanges.length === 0 && <GettingStarted />}
 
           <RangeLibrary
             ranges={savedRanges}

@@ -1851,3 +1851,20 @@ describe('Shared pack publishing', () => {
     expect(screen.queryByRole('button', { name: 'Unpublish pack' })).not.toBeInTheDocument()
   })
 })
+
+describe('Getting started onboarding', () => {
+  it('shows the getting-started panel only while the library is empty', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    // A fresh library shows the onboarding panel.
+    expect(screen.getByRole('region', { name: 'Getting started' })).toBeInTheDocument()
+
+    // Saving the first range hides it.
+    await user.type(screen.getByLabelText('Range name'), 'First')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Save Range' }))
+
+    expect(screen.queryByRole('region', { name: 'Getting started' })).not.toBeInTheDocument()
+  })
+})

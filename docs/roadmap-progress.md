@@ -177,6 +177,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 140 | Read-only shared pack page + #/p/:id route | v5.1 — Coaching, sharing, and community features | 2026-06-13 |
 | 141 | Fork a shared pack into the local library | v5.1 — Coaching, sharing, and community features | 2026-06-13 |
 | 142 | Publish + unpublish all ranges as a shared pack link | v5.1 — Coaching, sharing, and community features | 2026-06-13 |
+| 143 | Onboarding getting-started panel for an empty library | v6 — Final polished product | 2026-06-13 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -1175,44 +1176,50 @@ handlers are glue over the already-tested `publishSharedPack`/`unpublishSharedPa
 > onboarding, UI polish, and an analytics overview — all buildable on what exists, no design decision.
 > Start with a small onboarding slice.
 
+Slice 143 began **v6** with a getting-started onboarding panel. `src/components/GettingStarted.tsx`
+(+ CSS) is a presentational welcome panel: a heading + an ordered list of 4 concise steps that match the
+app's real controls (build on the 13×13 grid → Save Range → Practice → or Import range/CSV/pack / open a
+shared link). `AppShell` renders `<GettingStarted />` only when `savedRanges.length === 0`, just above
+the library, inside the main editor view (so it never shows over a sub-view). Component test checks the
+heading + steps; an App test confirms the panel shows on a fresh (empty) library and disappears after the
+first range is saved.
+
 ## Next slice
 
-- **Number:** 143
+- **Number:** 144
 - **Roadmap target:** v6 — Final polished product
-- **Working title:** Onboarding getting-started panel for an empty library
+- **Working title:** Library-wide practice analytics (pure domain)
 
 ### Prompt
 
-Begin **v6 — Final polished product** with a small onboarding win: a getting-started panel shown to a
-NEW user whose library is empty, so the first run explains how to build/import a range instead of just
-showing an empty list.
+Continue **v6** toward the roadmap's "Performance analytics" with a PURE-DOMAIN foundation: aggregate
+practice stats ACROSS all ranges into one library-wide summary. No UI this slice (a later slice adds the
+panel).
 
 Context:
-- `src/components/RangeLibrary.tsx` already renders a terse "no saved ranges" empty message when
-  `ranges` is empty (search for the empty branch). The full app (`AppShell`) renders the editor + grid
-  above the library.
-- This is purely presentational/local — no storage, no backend. Keep the existing empty message OR
-  fold it into the new panel.
+- `RangePracticeStats` (`src/types/practice.ts`) is `{ rangeId, totalAttempts, correctAttempts,
+  lastPracticedAt }`. `App` already holds a `practiceStats: Record<rangeId, RangePracticeStats>` map.
+- `src/domain/practiceStats.ts` has `practiceAccuracyPercentage(stats)` (per range), built on
+  `accuracyPercentage(correct, total)` in `src/domain/accuracy.ts` (zero-guarded). Reuse the latter for
+  the overall rate.
 
 Task:
-- Add `src/components/GettingStarted.tsx` (+ a small CSS file): a presentational panel with a short
-  welcome line and 3–4 concise steps (e.g. "1. Click hands on the grid to build a range. 2. Name it and
-  click Save Range. 3. Practice it from the library. 4. Or import a range/CSV/JSON or a shared link.").
-  No props needed (or an optional `className`). Keep copy tight and accurate to THIS app's actual
-  controls (Save Range, Practice, Import range/CSV/pack).
-- In `AppShell`, render `<GettingStarted />` only when `savedRanges.length === 0` AND the user is on the
-  main editor view (not inside a practice/editor sub-view) — place it just above or in place of the
-  library's empty state. Do not show it once the user has any saved range.
-- Tests: `GettingStarted.test.tsx` (renders the heading + the step text). Extend an `App` test: a fresh
-  render (empty library) shows the getting-started panel; after saving a range it is gone.
+- Add `src/domain/libraryAnalytics.ts` with a `LibraryAnalytics` type (`{ rangesPracticed: number;
+  totalAttempts: number; totalCorrect: number; overallAccuracy: number }`) and
+  `summarizeLibraryAnalytics(stats: RangePracticeStats[]): LibraryAnalytics` that folds the array:
+  sum `totalAttempts` and `correctAttempts` (as `totalCorrect`), count entries with `totalAttempts > 0`
+  as `rangesPracticed`, and compute `overallAccuracy` via `accuracyPercentage(totalCorrect,
+  totalAttempts)` (so an empty array or all-zero yields 0, not NaN). Pure; no React/storage.
+- Unit-test in `libraryAnalytics.test.ts`: empty array → all zeros; a mix of practiced/never-practiced
+  ranges aggregates correctly (counts, totals, overall %); zero-attempt entries don't inflate
+  `rangesPracticed`.
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- UI only in `src/components/` + a thin conditional in `AppShell`; no new deps, no storage/backend
-  changes. Small, reversible. Keep the copy honest about existing features only. After this, other v6
-  polish slices (e.g. a performance/analytics overview across ranges, or UI refinements) can follow;
-  v6 is the final version, so the loop ends when its slices are exhausted.
+- Pure domain in `src/domain/`; reuse `accuracyPercentage`; no new deps, no UI/storage. Small,
+  reversible. Next slice: a small "Library analytics" panel (e.g. shown in the editor view or a stats
+  view) fed by `Object.values(practiceStats)` through this helper.
 
 Suggested commit message:
-- `feat: getting-started onboarding panel for an empty library`
+- `feat: library-wide practice analytics helper`
