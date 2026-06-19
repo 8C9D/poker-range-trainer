@@ -178,6 +178,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 141 | Fork a shared pack into the local library | v5.1 — Coaching, sharing, and community features | 2026-06-13 |
 | 142 | Publish + unpublish all ranges as a shared pack link | v5.1 — Coaching, sharing, and community features | 2026-06-13 |
 | 143 | Onboarding getting-started panel for an empty library | v6 — Final polished product | 2026-06-13 |
+| 144 | Library-wide practice analytics helper (pure domain) | v6 — Final polished product | 2026-06-13 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -1184,42 +1185,53 @@ the library, inside the main editor view (so it never shows over a sub-view). Co
 heading + steps; an App test confirms the panel shows on a fresh (empty) library and disappears after the
 first range is saved.
 
+Slice 144 added the pure-domain library-wide analytics helper. `src/domain/libraryAnalytics.ts` defines
+`LibraryAnalytics` (`rangesPracticed`, `totalAttempts`, `totalCorrect`, `overallAccuracy`) and
+`summarizeLibraryAnalytics(stats: RangePracticeStats[])`, which folds the array (summing attempts +
+correct, counting `totalAttempts > 0` entries as practiced) and computes `overallAccuracy` via the
+zero-guarded `accuracyPercentage`. Unit-tested for the empty case (all zeros), a multi-range aggregate,
+and that zero-attempt ranges don't count as practiced (test values use exact binary-fraction ratios so
+the float percentage is precise). No UI yet.
+
 ## Next slice
 
-- **Number:** 144
+- **Number:** 145
 - **Roadmap target:** v6 — Final polished product
-- **Working title:** Library-wide practice analytics (pure domain)
+- **Working title:** Library analytics summary panel (component + wiring)
 
 ### Prompt
 
-Continue **v6** toward the roadmap's "Performance analytics" with a PURE-DOMAIN foundation: aggregate
-practice stats ACROSS all ranges into one library-wide summary. No UI this slice (a later slice adds the
-panel).
+Continue **v6** by surfacing the library-wide analytics (slice 144) in the UI: a compact summary panel
+shown once the user has practiced anything.
 
 Context:
-- `RangePracticeStats` (`src/types/practice.ts`) is `{ rangeId, totalAttempts, correctAttempts,
-  lastPracticedAt }`. `App` already holds a `practiceStats: Record<rangeId, RangePracticeStats>` map.
-- `src/domain/practiceStats.ts` has `practiceAccuracyPercentage(stats)` (per range), built on
-  `accuracyPercentage(correct, total)` in `src/domain/accuracy.ts` (zero-guarded). Reuse the latter for
-  the overall rate.
+- `src/domain/libraryAnalytics.ts` has `summarizeLibraryAnalytics(stats): LibraryAnalytics`
+  (`rangesPracticed`, `totalAttempts`, `totalCorrect`, `overallAccuracy`). `App` holds
+  `practiceStats: Record<rangeId, RangePracticeStats>`; pass `Object.values(practiceStats)` through the
+  helper.
+- The main editor view (`AppShell`'s final branch) renders the editor/grid, the `GettingStarted` panel
+  (when empty), and the `RangeLibrary`. The new panel belongs near the library.
 
 Task:
-- Add `src/domain/libraryAnalytics.ts` with a `LibraryAnalytics` type (`{ rangesPracticed: number;
-  totalAttempts: number; totalCorrect: number; overallAccuracy: number }`) and
-  `summarizeLibraryAnalytics(stats: RangePracticeStats[]): LibraryAnalytics` that folds the array:
-  sum `totalAttempts` and `correctAttempts` (as `totalCorrect`), count entries with `totalAttempts > 0`
-  as `rangesPracticed`, and compute `overallAccuracy` via `accuracyPercentage(totalCorrect,
-  totalAttempts)` (so an empty array or all-zero yields 0, not NaN). Pure; no React/storage.
-- Unit-test in `libraryAnalytics.test.ts`: empty array → all zeros; a mix of practiced/never-practiced
-  ranges aggregates correctly (counts, totals, overall %); zero-attempt entries don't inflate
-  `rangesPracticed`.
+- Add `src/components/LibraryAnalytics.tsx` (+ small CSS): a presentational panel taking an
+  `analytics: LibraryAnalytics` prop. When `analytics.totalAttempts === 0`, render `null` (self-hides so
+  App wiring stays trivial). Otherwise render a compact summary, e.g. `aria-label="Practice analytics"`
+  with: ranges practiced, total questions answered (`totalAttempts`), and overall accuracy
+  (`overallAccuracy.toFixed(0)%`). Keep copy tight.
+- In `AppShell`, compute `summarizeLibraryAnalytics(Object.values(practiceStats))` and render
+  `<LibraryAnalytics analytics={…} />` just above `<RangeLibrary>` (always render it; the component
+  self-hides when there is no practice data).
+- Tests: `LibraryAnalytics.test.tsx` (renders nothing at zero attempts; renders the figures otherwise).
+  An `App` test is OPTIONAL — completing a full practice session is heavy; rely on the component test +
+  the trivial wiring. (If easy, assert the panel is absent on a fresh library.)
 
 Validation: `npm run lint`, `npm run test:run`, `npm run build`.
 
 Constraints:
-- Pure domain in `src/domain/`; reuse `accuracyPercentage`; no new deps, no UI/storage. Small,
-  reversible. Next slice: a small "Library analytics" panel (e.g. shown in the editor view or a stats
-  view) fed by `Object.values(practiceStats)` through this helper.
+- UI in `src/components/` + a thin compute/render in `AppShell`; reuse `summarizeLibraryAnalytics`; no
+  new deps, no storage/backend changes. Small, reversible. After this, remaining v6 polish (e.g. a
+  README/docs refresh, or minor UI refinements) can follow; v6 is the final version, so the loop ends
+  when its slices are exhausted.
 
 Suggested commit message:
-- `feat: library-wide practice analytics helper`
+- `feat: library analytics summary panel`
