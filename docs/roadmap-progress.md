@@ -179,6 +179,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 142 | Publish + unpublish all ranges as a shared pack link | v5.1 — Coaching, sharing, and community features | 2026-06-13 |
 | 143 | Onboarding getting-started panel for an empty library | v6 — Final polished product | 2026-06-13 |
 | 144 | Library-wide practice analytics helper (pure domain) | v6 — Final polished product | 2026-06-13 |
+| 145 | Library analytics summary panel (component + wiring) | v6 — Final polished product | 2026-06-13 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -1193,45 +1194,59 @@ zero-guarded `accuracyPercentage`. Unit-tested for the empty case (all zeros), a
 and that zero-attempt ranges don't count as practiced (test values use exact binary-fraction ratios so
 the float percentage is precise). No UI yet.
 
+Slice 145 surfaced the library-wide analytics in the UI. `src/components/LibraryAnalytics.tsx` (+ CSS)
+is a presentational panel taking a `LibraryAnalytics` prop: it self-hides (renders `null`) when
+`totalAttempts === 0`, else shows a compact "Your practice" summary (ranges practiced, questions
+answered, overall accuracy %). `AppShell` renders `<LibraryAnalytics analytics={summarizeLibraryAnalytics
+(Object.values(practiceStats))} />` just above the library, so it appears only once the user has
+practiced. Component tests cover the self-hide and the rendered figures.
+
 ## Next slice
 
-- **Number:** 145
+- **Number:** 146
 - **Roadmap target:** v6 — Final polished product
-- **Working title:** Library analytics summary panel (component + wiring)
+- **Working title:** Refresh README to the complete v1–v6 feature set
 
 ### Prompt
 
-Continue **v6** by surfacing the library-wide analytics (slice 144) in the UI: a compact summary panel
-shown once the user has practiced anything.
+Finish **v6** (and the roadmap) with the honest closing polish: refresh `README.md`, which is badly
+stale — it claims the app is "implemented through roadmap version v2.3" and lists v3+ as "Not yet
+implemented," but v3–v6 are all built. Bring the README in line with the ACTUAL current feature set,
+verifying each claim against the code before writing it.
 
 Context:
-- `src/domain/libraryAnalytics.ts` has `summarizeLibraryAnalytics(stats): LibraryAnalytics`
-  (`rangesPracticed`, `totalAttempts`, `totalCorrect`, `overallAccuracy`). `App` holds
-  `practiceStats: Record<rangeId, RangePracticeStats>`; pass `Object.values(practiceStats)` through the
-  helper.
-- The main editor view (`AppShell`'s final branch) renders the editor/grid, the `GettingStarted` panel
-  (when empty), and the `RangeLibrary`. The new panel belongs near the library.
+- `README.md`'s "Features" section stops at v2.3 and its closing "Not yet implemented" paragraph lists
+  v3 (accounts/cloud/backend), v3.1 (PWA/mobile), v3.2 (sharing), v4+ (postflop/combo) as TODO — all now
+  shipped. The intro also says "client-only … no backend, account, or network dependency", which is now
+  only true in LOCAL mode (optional Supabase cloud exists).
+- The codebase reflects v1 through v6 minus the user-DEFERRED v5.1 heavy social features (study groups,
+  leaderboards, coach assignments, comments, shared version history). Cloud is OPTIONAL/env-gated;
+  local-only mode still works fully.
 
-Task:
-- Add `src/components/LibraryAnalytics.tsx` (+ small CSS): a presentational panel taking an
-  `analytics: LibraryAnalytics` prop. When `analytics.totalAttempts === 0`, render `null` (self-hides so
-  App wiring stays trivial). Otherwise render a compact summary, e.g. `aria-label="Practice analytics"`
-  with: ranges practiced, total questions answered (`totalAttempts`), and overall accuracy
-  (`overallAccuracy.toFixed(0)%`). Keep copy tight.
-- In `AppShell`, compute `summarizeLibraryAnalytics(Object.values(practiceStats))` and render
-  `<LibraryAnalytics analytics={…} />` just above `<RangeLibrary>` (always render it; the component
-  self-hides when there is no practice data).
-- Tests: `LibraryAnalytics.test.tsx` (renders nothing at zero attempts; renders the figures otherwise).
-  An `App` test is OPTIONAL — completing a full practice session is heavy; rely on the component test +
-  the trivial wiring. (If easy, assert the panel is absent on a fresh library.)
+Task (README only — do not touch the manual-testing guide or acceptance reviews this slice):
+- Update the intro to say local-first with OPTIONAL cloud accounts/sync (Supabase, env-gated), so the
+  "no backend" claim is corrected to "works fully offline/local; optional cloud sync when configured".
+- Replace/extend the "Features" list to cover what's actually built, grouped by area: range editor +
+  notation + metadata; library + filtering; practice modes; mistake tracking; spaced repetition;
+  multi-action ranges; combo-level precision; mixed-frequency strategies; postflop training; source/
+  reference + per-hand notes; import/export (JSON/CSV/SVG/backup) + shareable range & pack links +
+  fork; optional accounts/cloud sync; PWA/offline + mobile; getting-started onboarding + library
+  analytics. Keep bullets tight and accurate — verify against `src/` before claiming anything.
+- Replace the stale "Not yet implemented" paragraph: note only the intentionally-deferred v5.1 community
+  features (study groups, leaderboards, coach assignments, comments, shared version history) as future
+  work; remove the now-false v3/v3.1/v3.2/v4 TODOs. Keep the pointer to `docs/roadmap.md`.
+- Keep any build/run/test instructions and the project-structure section accurate (update the
+  "implemented through v2.3" line). Do not invent features.
 
-Validation: `npm run lint`, `npm run test:run`, `npm run build`.
+Validation: `npm run lint`, `npm run test:run`, `npm run build` (docs-only, so these should stay green;
+run them to be sure nothing references the doc).
 
 Constraints:
-- UI in `src/components/` + a thin compute/render in `AppShell`; reuse `summarizeLibraryAnalytics`; no
-  new deps, no storage/backend changes. Small, reversible. After this, remaining v6 polish (e.g. a
-  README/docs refresh, or minor UI refinements) can follow; v6 is the final version, so the loop ends
-  when its slices are exhausted.
+- Docs only (`README.md`); no code changes; no new deps. Small, reversible, strictly accurate to the
+  code. **This is expected to be the LAST roadmap slice:** with it, v6 — Final polished product is
+  complete and the whole roadmap (v1–v6, minus the user-deferred v5.1 social features) is EXHAUSTED, so
+  the finish-roadmap loop reaches its success exit. Mark the roadmap complete in the state file and do
+  not queue a further slice.
 
 Suggested commit message:
-- `feat: library analytics summary panel`
+- `docs: refresh README to the complete v1–v6 feature set`

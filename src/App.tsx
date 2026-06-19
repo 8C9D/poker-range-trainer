@@ -9,6 +9,7 @@ import { handsWithMixedStrategy } from './domain/mixedStrategy'
 import { BuildFromMemoryPractice } from './components/BuildFromMemoryPractice'
 import { DueToday } from './components/DueToday'
 import { GettingStarted } from './components/GettingStarted'
+import { LibraryAnalytics } from './components/LibraryAnalytics'
 import { HandGrid } from './components/HandGrid'
 import { HandNotesEditor } from './components/HandNotesEditor'
 import { MultiActionEditor } from './components/MultiActionEditor'
@@ -41,6 +42,7 @@ import { RangeShortcuts } from './components/RangeShortcuts'
 import { SharedRangePage } from './components/SharedRangePage'
 import { SharedPackPage } from './components/SharedPackPage'
 import { parsePackShareRoute, parseShareRoute } from './domain/shareRoute'
+import { summarizeLibraryAnalytics } from './domain/libraryAnalytics'
 import { assignedHands, summarizeActionAccuracy } from './domain/actionRange'
 import { setRangeArchived } from './domain/rangeArchive'
 import { duplicateRange } from './domain/rangeDuplication'
@@ -1394,6 +1396,8 @@ function AppShell() {
           </div>
 
           {savedRanges.length === 0 && <GettingStarted />}
+
+          <LibraryAnalytics analytics={summarizeLibraryAnalytics(Object.values(practiceStats))} />
 
           <RangeLibrary
             ranges={savedRanges}
