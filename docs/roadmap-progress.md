@@ -180,6 +180,7 @@ The next roadmap target is **v1.4 — Range library and filtering**.
 | 143 | Onboarding getting-started panel for an empty library | v6 — Final polished product | 2026-06-13 |
 | 144 | Library-wide practice analytics helper (pure domain) | v6 — Final polished product | 2026-06-13 |
 | 145 | Library analytics summary panel (component + wiring) | v6 — Final polished product | 2026-06-13 |
+| 146 | Refresh README to the complete v1–v6 feature set | v6 — Final polished product | 2026-06-13 |
 
 With slice 17 the **v1.4 — Range library and filtering** version is fully
 implemented (name search; position/action/stack/game filters; name / recently
@@ -1201,52 +1202,42 @@ answered, overall accuracy %). `AppShell` renders `<LibraryAnalytics analytics={
 (Object.values(practiceStats))} />` just above the library, so it appears only once the user has
 practiced. Component tests cover the self-hide and the rendered figures.
 
-## Next slice
+Slice 146 refreshed `README.md` to the actual current feature set (it had been stuck at "implemented
+through v2.3", listing v3+ as "Not yet implemented"). The intro now describes the app as local-first with
+OPTIONAL env-gated Supabase cloud accounts/sync and an offline PWA; the Features list was rewritten to
+cover v1–v6 (editor + notation + metadata + source + per-hand notes; library + filtering; the full set
+of practice modes incl. swipe; mistake tracking + library analytics; spaced repetition; multi-action
+ranges; combo-level precision; mixed-frequency strategies; postflop training; import/export + shareable
+range & pack links + fork; optional accounts/cloud sync; mobile/PWA + onboarding). The stale "Not yet
+implemented" paragraph was replaced with a note that only the heavy v5.1 community features are
+deferred; the project-structure section gained `cloud/` + `supabase/`, and the persistence section now
+mentions backup files + optional cloud sync. Docs-only — lint/test/build stayed green (1004 tests).
 
-- **Number:** 146
-- **Roadmap target:** v6 — Final polished product
-- **Working title:** Refresh README to the complete v1–v6 feature set
+## Roadmap status: COMPLETE — no next slice
 
-### Prompt
+**The roadmap is EXHAUSTED. There is no next slice.** Every version v1 through v6 is built and validated:
 
-Finish **v6** (and the roadmap) with the honest closing polish: refresh `README.md`, which is badly
-stale — it claims the app is "implemented through roadmap version v2.3" and lists v3+ as "Not yet
-implemented," but v3–v6 are all built. Bring the README in line with the ACTUAL current feature set,
-verifying each claim against the code before writing it.
+- **v1–v1.4** — grid editor, save/edit/delete, practice + stats, drag-select + shortcuts + live
+  combo/percent, notation parser/exporter, scenario metadata, and the range library (search / filter /
+  sort / favorite / archive / duplicate).
+- **v2 / v2.1 / v2.2 / v2.3** — improved practice modes, mistake tracking + heatmap + session history,
+  spaced repetition (due queue + streak), and multi-action ranges (palette/grid + per-action accuracy +
+  action notation).
+- **v3 / v3.1 / v3.2** — optional Supabase accounts + full-library cloud sync + data deletion + local
+  backup import/export; responsive/PWA/offline + swipe + bundle code-split; and the import/export
+  ecosystem (JSON/CSV/SVG, share links, range packs, public/private shared range pages).
+- **v4 / v4.1 / v4.2** — postflop training (flop texture, range-vs-board, decision drill), combo-level
+  precision (specific combos + blocker-aware drill), and mixed-frequency strategies (sliders/grid +
+  primary-action quiz + notation).
+- **v5 / v5.1 / v6** — range diff/compare, source/reference, per-hand notes, CSV import (v5); range-pack
+  sharing — `shared_packs` backend, `#/p/:id` read page, fork, publish/unpublish (v5.1, per the
+  2026-06-13 user decision); and onboarding + library analytics + the README refresh (v6).
 
-Context:
-- `README.md`'s "Features" section stops at v2.3 and its closing "Not yet implemented" paragraph lists
-  v3 (accounts/cloud/backend), v3.1 (PWA/mobile), v3.2 (sharing), v4+ (postflop/combo) as TODO — all now
-  shipped. The intro also says "client-only … no backend, account, or network dependency", which is now
-  only true in LOCAL mode (optional Supabase cloud exists).
-- The codebase reflects v1 through v6 minus the user-DEFERRED v5.1 heavy social features (study groups,
-  leaderboards, coach assignments, comments, shared version history). Cloud is OPTIONAL/env-gated;
-  local-only mode still works fully.
+**Intentionally deferred (out of scope, by the user's v5.1 design decision on 2026-06-13):** the heavy
+v5.1 community/multi-user features — study groups, group leaderboards, coach-created assignments,
+comments on ranges, and shared version history — which need a multi-user backend (roles, membership,
+moderation, schema) the roadmap does not specify. If those are ever wanted, a future run must pause for a
+design decision before building them; they would be the only remaining roadmap work.
 
-Task (README only — do not touch the manual-testing guide or acceptance reviews this slice):
-- Update the intro to say local-first with OPTIONAL cloud accounts/sync (Supabase, env-gated), so the
-  "no backend" claim is corrected to "works fully offline/local; optional cloud sync when configured".
-- Replace/extend the "Features" list to cover what's actually built, grouped by area: range editor +
-  notation + metadata; library + filtering; practice modes; mistake tracking; spaced repetition;
-  multi-action ranges; combo-level precision; mixed-frequency strategies; postflop training; source/
-  reference + per-hand notes; import/export (JSON/CSV/SVG/backup) + shareable range & pack links +
-  fork; optional accounts/cloud sync; PWA/offline + mobile; getting-started onboarding + library
-  analytics. Keep bullets tight and accurate — verify against `src/` before claiming anything.
-- Replace the stale "Not yet implemented" paragraph: note only the intentionally-deferred v5.1 community
-  features (study groups, leaderboards, coach assignments, comments, shared version history) as future
-  work; remove the now-false v3/v3.1/v3.2/v4 TODOs. Keep the pointer to `docs/roadmap.md`.
-- Keep any build/run/test instructions and the project-structure section accurate (update the
-  "implemented through v2.3" line). Do not invent features.
-
-Validation: `npm run lint`, `npm run test:run`, `npm run build` (docs-only, so these should stay green;
-run them to be sure nothing references the doc).
-
-Constraints:
-- Docs only (`README.md`); no code changes; no new deps. Small, reversible, strictly accurate to the
-  code. **This is expected to be the LAST roadmap slice:** with it, v6 — Final polished product is
-  complete and the whole roadmap (v1–v6, minus the user-deferred v5.1 social features) is EXHAUSTED, so
-  the finish-roadmap loop reaches its success exit. Mark the roadmap complete in the state file and do
-  not queue a further slice.
-
-Suggested commit message:
-- `docs: refresh README to the complete v1–v6 feature set`
+A future `finish-roadmap` / `roadmap-slice` invocation should find NO pending slice here and report the
+roadmap complete. To extend the product further, add new roadmap items to `docs/roadmap.md` first.

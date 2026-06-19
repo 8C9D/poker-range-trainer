@@ -1,42 +1,63 @@
 # Poker Range Trainer
 
-A client-only web app for creating, saving, editing, and practicing Texas
-Hold'em preflop ranges on a standard 13×13 starting-hand grid. It runs entirely
-in the browser and persists to `localStorage` — there is no backend, account, or
-network dependency.
+A web app for creating, saving, editing, and practicing Texas Hold'em ranges on a
+standard 13×13 starting-hand grid. It is local-first — it runs entirely in the
+browser and persists to `localStorage`, with no account required — and adds
+OPTIONAL cloud accounts and sync (via Supabase) when configured. It also installs
+as an offline-capable PWA.
 
 Built with React, TypeScript, and Vite. Poker-domain logic is kept separate from
 the UI (see [Project structure](#project-structure)).
 
 ## Features
 
-The app is implemented through roadmap version **v2.3**. At a glance:
+The app implements the full roadmap (**v1–v6**). At a glance:
 
-- **Range editor (v1–v1.3)** — 13×13 grid with click-to-toggle and drag-to-paint
+- **Range editor** — 13×13 grid with click-to-toggle and drag-to-paint
   selection, range shortcut buttons, live combo count and percentage, range
-  notation import/export (e.g. `22+, A2s+, ATo+`), and optional scenario
-  metadata (game type, table size, stack depth, position, action type, notes).
-- **Range library (v1.4)** — saved ranges as cards with search, filtering
+  notation import/export (e.g. `22+, A2s+, ATo+`), optional scenario metadata
+  (game type, table size, stack depth, position, action type, notes), an optional
+  source/reference, and per-hand notes.
+- **Range library** — saved ranges as cards with search, filtering
   (position / action / stack depth / game type), sorting, favorite, archive, and
-  duplicate.
-- **Practice modes (v2, v2.3)** — recognize-hands (in/out) with a missing-hands
-  review, build-from-memory, timed drill, weakness-focused drill, and a
-  "pick the correct action" quiz for ranges that have an action chart.
-- **Mistake tracking (v2.1)** — per-hand accuracy, an accuracy heatmap, a
-  weakest-hands performance view, "practice mistakes only", and session history.
-- **Spaced repetition (v2.2)** — a "due for review" queue and a review streak,
-  with each session advancing the range's review schedule by accuracy.
-- **Multi-action ranges (v2.3)** — assign an action (fold/call/raise/3-bet/
-  4-bet/jam/mixed) per hand on a multi-color grid, see per-action percentages,
-  and import/export action-grouped notation.
+  duplicate; each card summarizes combos, scenario, source, hand-notes, and
+  practice accuracy.
+- **Practice modes** — recognize-hands (in/out) with a missing-hands review,
+  build-from-memory, timed drill, weakness-focused drill, a "pick the correct
+  action" quiz (for action charts), and a primary-action quiz (for
+  mixed-frequency charts); swipe-to-answer on touch devices.
+- **Mistake tracking & analytics** — per-hand accuracy, an accuracy heatmap, a
+  weakest-hands performance view, "practice mistakes only", session history, and a
+  library-wide practice summary.
+- **Spaced repetition** — a "due for review" queue and a review streak, with each
+  session advancing the range's review schedule by accuracy.
+- **Multi-action ranges** — assign an action (fold/call/raise/3-bet/4-bet/jam/
+  mixed) per hand on a multi-color grid, see per-action percentages, and
+  import/export action-grouped notation.
+- **Combo-level precision** — expand hand classes to exact combos, select specific
+  combos per hand, see blocker-aware combo counts against a board, and drill
+  un-blocked combos.
+- **Mixed-frequency strategies** — assign per-hand action frequencies with
+  sliders, view a primary-action grid, and import/export frequency notation.
+- **Postflop training** — flop texture tagging, a range-vs-board made-hand/draw
+  breakdown, and a self-graded postflop decision drill.
+- **Import / export & sharing** — per-range JSON / CSV / SVG export and JSON/CSV
+  import, a full backup file (export + import), range packs (export/import),
+  shareable range and pack links (public or private), and "save to my library"
+  forking of shared ranges and packs.
+- **Optional accounts & cloud sync** — sign in (Supabase email/OAuth) to push/pull
+  your whole library and delete cloud data; entirely env-gated, so the app stays
+  fully usable in local-only mode.
+- **Mobile & PWA** — responsive grid, large tap targets, an installable
+  offline-capable PWA, and a getting-started onboarding panel for new users.
 
-For a complete, current feature-by-feature description — including what each
-practice mode records — see the
+For a feature-by-feature description (and a manual test checklist) see the
 [manual testing guide](docs/manual-testing-guide.md).
 
-Not yet implemented (on the roadmap): accounts, cloud sync, and a backend (v3);
-mobile/PWA support (v3.1); file/link/pack-based sharing (v3.2); postflop and
-combo-level features (v4+). See [`docs/roadmap.md`](docs/roadmap.md).
+Deferred (future work): the heavy v5.1 community features — study groups, group
+leaderboards, coach-created assignments, comments on ranges, and shared version
+history — are intentionally not built (they need a multi-user backend beyond the
+current scope). See [`docs/roadmap.md`](docs/roadmap.md).
 
 ## Getting started
 
@@ -68,10 +89,12 @@ src/
   App.tsx        Top-level app: wires the editor, library, practice, and views together.
   components/    React UI (hand grid, range library, practice modes, editors, notation, performance views).
   domain/        Pure poker logic (hand generation, range math, notation, practice scoring, spaced repetition, ...).
-  storage/       localStorage persistence (ranges, practice stats, hand/action accuracy, session history, review state).
+  storage/       localStorage persistence (ranges, practice stats, hand/action accuracy, session history, review state, backup).
+  cloud/         Optional, env-gated Supabase integration (auth, client, and range/backup/shared-range/shared-pack repos).
   types/         Shared TypeScript types (range.ts, practice.ts).
   test/          Vitest setup.
 docs/            Roadmap, manual testing guide, acceptance reviews, and the docs-sync report.
+supabase/        SQL migrations documenting the optional cloud schema (ranges, backups, shared ranges, shared packs).
 ```
 
 Tests live beside the code they cover (e.g. `domain/practice.ts` /
@@ -81,9 +104,11 @@ Tests live beside the code they cover (e.g. `domain/practice.ts` /
 
 All data is stored in the browser's `localStorage` under keys prefixed with
 `poker-range-trainer.` (saved ranges, practice stats, per-hand and per-action
-accuracy, session history, and review state). Clearing site data or switching
-browsers/devices loses everything — there is no sync or backup yet. The keys and
-how to reset them are documented in the
+accuracy, session history, and review state). You can export and re-import a full
+backup file at any time, and — when cloud sync is configured and you are signed
+in — push/pull your library across devices. Clearing site data without a backup
+or cloud copy loses local data. The keys and how to reset them are documented in
+the
 [manual testing guide](docs/manual-testing-guide.md#2-managing-test-state-important).
 
 ## Testing
