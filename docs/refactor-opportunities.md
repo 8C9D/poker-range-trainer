@@ -64,7 +64,7 @@ the prior pass's "single site" reason to skip it no longer holds).
 - **Suggested validation:** `npm run build` (fails if anything imported them) +
   `npm run lint && npm run test:run`.
 - **Dependency ordering:** Independent. Do first (safest).
-- **Autopilot status:** Planned
+- **Autopilot status:** Implemented
 
 ### Opportunity F — Reuse `accuracyPercentage` in the two quiz components
 
@@ -167,5 +167,5 @@ From `package.json`:
 | # | Cleanup | Files changed | Validation | Commit | Push | Notes |
 |---|---------|---------------|------------|--------|------|-------|
 | 0 | Report | docs/refactor-opportunities.md | n/a | _pending_ | _pending_ | This update |
-| E | Remove dead scaffold assets | (pending) | (pending) | _pending_ | _pending_ | (pending) |
+| E | Remove dead scaffold assets | `src/assets/hero.png`, `react.svg`, `vite.svg` (removed) | lint + 1004 tests + build all pass; bundle output byte-identical | (this commit) | _pending_ | Build is the proof nothing imported them; output unchanged |
 | F | Reuse `accuracyPercentage` in quiz components | (pending) | (pending) | _pending_ | _pending_ | (pending) |
