@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { accuracyPercentage } from '../domain/accuracy'
 import { getRandomHandFrom } from '../domain/practice'
 import { handsWithMixedStrategy, primaryAction } from '../domain/mixedStrategy'
 import type { PokerHand } from '../domain/pokerHands'
@@ -72,7 +73,7 @@ export function MixedActionQuiz({ range, onExit, random = Math.random }: MixedAc
     setAnswered(null)
   }
 
-  const accuracy = total === 0 ? 0 : Math.round((correct / total) * 100)
+  const accuracy = Math.round(accuracyPercentage(correct, total))
 
   return (
     <section className="practice-session" aria-label="Mixed action quiz">

@@ -92,7 +92,7 @@ the prior pass's "single site" reason to skip it no longer holds).
 - **Suggested validation:** `npm run lint && npm run test:run && npm run build`
   (both components have existing tests asserting displayed accuracy).
 - **Dependency ordering:** Independent of E.
-- **Autopilot status:** Planned
+- **Autopilot status:** Implemented
 
 ## 4. Quick Wins
 
@@ -168,4 +168,4 @@ From `package.json`:
 |---|---------|---------------|------------|--------|------|-------|
 | 0 | Report | docs/refactor-opportunities.md | n/a | _pending_ | _pending_ | This update |
 | E | Remove dead scaffold assets | `src/assets/hero.png`, `react.svg`, `vite.svg` (removed) | lint + 1004 tests + build all pass; bundle output byte-identical | (this commit) | _pending_ | Build is the proof nothing imported them; output unchanged |
-| F | Reuse `accuracyPercentage` in quiz components | (pending) | (pending) | _pending_ | _pending_ | (pending) |
+| F | Reuse `accuracyPercentage` in quiz components | `ActionQuiz.tsx`, `MixedActionQuiz.tsx` | lint + 1004 tests + build all pass (10 targeted quiz tests green) | (this commit) | _pending_ | Behavior-identical; two inline ratios → `Math.round(accuracyPercentage(...))` |
