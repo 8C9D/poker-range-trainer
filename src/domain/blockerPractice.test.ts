@@ -32,6 +32,14 @@ describe('drawPracticeCombo', () => {
     expect(comboKey(combo)).toBe(comboKey(handClassCombos('AKs')[0]))
   })
 
+  it('clamps an injected random() of exactly 1 to the last live combo', () => {
+    // Math.floor(1 * pool.length) would index out of bounds; the clamp pins it
+    // to the final combo instead of returning undefined.
+    const combos = handClassCombos('AKs')
+    const combo = drawPracticeCombo(['AKs'], [], undefined, () => 1)
+    expect(comboKey(combo)).toBe(comboKey(combos[combos.length - 1]))
+  })
+
   it('throws when every combo is blocked', () => {
     const dead = [parseCard('As'), parseCard('Ah'), parseCard('Ad'), parseCard('Ac')]
     expect(() => drawPracticeCombo(['AA'], dead)).toThrow(/No combos available/)

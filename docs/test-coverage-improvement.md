@@ -68,7 +68,7 @@ The suite is close to saturated; the remaining gaps are a few narrow branches/ed
   of `handClassCombos('AKs')`.
 - Risk level: Low
 - Validation: `npx vitest run src/domain/blockerPractice.test.ts`
-- Status: Planned
+- Status: Implemented
 
 ### Gap C — CSV round-trip of a name with an embedded quote (`rangeTransfer`)
 
@@ -119,10 +119,11 @@ coverage instrumentation, and no test removals/replacements are warranted.
 - Files changed: `src/domain/blockerPractice.test.ts`
 - Behavior covered: `drawPracticeCombo` clamps an injected `random()` of exactly `1` to the
   last live combo instead of indexing out of bounds.
-- New cases: one test using `() => 1`.
-- Validation: `npx vitest run src/domain/blockerPractice.test.ts`, then full lint/test/build.
-- Result: pending implementation commit.
-- Commit hash: see git log.
+- New cases: one test using `() => 1` asserting the last combo of `handClassCombos('AKs')`.
+- Validation: `npx vitest run src/domain/blockerPractice.test.ts` (6 passed), then
+  `npm run lint` (clean) / `npm run test:run` (1006 passed) / `npm run build` (OK).
+- Result: pass.
+- Commit hash: see git log (`test: improve coverage for blocker-aware practice`).
 - Push result: pushed to `origin/main`.
 
 ### Gap C — CSV embedded-quote round trip
