@@ -52,7 +52,7 @@ The suite is close to saturated; the remaining gaps are a few narrow branches/ed
 - Suggested test: `tags('Kh8d3c')` ⇒ contains `rainbow` + `dry`, excludes `wet`, `connected`, `paired`.
 - Risk level: Low
 - Validation: `npx vitest run src/domain/boardTexture.test.ts`
-- Status: Planned
+- Status: Implemented
 
 ### Gap B — `drawPracticeCombo` upper-bound clamp (`blockerPractice`)
 
@@ -106,12 +106,12 @@ coverage instrumentation, and no test removals/replacements are warranted.
 - Files changed: `src/domain/boardTexture.test.ts`
 - Behavior covered: an unpaired, rainbow, disconnected flop is tagged `dry` (and not
   `wet`/`connected`/`paired`) — the only non-paired path to the `dry` tag.
-- New cases: one test asserting `tags('Kh8d3c')` contains `rainbow`+`dry` and excludes
+- New cases: one test asserting `tags('Kh8d3c')` equals `['rainbow', 'dry']` and excludes
   `wet`, `connected`, `paired`.
-- Validation: `npx vitest run src/domain/boardTexture.test.ts`, then `npm run lint` /
-  `npm run test:run` / `npm run build`.
-- Result: pending implementation commit.
-- Commit hash: see git log.
+- Validation: `npx vitest run src/domain/boardTexture.test.ts` (8 passed), then
+  `npm run lint` (clean) / `npm run test:run` (1005 passed) / `npm run build` (OK).
+- Result: pass.
+- Commit hash: see git log (`test: improve coverage for board texture`).
 - Push result: pushed to `origin/main`.
 
 ### Gap B — draw clamp

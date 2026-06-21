@@ -19,6 +19,17 @@ describe('tagFlopTexture', () => {
     expect(t).not.toContain('wet')
   })
 
+  it('tags an unpaired rainbow disconnected flop as dry', () => {
+    // The canonical dry board: King-high, three suits, ranks too far apart to
+    // connect. Unlike 7h7d2c the dry tag here comes via the non-paired path
+    // (isConnected returns false), not because pairing skips the straight check.
+    const t = tags('Kh8d3c')
+    expect(t).toEqual(['rainbow', 'dry'])
+    expect(t).not.toContain('paired')
+    expect(t).not.toContain('connected')
+    expect(t).not.toContain('wet')
+  })
+
   it('tags a connected flop', () => {
     expect(tags('9s8h7d')).toEqual(expect.arrayContaining(['connected', 'rainbow', 'wet']))
   })
