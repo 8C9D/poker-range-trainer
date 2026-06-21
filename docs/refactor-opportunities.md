@@ -166,6 +166,12 @@ From `package.json`:
 
 | # | Cleanup | Files changed | Validation | Commit | Push | Notes |
 |---|---------|---------------|------------|--------|------|-------|
-| 0 | Report | docs/refactor-opportunities.md | n/a | _pending_ | _pending_ | This update |
-| E | Remove dead scaffold assets | `src/assets/hero.png`, `react.svg`, `vite.svg` (removed) | lint + 1004 tests + build all pass; bundle output byte-identical | (this commit) | _pending_ | Build is the proof nothing imported them; output unchanged |
-| F | Reuse `accuracyPercentage` in quiz components | `ActionQuiz.tsx`, `MixedActionQuiz.tsx` | lint + 1004 tests + build all pass (10 targeted quiz tests green) | (this commit) | _pending_ | Behavior-identical; two inline ratios → `Math.round(accuracyPercentage(...))` |
+| 0 | Report | docs/refactor-opportunities.md | n/a | 10bee55 | ok | This update |
+| E | Remove dead scaffold assets | `src/assets/hero.png`, `react.svg`, `vite.svg` (removed) | lint + 1004 tests + build all pass; bundle output byte-identical | f376adf | ok | Build is the proof nothing imported them; output unchanged |
+| F | Reuse `accuracyPercentage` in quiz components | `ActionQuiz.tsx`, `MixedActionQuiz.tsx` | lint + 1004 tests + build all pass (10 targeted quiz tests green) | 68a4a37 | ok | Behavior-identical; two inline ratios → `Math.round(accuracyPercentage(...))` |
+
+**Result:** both planned cleanups (E, F) implemented, validated, and pushed.
+Test count held at 1,004 (no behavior changes, so no new tests were needed — E
+removes unimported files; F is covered by the quiz components' existing accuracy
+assertions). Stopped after the safe, mechanical opportunities were exhausted; see
+§5–§6 for what was deliberately left to human judgment.
