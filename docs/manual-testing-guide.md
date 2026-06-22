@@ -4,17 +4,22 @@ A complete, current guide to manually testing the Poker Range Trainer: how to ru
 it, what features exist (and what records what), what does **not** exist yet, and a
 feature-by-feature checklist of what to test.
 
-This guide reflects the app through **v2.3 (multi-action ranges)** — all of v1.x and
-v2.x are implemented. The older, narrower [`manual-testing-checklist.md`](./manual-testing-checklist.md)
+This guide reflects the app through the **full v1–v6 roadmap** — every roadmap
+version is implemented (the only intentionally deferred items are the heavy v5.1
+community features; see §4). The older, narrower [`manual-testing-checklist.md`](./manual-testing-checklist.md)
 only covers v1–v1.3 and is superseded by this document.
 
 ---
 
 ## 1. How to run the app
 
-The app is a client-only React + TypeScript + Vite SPA. There is no backend,
-account, or network dependency — everything runs in the browser and persists to
-`localStorage`.
+The app is a **local-first** React + TypeScript + Vite SPA: everything runs in the
+browser and persists to `localStorage`, with no account required. It also installs
+as an offline-capable PWA and supports **optional** Supabase cloud accounts/sync
+that are **off unless** configured via env vars (see
+[README → Cloud sync](../README.md#cloud-sync-optional)). With cloud unconfigured —
+the default for local testing — there is no backend, account, or network dependency
+at all.
 
 | Goal | Command | Notes |
 |------|---------|-------|
@@ -33,7 +38,7 @@ Before manual testing, confirm the automated suite is green — it covers the do
 and storage logic so manual testing can focus on the UI and wiring:
 
 - `npm run lint`
-- `npm run test:run` (671 tests across 38 files at time of writing)
+- `npm run test:run` (1007 tests across 80 files at time of writing)
 - `npm run build`
 
 If any fail, fix the root cause before manual testing — a red build means the UI
@@ -47,7 +52,7 @@ All data lives in `localStorage` under these keys (origin = the dev/preview URL)
 
 | Key | Holds |
 |-----|-------|
-| `poker-range-trainer.saved-ranges.v1` | Saved ranges (hands, metadata, actions, favorite/archived flags) |
+| `poker-range-trainer.saved-ranges.v1` | Saved ranges — hands, scenario metadata, per-hand actions, combo selections, mixed-frequency strategies, per-hand notes, source/reference, and favorite/archived flags |
 | `poker-range-trainer.practice-stats.v1` | Per-range cumulative stats (attempts, accuracy, last practiced) |
 | `poker-range-trainer.hand-accuracy.v1` | Per-hand accuracy (for the heatmap / weakest-hands table) |
 | `poker-range-trainer.action-accuracy.v1` | Per-action accuracy (from action quizzes) |
@@ -57,6 +62,11 @@ All data lives in `localStorage` under these keys (origin = the dev/preview URL)
 **To reset to a clean slate:** open DevTools → Application → Local Storage and
 delete those keys (or "Clear site data"), then reload. An incognito/private window
 is the easiest fully-clean environment.
+
+> **Cloud note:** the six keys above are the whole story for local-only testing.
+> When cloud sync is configured **and** you are signed in, a copy of your library
+> also lives server-side (Supabase) and is **not** removed by clearing
+> `localStorage` — use the "Delete cloud data" control for that (see §3).
 
 **Tips for testing time-based features:**
 
@@ -108,7 +118,7 @@ is the easiest fully-clean environment.
 - **Duplicate** a range into an independent copy.
 - **Load**, **Delete**, **Practice**, **Stats**, **Actions** per-card actions.
 
-### Practice modes (v2, v2.1, v2.3)
+### Practice modes (v2, v2.1, v2.3, v4.2)
 
 Clicking **Practice** on a card opens a **mode picker**:
 
@@ -124,6 +134,9 @@ Clicking **Practice** on a card opens a **mode picker**:
 5. **Pick the correct action** — *only shown when the range has a saved action chart.*
    Prompts a hand, you choose the action (Fold/Call/Raise/3-bet/4-bet/Jam/Mixed),
    scored against the chart.
+6. **Frequency quiz** — *only shown when the range has a saved mixed-frequency chart.*
+   Prompts a hand, you choose its **primary** action, scored against the
+   highest-frequency action. Records nothing (like build-from-memory).
 
 Plus:
 
@@ -163,6 +176,98 @@ Open via **Actions** on a card:
 - **Save actions** — persists the chart onto the range (which then unlocks the
   "Pick the correct action" quiz).
 
+### Import / export & backup (v3, v3.2)
+
+In the editor-controls row (below the grid) and on each library card:
+
+- **Export backup / Import backup** — "Export backup" downloads one dated JSON file
+  holding every persisted slice (ranges, practice stats, per-hand & per-action
+  accuracy, session history, review state). "Import backup" reads such a file and —
+  behind a confirm — **replaces all local data** with it.
+- **Per-range JSON** — each card has **Export JSON** (a versioned single-range
+  envelope); the editor row has **Import range** (adds the file as a **new** range,
+  never overwriting an existing one).
+- **CSV** — each card has **Export CSV** (summary + hand list); the editor row has
+  **Import CSV** (adds a new range from a CSV hand list).
+- **SVG image** — each card has **Export image** (a standalone 13×13 SVG, cells
+  colored by in-range / assigned action).
+- **Range packs** — the editor row has **Export pack** / **Import pack** to move the
+  whole library in/out as one JSON bundle.
+
+### Sharing (v3.2, v5.1)
+
+- **Copy share link** (per card) — encodes the range into a `#range=…` URL fragment
+  (no backend). Opening that link imports the range as a new local range.
+- **Publish / unpublish a shared range link** (per card, **requires sign-in**) —
+  publishes the range to Supabase and returns a `#/r/:id` link; that link renders a
+  read-only shared-range page with a **save to my library** fork.
+- **Publish / unpublish a shared pack link** (header, **requires sign-in**) —
+  publishes the whole library as a `#/p/:id` pack link whose read-only page forks the
+  entire pack.
+
+### Optional accounts & cloud sync (v3) — only when configured
+
+- Cloud is **off unless** `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` are set
+  (see README). Unconfigured, the auth panel shows only a one-line "local-only mode"
+  note and none of the cloud controls appear.
+- Configured: **sign up / sign in / sign out** (email/password; OAuth via Supabase).
+  Signed in, a cloud-sync row appears with **Push to cloud** (uploads the whole
+  library as a backup), **Pull from cloud** (downloads and **replaces** local data,
+  behind a confirm), **Delete cloud data** (removes the server copy; local kept), and
+  the pack publish controls.
+- Deleting the Supabase **account** itself is out of scope for the client (needs
+  admin privileges); only the stored cloud data is deletable here.
+
+### Mobile & PWA (v3.1)
+
+- Responsive layout: the 13×13 grid stays square and control rows wrap, with ≥44px
+  tap targets on small screens.
+- Installable PWA (web manifest + theme color) and an offline service worker. The
+  service worker registers **only in a production build** (`npm run preview` or a
+  deploy) — **not** under `npm run dev`.
+- Swipe gestures in the recognition session: swipe **right** = in range, swipe
+  **left** = out of range (the buttons remain the primary control).
+
+### Postflop & board-aware views (v4)
+
+- **Postflop drill** (editor row) — pick a scenario, then self-grade a
+  bet/check/call/raise/fold decision against a heuristic.
+- **Range vs board** (per card) — enter a flop and see the range's made-hand / draw
+  breakdown, with flop-texture tags.
+
+### Combo-level precision (v4.1)
+
+- **Edit combos** (per card) — expand a hand class into its exact combos and toggle
+  which are in the range (persisted per range; absence of a selection = all combos).
+- **Combo drill** (per card) — a self-graded drill that deals blocker-aware,
+  un-blocked combos against a board, honoring the range's saved combo selections.
+- Blocker-aware combo counts vs a board are shown where relevant (a board card
+  removes the combos it blocks).
+
+### Mixed-frequency strategies (v4.2)
+
+- **Edit frequencies** (per card) — assign per-hand action frequencies with sliders;
+  a read-only primary-action grid reflects them; import/export frequency notation.
+- Practice via the **Frequency quiz** mode (see Practice modes) — offered only when
+  the range has a mixed-frequency chart.
+
+### Range comparison & provenance (v5)
+
+- **Compare** (per card) — pick a second range and see a diff grid (in A only / in B
+  only / in both).
+- **Source / reference** — the editor records where a range came from (coach /
+  course / solver sim / book / personal study) plus an optional citation; it shows on
+  the card.
+- **Edit notes** (per card) — attach free-text notes to individual hands; the card
+  shows a hand-notes count.
+
+### Onboarding & analytics (v6)
+
+- A **getting-started panel** appears when the library is empty and disappears once a
+  range is saved.
+- A **library-wide practice analytics** summary panel sits above the library,
+  aggregating practice stats across ranges.
+
 ### What records what (subtle but important)
 
 Different practice modes persist different things. Use this when verifying tracking:
@@ -175,60 +280,46 @@ Different practice modes persist different things. Use this when verifying track
 | Weakness drill | ✅ | ✅ | ✅ | ✅ | — |
 | Build from memory | — | — | — | — | — |
 | Action quiz | — | — | — | — | ✅ |
+| Frequency quiz (mixed) | — | — | — | — | — |
 
 All recorders are **no-ops when zero questions were answered**, so ending a mode
-immediately records nothing. Build-from-memory deliberately records nothing (its
-score shape is different). The streak counts days with any recorded
-recognition/timed/weakness session.
+immediately records nothing. Build-from-memory and the frequency quiz deliberately
+record nothing (their score shape is different), and the self-graded **postflop
+drill** and **combo drill** (separate library views, not picker modes) also record
+nothing. The streak counts days with any recorded recognition/timed/weakness session.
 
 ---
 
 ## 4. What does NOT exist yet
 
-These are on the roadmap but **not built**. Don't test for them — confirm they're
-absent if anything.
+The app now implements the full **v1–v6** roadmap. The only intentionally
+**deferred** items are the heavy multi-user community features and a few solver-grade
+niceties — don't test for these; confirm they're absent if anything.
 
-**Within reach but not started:**
-- **Backup export/import** (export all data to a JSON file). The roadmap queues this
-  as the first v3 slice, but it is **not implemented** — there is no export/import
-  button anywhere.
+**v5.1 — community / coaching (deferred; needs a multi-user backend):**
+- No study groups, group leaderboards, or shared mistake review.
+- No coach-created assignments.
+- No comments on ranges.
+- No version history for shared ranges.
+- (What DOES exist from v5.1: forking a shared range or pack into your library, plus
+  public/private shared range & pack links — see §3.)
 
-**v3 — Accounts / cloud / backend:**
-- No user accounts, login, or authentication.
-- No server/database persistence — data is **local to one browser on one device**.
-- No cross-device sync.
+**Solver-grade pieces not built:**
+- No automated solver-file import or image/screenshot range extraction (OCR). Data
+  comes in via JSON / CSV / range-notation / pack import and manual entry.
+- The frequency quiz asks only for the **primary** action; it does not grade an
+  approximate-frequency answer.
 
-**v3.1 — Mobile / PWA:**
-- Not an installable PWA; no offline mode, home-screen icon, or swipe gestures. (The
-  layout is usable on desktop; it is not mobile-optimized.)
+**Account / data:**
+- Deleting your Supabase **account** itself (as opposed to your stored cloud data) is
+  out of scope for the client — only "Delete cloud data" exists.
 
-**v3.2 — Import/export ecosystem:**
-- No JSON/CSV export, no range images, no shareable links, no public range pages, no
-  range packs. (Note: range *notation* and action *notation* text import/export DO
-  exist — see §3. The missing piece is file/link/pack-based sharing.)
-
-**v4 — Postflop / advanced:**
-- No board-aware or postflop ranges, no flop-texture tagging, no hand categories, no
-  postflop decision practice.
-
-**v4.1 — Combo-level precision:**
-- No specific-suit combos (e.g. AhKh vs AcKc), no board/dead-card removal, no
-  blocker-aware practice. Hands are tracked at the 169-class level only.
-
-**v4.2 — Mixed frequencies:**
-- No frequency sliders or probabilistic strategies. The `Mixed` action is a **single
-  label**, not a 50/50 split.
-
-**v5 / v5.1 — Solver imports & community:**
-- No solver imports, range comparison/diff, per-hand notes, coaching, study groups,
-  leaderboards, or comments.
-
-**Smaller gaps within the current scope:**
+**Smaller gaps within scope:**
 - No undo/redo in the editor.
 - No bulk delete / multi-select in the library.
-- Build-from-memory and action quizzes do **not** feed the "Practiced N · accuracy"
-  line, the heatmap, or the streak (see the records table above) — by design, not a
-  bug.
+- Build-from-memory, the frequency quiz, and the self-graded postflop / combo drills
+  do **not** feed the "Practiced N · accuracy" line, the heatmap, or the streak (see
+  the records table in §3) — by design, not a bug.
 
 ---
 
@@ -396,7 +487,95 @@ from a known state (see §2).
 - [ ] The review streak reflects consecutive days with finished sessions. (To re-test
       "due" same-day, edit `review-state.v1` per §2.)
 
-### 5.18 Persistence / data integrity
+### 5.18 Practice — frequency quiz (v4.2)
+
+- [ ] "Frequency quiz" appears in the picker **only** for a range with a saved
+      mixed-frequency chart (assign one first — §5.25).
+- [ ] It prompts a hand; choosing the primary action scores it with the expected
+      action shown.
+- [ ] Total / Correct / Accuracy update; ending records **nothing** (see the §3
+      records table).
+
+### 5.19 Import / export files (v3, v3.2)
+
+- [ ] The editor-controls row shows: Export backup, Import backup, Import range,
+      Import CSV, Export pack, Import pack.
+- [ ] "Export backup" downloads a dated JSON; "Import backup" confirms, then
+      **replaces** all local data with the file's contents.
+- [ ] Per card, Export JSON / Export CSV / Export image each download a file;
+      "Import range" adds the JSON as a **new** range (no overwrite); "Import CSV"
+      adds a new range from a hand list.
+- [ ] "Export pack" downloads the whole library; "Import pack" adds the pack's ranges.
+- [ ] A malformed import file shows an alert and changes nothing.
+
+### 5.20 Share links & published links (v3.2, v5.1)
+
+- [ ] Per-card "Copy share link" copies a `#range=…` URL; opening it in a clean
+      profile imports that range as a new local range.
+- [ ] (Cloud configured + signed in) Publishing a range yields a `#/r/:id` link that
+      renders a read-only page with "save to my library"; unpublish removes it.
+- [ ] (Cloud) "Publish pack link" yields a `#/p/:id` page that forks the whole pack;
+      unpublish removes it.
+
+### 5.21 Optional cloud accounts & sync (v3)
+
+- [ ] With **no** Supabase env vars: the auth panel shows only the "local-only mode"
+      note, and no Push / Pull / Delete / Publish controls appear.
+- [ ] With env vars set (and a real Supabase project): sign up / in / out work, and
+      the cloud-sync row appears when signed in.
+- [ ] "Push to cloud" uploads; "Pull from cloud" confirms then **replaces** local
+      data; "Delete cloud data" confirms then removes the server copy (local kept).
+
+### 5.22 PWA & mobile (v3.1)
+
+- [ ] On a narrow viewport the grid stays square and control rows wrap with large tap
+      targets.
+- [ ] In a production build (`npm run preview` / deployed — **not** dev) the app is
+      installable and loads offline after the first visit.
+- [ ] In recognition, swipe right = in range, swipe left = out of range; buttons still
+      work.
+
+### 5.23 Postflop & range-vs-board (v4)
+
+- [ ] "Postflop drill" (editor row) runs a self-graded bet/check/call/raise/fold
+      decision against a scenario and records nothing.
+- [ ] Per-card range-vs-board: entering a flop shows the made-hand / draw breakdown
+      and flop-texture tags.
+
+### 5.24 Combo-level precision (v4.1)
+
+- [ ] The per-card combo editor expands hand classes into combos; toggling persists
+      per range and survives reload (absence = all combos).
+- [ ] The per-card combo drill deals un-blocked, blocker-aware combos vs a board
+      (self-graded; records nothing) and honors the range's saved combo selections.
+- [ ] Blocker-aware combo counts vs a board look right (a board card removes the
+      combos it blocks).
+
+### 5.25 Mixed-frequency editor (v4.2)
+
+- [ ] Per-card "Edit frequencies": sliders assign per-hand action frequencies; the
+      read-only primary-action grid reflects them.
+- [ ] Frequency notation import/export round-trips; invalid input shows an error and
+      changes nothing.
+- [ ] Saving unlocks the Frequency quiz in the practice picker (§5.18).
+
+### 5.26 Range compare, source & per-hand notes (v5)
+
+- [ ] Per-card "Compare": picking a second range shows a diff grid (in A only / in B
+      only / in both).
+- [ ] The editor's source/reference (coach / course / solver / book / personal +
+      citation) saves and shows on the card.
+- [ ] Per-card "Edit notes": notes attach to individual hands, persist, and the card
+      shows a hand-notes count.
+
+### 5.27 Onboarding & library analytics (v6)
+
+- [ ] On an empty library a getting-started panel appears; it disappears once a range
+      is saved.
+- [ ] A library-wide practice analytics summary sits above the library and reflects
+      aggregate practice stats.
+
+### 5.28 Persistence / data integrity
 
 - [ ] Everything survives a page reload (ranges, stats, history, actions, schedule).
 - [ ] Clearing the six localStorage keys returns the app to a clean slate with no
@@ -409,8 +588,9 @@ from a known state (see §2).
 
 ## 6. Testing notes & gotchas
 
-- **Local-only:** clearing browser data or switching browsers/devices loses
-  everything — there is no sync or backup yet (see §4).
+- **Local-first:** clearing browser data or switching devices loses local data
+  **unless** you've exported a backup (or pushed to the cloud, when configured).
+  Use "Export backup" or cloud "Push to cloud" to move data safely (see §3).
 - **No same-day re-due:** by design a practiced range won't reappear in "Due for
   review" until its next scheduled date; edit `review-state.v1` to force it.
 - **Mode-specific recording:** if a session "didn't show up" in stats, check the
