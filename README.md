@@ -68,6 +68,22 @@ npm install      # first time only
 npm run dev      # start the Vite dev server (default http://localhost:5173)
 ```
 
+### Cloud sync (optional)
+
+Cloud accounts and sync are **off by default** — the app is fully usable in
+local-only mode. To enable them, copy `.env.example` to `.env.local` and set both
+Supabase values:
+
+```bash
+cp .env.example .env.local   # then fill in your Supabase URL + anon key
+```
+
+Only the **public anon key** goes here. Every `VITE_`-prefixed variable is inlined
+into the client bundle, so it must be safe to expose; your data is protected by
+Supabase Row-Level Security, not by hiding the key. Never put a `service_role` key
+(or any other secret) in a `VITE_` variable. The schema and RLS policies live in
+[`supabase/migrations/`](supabase/migrations/).
+
 ## Scripts
 
 | Command | What it does |

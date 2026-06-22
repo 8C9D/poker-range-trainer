@@ -15,9 +15,10 @@ dist-ssr
 # Test coverage output
 coverage
 
-# Environment variables
+# Environment variables (keep real env files out; allow the committed template)
 .env
 .env.*
+!.env.example
 
 # Editor directories and files
 .vscode/*
