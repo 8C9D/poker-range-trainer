@@ -111,6 +111,17 @@ describe('parseRangeCsv', () => {
     expect(parsed.hands).toEqual(['AA', 'KK', 'AKs'])
   })
 
+  it('round-trips a name with an embedded double-quote (CSV "" escaping)', () => {
+    // A comma name only exercises quote-wrapping; an embedded quote also
+    // exercises the doubling on write and un-doubling on read.
+    const range = makeRange({ name: 'He said "3-bet"', hands: ['AA', 'KK'] })
+    const csv = formatRangeCsv(range)
+    expect(csv).toContain('name,"He said ""3-bet"""')
+    const parsed = parseRangeCsv(csv)
+    expect(parsed.name).toBe('He said "3-bet"')
+    expect(parsed.hands).toEqual(['AA', 'KK'])
+  })
+
   it('parses a bare hand column with no summary block', () => {
     const parsed = parseRangeCsv('hand\nAA\nAKo\n')
     expect(parsed.name).toBeUndefined()

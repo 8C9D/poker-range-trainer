@@ -84,7 +84,7 @@ The suite is close to saturated; the remaining gaps are a few narrow branches/ed
 - Suggested test: round-trip a range named `He said "3-bet"` and assert the parsed name matches.
 - Risk level: Low
 - Validation: `npx vitest run src/domain/rangeTransfer.test.ts`
-- Status: Planned
+- Status: Implemented
 
 ## 4. Useless or Low-Value Tests
 
@@ -131,10 +131,12 @@ coverage instrumentation, and no test removals/replacements are warranted.
 - Files changed: `src/domain/rangeTransfer.test.ts`
 - Behavior covered: a range name containing a double-quote survives the
   `formatRangeCsv` → `parseRangeCsv` round trip (the `""` doubling/un-doubling branch).
-- New cases: one round-trip test with a quoted name.
-- Validation: `npx vitest run src/domain/rangeTransfer.test.ts`, then full lint/test/build.
-- Result: pending implementation commit.
-- Commit hash: see git log.
+- New cases: one round-trip test with a quoted name, also asserting the doubled-quote
+  on-disk form (`name,"He said ""3-bet"""`).
+- Validation: `npx vitest run src/domain/rangeTransfer.test.ts` (28 passed), then
+  `npm run lint` (clean) / `npm run test:run` (1007 passed) / `npm run build` (OK).
+- Result: pass.
+- Commit hash: see git log (`test: improve coverage for range transfer`).
 - Push result: pushed to `origin/main`.
 
 ## 7. Skipped Opportunities
