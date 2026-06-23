@@ -35,79 +35,84 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 |---|-------|-----------|------|
 | 1 | Scaffold Expo app in `mobile/` with isolated toolchain | M0 | 2026-06-13 |
 | 2 | Wire `@core/*` alias + bundle-check; prove shared-core reuse bundles | M0 | 2026-06-13 |
+| 3 | Synchronous `localStorage` shim over MMKV (+ `@core/storage` round-trip test) | M1 | 2026-06-13 |
 
 ## Next slice
 
-**Slice 3 — Synchronous `localStorage` shim over MMKV, with a `@core/storage` round-trip test**
+**Slice 4 — Hermes `crypto.randomUUID` polyfill for identity, installed at entry, with a test**
 
 Milestone: M1 — Platform adapters: storage + identity.
 
-Context: M0 is complete. The Expo app (SDK 56, Expo Router) reuses `@core`
-end-to-end: the alias resolves for tsc (`paths`), Jest (`moduleNameMapper`), and
-Metro (custom `resolveRequest` → the in-project `mobile/coresrc` symlink to
-`../src`). `bundle-check` (`expo export --platform ios`) passes headlessly.
+Context: The **storage** half of M1 is done (slice 3). A synchronous MMKV-backed
+`localStorage` shim (`mobile/platform/localStorageShim.ts`, exporting
+`localStorageShim` + `installLocalStorage()`) is installed at app entry via
+`mobile/platform/installStorage.ts`, imported on the first line of
+`mobile/app/_layout.tsx`; `@core/storage/rangeStorage` round-trips through it
+(`mobile/__tests__/storage-shim.test.ts`), with the MMKV native module replaced
+under Jest by `mobile/__mocks__/react-native-mmkv.ts` (in-memory `createMMKV()`).
+This slice adds the **identity** half.
 
-The web core persists everything through the browser `localStorage` global:
-`src/storage/storageHelpers.ts` reads via `localStorage.getItem`, and each
-`src/storage/*` module writes via `localStorage.setItem`. React Native has no
-`localStorage`. This slice adds the storage seam so every `@core/storage` module
-runs on device **unchanged**: a synchronous `localStorage`-compatible shim backed
-by `react-native-mmkv` (synchronous, JSI-based — unlike `AsyncStorage`),
-installed onto `globalThis` **before any storage module loads**. Keys/values stay
-identical to the web app (plain JSON strings under the same keys) so the on-disk
-shape is forward-compatible with backup/cloud transfer.
+Hermes (the RN JS engine) provides no `crypto` global, so `crypto.randomUUID` is
+undefined on device. The shared core's id generation already guards for this:
+`@core/cloud/sharedRangesRepo` and `@core/cloud/sharedPacksRepo` each have a
+private `defaultGenerateId()` that uses `crypto.randomUUID()` when available and
+otherwise falls back to `Date.now().toString(36) + Math.random()…`. So the core
+never crashes under Hermes — but on device it silently uses the weaker
+timestamp+`Math.random` id instead of a real UUID, which matters for
+collision-resistant cloud-share ids. (Note: the web app's `createRangeId` lives
+in `src/App.tsx`, which is web-only UI and is **not** reused; the mobile editor
+will get its id generator from this polyfill in M2.)
 
-Reuse targets (verified): `@core/storage/rangeStorage` exports
-`loadSavedRanges(): SavedRange[]`, `saveSavedRange(range: SavedRange): void`, and
-`deleteSavedRange(id: string): void`. `SavedRange` is in `@core/types`. Import
-these — **never copy a storage module**.
+This slice installs a Hermes `crypto.randomUUID` polyfill at app entry — mirroring
+the storage-shim pattern — so the core's id helpers (and the future mobile editor)
+get real UUIDs on device, while staying a strict **no-op** wherever
+`crypto.randomUUID` already exists (web/test).
 
 Task:
-- `npx expo install react-native-mmkv` (a native module; needs a dev build, not
-  Expo Go — that's fine, the target is the App Store. JS still bundles via
-  `expo export`).
-- Create `mobile/platform/localStorageShim.ts`: a synchronous object implementing
-  the `localStorage` surface the core uses — at minimum `getItem(key)`,
-  `setItem(key, value)`, `removeItem(key)`, `clear()` (add `key(i)`/`length` if
-  trivial) — backed by a single `MMKV` instance (`getString`/`set`/`delete`/
-  `clearAll`/`getAllKeys`). Export an `installLocalStorage()` that assigns it to
-  `globalThis.localStorage` only if absent. Keep the MMKV instance creation lazy
-  so the module can be imported under Jest (where the native module is mocked).
-- Create `mobile/platform/installStorage.ts` that calls `installLocalStorage()` as
-  an import side-effect, and import it on the **first line** of
-  `mobile/app/_layout.tsx` (the router entry that loads before any screen), so the
-  shim exists before screens import `@core/storage`.
-- Jest: the MMKV native module isn't available under jest-expo. Add a mock (e.g. a
-  `mobile/__mocks__/react-native-mmkv.ts` or `jest.mock(...)` in the test) that
-  implements `MMKV` with an in-memory `Map` (`set`/`getString`/`delete`/
-  `clearAll`/`getAllKeys`). Confirm the mock is picked up.
-- Add `mobile/__tests__/storage-shim.test.ts`: install the shim (with the mocked
-  MMKV), then import `loadSavedRanges`/`saveSavedRange` from
-  `@core/storage/rangeStorage`; save a literal `SavedRange` (construct it inline
-  with a fixed `id` — do **not** rely on `createRangeId`/`crypto.randomUUID`; the
-  Hermes randomness polyfill is a later M1 slice), then assert `loadSavedRanges()`
-  returns it (round-trip). Optionally assert the MMKV-backed key matches the web
-  key the core uses.
+- `npx expo install expo-crypto` (Expo's native crypto module; exposes
+  `randomUUID()`). Native module → dev build, not Expo Go; JS still bundles via
+  `expo export`.
+- Create `mobile/platform/cryptoShim.ts`: export `installCryptoRandomUUID()` that,
+  **only if** `globalThis.crypto?.randomUUID` is not a function, ensures a `crypto`
+  object exists on `globalThis` (create `{}` if absent — **never clobber** an
+  existing `crypto`) and defines `randomUUID` on it, backed by `expo-crypto`'s
+  `randomUUID`. Keep it import-safe like the storage shim: importing the module
+  must not call native code; only calling `installCryptoRandomUUID()` touches
+  expo-crypto. Idempotent.
+- Create `mobile/platform/installCrypto.ts` that calls `installCryptoRandomUUID()`
+  as an import side-effect (mirror `installStorage.ts`).
+- Import `../platform/installCrypto` in `mobile/app/_layout.tsx` immediately
+  **after** the storage installer import (both before `expo-router`), so identity
+  is ready before any screen or `@core` call.
+- Jest: mock `expo-crypto` (e.g. `mobile/__mocks__/expo-crypto.ts` or
+  `jest.mock('expo-crypto', …)`) so `randomUUID` returns a deterministic value
+  (e.g. a fixed UUID) without native code.
+- Add `mobile/__tests__/crypto-shim.test.ts`: in the jest env (no
+  `crypto.randomUUID`, like Hermes) assert it is initially absent; call
+  `installCryptoRandomUUID()`; assert `globalThis.crypto.randomUUID()` returns the
+  mocked UUID; assert idempotency — a pre-existing `randomUUID` is not overwritten.
+  **Save/restore `globalThis.crypto` around the tests** so other suites (e.g. the
+  storage suite) are unaffected by the global mutation.
 
 Files to create/modify:
-- Create: `mobile/platform/localStorageShim.ts`,
-  `mobile/platform/installStorage.ts`, the MMKV jest mock, and
-  `mobile/__tests__/storage-shim.test.ts`.
-- Modify: `mobile/package.json` + `mobile/package-lock.json` (react-native-mmkv),
-  `mobile/app/_layout.tsx` (import the installer first).
+- Create: `mobile/platform/cryptoShim.ts`, `mobile/platform/installCrypto.ts`, the
+  expo-crypto jest mock, and `mobile/__tests__/crypto-shim.test.ts`.
+- Modify: `mobile/package.json` + `mobile/package-lock.json` (expo-crypto),
+  `mobile/app/_layout.tsx` (import the crypto installer after the storage one).
 
 Validation (mobile only — does NOT modify shared `src/` or root config, so the web
 trio is not required):
 - In `mobile/`: `npm run lint`, `npm run typecheck`, `npm run test:run`, and
   `npm run bundle-check` — all must pass. Run `npm install` in `mobile/` first
   (new dependency). Confirm `bundle-check` still produces the iOS bundle with
-  react-native-mmkv in the graph.
+  expo-crypto in the graph.
 
-Constraints: reuse `@core/storage` unchanged (the shim adapts the platform, the
-core is not edited); native adapters live in `mobile/platform/`; keep it minimal
-and reversible. Do not edit anything under `src/`.
+Constraints: reuse `@core` unchanged (the polyfill adapts the platform; the core
+is not edited); native adapters live in `mobile/platform/`; keep it minimal,
+reversible, and a strict no-op when `crypto.randomUUID` already exists. Do not edit
+anything under `src/`.
 
 Suggested commit message:
-`feat(ios): add MMKV-backed localStorage shim for @core storage`
+`feat(ios): polyfill crypto.randomUUID for Hermes identity`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
