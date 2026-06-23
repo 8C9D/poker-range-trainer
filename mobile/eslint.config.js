@@ -6,6 +6,8 @@ const expoConfig = require('eslint-config-expo/flat');
 module.exports = [
   ...expoConfig,
   {
-    ignores: ['dist/*', '.expo/*'],
+    // coresrc is a symlink to ../src used only by Metro; the web source it points
+    // to is linted by the root web toolchain, not here.
+    ignores: ['dist/*', '.expo/*', 'coresrc/*'],
   },
 ];
