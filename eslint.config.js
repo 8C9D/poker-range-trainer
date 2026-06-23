@@ -6,7 +6,9 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // mobile/ is a self-contained Expo (React Native) app with its own ESLint
+  // config; the web toolchain must never lint RN code.
+  globalIgnores(['dist', 'mobile']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
