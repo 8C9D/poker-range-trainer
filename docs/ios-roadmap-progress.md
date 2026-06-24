@@ -36,83 +36,73 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 1 | Scaffold Expo app in `mobile/` with isolated toolchain | M0 | 2026-06-13 |
 | 2 | Wire `@core/*` alias + bundle-check; prove shared-core reuse bundles | M0 | 2026-06-13 |
 | 3 | Synchronous `localStorage` shim over MMKV (+ `@core/storage` round-trip test) | M1 | 2026-06-13 |
+| 4 | Hermes `crypto.randomUUID` polyfill for identity, installed at entry | M1 | 2026-06-13 |
 
 ## Next slice
 
-**Slice 4 — Hermes `crypto.randomUUID` polyfill for identity, installed at entry, with a test**
+**Slice 5 — Storage parity test: assert web keys/shapes survive a full backup round-trip through the shim (closes M1)**
 
-Milestone: M1 — Platform adapters: storage + identity.
+Milestone: M1 — Platform adapters: storage + identity. This is the **last M1
+slice**; the next slice (6) opens M2.
 
-Context: The **storage** half of M1 is done (slice 3). A synchronous MMKV-backed
-`localStorage` shim (`mobile/platform/localStorageShim.ts`, exporting
-`localStorageShim` + `installLocalStorage()`) is installed at app entry via
-`mobile/platform/installStorage.ts`, imported on the first line of
-`mobile/app/_layout.tsx`; `@core/storage/rangeStorage` round-trips through it
-(`mobile/__tests__/storage-shim.test.ts`), with the MMKV native module replaced
-under Jest by `mobile/__mocks__/react-native-mmkv.ts` (in-memory `createMMKV()`).
-This slice adds the **identity** half.
+Context: M1's storage shim (slice 3) and identity polyfill (slice 4) are done.
+The shim is installed at entry; `@core/storage/rangeStorage` already round-trips
+through it (`mobile/__tests__/storage-shim.test.ts`). The MMKV native module is
+mocked in-memory under Jest (`mobile/__mocks__/react-native-mmkv.ts`); the shim is
+`mobile/platform/localStorageShim.ts` (`localStorageShim` + `installLocalStorage()`).
 
-Hermes (the RN JS engine) provides no `crypto` global, so `crypto.randomUUID` is
-undefined on device. The shared core's id generation already guards for this:
-`@core/cloud/sharedRangesRepo` and `@core/cloud/sharedPacksRepo` each have a
-private `defaultGenerateId()` that uses `crypto.randomUUID()` when available and
-otherwise falls back to `Date.now().toString(36) + Math.random()…`. So the core
-never crashes under Hermes — but on device it silently uses the weaker
-timestamp+`Math.random` id instead of a real UUID, which matters for
-collision-resistant cloud-share ids. (Note: the web app's `createRangeId` lives
-in `src/App.tsx`, which is web-only UI and is **not** reused; the mobile editor
-will get its id generator from this polyfill in M2.)
+This slice closes M1 with the roadmap's **parity test**: prove the on-disk
+keys/shapes the reused core writes through the MMKV shim are byte-compatible with
+the web app (so a future backup/cloud transfer is interchangeable across
+platforms). Because the mobile app reuses the `@core/storage` modules **verbatim**,
+the keys cannot drift — this test is the regression lock that documents and
+enforces that contract, and proves the whole storage surface (not just ranges)
+works on the shim, including the backup serializer used by cloud transfer.
 
-This slice installs a Hermes `crypto.randomUUID` polyfill at app entry — mirroring
-the storage-shim pattern — so the core's id helpers (and the future mobile editor)
-get real UUIDs on device, while staying a strict **no-op** wherever
-`crypto.randomUUID` already exists (web/test).
+Reuse targets (verified — import, never copy):
+- Key constants, all under the `poker-range-trainer.*.v1` namespace:
+  `STORAGE_KEY` (`@core/storage/rangeStorage`, `…saved-ranges.v1`),
+  `SESSION_HISTORY_STORAGE_KEY` (`@core/storage/sessionHistoryStorage`),
+  `REVIEW_STATE_STORAGE_KEY` (`@core/storage/reviewStateStorage`),
+  `PRACTICE_STATS_STORAGE_KEY` (`@core/storage/practiceStatsStorage`),
+  `HAND_ACCURACY_STORAGE_KEY` (`@core/storage/handAccuracyStorage`),
+  `ACTION_ACCURACY_STORAGE_KEY` (`@core/storage/actionAccuracyStorage`).
+- Backup surface: `@core/storage/backup` exports `buildBackup(exportedAt?)`,
+  `serializeBackup(backup)`, `parseBackup(json)`, `restoreBackup(backup)`
+  (snapshots/restores all of the above stores). First read `src/storage/backup.ts`
+  to confirm the `Backup` shape and exactly which stores it captures.
 
-Task:
-- `npx expo install expo-crypto` (Expo's native crypto module; exposes
-  `randomUUID()`). Native module → dev build, not Expo Go; JS still bundles via
-  `expo export`.
-- Create `mobile/platform/cryptoShim.ts`: export `installCryptoRandomUUID()` that,
-  **only if** `globalThis.crypto?.randomUUID` is not a function, ensures a `crypto`
-  object exists on `globalThis` (create `{}` if absent — **never clobber** an
-  existing `crypto`) and defines `randomUUID` on it, backed by `expo-crypto`'s
-  `randomUUID`. Keep it import-safe like the storage shim: importing the module
-  must not call native code; only calling `installCryptoRandomUUID()` touches
-  expo-crypto. Idempotent.
-- Create `mobile/platform/installCrypto.ts` that calls `installCryptoRandomUUID()`
-  as an import side-effect (mirror `installStorage.ts`).
-- Import `../platform/installCrypto` in `mobile/app/_layout.tsx` immediately
-  **after** the storage installer import (both before `expo-router`), so identity
-  is ready before any screen or `@core` call.
-- Jest: mock `expo-crypto` (e.g. `mobile/__mocks__/expo-crypto.ts` or
-  `jest.mock('expo-crypto', …)`) so `randomUUID` returns a deterministic value
-  (e.g. a fixed UUID) without native code.
-- Add `mobile/__tests__/crypto-shim.test.ts`: in the jest env (no
-  `crypto.randomUUID`, like Hermes) assert it is initially absent; call
-  `installCryptoRandomUUID()`; assert `globalThis.crypto.randomUUID()` returns the
-  mocked UUID; assert idempotency — a pre-existing `randomUUID` is not overwritten.
-  **Save/restore `globalThis.crypto` around the tests** so other suites (e.g. the
-  storage suite) are unaffected by the global mutation.
+Task (test-only — no new deps, no `src/` edits):
+- Add `mobile/__tests__/storage-parity.test.ts`. Use the same MMKV-mock + shim
+  pattern as `storage-shim.test.ts` (`jest.mock('react-native-mmkv')`,
+  `installLocalStorage()` in `beforeAll`, `localStorageShim.clear()` in
+  `beforeEach`).
+- Key parity: assert each of the six key constants equals its exact canonical web
+  string (literal), locking the on-disk layout to the web app's.
+- Full round-trip: seed a representative slice of state through the core writers
+  (e.g. `saveSavedRange(...)` plus at least one of `recordPracticeSession` /
+  `saveReviewState` / `recordHandAccuracy` — match the real signatures in `src/`),
+  call `buildBackup()` then `serializeBackup()`, `clear()` the store, then
+  `restoreBackup(parseBackup(json))`, and assert the data reloads identically
+  (e.g. `loadSavedRanges()` and the matching loaders return what was seeded). Use
+  fixed ids/timestamps and canonical hand order (e.g. `['AA','AKs','AQs']`) so
+  assertions are exact. This proves keys + JSON shape are forward-compatible with
+  web/backup/cloud transfer.
 
 Files to create/modify:
-- Create: `mobile/platform/cryptoShim.ts`, `mobile/platform/installCrypto.ts`, the
-  expo-crypto jest mock, and `mobile/__tests__/crypto-shim.test.ts`.
-- Modify: `mobile/package.json` + `mobile/package-lock.json` (expo-crypto),
-  `mobile/app/_layout.tsx` (import the crypto installer after the storage one).
+- Create: `mobile/__tests__/storage-parity.test.ts`.
+- Modify: none expected (test-only). No new dependency, so no package.json change.
 
 Validation (mobile only — does NOT modify shared `src/` or root config, so the web
 trio is not required):
 - In `mobile/`: `npm run lint`, `npm run typecheck`, `npm run test:run`, and
-  `npm run bundle-check` — all must pass. Run `npm install` in `mobile/` first
-  (new dependency). Confirm `bundle-check` still produces the iOS bundle with
-  expo-crypto in the graph.
+  `npm run bundle-check` — all must pass. (No new dep, but still run all four.)
 
-Constraints: reuse `@core` unchanged (the polyfill adapts the platform; the core
-is not edited); native adapters live in `mobile/platform/`; keep it minimal,
-reversible, and a strict no-op when `crypto.randomUUID` already exists. Do not edit
-anything under `src/`.
+Constraints: reuse `@core/storage` unchanged; this is a test that exercises the
+seam, not a change to it. Keep it focused and reversible. Do not edit anything
+under `src/`.
 
 Suggested commit message:
-`feat(ios): polyfill crypto.randomUUID for Hermes identity`
+`test(ios): assert @core storage key/shape parity through the MMKV shim`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
