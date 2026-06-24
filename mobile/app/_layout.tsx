@@ -3,8 +3,24 @@
 import '../platform/installStorage';
 import '../platform/installCrypto';
 import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 
-// Root navigator for the Expo Router app. Screens live under app/.
+import { colors } from '../theme/colors';
+
+// Root navigator for the Expo Router app. Screens live under app/. The dark theme
+// (matching the web app) is applied here once via screenOptions.
 export default function RootLayout() {
-  return <Stack />;
+  return (
+    <>
+      <StatusBar style="light" />
+      <Stack
+        screenOptions={{
+          headerStyle: { backgroundColor: colors.brand },
+          headerTintColor: colors.accent,
+          headerTitleStyle: { color: colors.textStrong },
+          contentStyle: { backgroundColor: colors.background },
+        }}
+      />
+    </>
+  );
 }
