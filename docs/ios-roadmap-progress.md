@@ -37,72 +37,75 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 2 | Wire `@core/*` alias + bundle-check; prove shared-core reuse bundles | M0 | 2026-06-13 |
 | 3 | Synchronous `localStorage` shim over MMKV (+ `@core/storage` round-trip test) | M1 | 2026-06-13 |
 | 4 | Hermes `crypto.randomUUID` polyfill for identity, installed at entry | M1 | 2026-06-13 |
+| 5 | Storage parity test: web keys + full backup round-trip through the shim | M1 | 2026-06-13 |
 
 ## Next slice
 
-**Slice 5 — Storage parity test: assert web keys/shapes survive a full backup round-trip through the shim (closes M1)**
+**Slice 6 — Themed navigation shell: dark theme tokens + styled Stack + home screen (opens M2)**
 
-Milestone: M1 — Platform adapters: storage + identity. This is the **last M1
-slice**; the next slice (6) opens M2.
+Milestone: M2 — Core trainer MVP (parity with web v1). This is the **first M2
+slice**: the navigation shell + theme the rest of M2 (HandGrid, editor, library,
+practice) builds on.
 
-Context: M1's storage shim (slice 3) and identity polyfill (slice 4) are done.
-The shim is installed at entry; `@core/storage/rangeStorage` already round-trips
-through it (`mobile/__tests__/storage-shim.test.ts`). The MMKV native module is
-mocked in-memory under Jest (`mobile/__mocks__/react-native-mmkv.ts`); the shim is
-`mobile/platform/localStorageShim.ts` (`localStorageShim` + `installLocalStorage()`).
+Context: M1 is complete — storage shim + identity polyfill installed at entry,
+with parity locked. The app currently has a single placeholder screen
+(`mobile/app/index.tsx`, exporting `APP_TITLE` + rendering `ALL_HANDS.length`) and
+a bare `<Stack />` root (`mobile/app/_layout.tsx`). Both use hardcoded light colors
+(`#fff` / `#555`). This slice introduces a shared **dark theme** and applies it to
+the navigation shell, matching the web app.
 
-This slice closes M1 with the roadmap's **parity test**: prove the on-disk
-keys/shapes the reused core writes through the MMKV shim are byte-compatible with
-the web app (so a future backup/cloud transfer is interchangeable across
-platforms). Because the mobile app reuses the `@core/storage` modules **verbatim**,
-the keys cannot drift — this test is the regression lock that documents and
-enforces that contract, and proves the whole storage surface (not just ranges)
-works on the shim, including the backup serializer used by cloud transfer.
+Web palette to match (from `src/index.css` dark block + `public/manifest.webmanifest`):
+- brand/`theme_color`: `#1a1626` (nav header background)
+- background: `#16171d`
+- surface (cards): `#1f2028`
+- border: `#2e303a`
+- text (secondary): `#9ca3af`
+- text strong (headings): `#f3f4f6`
+- accent: `#c084fc`
+- text on accent: `#fff`
 
-Reuse targets (verified — import, never copy):
-- Key constants, all under the `poker-range-trainer.*.v1` namespace:
-  `STORAGE_KEY` (`@core/storage/rangeStorage`, `…saved-ranges.v1`),
-  `SESSION_HISTORY_STORAGE_KEY` (`@core/storage/sessionHistoryStorage`),
-  `REVIEW_STATE_STORAGE_KEY` (`@core/storage/reviewStateStorage`),
-  `PRACTICE_STATS_STORAGE_KEY` (`@core/storage/practiceStatsStorage`),
-  `HAND_ACCURACY_STORAGE_KEY` (`@core/storage/handAccuracyStorage`),
-  `ACTION_ACCURACY_STORAGE_KEY` (`@core/storage/actionAccuracyStorage`).
-- Backup surface: `@core/storage/backup` exports `buildBackup(exportedAt?)`,
-  `serializeBackup(backup)`, `parseBackup(json)`, `restoreBackup(backup)`
-  (snapshots/restores all of the above stores). First read `src/storage/backup.ts`
-  to confirm the `Backup` shape and exactly which stores it captures.
+Scope is intentionally narrow — theme + shell only. **Do NOT decide tab-vs-stack
+information architecture** here: keep the existing `Stack` shell (the home screen
+becomes the range library in a later M2 slice), so no new product decision is
+forced. Dark-only is fine for now (the web supports light too; a light theme can
+come later if wanted).
 
-Task (test-only — no new deps, no `src/` edits):
-- Add `mobile/__tests__/storage-parity.test.ts`. Use the same MMKV-mock + shim
-  pattern as `storage-shim.test.ts` (`jest.mock('react-native-mmkv')`,
-  `installLocalStorage()` in `beforeAll`, `localStorageShim.clear()` in
-  `beforeEach`).
-- Key parity: assert each of the six key constants equals its exact canonical web
-  string (literal), locking the on-disk layout to the web app's.
-- Full round-trip: seed a representative slice of state through the core writers
-  (e.g. `saveSavedRange(...)` plus at least one of `recordPracticeSession` /
-  `saveReviewState` / `recordHandAccuracy` — match the real signatures in `src/`),
-  call `buildBackup()` then `serializeBackup()`, `clear()` the store, then
-  `restoreBackup(parseBackup(json))`, and assert the data reloads identically
-  (e.g. `loadSavedRanges()` and the matching loaders return what was seeded). Use
-  fixed ids/timestamps and canonical hand order (e.g. `['AA','AKs','AQs']`) so
-  assertions are exact. This proves keys + JSON shape are forward-compatible with
-  web/backup/cloud transfer.
+Task (mobile-only; reuse `@core`, do not edit `src/`):
+- Create `mobile/theme/colors.ts` exporting a typed `colors` token object with the
+  values above (e.g. `background`, `surface`, `border`, `text`, `textStrong`,
+  `accent`, `onAccent`, `brand`). Optionally add minimal `spacing`/`radius` tokens
+  if a screen needs them. This is the single source of truth for RN styling
+  (parallel to the web CSS vars) and is **not** a `@core` concern — it's mobile UI.
+- Apply the theme in `mobile/app/_layout.tsx`: give `<Stack>` `screenOptions` with
+  `headerStyle.backgroundColor = colors.brand`, `headerTintColor = colors.accent`,
+  `headerTitleStyle.color = colors.textStrong`, and
+  `contentStyle.backgroundColor = colors.background`. Keep the storage/crypto
+  side-effect imports first. Set the status bar to light (dark background) — e.g.
+  `<StatusBar style="light" />` from `expo-status-bar` rendered in the layout.
+- Restyle `mobile/app/index.tsx` to use the theme tokens (themed container
+  background, `textStrong` title, `text` subtitle). **Keep** the `APP_TITLE` export
+  and the `ALL_HANDS.length` line so `mobile/__tests__/home-screen.test.tsx` keeps
+  passing. Optionally give the screen a `Stack.Screen options={{ title: ... }}`.
+- Add `mobile/__tests__/theme.test.ts`: assert the `colors` tokens equal the exact
+  web hex values above (locks visual parity with the web palette, mirroring how
+  the storage parity test locks keys).
 
 Files to create/modify:
-- Create: `mobile/__tests__/storage-parity.test.ts`.
-- Modify: none expected (test-only). No new dependency, so no package.json change.
+- Create: `mobile/theme/colors.ts`, `mobile/__tests__/theme.test.ts`.
+- Modify: `mobile/app/_layout.tsx` (themed Stack + status bar),
+  `mobile/app/index.tsx` (themed styles).
 
 Validation (mobile only — does NOT modify shared `src/` or root config, so the web
 trio is not required):
 - In `mobile/`: `npm run lint`, `npm run typecheck`, `npm run test:run`, and
-  `npm run bundle-check` — all must pass. (No new dep, but still run all four.)
+  `npm run bundle-check` — all must pass.
 
-Constraints: reuse `@core/storage` unchanged; this is a test that exercises the
-seam, not a change to it. Keep it focused and reversible. Do not edit anything
-under `src/`.
+Constraints: theme/UI lives in `mobile/` (`mobile/theme/`, `mobile/app/`); reused
+logic still comes from `@core`. Keep it minimal and reversible; no navigation
+library change, no IA decision, no new heavy dependency. Do not edit anything under
+`src/`.
 
 Suggested commit message:
-`test(ios): assert @core storage key/shape parity through the MMKV shim`
+`feat(ios): add dark theme tokens and themed navigation shell`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
