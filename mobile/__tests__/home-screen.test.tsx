@@ -1,9 +1,15 @@
 import { render } from '@testing-library/react-native';
+import type { ReactNode } from 'react';
 
 import HomeScreen, { APP_TITLE } from '../app/index';
 
-// Trivial smoke test so `test:run` is meaningful: the scaffold's home screen
-// renders its title. Reused-core tests arrive in later slices.
+// The home screen links into the editor; stub expo-router's Link as a passthrough
+// so it renders without a navigation context.
+jest.mock('expo-router', () => ({
+  Link: ({ children }: { children: ReactNode }) => children,
+}));
+
+// Smoke test so `test:run` is meaningful: the home screen renders its title.
 // Note: @testing-library/react-native v14's `render` is async (React 19), so it
 // must be awaited.
 describe('HomeScreen', () => {

@@ -41,72 +41,66 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 6 | Dark theme tokens + themed navigation shell | M2 | 2026-06-14 |
 | 7 | 13×13 tap-to-toggle `HandGrid`/`HandCell` reusing the core matrix | M2 | 2026-06-14 |
 | 8 | Drag-paint `HandGrid` via gesture handler (+ fix react/renderer version skew) | M2 | 2026-06-14 |
+| 9 | Range editor screen: name + grid + live save via `@core` storage | M2 | 2026-06-14 |
 
 ## Next slice
 
-**Slice 9 — Range editor screen: name field + grid + live save via `@core` storage**
+**Slice 10 — Range library screen: list / open / edit / delete (becomes the home screen)**
 
 Milestone: M2 — Core trainer MVP (parity with web v1).
 
-Context: the `HandGrid` (`mobile/components/HandGrid.tsx`) is done — controlled,
-tap + drag-paint, `onSetSelected(hand, selected)`. The storage shim + identity
-polyfill are installed at entry; `crypto.randomUUID` exists on device (slice 4).
-This slice adds the screen that turns the grid into a saved range. The library
-screen (slice 10) will list ranges and open this editor for editing.
+Context: the editor (`mobile/app/editor.tsx`) creates/edits a range and live-saves
+via `@core/storage`; it reads an optional `?id=` to edit an existing range and a
+"New range" `Link` already exists on the placeholder home screen. This slice
+replaces that placeholder with the real **range library** — the app's main screen —
+listing saved ranges and supporting open-to-edit and delete. After this slice the
+full v1 create → save → edit → delete loop works on device (only practice remains
+for M2, slice 11).
 
 Reuse (verified, import — never copy): `@core/storage/rangeStorage` exports
-`saveSavedRange(range: SavedRange): void`, `findSavedRangeById(id): SavedRange |
-undefined`, `loadSavedRanges()`. `SavedRange` (`@core/types/range`) minimally needs
-`{ id, name, hands: PokerHand[], createdAt, updatedAt }` (ISO strings).
+`loadSavedRanges(): SavedRange[]` and `deleteSavedRange(id: string): void`.
+Optional summary helpers in `@core/domain/rangeMath`: `calculateRangePercentage(
+hands)` and `countSelectedCombos(hands)`.
 
 Task (mobile-only; reuse `@core`, do not edit `src/`):
-- Add `mobile/platform/createRangeId.ts`: `createRangeId(): string` returning
-  `expo-crypto`'s `randomUUID()` (type-safe + testable; the mobile UI's equivalent
-  of the web `createRangeId`). Do not read the untyped `crypto` global.
-- Add `mobile/app/editor.tsx` (Expo Router screen):
-  - Read an optional `id` via `useLocalSearchParams`. If present, load with
-    `findSavedRangeById(id)` into local state; otherwise start a NEW draft with
-    `createRangeId()` and `createdAt = updatedAt = new Date().toISOString()`.
-  - State: `name` (string) and `selected` (`Set<PokerHand>`). Render a themed
-    name `TextInput` (placeholder e.g. "Range name") and the `<HandGrid selected=…
-    onSetSelected=…/>` wired to a `useCallback` setter that adds/removes the hand
-    and updates state immutably.
-  - **Live save:** in a `useEffect` keyed on name + the selected set, persist via
-    `saveSavedRange({ id, name, hands: [...selected], createdAt, updatedAt: new
-    Date().toISOString() })` — but skip the very first effect run for an existing
-    range so merely opening it doesn't rewrite `updatedAt` (e.g. guard with a
-    "hydrated" ref). Keep `id`/`createdAt` stable in refs/state across renders.
-  - Set the header title via `<Stack.Screen options={{ title: … }}>` ("New range"
-    vs the range name). Use theme tokens; wrap content so the grid has sensible
-    padding and the screen scrolls if needed.
-- Make it reachable: on `mobile/app/index.tsx`, add a themed "New range" button
-  (`Link`/`router.push` to `/editor`) so the editor can be opened and tested before
-  the library exists.
+- Replace `mobile/app/index.tsx` with the library screen:
+  - Load ranges with `loadSavedRanges()` into state, and **reload on focus** so the
+    list reflects edits made in the editor — use `useFocusEffect` (from `expo-router`)
+    with a `useCallback`. Also load on mount.
+  - Render a `FlatList` (or mapped list) of ranges. Each row shows the range name and
+    a small summary (e.g. `${hands.length} hands` or `calculateRangePercentage` %),
+    is a `Link`/`router.push` to `/editor?id=<id>` to edit, and has a delete control
+    (a button/icon) that confirms via `Alert.alert` then calls `deleteSavedRange(id)`
+    and reloads the list. Use `testID`s like `range-row-<id>` and `delete-<id>`.
+  - Themed empty state when there are no ranges (e.g. "No ranges yet — create one").
+  - Keep a "New range" action (header button or a `Link` to `/editor`).
+  - Set the header title via `<Stack.Screen options={{ title: 'Ranges' }}>`.
+  - If a small `mobile/components/RangeListItem.tsx` keeps the screen clean, add it;
+    otherwise inline. RN UI lives in `mobile/components/` / `mobile/app/`.
 - Tests:
-  - `mobile/__tests__/create-range-id.test.ts`: mock `expo-crypto`; assert
-    `createRangeId()` returns its `randomUUID()`.
-  - `mobile/__tests__/editor-screen.test.tsx`: install the storage shim (MMKV mock,
-    as in `storage-shim.test.ts`); mock `expo-router` (`useLocalSearchParams` → `{}`
-    for a new range; stub `Stack.Screen`/`Link`/`router`) and `expo-crypto`
-    (deterministic id). Render the editor, type a name (`fireEvent.changeText`),
-    toggle a hand (`fireEvent.press(getByTestId('hand-cell-AA'))`), then assert
-    `loadSavedRanges()` returns a range with that name + `hands: ['AA']` and the
-    fixed id. (RNTL v14 — `await render`.)
+  - Replace `mobile/__tests__/home-screen.test.tsx` with
+    `mobile/__tests__/library-screen.test.tsx`: install the storage shim (MMKV mock);
+    mock `expo-router` (`useFocusEffect: (cb) => cb()` so focus-load runs once,
+    `Link` passthrough, `Stack.Screen` → null, `router`/`useRouter` as needed). Seed
+    two ranges via `saveSavedRange`, render, assert both names appear. Then exercise
+    delete: spy on `Alert.alert` to invoke its confirm button's `onPress`, press the
+    delete control, and assert the range is gone from `loadSavedRanges()` and the UI.
+  - Update any `APP_TITLE` usage that the old home test relied on (the placeholder
+    title may go away — adjust or drop that assertion).
 
-Files: create `mobile/platform/createRangeId.ts`, `mobile/app/editor.tsx`,
-`mobile/__tests__/create-range-id.test.ts`, `mobile/__tests__/editor-screen.test.tsx`;
-modify `mobile/app/index.tsx` (entry button). No `src/` edits, no new dependency
-(expo-crypto already present).
+Files: modify `mobile/app/index.tsx`; create `mobile/__tests__/library-screen.test.tsx`
+(replacing `home-screen.test.tsx`); optionally `mobile/components/RangeListItem.tsx`.
+No `src/` edits, no new dependency.
 
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
 `npm run bundle-check` — all must pass.
 
-Constraints: reuse `@core/storage` unchanged; screens in `mobile/app/`, helpers in
-`mobile/platform/`; keep the editor controlled and minimal. If the slice grows too
-large, it is acceptable to land new-range create first and defer edit-by-id to the
-library slice — but prefer supporting both. Do not edit `src/`.
+Constraints: reuse `@core/storage` unchanged; the list is read-from-storage +
+reload-on-focus (no duplicate client state of truth); keep delete behind a
+confirmation. Screens in `mobile/app/`, components in `mobile/components/`. Do not
+edit `src/`.
 
 Suggested commit message:
-`feat(ios): add range editor screen with live save via @core storage`
+`feat(ios): add range library screen with open/edit/delete`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
