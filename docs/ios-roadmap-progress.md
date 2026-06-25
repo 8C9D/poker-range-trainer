@@ -40,85 +40,73 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 5 | Storage parity test: web keys + full backup round-trip through the shim | M1 | 2026-06-13 |
 | 6 | Dark theme tokens + themed navigation shell | M2 | 2026-06-14 |
 | 7 | 13×13 tap-to-toggle `HandGrid`/`HandCell` reusing the core matrix | M2 | 2026-06-14 |
+| 8 | Drag-paint `HandGrid` via gesture handler (+ fix react/renderer version skew) | M2 | 2026-06-14 |
 
 ## Next slice
 
-**Slice 8 — Drag-paint the `HandGrid` via gesture handler (+ align API to the web's `onSetSelected`)**
+**Slice 9 — Range editor screen: name field + grid + live save via `@core` storage**
 
 Milestone: M2 — Core trainer MVP (parity with web v1).
 
-Context: slice 7 shipped the controlled 13×13 `HandGrid`
-(`mobile/components/HandGrid.tsx`) with tap-to-toggle via `onToggleHand` and a
-memoized `HandCell` (`testID=hand-cell-<hand>`, `accessibilityState.selected`).
-This slice adds **drag-to-paint** and aligns the grid's API to the web reference
-so the two stay behavior-identical. The grid is still unused by any screen, so the
-API change is low-cost.
+Context: the `HandGrid` (`mobile/components/HandGrid.tsx`) is done — controlled,
+tap + drag-paint, `onSetSelected(hand, selected)`. The storage shim + identity
+polyfill are installed at entry; `crypto.randomUUID` exists on device (slice 4).
+This slice adds the screen that turns the grid into a saved range. The library
+screen (slice 10) will list ranges and open this editor for editing.
 
-Web reference (`src/components/HandGrid.tsx`, verified): props are
-`{ selected: ReadonlySet<PokerHand>; onSetSelected: (hand, selected: boolean) =>
-void }`. **Paint model:** the first cell pressed decides the gesture's mode —
-press an *unselected* hand ⇒ mode `select`, a *selected* hand ⇒ mode `deselect`;
-every cell crossed during the drag is **set** to that one target state (an
-idempotent set, not a toggle), so re-entering a hand mid-drag never flips it. A
-plain tap sets the cell to the opposite of its current state (`onSetSelected(hand,
-!selected.has(hand))`).
-
-`react-native-gesture-handler` is already present (v3.0.1, transitive via
-expo-router); declare it directly with `npx expo install
-react-native-gesture-handler`.
+Reuse (verified, import — never copy): `@core/storage/rangeStorage` exports
+`saveSavedRange(range: SavedRange): void`, `findSavedRangeById(id): SavedRange |
+undefined`, `loadSavedRanges()`. `SavedRange` (`@core/types/range`) minimally needs
+`{ id, name, hands: PokerHand[], createdAt, updatedAt }` (ISO strings).
 
 Task (mobile-only; reuse `@core`, do not edit `src/`):
-- **API alignment:** change `HandGrid`'s prop `onToggleHand` →
-  `onSetSelected: (hand: PokerHand, selected: boolean) => void`. Tap path:
-  `onPress={() => onSetSelected(hand, !selected.has(hand))}`. Update
-  `mobile/__tests__/hand-grid.test.tsx` for the new prop (assert
-  `onSetSelected('AA', true)` when AA is unselected, and `('AA', false)` when AA is
-  in `selected`).
-- **Coordinate mapping:** add a pure exported helper, e.g.
-  `handAtPoint(x: number, y: number, gridSize: number): PokerHand | null`, that maps
-  a touch point within the square grid to a hand using the module's
-  `generateHandMatrix()` (cell = `gridSize / 13`; `col = floor(x / cell)`,
-  `row = floor(y / cell)`; clamp/return `null` when `gridSize <= 0` or indices fall
-  outside 0..12). Keep it independent of React so it is easily unit-tested.
-- **Drag-paint:** measure the grid square via `onLayout` (store side length), wrap
-  the grid in `<GestureDetector>` with a `Gesture.Pan()`. Use
-  `.activeOffsetX([-10, 10])` / `.activeOffsetY([-10, 10])` so a stationary tap
-  stays a `Pressable` tap and only real movement activates the pan (prevents
-  double-application). `onStart`: compute the first hand from the gesture x/y,
-  set paint mode = `!selected.has(firstHand)`, paint it, and record it.
-  `onUpdate`: compute the hand under the finger; if it changed and was not yet
-  painted this drag, set it to the paint mode. `onEnd`/`onFinalize`: reset the
-  per-drag state. Track paint mode + the painted set in refs. Note: keep the
-  gesture callbacks on the JS thread (no reanimated worklets) so `onSetSelected`
-  can be called directly; if RNGH requires it, wrap calls in `runOnJS`.
-- **Root view:** wrap the app root in `<GestureHandlerRootView style={{ flex: 1 }}>`
-  in `mobile/app/_layout.tsx` (required for gestures on iOS); keep the
-  storage/crypto side-effect imports first and the themed Stack inside it.
-- **Tests** (`mobile/__tests__/hand-grid.test.tsx`): unit-test `handAtPoint`
-  thoroughly (each corner → AA / A2s / A2o-region / 22 per the matrix, the center,
-  and out-of-bounds → null). Keep/adjust the tap + selected-state + disabled tests
-  for the new API. (Full pan simulation is optional — RNGH ships
-  `react-native-gesture-handler/jest-utils` `fireGestureHandler` if you want it, but
-  the pure `handAtPoint` test is the reliable coverage for the paint mapping.)
+- Add `mobile/platform/createRangeId.ts`: `createRangeId(): string` returning
+  `expo-crypto`'s `randomUUID()` (type-safe + testable; the mobile UI's equivalent
+  of the web `createRangeId`). Do not read the untyped `crypto` global.
+- Add `mobile/app/editor.tsx` (Expo Router screen):
+  - Read an optional `id` via `useLocalSearchParams`. If present, load with
+    `findSavedRangeById(id)` into local state; otherwise start a NEW draft with
+    `createRangeId()` and `createdAt = updatedAt = new Date().toISOString()`.
+  - State: `name` (string) and `selected` (`Set<PokerHand>`). Render a themed
+    name `TextInput` (placeholder e.g. "Range name") and the `<HandGrid selected=…
+    onSetSelected=…/>` wired to a `useCallback` setter that adds/removes the hand
+    and updates state immutably.
+  - **Live save:** in a `useEffect` keyed on name + the selected set, persist via
+    `saveSavedRange({ id, name, hands: [...selected], createdAt, updatedAt: new
+    Date().toISOString() })` — but skip the very first effect run for an existing
+    range so merely opening it doesn't rewrite `updatedAt` (e.g. guard with a
+    "hydrated" ref). Keep `id`/`createdAt` stable in refs/state across renders.
+  - Set the header title via `<Stack.Screen options={{ title: … }}>` ("New range"
+    vs the range name). Use theme tokens; wrap content so the grid has sensible
+    padding and the screen scrolls if needed.
+- Make it reachable: on `mobile/app/index.tsx`, add a themed "New range" button
+  (`Link`/`router.push` to `/editor`) so the editor can be opened and tested before
+  the library exists.
+- Tests:
+  - `mobile/__tests__/create-range-id.test.ts`: mock `expo-crypto`; assert
+    `createRangeId()` returns its `randomUUID()`.
+  - `mobile/__tests__/editor-screen.test.tsx`: install the storage shim (MMKV mock,
+    as in `storage-shim.test.ts`); mock `expo-router` (`useLocalSearchParams` → `{}`
+    for a new range; stub `Stack.Screen`/`Link`/`router`) and `expo-crypto`
+    (deterministic id). Render the editor, type a name (`fireEvent.changeText`),
+    toggle a hand (`fireEvent.press(getByTestId('hand-cell-AA'))`), then assert
+    `loadSavedRanges()` returns a range with that name + `hands: ['AA']` and the
+    fixed id. (RNTL v14 — `await render`.)
 
-Files to create/modify:
-- Modify: `mobile/components/HandGrid.tsx` (API + gesture + `handAtPoint`),
-  `mobile/__tests__/hand-grid.test.tsx`, `mobile/app/_layout.tsx`
-  (`GestureHandlerRootView`), `mobile/package.json` + `mobile/package-lock.json`
-  (declare react-native-gesture-handler).
+Files: create `mobile/platform/createRangeId.ts`, `mobile/app/editor.tsx`,
+`mobile/__tests__/create-range-id.test.ts`, `mobile/__tests__/editor-screen.test.tsx`;
+modify `mobile/app/index.tsx` (entry button). No `src/` edits, no new dependency
+(expo-crypto already present).
 
-Validation (mobile only — does NOT modify shared `src/` or root config, so the web
-trio is not required):
-- Run `npm install` in `mobile/` first, then `npm run lint`, `npm run typecheck`,
-  `npm run test:run`, and `npm run bundle-check` — all must pass. Confirm
-  `bundle-check` still produces the iOS bundle (gesture-handler is bundled once a
-  screen imports the grid; importing it in the test/graph is enough to typecheck).
+Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
+`npm run bundle-check` — all must pass.
 
-Constraints: grid stays controlled (parent owns selection); reuse the core matrix;
-match the web paint semantics exactly; RN UI in `mobile/components/`. Keep it
-minimal and reversible. Do not edit anything under `src/`.
+Constraints: reuse `@core/storage` unchanged; screens in `mobile/app/`, helpers in
+`mobile/platform/`; keep the editor controlled and minimal. If the slice grows too
+large, it is acceptable to land new-range create first and defer edit-by-id to the
+library slice — but prefer supporting both. Do not edit `src/`.
 
 Suggested commit message:
-`feat(ios): add drag-paint to HandGrid via gesture handler`
+`feat(ios): add range editor screen with live save via @core storage`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
