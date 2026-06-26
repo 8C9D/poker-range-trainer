@@ -19,6 +19,8 @@ export const colors = {
   accent: '#c084fc',
   /** Text / icons on an accent-filled surface. */
   onAccent: '#ffffff',
+  /** Error / incorrect feedback. */
+  danger: '#f87171',
 } as const;
 
 export type Colors = typeof colors;

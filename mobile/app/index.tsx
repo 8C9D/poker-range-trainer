@@ -76,6 +76,11 @@ export default function LibraryScreen() {
                 </Text>
               </Pressable>
             </Link>
+            <Link href={{ pathname: '/practice', params: { id: item.id } }} asChild>
+              <Pressable testID={`practice-${item.id}`} style={styles.practiceButton}>
+                <Text style={styles.practiceText}>Practice</Text>
+              </Pressable>
+            </Link>
             <Pressable
               testID={`delete-${item.id}`}
               accessibilityRole="button"
@@ -154,6 +159,17 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 13,
   },
+  practiceButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    alignSelf: 'stretch',
+    justifyContent: 'center',
+  },
+  practiceText: {
+    color: colors.accent,
+    fontSize: 14,
+    fontWeight: '600',
+  },
   deleteButton: {
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -161,7 +177,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   deleteText: {
-    color: colors.accent,
+    color: colors.text,
     fontSize: 14,
     fontWeight: '600',
   },

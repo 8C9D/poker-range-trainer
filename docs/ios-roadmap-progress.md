@@ -43,10 +43,57 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 8 | Drag-paint `HandGrid` via gesture handler (+ fix react/renderer version skew) | M2 | 2026-06-14 |
 | 9 | Range editor screen: name + grid + live save via `@core` storage | M2 | 2026-06-14 |
 | 10 | Range library screen: list / open / edit / delete (home screen) | M2 | 2026-06-14 |
+| 11 | Recognition practice screen + session stats (completes M2) | M2 | 2026-06-14 |
 
 ## Next slice
 
-**Slice 11 — Recognition practice screen + session stats (completes M2 → first TestFlight-worthy build)**
+**Slice 12 — Live range stats in the editor: hands / combos / percentage (opens M3)**
+
+Milestone: M3 — Range power tools (web v1.1–v1.2). First M3 slice.
+
+Context: M2 is complete — the full create → save → edit → delete → practice loop
+runs on device. The editor (`mobile/app/editor.tsx`) has a name field + `HandGrid`
+and live-saves. This slice adds a live stats bar so the user sees the range's size
+as they build it, reusing the tested range math (the library already shows a
+per-row percentage via `calculateRangePercentage`).
+
+Reuse (verified, import — never copy) from `@core/domain/rangeMath`:
+`calculateRangePercentage(hands: PokerHand[]): number` (0–100),
+`countSelectedCombos(hands: PokerHand[]): number`, and the constant
+`TOTAL_HOLDEM_COMBOS` (1326). These take a `PokerHand[]`; pass `[...selected]`.
+
+Task (mobile-only; reuse `@core`, do not edit `src/`):
+- In `mobile/app/editor.tsx`, add a small themed stats bar (above or below the grid)
+  showing: selected hand count (`selected.size`), combos
+  (`countSelectedCombos([...selected])` out of `TOTAL_HOLDEM_COMBOS`), and
+  percentage (`calculateRangePercentage([...selected]).toFixed(1)%`). Recompute from
+  `selected` on each render (cheap; or `useMemo` on the hand list). Use `testID`s
+  e.g. `stat-hands`, `stat-combos`, `stat-percent`.
+- Keep it presentational — no change to save logic or the grid. Optionally extract a
+  tiny `mobile/components/RangeStatsBar.tsx` (props: `hands: PokerHand[]`) if it
+  keeps the editor tidy and makes testing cleaner; otherwise inline.
+- Tests: if you extract `RangeStatsBar`, add `mobile/__tests__/range-stats-bar.test.tsx`
+  asserting it renders the right counts for a known selection (e.g. `['AA']` → "1
+  hand", "6 combos", "0.5%"; `[]` → zeros). Otherwise extend
+  `mobile/__tests__/editor-screen.test.tsx` to toggle a hand and assert the stats
+  update (e.g. after selecting AA, `stat-combos` shows 6 and `stat-percent` shows
+  0.5%). Prefer the extracted component + its own test for clean, deterministic
+  coverage (no gesture/router noise).
+
+Files: modify `mobile/app/editor.tsx`; optionally create
+`mobile/components/RangeStatsBar.tsx` + `mobile/__tests__/range-stats-bar.test.tsx`.
+No `src/` edits, no new dependency.
+
+Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
+`npm run bundle-check` — all must pass.
+
+Constraints: reuse `@core/domain/rangeMath` for ALL math (no hand-rolled combo/%
+logic); UI in `mobile/`. Keep it minimal and reversible. Do not edit `src/`.
+
+Suggested commit message:
+`feat(ios): show live hand/combo/percentage stats in the range editor`
+
+(End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
 
 Milestone: M2 — Core trainer MVP (parity with web v1). This is the **last M2
 slice**: with it the full v1 loop (create → save → edit → delete → practice) runs on

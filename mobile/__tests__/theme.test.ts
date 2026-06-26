@@ -15,6 +15,7 @@ describe('theme colors', () => {
       textStrong: '#f3f4f6',
       accent: '#c084fc',
       onAccent: '#ffffff',
+      danger: '#f87171',
     });
   });
 });
