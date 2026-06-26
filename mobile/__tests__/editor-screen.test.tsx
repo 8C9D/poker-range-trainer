@@ -1,14 +1,19 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { Alert } from 'react-native';
+import { render, userEvent, waitFor } from '@testing-library/react-native';
 
 import { loadSavedRanges } from '@core/storage/rangeStorage';
 
 import EditorScreen from '../app/editor';
 import { installLocalStorage, localStorageShim } from '../platform/localStorageShim';
 
-// Native modules: in-memory MMKV + deterministic crypto, plus a minimal expo-router
-// stub (no id param -> a new range; Stack.Screen renders nothing in tests).
+// Native modules: in-memory MMKV + deterministic crypto + stubbed clipboard, plus a
+// minimal expo-router stub (no id param -> a new range; Stack.Screen renders nothing).
 jest.mock('react-native-mmkv');
 jest.mock('expo-crypto');
+jest.mock('expo-clipboard', () => ({
+  setStringAsync: jest.fn(() => Promise.resolve()),
+  getStringAsync: jest.fn(() => Promise.resolve('')),
+}));
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({}),
   Stack: { Screen: () => null },
@@ -23,11 +28,18 @@ describe('EditorScreen', () => {
     localStorageShim.clear();
   });
 
-  it('creates and live-saves a new range as you edit', async () => {
+  // userEvent (async) is used instead of fireEvent so the multiple interactions in
+  // this heavy screen don't trip RNTL v14's overlapping-act warnings / lost updates.
+  it('creates, live-saves, and clears a range', async () => {
+    const user = userEvent.setup();
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
+      buttons?.find((b) => b.style === 'destructive')?.onPress?.();
+    });
+
     const { getByTestId } = await render(<EditorScreen />);
 
-    fireEvent.changeText(getByTestId('range-name-input'), 'UTG Open');
-    fireEvent.press(getByTestId('hand-cell-AA'));
+    await user.type(getByTestId('range-name-input'), 'UTG Open');
+    await user.press(getByTestId('hand-cell-AA'));
 
     await waitFor(() => {
       const ranges = loadSavedRanges();
@@ -35,5 +47,11 @@ describe('EditorScreen', () => {
       expect(ranges[0].name).toBe('UTG Open');
       expect(ranges[0].hands).toEqual(['AA']);
     });
+
+    // Clear range (the Alert mock auto-accepts the destructive confirm).
+    await user.press(getByTestId('clear-range'));
+    await waitFor(() => expect(loadSavedRanges()[0]?.hands ?? []).toEqual([]));
+
+    alertSpy.mockRestore();
   });
 });

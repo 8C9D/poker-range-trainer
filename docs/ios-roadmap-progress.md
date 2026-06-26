@@ -46,10 +46,70 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 11 | Recognition practice screen + session stats (completes M2) | M2 | 2026-06-14 |
 | 12 | Live hand/combo/percentage stats bar in the range editor | M3 | 2026-06-14 |
 | 13 | Range shortcut buttons (pairs / broadways) in the editor | M3 | 2026-06-14 |
+| 14 | Range notation import/export (clipboard) + clear-range (completes M3) | M3 | 2026-06-14 |
 
 ## Next slice
 
-**Slice 14 — Notation import/export (clipboard) + clear-range in the editor (closes M3)**
+**Slice 15 — Scenario metadata editor in the range editor (opens M4)**
+
+Milestone: M4 — Library & organization (web v1.3–v1.4). First M4 slice. Metadata is
+the prerequisite for the later filter/sort slices.
+
+Context: M3 is complete. The editor live-saves `{ id, name, hands, createdAt,
+updatedAt }`. `SavedRange` also has an optional `metadata: RangeMetadata`; this slice
+lets the user set it, and persists it through the existing live-save.
+`saveSavedRange` already validates/normalizes metadata (drops empty fields), so the
+editor only needs to collect it.
+
+Reuse (verified, import — never copy) from `@core/types/range`: `RangeMetadata`
+(`{ gameType?, tableSize?, stackDepthBb?, position?, actionType?, versusPosition?,
+notes? }`) and the option constants `GAME_TYPES` (`cash`/`tournament`/`sitAndGo`),
+`TABLE_SIZES` (`headsUp`/`sixMax`/`nineMax`), `POSITIONS`
+(`utg`/`hj`/`co`/`btn`/`sb`/`bb`), `ACTION_TYPES`, plus the types
+`GameType`/`TableSize`/`Position`/`ActionType`. Mirror the web editor
+`src/components/RangeMetadataEditor.tsx` for field set + labels (read it first).
+
+Task (mobile-only; reuse `@core`, do not edit `src/`):
+- Create `mobile/components/RangeMetadataEditor.tsx` (controlled): props
+  `value: RangeMetadata`, `onChange: (next: RangeMetadata) => void`.
+  - Enum fields (`position`, `actionType`, `gameType`, `tableSize`, `versusPosition`)
+    as rows of selectable chips built by mapping the constants — tapping a chip sets
+    that field; tapping the selected chip again clears it (so a field can be unset).
+    Provide a small human label map for the values (e.g. `utg → "UTG"`, `sixMax →
+    "6-max"`); keep the stored value the canonical constant.
+  - `stackDepthBb`: a numeric `TextInput` (keyboardType="number-pad"); store a
+    positive finite number or omit.
+  - `notes`: a multiline `TextInput`.
+  - `testID`s e.g. `meta-position-btn`, `meta-action-<value>`, `meta-stack`,
+    `meta-notes`.
+- Wire into `mobile/app/editor.tsx`: hold `metadata` state (init from the loaded
+  range's `metadata ?? {}`), render `<RangeMetadataEditor value={metadata}
+  onChange={setMetadata} />`, and include `metadata` in the live-saved object and in
+  the effect deps. Confirm an existing range's metadata loads and round-trips.
+- Tests (`mobile/__tests__/range-metadata-editor.test.tsx`): use `userEvent` (async)
+  for the multi-interaction flow (per the toolchain note). Render with `value={}`;
+  tap a position chip and assert `onChange` was called with `{ position: 'btn' }`;
+  tap it again and assert it clears (`{}` or no position); type a stack depth and
+  assert `onChange` includes `stackDepthBb`. Keep component-level (no router/storage).
+  Optionally extend the editor test to confirm metadata persists, but prefer the
+  component test to avoid heavy-screen flakiness.
+
+Files: create `mobile/components/RangeMetadataEditor.tsx`,
+`mobile/__tests__/range-metadata-editor.test.tsx`; modify `mobile/app/editor.tsx`.
+No `src/` edits, no new dependency.
+
+Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
+`npm run bundle-check` — all must pass.
+
+Constraints: reuse `@core` types/constants + `saveSavedRange` normalization (no
+hand-rolled validation); UI in `mobile/components/`; editor stays controlled. If the
+full field set is large, land position/action/notes first and the rest as a small
+follow-up — but prefer the whole set. Do not edit `src/`.
+
+Suggested commit message:
+`feat(ios): add scenario metadata editor to the range editor`
+
+(End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
 
 Milestone: M3 — Range power tools (web v1.1–v1.2). **Last M3 slice**; slice 15 opens M4.
 

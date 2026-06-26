@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, TextInput } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 
 import type { PokerHand } from '@core/domain/pokerHands';
@@ -7,6 +7,7 @@ import { mergeShortcutHands } from '@core/domain/rangeShortcuts';
 import { findSavedRangeById, saveSavedRange } from '@core/storage/rangeStorage';
 
 import { HandGrid } from '../components/HandGrid';
+import { RangeNotation } from '../components/RangeNotation';
 import { RangeShortcuts } from '../components/RangeShortcuts';
 import { RangeStatsBar } from '../components/RangeStatsBar';
 import { createRangeId } from '../platform/createRangeId';
@@ -65,6 +66,17 @@ export default function EditorScreen() {
     setSelected((prev) => new Set(mergeShortcutHands([...prev], hands)));
   }, []);
 
+  const onReplaceHands = useCallback((hands: PokerHand[]) => {
+    setSelected(new Set(hands));
+  }, []);
+
+  const handleClear = useCallback(() => {
+    Alert.alert('Clear range', 'Remove all selected hands?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Clear', style: 'destructive', onPress: () => setSelected(new Set()) },
+    ]);
+  }, []);
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Stack.Screen options={{ title: idParam ? 'Edit range' : 'New range' }} />
@@ -79,6 +91,15 @@ export default function EditorScreen() {
       <RangeStatsBar hands={[...selected]} />
       <RangeShortcuts onAddHands={applyShortcut} />
       <HandGrid selected={selected} onSetSelected={handleSetSelected} />
+      <RangeNotation selectedHands={[...selected]} onReplaceHands={onReplaceHands} />
+      <Pressable
+        testID="clear-range"
+        accessibilityRole="button"
+        style={styles.clearButton}
+        onPress={handleClear}
+      >
+        <Text style={styles.clearText}>Clear range</Text>
+      </Pressable>
     </ScrollView>
   );
 }
@@ -101,5 +122,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textStrong,
     backgroundColor: colors.surface,
+  },
+  clearButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+  },
+  clearText: {
+    color: colors.danger,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
