@@ -6,6 +6,7 @@ import type { PokerHand } from '@core/domain/pokerHands';
 import { findSavedRangeById, saveSavedRange } from '@core/storage/rangeStorage';
 
 import { HandGrid } from '../components/HandGrid';
+import { RangeStatsBar } from '../components/RangeStatsBar';
 import { createRangeId } from '../platform/createRangeId';
 import { colors } from '../theme/colors';
 
@@ -69,6 +70,7 @@ export default function EditorScreen() {
         value={name}
         onChangeText={setName}
       />
+      <RangeStatsBar hands={[...selected]} />
       <HandGrid selected={selected} onSetSelected={handleSetSelected} />
     </ScrollView>
   );

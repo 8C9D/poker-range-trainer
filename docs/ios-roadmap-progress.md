@@ -44,54 +44,57 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 9 | Range editor screen: name + grid + live save via `@core` storage | M2 | 2026-06-14 |
 | 10 | Range library screen: list / open / edit / delete (home screen) | M2 | 2026-06-14 |
 | 11 | Recognition practice screen + session stats (completes M2) | M2 | 2026-06-14 |
+| 12 | Live hand/combo/percentage stats bar in the range editor | M3 | 2026-06-14 |
 
 ## Next slice
 
-**Slice 12 — Live range stats in the editor: hands / combos / percentage (opens M3)**
+**Slice 13 — Range shortcut buttons in the editor (pairs / broadways)**
 
-Milestone: M3 — Range power tools (web v1.1–v1.2). First M3 slice.
+Milestone: M3 — Range power tools (web v1.1–v1.2).
 
-Context: M2 is complete — the full create → save → edit → delete → practice loop
-runs on device. The editor (`mobile/app/editor.tsx`) has a name field + `HandGrid`
-and live-saves. This slice adds a live stats bar so the user sees the range's size
-as they build it, reusing the tested range math (the library already shows a
-per-row percentage via `calculateRangePercentage`).
+Context: the editor (`mobile/app/editor.tsx`) builds a range via tap/drag on the
+`HandGrid`, shows live stats (`RangeStatsBar`), and live-saves. This slice adds
+one-tap shortcut buttons that merge common groups into the selection, reusing the
+tested shortcut domain.
 
-Reuse (verified, import — never copy) from `@core/domain/rangeMath`:
-`calculateRangePercentage(hands: PokerHand[]): number` (0–100),
-`countSelectedCombos(hands: PokerHand[]): number`, and the constant
-`TOTAL_HOLDEM_COMBOS` (1326). These take a `PokerHand[]`; pass `[...selected]`.
+Reuse (verified, import — never copy) from `@core/domain/rangeShortcuts`:
+`selectAllPairs()`, `selectSuitedBroadways()`, `selectOffsuitBroadways()`,
+`selectAllBroadways()` (each → `PokerHand[]`), and
+`mergeShortcutHands(existing: PokerHand[], shortcut: PokerHand[]): PokerHand[]`
+(union, canonical, non-mutating). (`removeShortcutHands` exists too if you add a
+remove affordance — optional.) Check `src/components/RangeShortcuts.tsx` for the
+web button set/labels to mirror.
 
 Task (mobile-only; reuse `@core`, do not edit `src/`):
-- In `mobile/app/editor.tsx`, add a small themed stats bar (above or below the grid)
-  showing: selected hand count (`selected.size`), combos
-  (`countSelectedCombos([...selected])` out of `TOTAL_HOLDEM_COMBOS`), and
-  percentage (`calculateRangePercentage([...selected]).toFixed(1)%`). Recompute from
-  `selected` on each render (cheap; or `useMemo` on the hand list). Use `testID`s
-  e.g. `stat-hands`, `stat-combos`, `stat-percent`.
-- Keep it presentational — no change to save logic or the grid. Optionally extract a
-  tiny `mobile/components/RangeStatsBar.tsx` (props: `hands: PokerHand[]`) if it
-  keeps the editor tidy and makes testing cleaner; otherwise inline.
-- Tests: if you extract `RangeStatsBar`, add `mobile/__tests__/range-stats-bar.test.tsx`
-  asserting it renders the right counts for a known selection (e.g. `['AA']` → "1
-  hand", "6 combos", "0.5%"; `[]` → zeros). Otherwise extend
-  `mobile/__tests__/editor-screen.test.tsx` to toggle a hand and assert the stats
-  update (e.g. after selecting AA, `stat-combos` shows 6 and `stat-percent` shows
-  0.5%). Prefer the extracted component + its own test for clean, deterministic
-  coverage (no gesture/router noise).
+- Create `mobile/components/RangeShortcuts.tsx`: a themed row/grid of buttons —
+  "All pairs", "Suited broadways", "Offsuit broadways", "All broadways". Prop
+  `onApplyShortcut: (hands: PokerHand[]) => void`; each button computes its hands
+  from the matching selector and calls `onApplyShortcut(...)`. `testID`s e.g.
+  `shortcut-all-pairs`, `shortcut-suited-broadways`, etc.
+- Wire into `mobile/app/editor.tsx`: an `applyShortcut` handler that merges into the
+  current selection — `setSelected((prev) => new Set(mergeShortcutHands([...prev],
+  hands)))` — and pass it to `<RangeShortcuts onApplyShortcut={applyShortcut} />`.
+  Place the buttons near the grid. The live save effect already persists the result.
+- Tests:
+  - `mobile/__tests__/range-shortcuts.test.tsx`: render `RangeShortcuts` with a
+    `jest.fn()`; press "All pairs" and assert it is called with the 13 pairs
+    (`selectAllPairs()`), and one broadway button likewise.
+  - Optionally extend `editor-screen.test.tsx`: press a shortcut and assert the
+    stats bar / saved range reflects the added hands.
 
-Files: modify `mobile/app/editor.tsx`; optionally create
-`mobile/components/RangeStatsBar.tsx` + `mobile/__tests__/range-stats-bar.test.tsx`.
-No `src/` edits, no new dependency.
+Files: create `mobile/components/RangeShortcuts.tsx`,
+`mobile/__tests__/range-shortcuts.test.tsx`; modify `mobile/app/editor.tsx`. No
+`src/` edits, no new dependency.
 
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
 `npm run bundle-check` — all must pass.
 
-Constraints: reuse `@core/domain/rangeMath` for ALL math (no hand-rolled combo/%
-logic); UI in `mobile/`. Keep it minimal and reversible. Do not edit `src/`.
+Constraints: reuse `@core/domain/rangeShortcuts` for hand sets + merge (no
+hand-rolled group logic); UI in `mobile/components/`; editor stays controlled. Do
+not edit `src/`.
 
 Suggested commit message:
-`feat(ios): show live hand/combo/percentage stats in the range editor`
+`feat(ios): add range shortcut buttons to the editor`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
 
