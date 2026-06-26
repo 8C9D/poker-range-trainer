@@ -45,56 +45,75 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 10 | Range library screen: list / open / edit / delete (home screen) | M2 | 2026-06-14 |
 | 11 | Recognition practice screen + session stats (completes M2) | M2 | 2026-06-14 |
 | 12 | Live hand/combo/percentage stats bar in the range editor | M3 | 2026-06-14 |
+| 13 | Range shortcut buttons (pairs / broadways) in the editor | M3 | 2026-06-14 |
 
 ## Next slice
 
-**Slice 13 — Range shortcut buttons in the editor (pairs / broadways)**
+**Slice 14 — Notation import/export (clipboard) + clear-range in the editor (closes M3)**
 
-Milestone: M3 — Range power tools (web v1.1–v1.2).
+Milestone: M3 — Range power tools (web v1.1–v1.2). **Last M3 slice**; slice 15 opens M4.
 
-Context: the editor (`mobile/app/editor.tsx`) builds a range via tap/drag on the
-`HandGrid`, shows live stats (`RangeStatsBar`), and live-saves. This slice adds
-one-tap shortcut buttons that merge common groups into the selection, reusing the
-tested shortcut domain.
+Context: the editor has the grid, live stats, shortcuts, and live save. This slice
+adds range-notation interchange (copy/paste) and a clear-range action, reusing the
+tested notation domain. After this, M3 is done.
 
-Reuse (verified, import — never copy) from `@core/domain/rangeShortcuts`:
-`selectAllPairs()`, `selectSuitedBroadways()`, `selectOffsuitBroadways()`,
-`selectAllBroadways()` (each → `PokerHand[]`), and
-`mergeShortcutHands(existing: PokerHand[], shortcut: PokerHand[]): PokerHand[]`
-(union, canonical, non-mutating). (`removeShortcutHands` exists too if you add a
-remove affordance — optional.) Check `src/components/RangeShortcuts.tsx` for the
-web button set/labels to mirror.
+Reuse (verified, import — never copy) from `@core/domain/rangeNotation`:
+`formatRangeNotation(hands: PokerHand[]): string` (selection → canonical notation)
+and `parseRangeNotation(input: string): PokerHand[]` (notation → hands; **throws**
+on invalid input — empty string parses to `[]`). The web panel
+(`src/components/RangeNotation.tsx`) mirrors the live selection read-only and
+"Apply" REPLACES the whole selection (`onReplaceHands`), surfacing the parser's
+error message on failure and leaving the selection untouched.
+
+New dependency: `npx expo install expo-clipboard` (native module; JS bundles via
+`expo export`). API: `import * as Clipboard from 'expo-clipboard'` →
+`await Clipboard.setStringAsync(text)`, `await Clipboard.getStringAsync()`.
 
 Task (mobile-only; reuse `@core`, do not edit `src/`):
-- Create `mobile/components/RangeShortcuts.tsx`: a themed row/grid of buttons —
-  "All pairs", "Suited broadways", "Offsuit broadways", "All broadways". Prop
-  `onApplyShortcut: (hands: PokerHand[]) => void`; each button computes its hands
-  from the matching selector and calls `onApplyShortcut(...)`. `testID`s e.g.
-  `shortcut-all-pairs`, `shortcut-suited-broadways`, etc.
-- Wire into `mobile/app/editor.tsx`: an `applyShortcut` handler that merges into the
-  current selection — `setSelected((prev) => new Set(mergeShortcutHands([...prev],
-  hands)))` — and pass it to `<RangeShortcuts onApplyShortcut={applyShortcut} />`.
-  Place the buttons near the grid. The live save effect already persists the result.
+- Create `mobile/components/RangeNotation.tsx`:
+  - Props: `selectedHands: PokerHand[]`, `onReplaceHands: (hands: PokerHand[]) =>
+    void`.
+  - Read-only current notation (`formatRangeNotation(selectedHands)`,
+    `testID="notation-current"`) + a "Copy" button
+    (`Clipboard.setStringAsync(currentNotation)`, `testID="notation-copy"`).
+  - A `TextInput` (`testID="notation-input"`) + "Paste" button
+    (`testID="notation-paste"`, fills input via `Clipboard.getStringAsync()`) +
+    "Apply" button (`testID="notation-apply"`): on Apply, `try
+    parseRangeNotation(input)` → `onReplaceHands(...)` and clear any error; on throw,
+    show the message (`testID="notation-error"`) and leave the selection untouched.
+- Wire into `mobile/app/editor.tsx`: `onReplaceHands = (hands) => setSelected(new
+  Set(hands))`; render `<RangeNotation selectedHands={[...selected]}
+  onReplaceHands={onReplaceHands} />`. Add a **Clear range** button
+  (`testID="clear-range"`) that calls `setSelected(new Set())` (confirm via
+  `Alert.alert` if the selection is non-empty — optional but nicer). Live save
+  persists all of these.
 - Tests:
-  - `mobile/__tests__/range-shortcuts.test.tsx`: render `RangeShortcuts` with a
-    `jest.fn()`; press "All pairs" and assert it is called with the 13 pairs
-    (`selectAllPairs()`), and one broadway button likewise.
-  - Optionally extend `editor-screen.test.tsx`: press a shortcut and assert the
-    stats bar / saved range reflects the added hands.
+  - `mobile/__tests__/range-notation.test.tsx`: mock `expo-clipboard`
+    (`setStringAsync`/`getStringAsync` as `jest.fn()`s; manual mock or inline). (a)
+    Render with `selectedHands=['AA','KK']`; assert `notation-current` shows
+    `formatRangeNotation(['AA','KK'])`. (b) Press Copy; assert `setStringAsync`
+    called with that string. (c) Type valid notation (`fireEvent.changeText`) and
+    press Apply; assert `onReplaceHands` called with `parseRangeNotation(input)`. (d)
+    Type invalid notation, press Apply; assert `notation-error` appears and
+    `onReplaceHands` was NOT called.
+  - Optionally extend `editor-screen.test.tsx` for clear-range (press clear → saved
+    range hands become empty).
 
-Files: create `mobile/components/RangeShortcuts.tsx`,
-`mobile/__tests__/range-shortcuts.test.tsx`; modify `mobile/app/editor.tsx`. No
-`src/` edits, no new dependency.
+Files: create `mobile/components/RangeNotation.tsx`,
+`mobile/__tests__/range-notation.test.tsx`; modify `mobile/app/editor.tsx`,
+`mobile/package.json` + `mobile/package-lock.json` (expo-clipboard). No `src/` edits.
 
-Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
-`npm run bundle-check` — all must pass.
+Validation (mobile only): run `npm install` first (new dep), then `npm run lint`,
+`npm run typecheck`, `npm run test:run`, `npm run bundle-check` — all must pass
+(confirm expo-clipboard is in the iOS bundle graph).
 
-Constraints: reuse `@core/domain/rangeShortcuts` for hand sets + merge (no
-hand-rolled group logic); UI in `mobile/components/`; editor stays controlled. Do
-not edit `src/`.
+Constraints: reuse `@core/domain/rangeNotation` for ALL parse/format (no hand-rolled
+notation); UI in `mobile/components/`; editor stays controlled. If the slice is too
+big, land notation copy/paste/apply first and clear-range as a tiny follow-up — but
+prefer both. Do not edit `src/`.
 
 Suggested commit message:
-`feat(ios): add range shortcut buttons to the editor`
+`feat(ios): add range notation import/export and clear to the editor`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
 

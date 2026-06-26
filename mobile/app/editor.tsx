@@ -3,9 +3,11 @@ import { ScrollView, StyleSheet, TextInput } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 
 import type { PokerHand } from '@core/domain/pokerHands';
+import { mergeShortcutHands } from '@core/domain/rangeShortcuts';
 import { findSavedRangeById, saveSavedRange } from '@core/storage/rangeStorage';
 
 import { HandGrid } from '../components/HandGrid';
+import { RangeShortcuts } from '../components/RangeShortcuts';
 import { RangeStatsBar } from '../components/RangeStatsBar';
 import { createRangeId } from '../platform/createRangeId';
 import { colors } from '../theme/colors';
@@ -59,6 +61,10 @@ export default function EditorScreen() {
     });
   }, []);
 
+  const applyShortcut = useCallback((hands: PokerHand[]) => {
+    setSelected((prev) => new Set(mergeShortcutHands([...prev], hands)));
+  }, []);
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Stack.Screen options={{ title: idParam ? 'Edit range' : 'New range' }} />
@@ -71,6 +77,7 @@ export default function EditorScreen() {
         onChangeText={setName}
       />
       <RangeStatsBar hands={[...selected]} />
+      <RangeShortcuts onAddHands={applyShortcut} />
       <HandGrid selected={selected} onSetSelected={handleSetSelected} />
     </ScrollView>
   );
