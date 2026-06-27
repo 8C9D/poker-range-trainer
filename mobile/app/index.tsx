@@ -2,11 +2,28 @@ import { useCallback, useMemo, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Link, Stack, useFocusEffect } from 'expo-router';
 
-import { filterRangesByName } from '@core/domain/rangeLibrary';
+import {
+  filterRangesByActionType,
+  filterRangesByGameType,
+  filterRangesByName,
+  filterRangesByPosition,
+} from '@core/domain/rangeLibrary';
 import { calculateRangePercentage } from '@core/domain/rangeMath';
 import { deleteSavedRange, loadSavedRanges } from '@core/storage/rangeStorage';
-import type { SavedRange } from '@core/types/range';
+import {
+  ACTION_TYPES,
+  ACTION_TYPE_LABELS,
+  GAME_TYPES,
+  GAME_TYPE_LABELS,
+  POSITIONS,
+  POSITION_LABELS,
+  type ActionType,
+  type GameType,
+  type Position,
+  type SavedRange,
+} from '@core/types/range';
 
+import { ChipRow } from '../components/ChipRow';
 import { colors } from '../theme/colors';
 
 /**
@@ -17,6 +34,9 @@ import { colors } from '../theme/colors';
 export default function LibraryScreen() {
   const [ranges, setRanges] = useState<SavedRange[]>(() => loadSavedRanges());
   const [query, setQuery] = useState('');
+  const [position, setPosition] = useState<Position | undefined>(undefined);
+  const [actionType, setActionType] = useState<ActionType | undefined>(undefined);
+  const [gameType, setGameType] = useState<GameType | undefined>(undefined);
 
   const reload = useCallback(() => {
     setRanges(loadSavedRanges());
@@ -25,8 +45,19 @@ export default function LibraryScreen() {
   // Reload whenever the screen regains focus (e.g. returning from the editor).
   useFocusEffect(reload);
 
-  // Search narrows the displayed list by name; `ranges` stays the full loaded set.
-  const visible = useMemo(() => filterRangesByName(ranges, query), [ranges, query]);
+  // Search + metadata filters narrow the displayed list; `ranges` stays the full
+  // loaded set. Filters compose after the name search (all reuse @core helpers).
+  const visible = useMemo(
+    () =>
+      filterRangesByGameType(
+        filterRangesByActionType(
+          filterRangesByPosition(filterRangesByName(ranges, query), position ?? null),
+          actionType ?? null,
+        ),
+        gameType ?? null,
+      ),
+    [ranges, query, position, actionType, gameType],
+  );
 
   const confirmDelete = useCallback(
     (range: SavedRange) => {
@@ -58,17 +89,45 @@ export default function LibraryScreen() {
         }}
       />
       {ranges.length > 0 ? (
-        <TextInput
-          testID="library-search"
-          style={styles.search}
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search ranges"
-          placeholderTextColor={colors.text}
-          autoCapitalize="none"
-          autoCorrect={false}
-          clearButtonMode="while-editing"
-        />
+        <>
+          <TextInput
+            testID="library-search"
+            style={styles.search}
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search ranges"
+            placeholderTextColor={colors.text}
+            autoCapitalize="none"
+            autoCorrect={false}
+            clearButtonMode="while-editing"
+          />
+          <View style={styles.filters}>
+            <ChipRow
+              label="Position"
+              testIdPrefix="filter-position"
+              options={POSITIONS}
+              labels={POSITION_LABELS}
+              selected={position}
+              onSelect={setPosition}
+            />
+            <ChipRow
+              label="Action"
+              testIdPrefix="filter-action"
+              options={ACTION_TYPES}
+              labels={ACTION_TYPE_LABELS}
+              selected={actionType}
+              onSelect={setActionType}
+            />
+            <ChipRow
+              label="Game"
+              testIdPrefix="filter-game"
+              options={GAME_TYPES}
+              labels={GAME_TYPE_LABELS}
+              selected={gameType}
+              onSelect={setGameType}
+            />
+          </View>
+        </>
       ) : null}
       <FlatList
         data={visible}
@@ -144,6 +203,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.textStrong,
     backgroundColor: colors.surface,
+  },
+  filters: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    gap: 10,
   },
   listContent: {
     padding: 16,

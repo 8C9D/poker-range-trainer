@@ -87,4 +87,19 @@ describe('LibraryScreen', () => {
     await waitFor(() => expect(queryByText('UTG Open')).toBeNull());
     expect(getByText('BTN Open')).toBeTruthy();
   });
+
+  it('filters the list by a metadata position chip', async () => {
+    const ts = '2026-01-01T00:00:00.000Z';
+    saveSavedRange({ id: 'r1', name: 'UTG Open', hands: ['AA'], createdAt: ts, updatedAt: ts, metadata: { position: 'utg' } });
+    saveSavedRange({ id: 'r2', name: 'BTN Open', hands: ['AA'], createdAt: ts, updatedAt: ts, metadata: { position: 'btn' } });
+
+    const { getByTestId, getByText, queryByText } = await render(<LibraryScreen />);
+    expect(getByText('UTG Open')).toBeTruthy();
+    expect(getByText('BTN Open')).toBeTruthy();
+
+    fireEvent.press(getByTestId('filter-position-btn'));
+
+    await waitFor(() => expect(queryByText('UTG Open')).toBeNull());
+    expect(getByText('BTN Open')).toBeTruthy();
+  });
 });

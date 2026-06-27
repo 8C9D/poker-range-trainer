@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 import {
   ACTION_TYPES,
@@ -13,56 +13,13 @@ import {
 } from '@core/types/range';
 
 import { colors } from '../theme/colors';
+import { ChipRow } from './ChipRow';
 
 export interface RangeMetadataEditorProps {
   /** Current metadata; the parent owns this state. */
   value: RangeMetadata;
   /** Replace the metadata with the next value. */
   onChange: (next: RangeMetadata) => void;
-}
-
-// A labelled row of single-select chips. Tapping the selected chip clears the field
-// (metadata stays optional). Options + labels come from the @core constant maps, so
-// the UI can never drift from the allowed values.
-function ChipRow<T extends string>({
-  label,
-  testIdPrefix,
-  options,
-  labels,
-  selected,
-  onSelect,
-}: {
-  label: string;
-  testIdPrefix: string;
-  options: readonly T[];
-  labels: Record<T, string>;
-  selected: T | undefined;
-  onSelect: (value: T | undefined) => void;
-}) {
-  return (
-    <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.chips}>
-        {options.map((option) => {
-          const isSelected = selected === option;
-          return (
-            <Pressable
-              key={option}
-              testID={`${testIdPrefix}-${option}`}
-              accessibilityRole="button"
-              accessibilityState={{ selected: isSelected }}
-              style={[styles.chip, isSelected && styles.chipSelected]}
-              onPress={() => onSelect(isSelected ? undefined : option)}
-            >
-              <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
-                {labels[option]}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-    </View>
-  );
 }
 
 /**
@@ -173,31 +130,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 13,
     fontWeight: '600',
-  },
-  chips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  chipSelected: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  chipText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  chipTextSelected: {
-    color: colors.onAccent,
   },
   input: {
     borderWidth: StyleSheet.hairlineWidth,
