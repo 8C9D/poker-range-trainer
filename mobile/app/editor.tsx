@@ -5,8 +5,10 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import type { PokerHand } from '@core/domain/pokerHands';
 import { mergeShortcutHands } from '@core/domain/rangeShortcuts';
 import { findSavedRangeById, saveSavedRange } from '@core/storage/rangeStorage';
+import type { RangeMetadata } from '@core/types/range';
 
 import { HandGrid } from '../components/HandGrid';
+import { RangeMetadataEditor } from '../components/RangeMetadataEditor';
 import { RangeNotation } from '../components/RangeNotation';
 import { RangeShortcuts } from '../components/RangeShortcuts';
 import { RangeStatsBar } from '../components/RangeStatsBar';
@@ -27,14 +29,27 @@ export default function EditorScreen() {
   const [draft] = useState(() => {
     const existing = idParam ? findSavedRangeById(idParam) : undefined;
     if (existing) {
-      return { id: existing.id, createdAt: existing.createdAt, name: existing.name, hands: existing.hands };
+      return {
+        id: existing.id,
+        createdAt: existing.createdAt,
+        name: existing.name,
+        hands: existing.hands,
+        metadata: existing.metadata ?? {},
+      };
     }
     const now = new Date().toISOString();
-    return { id: idParam ?? createRangeId(), createdAt: now, name: '', hands: [] as PokerHand[] };
+    return {
+      id: idParam ?? createRangeId(),
+      createdAt: now,
+      name: '',
+      hands: [] as PokerHand[],
+      metadata: {} as RangeMetadata,
+    };
   });
 
   const [name, setName] = useState(draft.name);
   const [selected, setSelected] = useState<Set<PokerHand>>(() => new Set(draft.hands));
+  const [metadata, setMetadata] = useState<RangeMetadata>(draft.metadata);
 
   // Skip the first effect run so merely opening an existing range does not rewrite
   // its updatedAt; every later change live-saves.
@@ -50,8 +65,9 @@ export default function EditorScreen() {
       hands: [...selected],
       createdAt: draft.createdAt,
       updatedAt: new Date().toISOString(),
+      metadata,
     });
-  }, [name, selected, draft]);
+  }, [name, selected, metadata, draft]);
 
   const handleSetSelected = useCallback((hand: PokerHand, isSelected: boolean) => {
     setSelected((prev) => {
@@ -92,6 +108,7 @@ export default function EditorScreen() {
       <RangeShortcuts onAddHands={applyShortcut} />
       <HandGrid selected={selected} onSetSelected={handleSetSelected} />
       <RangeNotation selectedHands={[...selected]} onReplaceHands={onReplaceHands} />
+      <RangeMetadataEditor value={metadata} onChange={setMetadata} />
       <Pressable
         testID="clear-range"
         accessibilityRole="button"

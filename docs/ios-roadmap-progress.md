@@ -47,195 +47,54 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 12 | Live hand/combo/percentage stats bar in the range editor | M3 | 2026-06-14 |
 | 13 | Range shortcut buttons (pairs / broadways) in the editor | M3 | 2026-06-14 |
 | 14 | Range notation import/export (clipboard) + clear-range (completes M3) | M3 | 2026-06-14 |
+| 15 | Scenario metadata editor in the range editor | M4 | 2026-06-14 |
 
 ## Next slice
 
-**Slice 15 — Scenario metadata editor in the range editor (opens M4)**
+**Slice 16 — Library search by name**
 
-Milestone: M4 — Library & organization (web v1.3–v1.4). First M4 slice. Metadata is
-the prerequisite for the later filter/sort slices.
+Milestone: M4 — Library & organization (web v1.3–v1.4).
 
-Context: M3 is complete. The editor live-saves `{ id, name, hands, createdAt,
-updatedAt }`. `SavedRange` also has an optional `metadata: RangeMetadata`; this slice
-lets the user set it, and persists it through the existing live-save.
-`saveSavedRange` already validates/normalizes metadata (drops empty fields), so the
-editor only needs to collect it.
+Context: the library (`mobile/app/index.tsx`) lists all saved ranges with a
+per-row summary, open/edit, practice, and delete. Ranges now carry scenario
+metadata (slice 15). This slice adds a search box to filter the list by name,
+reusing the tested library helper. (Metadata filters + sorts are the next slices.)
 
-Reuse (verified, import — never copy) from `@core/types/range`: `RangeMetadata`
-(`{ gameType?, tableSize?, stackDepthBb?, position?, actionType?, versusPosition?,
-notes? }`) and the option constants `GAME_TYPES` (`cash`/`tournament`/`sitAndGo`),
-`TABLE_SIZES` (`headsUp`/`sixMax`/`nineMax`), `POSITIONS`
-(`utg`/`hj`/`co`/`btn`/`sb`/`bb`), `ACTION_TYPES`, plus the types
-`GameType`/`TableSize`/`Position`/`ActionType`. Mirror the web editor
-`src/components/RangeMetadataEditor.tsx` for field set + labels (read it first).
+Reuse (verified, import — never copy) from `@core/domain/rangeLibrary`:
+`filterRangesByName<T extends { name: string }>(ranges: T[], query: string): T[]`
+(case-insensitive, trims, returns all on a blank query). The module also exports the
+filters/sorts the next slices will use (`filterRangesByPosition`,
+`filterRangesByActionType`, `filterRangesByGameType`, `filterRangesByStackDepth`,
+`filterArchivedRanges`, `filterFavoriteRanges`, `sortRangesByName`,
+`sortRangesByUpdatedAt`, `sortRangesByLastPracticed`) — don't build those here.
 
 Task (mobile-only; reuse `@core`, do not edit `src/`):
-- Create `mobile/components/RangeMetadataEditor.tsx` (controlled): props
-  `value: RangeMetadata`, `onChange: (next: RangeMetadata) => void`.
-  - Enum fields (`position`, `actionType`, `gameType`, `tableSize`, `versusPosition`)
-    as rows of selectable chips built by mapping the constants — tapping a chip sets
-    that field; tapping the selected chip again clears it (so a field can be unset).
-    Provide a small human label map for the values (e.g. `utg → "UTG"`, `sixMax →
-    "6-max"`); keep the stored value the canonical constant.
-  - `stackDepthBb`: a numeric `TextInput` (keyboardType="number-pad"); store a
-    positive finite number or omit.
-  - `notes`: a multiline `TextInput`.
-  - `testID`s e.g. `meta-position-btn`, `meta-action-<value>`, `meta-stack`,
-    `meta-notes`.
-- Wire into `mobile/app/editor.tsx`: hold `metadata` state (init from the loaded
-  range's `metadata ?? {}`), render `<RangeMetadataEditor value={metadata}
-  onChange={setMetadata} />`, and include `metadata` in the live-saved object and in
-  the effect deps. Confirm an existing range's metadata loads and round-trips.
-- Tests (`mobile/__tests__/range-metadata-editor.test.tsx`): use `userEvent` (async)
-  for the multi-interaction flow (per the toolchain note). Render with `value={}`;
-  tap a position chip and assert `onChange` was called with `{ position: 'btn' }`;
-  tap it again and assert it clears (`{}` or no position); type a stack depth and
-  assert `onChange` includes `stackDepthBb`. Keep component-level (no router/storage).
-  Optionally extend the editor test to confirm metadata persists, but prefer the
-  component test to avoid heavy-screen flakiness.
+- In `mobile/app/index.tsx`, add a `query` state + a themed search `TextInput`
+  (`testID="library-search"`, placeholder "Search ranges", `autoCorrect={false}`,
+  `clearButtonMode` if handy) above the list. Derive the displayed list as
+  `filterRangesByName(ranges, query)` (compute in render or `useMemo` on
+  `[ranges, query]`). Keep `ranges` as the full loaded set (reloaded on focus);
+  search only narrows what's shown.
+- When the filtered list is empty but ranges exist, show a "No ranges match" state
+  (distinct from the existing "no ranges yet" empty state). Keep delete/practice/edit
+  working on the filtered rows.
+- Tests (extend `mobile/__tests__/library-screen.test.tsx`): seed e.g. "UTG Open" and
+  "BTN 3-bet"; render; assert both show; `fireEvent.changeText(getByTestId(
+  'library-search'), 'btn')` and assert only "BTN 3-bet" remains (and "UTG Open" is
+  gone). A single changeText is one interaction, so `fireEvent` is fine; if you chain
+  multiple interactions, switch to `userEvent`.
 
-Files: create `mobile/components/RangeMetadataEditor.tsx`,
-`mobile/__tests__/range-metadata-editor.test.tsx`; modify `mobile/app/editor.tsx`.
+Files: modify `mobile/app/index.tsx`, `mobile/__tests__/library-screen.test.tsx`.
 No `src/` edits, no new dependency.
 
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
 `npm run bundle-check` — all must pass.
 
-Constraints: reuse `@core` types/constants + `saveSavedRange` normalization (no
-hand-rolled validation); UI in `mobile/components/`; editor stays controlled. If the
-full field set is large, land position/action/notes first and the rest as a small
-follow-up — but prefer the whole set. Do not edit `src/`.
+Constraints: reuse `@core/domain/rangeLibrary` for the name match (no hand-rolled
+filtering); the list stays read-from-storage + reload-on-focus with search as a view
+filter; UI in `mobile/app/`. Do not edit `src/`.
 
 Suggested commit message:
-`feat(ios): add scenario metadata editor to the range editor`
-
-(End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
-
-Milestone: M3 — Range power tools (web v1.1–v1.2). **Last M3 slice**; slice 15 opens M4.
-
-Context: the editor has the grid, live stats, shortcuts, and live save. This slice
-adds range-notation interchange (copy/paste) and a clear-range action, reusing the
-tested notation domain. After this, M3 is done.
-
-Reuse (verified, import — never copy) from `@core/domain/rangeNotation`:
-`formatRangeNotation(hands: PokerHand[]): string` (selection → canonical notation)
-and `parseRangeNotation(input: string): PokerHand[]` (notation → hands; **throws**
-on invalid input — empty string parses to `[]`). The web panel
-(`src/components/RangeNotation.tsx`) mirrors the live selection read-only and
-"Apply" REPLACES the whole selection (`onReplaceHands`), surfacing the parser's
-error message on failure and leaving the selection untouched.
-
-New dependency: `npx expo install expo-clipboard` (native module; JS bundles via
-`expo export`). API: `import * as Clipboard from 'expo-clipboard'` →
-`await Clipboard.setStringAsync(text)`, `await Clipboard.getStringAsync()`.
-
-Task (mobile-only; reuse `@core`, do not edit `src/`):
-- Create `mobile/components/RangeNotation.tsx`:
-  - Props: `selectedHands: PokerHand[]`, `onReplaceHands: (hands: PokerHand[]) =>
-    void`.
-  - Read-only current notation (`formatRangeNotation(selectedHands)`,
-    `testID="notation-current"`) + a "Copy" button
-    (`Clipboard.setStringAsync(currentNotation)`, `testID="notation-copy"`).
-  - A `TextInput` (`testID="notation-input"`) + "Paste" button
-    (`testID="notation-paste"`, fills input via `Clipboard.getStringAsync()`) +
-    "Apply" button (`testID="notation-apply"`): on Apply, `try
-    parseRangeNotation(input)` → `onReplaceHands(...)` and clear any error; on throw,
-    show the message (`testID="notation-error"`) and leave the selection untouched.
-- Wire into `mobile/app/editor.tsx`: `onReplaceHands = (hands) => setSelected(new
-  Set(hands))`; render `<RangeNotation selectedHands={[...selected]}
-  onReplaceHands={onReplaceHands} />`. Add a **Clear range** button
-  (`testID="clear-range"`) that calls `setSelected(new Set())` (confirm via
-  `Alert.alert` if the selection is non-empty — optional but nicer). Live save
-  persists all of these.
-- Tests:
-  - `mobile/__tests__/range-notation.test.tsx`: mock `expo-clipboard`
-    (`setStringAsync`/`getStringAsync` as `jest.fn()`s; manual mock or inline). (a)
-    Render with `selectedHands=['AA','KK']`; assert `notation-current` shows
-    `formatRangeNotation(['AA','KK'])`. (b) Press Copy; assert `setStringAsync`
-    called with that string. (c) Type valid notation (`fireEvent.changeText`) and
-    press Apply; assert `onReplaceHands` called with `parseRangeNotation(input)`. (d)
-    Type invalid notation, press Apply; assert `notation-error` appears and
-    `onReplaceHands` was NOT called.
-  - Optionally extend `editor-screen.test.tsx` for clear-range (press clear → saved
-    range hands become empty).
-
-Files: create `mobile/components/RangeNotation.tsx`,
-`mobile/__tests__/range-notation.test.tsx`; modify `mobile/app/editor.tsx`,
-`mobile/package.json` + `mobile/package-lock.json` (expo-clipboard). No `src/` edits.
-
-Validation (mobile only): run `npm install` first (new dep), then `npm run lint`,
-`npm run typecheck`, `npm run test:run`, `npm run bundle-check` — all must pass
-(confirm expo-clipboard is in the iOS bundle graph).
-
-Constraints: reuse `@core/domain/rangeNotation` for ALL parse/format (no hand-rolled
-notation); UI in `mobile/components/`; editor stays controlled. If the slice is too
-big, land notation copy/paste/apply first and clear-range as a tiny follow-up — but
-prefer both. Do not edit `src/`.
-
-Suggested commit message:
-`feat(ios): add range notation import/export and clear to the editor`
-
-(End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
-
-Milestone: M2 — Core trainer MVP (parity with web v1). This is the **last M2
-slice**: with it the full v1 loop (create → save → edit → delete → practice) runs on
-device. The next slice (12) opens M3.
-
-Context: the library (`mobile/app/index.tsx`) lists ranges and opens the editor.
-This slice adds recognition practice for one saved range, reusing the tested
-practice domain — no scoring logic is reimplemented.
-
-Reuse (verified, import — never copy):
-- `@core/storage/rangeStorage`: `findSavedRangeById(id)`.
-- `@core/domain/practice`:
-  - `getRandomPracticeHand(random?: () => number): PokerHand` — the next prompt.
-  - `createPracticeAttempt(hand, rangeHands, userAnsweredInRange, timestamp?):
-    PracticeAttempt` — scores one answer (`{ hand, expectedInRange,
-    userAnsweredInRange, correct, timestamp }`).
-  - `summarizePracticeAttempts(attempts): PracticeSessionSummary` —
-    `{ totalQuestions, correctAnswers, accuracyPercentage }`.
-- Types in `@core/types/practice` (`PracticeAttempt`, `PracticeSessionSummary`).
-
-Task (mobile-only; reuse `@core`, do not edit `src/`):
-- Add `mobile/app/practice.tsx` (Expo Router screen):
-  - Read `id` via `useLocalSearchParams`; load the range with `findSavedRangeById`.
-    If missing, render a themed "Range not found" state.
-  - State: the current prompt hand (init via `getRandomPracticeHand()`), the
-    `PracticeAttempt[]` for the session. Show the current hand large
-    (`testID="practice-hand"`), and two buttons: "In range" (`testID="answer-in"`)
-    and "Out of range" (`testID="answer-out"`).
-  - On answer: `createPracticeAttempt(hand, range.hands, answeredInRange)`, append to
-    attempts, show **immediate feedback** (correct vs. the expected membership,
-    `testID="feedback"`), then advance to the next `getRandomPracticeHand()`.
-  - Session stats from `summarizePracticeAttempts(attempts)`: show total, correct,
-    accuracy % (`testID`s e.g. `stat-total`, `stat-correct`, `stat-accuracy`).
-  - Header title via `<Stack.Screen options={{ title: 'Practice' }}>`; themed.
-- Entry point: on each library row (`mobile/app/index.tsx`) add a "Practice" action
-  (`Link`/`router.push` to `/practice?id=<id>`, `testID="practice-<id>"`) alongside
-  the existing edit/delete. Update `library-screen.test.tsx` if its row assertions
-  change.
-- Test `mobile/__tests__/practice-screen.test.tsx`: install the storage shim (MMKV
-  mock); mock `expo-router` (`useLocalSearchParams` → `{ id: 'r1' }`, `Stack.Screen`
-  → null). Seed a range whose hands are **all 169** (so every prompt is in range —
-  deterministic without controlling random): e.g. `saveSavedRange({ id:'r1', …,
-  hands: generateHandMatrix().flat() })`. Render, press "In range", and assert the
-  feedback shows correct and `summarizePracticeAttempts`-backed stats read total 1 /
-  correct 1 / accuracy 100%. Then press "Out of range" and assert that answer is
-  marked incorrect and totals advance. (RNTL v14 — `await render`; use `waitFor` for
-  post-press assertions.)
-
-Files: create `mobile/app/practice.tsx`, `mobile/__tests__/practice-screen.test.tsx`;
-modify `mobile/app/index.tsx` (per-row Practice link) and possibly
-`mobile/__tests__/library-screen.test.tsx`. No `src/` edits, no new dependency.
-
-Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
-`npm run bundle-check` — all must pass.
-
-Constraints: reuse `@core/domain/practice` for ALL scoring/draw logic (no
-reimplementation); screens in `mobile/app/`. Keep session stats in component state
-(persisted per-range history is a later M-slice). Do not edit `src/`.
-
-Suggested commit message:
-`feat(ios): add recognition practice screen reusing @core practice domain`
+`feat(ios): add name search to the range library`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
