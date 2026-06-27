@@ -48,53 +48,57 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 13 | Range shortcut buttons (pairs / broadways) in the editor | M3 | 2026-06-14 |
 | 14 | Range notation import/export (clipboard) + clear-range (completes M3) | M3 | 2026-06-14 |
 | 15 | Scenario metadata editor in the range editor | M4 | 2026-06-14 |
+| 16 | Library search by name | M4 | 2026-06-14 |
 
 ## Next slice
 
-**Slice 16 — Library search by name**
+**Slice 17 — Library metadata filters (position / action / game)**
 
 Milestone: M4 — Library & organization (web v1.3–v1.4).
 
-Context: the library (`mobile/app/index.tsx`) lists all saved ranges with a
-per-row summary, open/edit, practice, and delete. Ranges now carry scenario
-metadata (slice 15). This slice adds a search box to filter the list by name,
-reusing the tested library helper. (Metadata filters + sorts are the next slices.)
+Context: the library (`mobile/app/index.tsx`) has name search (slice 16) over the
+focus-reloaded `ranges`. This slice adds metadata filters that compose with search,
+reusing the tested library helpers. (Sorts are the next slice; the stack-depth filter
+is a value/range input — defer it or add minimally.)
 
 Reuse (verified, import — never copy) from `@core/domain/rangeLibrary`:
-`filterRangesByName<T extends { name: string }>(ranges: T[], query: string): T[]`
-(case-insensitive, trims, returns all on a blank query). The module also exports the
-filters/sorts the next slices will use (`filterRangesByPosition`,
-`filterRangesByActionType`, `filterRangesByGameType`, `filterRangesByStackDepth`,
-`filterArchivedRanges`, `filterFavoriteRanges`, `sortRangesByName`,
-`sortRangesByUpdatedAt`, `sortRangesByLastPracticed`) — don't build those here.
+`filterRangesByPosition`, `filterRangesByActionType`, `filterRangesByGameType` (each
+`<T extends { metadata?: {...} }>(ranges: T[], value): T[]`). **First read
+`src/domain/rangeLibrary.ts`** to confirm the exact param type and the "no filter"
+sentinel (e.g. blank/`''`/`undefined` returns all) so the UI passes the right
+"unset" value. Option constants + labels come from `@core/types/range` (`POSITIONS`,
+`ACTION_TYPES`, `GAME_TYPES`, `POSITION_LABELS`, `ACTION_TYPE_LABELS`,
+`GAME_TYPE_LABELS`).
 
 Task (mobile-only; reuse `@core`, do not edit `src/`):
-- In `mobile/app/index.tsx`, add a `query` state + a themed search `TextInput`
-  (`testID="library-search"`, placeholder "Search ranges", `autoCorrect={false}`,
-  `clearButtonMode` if handy) above the list. Derive the displayed list as
-  `filterRangesByName(ranges, query)` (compute in render or `useMemo` on
-  `[ranges, query]`). Keep `ranges` as the full loaded set (reloaded on focus);
-  search only narrows what's shown.
-- When the filtered list is empty but ranges exist, show a "No ranges match" state
-  (distinct from the existing "no ranges yet" empty state). Keep delete/practice/edit
-  working on the filtered rows.
-- Tests (extend `mobile/__tests__/library-screen.test.tsx`): seed e.g. "UTG Open" and
-  "BTN 3-bet"; render; assert both show; `fireEvent.changeText(getByTestId(
-  'library-search'), 'btn')` and assert only "BTN 3-bet" remains (and "UTG Open" is
-  gone). A single changeText is one interaction, so `fireEvent` is fine; if you chain
-  multiple interactions, switch to `userEvent`.
+- Add filter state for position / actionType / gameType (each `… | undefined`). Build
+  a compact, collapsible/scrollable filter UI of single-select chips (reuse the chip
+  pattern from `RangeMetadataEditor`; consider extracting a shared `FilterChips`/
+  `ChipRow` if it reduces duplication — optional). Tapping a chip sets the filter;
+  tapping the active chip clears it. `testID`s e.g. `filter-position-btn`,
+  `filter-action-<value>`, `filter-game-<value>`.
+- Compose the visible list (chain after search), e.g.:
+  `visible = filterRangesByGameType(filterRangesByActionType(
+  filterRangesByPosition(filterRangesByName(ranges, query), position), action), game)`
+  in a `useMemo`. Keep the "no ranges match" empty state when filters/search exclude
+  everything.
+- Tests (extend `mobile/__tests__/library-screen.test.tsx`): seed two ranges with
+  different metadata (e.g. one `metadata.position: 'btn'`, one `'utg'` — set via
+  `saveSavedRange`); render; tap `filter-position-btn`; assert only the BTN range
+  shows. Single interaction per assertion → `fireEvent` is fine.
 
-Files: modify `mobile/app/index.tsx`, `mobile/__tests__/library-screen.test.tsx`.
-No `src/` edits, no new dependency.
+Files: modify `mobile/app/index.tsx`, `mobile/__tests__/library-screen.test.tsx`;
+optionally add `mobile/components/ChipRow.tsx` (shared with the metadata editor) +
+its test. No `src/` edits, no new dependency.
 
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
 `npm run bundle-check` — all must pass.
 
-Constraints: reuse `@core/domain/rangeLibrary` for the name match (no hand-rolled
-filtering); the list stays read-from-storage + reload-on-focus with search as a view
-filter; UI in `mobile/app/`. Do not edit `src/`.
+Constraints: reuse `@core/domain/rangeLibrary` filters + `@core/types/range`
+constants (no hand-rolled metadata matching); filters compose with search as view
+filters over the focus-reloaded list; UI in `mobile/`. Do not edit `src/`.
 
 Suggested commit message:
-`feat(ios): add name search to the range library`
+`feat(ios): add position/action/game filters to the range library`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)

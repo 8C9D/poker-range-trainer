@@ -73,4 +73,18 @@ describe('LibraryScreen', () => {
 
     expect(getByTestId('empty-new-range')).toBeTruthy();
   });
+
+  it('filters the list by the search query', async () => {
+    seed('r1', 'UTG Open');
+    seed('r2', 'BTN Open');
+
+    const { getByTestId, getByText, queryByText } = await render(<LibraryScreen />);
+    expect(getByText('UTG Open')).toBeTruthy();
+    expect(getByText('BTN Open')).toBeTruthy();
+
+    fireEvent.changeText(getByTestId('library-search'), 'btn');
+
+    await waitFor(() => expect(queryByText('UTG Open')).toBeNull());
+    expect(getByText('BTN Open')).toBeTruthy();
+  });
 });

@@ -1,7 +1,8 @@
-import { useCallback, useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Link, Stack, useFocusEffect } from 'expo-router';
 
+import { filterRangesByName } from '@core/domain/rangeLibrary';
 import { calculateRangePercentage } from '@core/domain/rangeMath';
 import { deleteSavedRange, loadSavedRanges } from '@core/storage/rangeStorage';
 import type { SavedRange } from '@core/types/range';
@@ -15,6 +16,7 @@ import { colors } from '../theme/colors';
  */
 export default function LibraryScreen() {
   const [ranges, setRanges] = useState<SavedRange[]>(() => loadSavedRanges());
+  const [query, setQuery] = useState('');
 
   const reload = useCallback(() => {
     setRanges(loadSavedRanges());
@@ -22,6 +24,9 @@ export default function LibraryScreen() {
 
   // Reload whenever the screen regains focus (e.g. returning from the editor).
   useFocusEffect(reload);
+
+  // Search narrows the displayed list by name; `ranges` stays the full loaded set.
+  const visible = useMemo(() => filterRangesByName(ranges, query), [ranges, query]);
 
   const confirmDelete = useCallback(
     (range: SavedRange) => {
@@ -52,19 +57,40 @@ export default function LibraryScreen() {
           ),
         }}
       />
+      {ranges.length > 0 ? (
+        <TextInput
+          testID="library-search"
+          style={styles.search}
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Search ranges"
+          placeholderTextColor={colors.text}
+          autoCapitalize="none"
+          autoCorrect={false}
+          clearButtonMode="while-editing"
+        />
+      ) : null}
       <FlatList
-        data={ranges}
+        data={visible}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={ranges.length === 0 ? styles.emptyContent : styles.listContent}
+        contentContainerStyle={visible.length === 0 ? styles.emptyContent : styles.listContent}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyText}>No ranges yet</Text>
-            <Link href="/editor" asChild>
-              <Pressable testID="empty-new-range" style={styles.button}>
-                <Text style={styles.buttonText}>Create your first range</Text>
-              </Pressable>
-            </Link>
-          </View>
+          ranges.length === 0 ? (
+            <View style={styles.empty}>
+              <Text style={styles.emptyText}>No ranges yet</Text>
+              <Link href="/editor" asChild>
+                <Pressable testID="empty-new-range" style={styles.button}>
+                  <Text style={styles.buttonText}>Create your first range</Text>
+                </Pressable>
+              </Link>
+            </View>
+          ) : (
+            <View style={styles.empty}>
+              <Text testID="no-match" style={styles.emptyText}>
+                No ranges match “{query}”
+              </Text>
+            </View>
+          )
         }
         renderItem={({ item }) => (
           <View testID={`range-row-${item.id}`} style={styles.row}>
@@ -106,6 +132,18 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontSize: 16,
     fontWeight: '600',
+  },
+  search: {
+    margin: 16,
+    marginBottom: 0,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: colors.textStrong,
+    backgroundColor: colors.surface,
   },
   listContent: {
     padding: 16,
