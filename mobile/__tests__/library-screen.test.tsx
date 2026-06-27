@@ -102,4 +102,22 @@ describe('LibraryScreen', () => {
     await waitFor(() => expect(queryByText('UTG Open')).toBeNull());
     expect(getByText('BTN Open')).toBeTruthy();
   });
+
+  it('reorders the list by the selected sort', async () => {
+    const old = '2026-01-01T00:00:00.000Z';
+    const recent = '2026-02-01T00:00:00.000Z';
+    saveSavedRange({ id: 'r1', name: 'Alpha', hands: ['AA'], createdAt: old, updatedAt: old });
+    saveSavedRange({ id: 'r2', name: 'Bravo', hands: ['AA'], createdAt: old, updatedAt: recent });
+
+    const { getByTestId, getAllByTestId } = await render(<LibraryScreen />);
+
+    // Default sort 'updated' -> most recently edited (Bravo / r2) first.
+    expect(getAllByTestId(/^range-row-/)[0].props.testID).toBe('range-row-r2');
+
+    fireEvent.press(getByTestId('sort-name'));
+
+    await waitFor(() =>
+      expect(getAllByTestId(/^range-row-/)[0].props.testID).toBe('range-row-r1'),
+    );
+  });
 });

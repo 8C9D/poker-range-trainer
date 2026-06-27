@@ -7,8 +7,13 @@ import {
   filterRangesByGameType,
   filterRangesByName,
   filterRangesByPosition,
+  sortRangesByAccuracy,
+  sortRangesByLastPracticed,
+  sortRangesByName,
+  sortRangesByUpdatedAt,
 } from '@core/domain/rangeLibrary';
 import { calculateRangePercentage } from '@core/domain/rangeMath';
+import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
 import { deleteSavedRange, loadSavedRanges } from '@core/storage/rangeStorage';
 import {
   ACTION_TYPES,
@@ -26,6 +31,15 @@ import {
 import { ChipRow } from '../components/ChipRow';
 import { colors } from '../theme/colors';
 
+type SortKey = 'name' | 'updated' | 'practiced' | 'accuracy';
+
+const SORTS: readonly { key: SortKey; label: string }[] = [
+  { key: 'updated', label: 'Recent' },
+  { key: 'name', label: 'Name' },
+  { key: 'practiced', label: 'Practiced' },
+  { key: 'accuracy', label: 'Accuracy' },
+];
+
 /**
  * Range library — the app's home screen. Lists saved ranges (reused
  * `@core/storage`), opens each in the editor, and deletes after confirmation. The
@@ -33,21 +47,23 @@ import { colors } from '../theme/colors';
  */
 export default function LibraryScreen() {
   const [ranges, setRanges] = useState<SavedRange[]>(() => loadSavedRanges());
+  const [practiceStats, setPracticeStats] = useState(() => loadPracticeStats());
   const [query, setQuery] = useState('');
   const [position, setPosition] = useState<Position | undefined>(undefined);
   const [actionType, setActionType] = useState<ActionType | undefined>(undefined);
   const [gameType, setGameType] = useState<GameType | undefined>(undefined);
+  const [sort, setSort] = useState<SortKey>('updated');
 
   const reload = useCallback(() => {
     setRanges(loadSavedRanges());
+    setPracticeStats(loadPracticeStats());
   }, []);
 
   // Reload whenever the screen regains focus (e.g. returning from the editor).
   useFocusEffect(reload);
 
-  // Search + metadata filters narrow the displayed list; `ranges` stays the full
-  // loaded set. Filters compose after the name search (all reuse @core helpers).
-  const visible = useMemo(
+  // Search + metadata filters narrow the list; `ranges` stays the full loaded set.
+  const filtered = useMemo(
     () =>
       filterRangesByGameType(
         filterRangesByActionType(
@@ -58,6 +74,21 @@ export default function LibraryScreen() {
       ),
     [ranges, query, position, actionType, gameType],
   );
+
+  // Then sort the filtered list with the chosen @core comparator.
+  const visible = useMemo(() => {
+    switch (sort) {
+      case 'name':
+        return sortRangesByName(filtered);
+      case 'practiced':
+        return sortRangesByLastPracticed(filtered, practiceStats);
+      case 'accuracy':
+        return sortRangesByAccuracy(filtered, practiceStats);
+      case 'updated':
+      default:
+        return sortRangesByUpdatedAt(filtered);
+    }
+  }, [filtered, sort, practiceStats]);
 
   const confirmDelete = useCallback(
     (range: SavedRange) => {
@@ -126,6 +157,22 @@ export default function LibraryScreen() {
               selected={gameType}
               onSelect={setGameType}
             />
+          </View>
+          <View style={styles.sortRow}>
+            {SORTS.map(({ key, label }) => (
+              <Pressable
+                key={key}
+                testID={`sort-${key}`}
+                accessibilityRole="button"
+                accessibilityState={{ selected: sort === key }}
+                style={[styles.sortChip, sort === key && styles.sortChipActive]}
+                onPress={() => setSort(key)}
+              >
+                <Text style={[styles.sortChipText, sort === key && styles.sortChipTextActive]}>
+                  {label}
+                </Text>
+              </Pressable>
+            ))}
           </View>
         </>
       ) : null}
@@ -208,6 +255,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     gap: 10,
+  },
+  sortRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  sortChip: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  sortChipActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  sortChipText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  sortChipTextActive: {
+    color: colors.onAccent,
   },
   listContent: {
     padding: 16,
