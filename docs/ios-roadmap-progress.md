@@ -51,36 +51,39 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 16 | Library search by name | M4 | 2026-06-14 |
 | 17 | Library metadata filters (position / action / game) | M4 | 2026-06-14 |
 | 18 | Library sorts (name / recent / practiced / accuracy) | M4 | 2026-06-14 |
+| 19 | Duplicate a range from the library | M4 | 2026-06-14 |
 
 ## Next slice
 
-**Slice 19 — Duplicate a range from the library**
+**Slice 20 — Favorite toggle + Favorites filter in the library**
 
 Milestone: M4 — Library & organization (web v1.3–v1.4).
 
-Context: the library lists ranges with edit/practice/delete row actions, search,
-filters, and sort. This slice adds a "Duplicate" row action that clones a range
-under a new id, reusing the tested duplication helper.
+Context: the library rows have edit/practice/copy/delete actions plus search,
+filters, and sort. This slice adds a per-row favorite toggle and a "Favorites only"
+filter, reusing the tested helper. (Archive is the next slice; per-row stat summaries
+close M4 after that.)
 
-Reuse (verified, import — never copy):
-- `@core/domain/rangeDuplication`: `duplicateRange(range, newId, timestamp)` —
-  returns a deep-enough copy with the new id + createdAt/updatedAt set (the web uses
-  `saveSavedRange(duplicateRange(range, createRangeId(), new Date().toISOString()))`).
-  **Read `src/domain/rangeDuplication.ts`** to confirm the exact signature/return
-  (e.g. whether it appends "(copy)" to the name).
-- `mobile/platform/createRangeId` (`createRangeId()`), `@core/storage/rangeStorage`
-  (`saveSavedRange`).
+Reuse (verified, import — never copy): `@core/domain/rangeLibrary`
+`filterFavoriteRanges<T extends { favorite?: boolean }>(ranges, favoritesOnly:
+boolean): T[]` (confirm the arg/sentinel in `src/domain/rangeLibrary.ts` — likely
+returns all when `false`). `SavedRange.favorite?: boolean`; `saveSavedRange`
+persists it (a strict `true` is stored, false/undefined drops the key).
 
 Task (mobile-only; reuse `@core`, do not edit `src/`):
-- Add a `confirmDuplicate`/`handleDuplicate(range)` to `mobile/app/index.tsx`:
-  `saveSavedRange(duplicateRange(range, createRangeId(), new Date().toISOString()))`
-  then `reload()`. Add a "Duplicate" control to each row (`testID="duplicate-<id>"`)
-  alongside Practice/Delete. (Mind row width — a compact label/icon is fine, or move
-  the row actions into a small wrapping action group.)
-- Tests (extend `mobile/__tests__/library-screen.test.tsx`): seed one range; render;
-  `fireEvent.press(getByTestId('duplicate-<id>'))`; assert `loadSavedRanges()` now has
-  2 entries (a new id, original retained) and the copy appears in the list. Single
-  interaction → `fireEvent` is fine.
+- Add a `toggleFavorite(range)` to `mobile/app/index.tsx`:
+  `saveSavedRange({ ...range, favorite: !range.favorite })` then `reload()`. Add a
+  star toggle to each row (`testID="favorite-<id>"`, `accessibilityState={{ selected:
+  !!range.favorite }}`) — put it at the row START (before the name) to avoid crowding
+  the trailing actions; show a filled vs outline star (or ★ vs ☆) by `range.favorite`.
+- Add a "Favorites" filter toggle (`testID="filter-favorites"`) near the sort row that
+  flips a `favoritesOnly` boolean; fold `filterFavoriteRanges(list, favoritesOnly)`
+  into the `filtered` memo (compose with search + metadata filters).
+- Tests (extend `mobile/__tests__/library-screen.test.tsx`): (a) seed a range; render;
+  press `favorite-<id>`; assert `loadSavedRanges()[0].favorite === true`. (b) seed two
+  ranges, favorite one (via `saveSavedRange({...favorite:true})` in the seed), press
+  `filter-favorites`, assert only the favorited one shows. Single interaction per
+  assertion → `fireEvent` is fine.
 
 Files: modify `mobile/app/index.tsx`, `mobile/__tests__/library-screen.test.tsx`.
 No `src/` edits, no new dependency.
@@ -88,11 +91,11 @@ No `src/` edits, no new dependency.
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
 `npm run bundle-check` — all must pass.
 
-Constraints: reuse `@core/domain/rangeDuplication` (no hand-rolled cloning); ids from
-`createRangeId`; the list stays read-from-storage + reload. UI in `mobile/app/`. Do
-not edit `src/`.
+Constraints: reuse `@core/domain/rangeLibrary` + `saveSavedRange` (no hand-rolled
+favorite filtering/persistence); favorites filter composes with the others; UI in
+`mobile/app/`. Do not edit `src/`.
 
 Suggested commit message:
-`feat(ios): add duplicate action to the range library`
+`feat(ios): add favorite toggle and favorites filter to the library`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)

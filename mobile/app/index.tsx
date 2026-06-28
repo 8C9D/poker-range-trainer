@@ -12,9 +12,10 @@ import {
   sortRangesByName,
   sortRangesByUpdatedAt,
 } from '@core/domain/rangeLibrary';
+import { duplicateRange } from '@core/domain/rangeDuplication';
 import { calculateRangePercentage } from '@core/domain/rangeMath';
 import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
-import { deleteSavedRange, loadSavedRanges } from '@core/storage/rangeStorage';
+import { deleteSavedRange, loadSavedRanges, saveSavedRange } from '@core/storage/rangeStorage';
 import {
   ACTION_TYPES,
   ACTION_TYPE_LABELS,
@@ -29,6 +30,7 @@ import {
 } from '@core/types/range';
 
 import { ChipRow } from '../components/ChipRow';
+import { createRangeId } from '../platform/createRangeId';
 import { colors } from '../theme/colors';
 
 type SortKey = 'name' | 'updated' | 'practiced' | 'accuracy';
@@ -89,6 +91,14 @@ export default function LibraryScreen() {
         return sortRangesByUpdatedAt(filtered);
     }
   }, [filtered, sort, practiceStats]);
+
+  const handleDuplicate = useCallback(
+    (range: SavedRange) => {
+      saveSavedRange(duplicateRange(range, createRangeId(), new Date().toISOString()));
+      reload();
+    },
+    [reload],
+  );
 
   const confirmDelete = useCallback(
     (range: SavedRange) => {
@@ -213,6 +223,15 @@ export default function LibraryScreen() {
                 <Text style={styles.practiceText}>Practice</Text>
               </Pressable>
             </Link>
+            <Pressable
+              testID={`duplicate-${item.id}`}
+              accessibilityRole="button"
+              accessibilityLabel={`Duplicate ${item.name || 'Untitled'}`}
+              onPress={() => handleDuplicate(item)}
+              style={styles.duplicateButton}
+            >
+              <Text style={styles.duplicateText}>Copy</Text>
+            </Pressable>
             <Pressable
               testID={`delete-${item.id}`}
               accessibilityRole="button"
@@ -342,6 +361,17 @@ const styles = StyleSheet.create({
   },
   practiceText: {
     color: colors.accent,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  duplicateButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    alignSelf: 'stretch',
+    justifyContent: 'center',
+  },
+  duplicateText: {
+    color: colors.text,
     fontSize: 14,
     fontWeight: '600',
   },

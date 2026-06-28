@@ -12,6 +12,7 @@ import { installLocalStorage, localStorageShim } from '../platform/localStorageS
 // list's initial load comes from useState (seeded before render), and delete calls
 // reload directly, so focus is not needed to drive the test.
 jest.mock('react-native-mmkv');
+jest.mock('expo-crypto');
 jest.mock('expo-router', () => ({
   useFocusEffect: () => {},
   Link: ({ children }: { children: ReactNode }) => children,
@@ -119,5 +120,17 @@ describe('LibraryScreen', () => {
     await waitFor(() =>
       expect(getAllByTestId(/^range-row-/)[0].props.testID).toBe('range-row-r1'),
     );
+  });
+
+  it('duplicates a range', async () => {
+    seed('r1', 'UTG Open');
+
+    const { getByTestId } = await render(<LibraryScreen />);
+    fireEvent.press(getByTestId('duplicate-r1'));
+
+    await waitFor(() => expect(loadSavedRanges()).toHaveLength(2));
+    const names = loadSavedRanges().map((r) => r.name);
+    expect(names).toContain('UTG Open');
+    expect(names).toContain('UTG Open (copy)');
   });
 });
