@@ -3,6 +3,7 @@ import { Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'r
 import { Link, Stack, useFocusEffect } from 'expo-router';
 
 import {
+  filterArchivedRanges,
   filterFavoriteRanges,
   filterRangesByActionType,
   filterRangesByGameType,
@@ -56,6 +57,7 @@ export default function LibraryScreen() {
   const [actionType, setActionType] = useState<ActionType | undefined>(undefined);
   const [gameType, setGameType] = useState<GameType | undefined>(undefined);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const [sort, setSort] = useState<SortKey>('updated');
 
   const reload = useCallback(() => {
@@ -72,14 +74,17 @@ export default function LibraryScreen() {
       filterFavoriteRanges(
         filterRangesByGameType(
           filterRangesByActionType(
-            filterRangesByPosition(filterRangesByName(ranges, query), position ?? null),
+            filterRangesByPosition(
+              filterRangesByName(filterArchivedRanges(ranges, showArchived), query),
+              position ?? null,
+            ),
             actionType ?? null,
           ),
           gameType ?? null,
         ),
         favoritesOnly,
       ),
-    [ranges, query, position, actionType, gameType, favoritesOnly],
+    [ranges, query, position, actionType, gameType, favoritesOnly, showArchived],
   );
 
   // Then sort the filtered list with the chosen @core comparator.
@@ -108,6 +113,14 @@ export default function LibraryScreen() {
   const toggleFavorite = useCallback(
     (range: SavedRange) => {
       saveSavedRange({ ...range, favorite: !range.favorite });
+      reload();
+    },
+    [reload],
+  );
+
+  const toggleArchive = useCallback(
+    (range: SavedRange) => {
+      saveSavedRange({ ...range, archived: !range.archived });
       reload();
     },
     [reload],
@@ -191,6 +204,17 @@ export default function LibraryScreen() {
                 ★ Favorites
               </Text>
             </Pressable>
+            <Pressable
+              testID="toggle-archived"
+              accessibilityRole="button"
+              accessibilityState={{ selected: showArchived }}
+              onPress={() => setShowArchived((value) => !value)}
+              style={[styles.favFilter, showArchived && styles.favFilterActive]}
+            >
+              <Text style={[styles.favFilterText, showArchived && styles.favFilterTextActive]}>
+                {showArchived ? 'Hide archived' : 'Show archived'}
+              </Text>
+            </Pressable>
           </View>
           <View style={styles.sortRow}>
             {SORTS.map(({ key, label }) => (
@@ -267,6 +291,15 @@ export default function LibraryScreen() {
               style={styles.duplicateButton}
             >
               <Text style={styles.duplicateText}>Copy</Text>
+            </Pressable>
+            <Pressable
+              testID={`archive-${item.id}`}
+              accessibilityRole="button"
+              accessibilityLabel={`${item.archived ? 'Unarchive' : 'Archive'} ${item.name || 'Untitled'}`}
+              onPress={() => toggleArchive(item)}
+              style={styles.archiveButton}
+            >
+              <Text style={styles.archiveText}>{item.archived ? 'Unarchive' : 'Archive'}</Text>
             </Pressable>
             <Pressable
               testID={`delete-${item.id}`}
@@ -407,6 +440,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   duplicateText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  archiveButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    alignSelf: 'stretch',
+    justifyContent: 'center',
+  },
+  archiveText: {
     color: colors.text,
     fontSize: 14,
     fontWeight: '600',

@@ -157,4 +157,17 @@ describe('LibraryScreen', () => {
     await waitFor(() => expect(queryByText('UTG Open')).toBeNull());
     expect(getByText('BTN Open')).toBeTruthy();
   });
+
+  it('archives a range (hidden by default) and reveals it with the toggle', async () => {
+    seed('r1', 'UTG Open');
+
+    const { getByTestId, queryByText } = await render(<LibraryScreen />);
+
+    fireEvent.press(getByTestId('archive-r1'));
+    await waitFor(() => expect(queryByText('UTG Open')).toBeNull());
+    expect(loadSavedRanges()[0].archived).toBe(true);
+
+    fireEvent.press(getByTestId('toggle-archived'));
+    await waitFor(() => expect(queryByText('UTG Open')).not.toBeNull());
+  });
 });
