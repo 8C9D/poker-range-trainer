@@ -133,4 +133,28 @@ describe('LibraryScreen', () => {
     expect(names).toContain('UTG Open');
     expect(names).toContain('UTG Open (copy)');
   });
+
+  it('toggles a range favorite', async () => {
+    seed('r1', 'UTG Open');
+
+    const { getByTestId } = await render(<LibraryScreen />);
+    fireEvent.press(getByTestId('favorite-r1'));
+
+    await waitFor(() => expect(loadSavedRanges()[0].favorite).toBe(true));
+  });
+
+  it('filters to favorites only', async () => {
+    const ts = '2026-01-01T00:00:00.000Z';
+    saveSavedRange({ id: 'r1', name: 'UTG Open', hands: ['AA'], createdAt: ts, updatedAt: ts });
+    saveSavedRange({ id: 'r2', name: 'BTN Open', hands: ['AA'], createdAt: ts, updatedAt: ts, favorite: true });
+
+    const { getByTestId, getByText, queryByText } = await render(<LibraryScreen />);
+    expect(getByText('UTG Open')).toBeTruthy();
+    expect(getByText('BTN Open')).toBeTruthy();
+
+    fireEvent.press(getByTestId('filter-favorites'));
+
+    await waitFor(() => expect(queryByText('UTG Open')).toBeNull());
+    expect(getByText('BTN Open')).toBeTruthy();
+  });
 });

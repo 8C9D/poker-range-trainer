@@ -3,6 +3,7 @@ import { Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'r
 import { Link, Stack, useFocusEffect } from 'expo-router';
 
 import {
+  filterFavoriteRanges,
   filterRangesByActionType,
   filterRangesByGameType,
   filterRangesByName,
@@ -54,6 +55,7 @@ export default function LibraryScreen() {
   const [position, setPosition] = useState<Position | undefined>(undefined);
   const [actionType, setActionType] = useState<ActionType | undefined>(undefined);
   const [gameType, setGameType] = useState<GameType | undefined>(undefined);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [sort, setSort] = useState<SortKey>('updated');
 
   const reload = useCallback(() => {
@@ -67,14 +69,17 @@ export default function LibraryScreen() {
   // Search + metadata filters narrow the list; `ranges` stays the full loaded set.
   const filtered = useMemo(
     () =>
-      filterRangesByGameType(
-        filterRangesByActionType(
-          filterRangesByPosition(filterRangesByName(ranges, query), position ?? null),
-          actionType ?? null,
+      filterFavoriteRanges(
+        filterRangesByGameType(
+          filterRangesByActionType(
+            filterRangesByPosition(filterRangesByName(ranges, query), position ?? null),
+            actionType ?? null,
+          ),
+          gameType ?? null,
         ),
-        gameType ?? null,
+        favoritesOnly,
       ),
-    [ranges, query, position, actionType, gameType],
+    [ranges, query, position, actionType, gameType, favoritesOnly],
   );
 
   // Then sort the filtered list with the chosen @core comparator.
@@ -95,6 +100,14 @@ export default function LibraryScreen() {
   const handleDuplicate = useCallback(
     (range: SavedRange) => {
       saveSavedRange(duplicateRange(range, createRangeId(), new Date().toISOString()));
+      reload();
+    },
+    [reload],
+  );
+
+  const toggleFavorite = useCallback(
+    (range: SavedRange) => {
+      saveSavedRange({ ...range, favorite: !range.favorite });
       reload();
     },
     [reload],
@@ -167,6 +180,17 @@ export default function LibraryScreen() {
               selected={gameType}
               onSelect={setGameType}
             />
+            <Pressable
+              testID="filter-favorites"
+              accessibilityRole="button"
+              accessibilityState={{ selected: favoritesOnly }}
+              onPress={() => setFavoritesOnly((value) => !value)}
+              style={[styles.favFilter, favoritesOnly && styles.favFilterActive]}
+            >
+              <Text style={[styles.favFilterText, favoritesOnly && styles.favFilterTextActive]}>
+                ★ Favorites
+              </Text>
+            </Pressable>
           </View>
           <View style={styles.sortRow}>
             {SORTS.map(({ key, label }) => (
@@ -210,6 +234,18 @@ export default function LibraryScreen() {
         }
         renderItem={({ item }) => (
           <View testID={`range-row-${item.id}`} style={styles.row}>
+            <Pressable
+              testID={`favorite-${item.id}`}
+              accessibilityRole="button"
+              accessibilityState={{ selected: !!item.favorite }}
+              accessibilityLabel={`Favorite ${item.name || 'Untitled'}`}
+              onPress={() => toggleFavorite(item)}
+              style={styles.favoriteButton}
+            >
+              <Text style={[styles.favoriteIcon, item.favorite && styles.favoriteIconActive]}>
+                {item.favorite ? '★' : '☆'}
+              </Text>
+            </Pressable>
             <Link href={{ pathname: '/editor', params: { id: item.id } }} asChild>
               <Pressable style={styles.rowMain}>
                 <Text style={styles.rowName}>{item.name || 'Untitled'}</Text>
@@ -374,6 +410,39 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 14,
     fontWeight: '600',
+  },
+  favoriteButton: {
+    paddingLeft: 12,
+    paddingRight: 4,
+    alignSelf: 'stretch',
+    justifyContent: 'center',
+  },
+  favoriteIcon: {
+    color: colors.text,
+    fontSize: 18,
+  },
+  favoriteIconActive: {
+    color: colors.accent,
+  },
+  favFilter: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    alignSelf: 'flex-start',
+  },
+  favFilterActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  favFilterText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  favFilterTextActive: {
+    color: colors.onAccent,
   },
   deleteButton: {
     paddingHorizontal: 16,
