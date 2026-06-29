@@ -54,48 +54,53 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 19 | Duplicate a range from the library | M4 | 2026-06-14 |
 | 20 | Favorite toggle + favorites filter in the library | M4 | 2026-06-14 |
 | 21 | Archive ranges (hide-by-default + show-archived toggle) | M4 | 2026-06-15 |
+| 22 | Per-range practice stats on library cards (completes M4) | M4 | 2026-06-15 |
 
 ## Next slice
 
-**Slice 22 — Per-range practice stats on library cards (closes M4)**
+**Slice 23 — End-of-session mistakes review in recognition practice (opens M5)**
 
-Milestone: M4 — Library & organization (web v1.3–v1.4). **Last M4 slice**; slice 23
-opens M5 (Practice depth).
+Milestone: M5 — Practice depth (web v2–v2.3). First M5 slice. (The roadmap also lists
+a practice-mode picker, build-from-memory, timed/weakness drills, heatmaps, spaced
+repetition, multi-action, and swipe/haptics — each a later slice. This one is a small,
+self-contained depth win that needs no new screen or dependency.)
 
-Context: the library already loads `practiceStats` (focus-reloaded, used by the
-practiced/accuracy sorts). This slice surfaces each range's practice summary on its
-row card, reusing the accuracy helper. After this, M4 is complete.
+Context: `mobile/app/practice.tsx` runs recognition practice and shows live session
+stats (total/correct/accuracy) from `summarizePracticeAttempts`. It keeps the
+session's `PracticeAttempt[]` in state. This slice adds an end-of-session mistakes
+review so the user can see which hands they got wrong, reusing the tested helper.
 
-Reuse (verified, import — never copy): `@core/domain/practiceStats`
-`practiceAccuracyPercentage(stats: RangePracticeStats): number` (confirm in
-`src/domain/practiceStats.ts`). `practiceStats[range.id]` (already in component state)
-is the `RangePracticeStats | undefined` for a row; it carries `totalAttempts` (and
-`correctAttempts`, `lastPracticedAt`).
+Reuse (verified, import — never copy): `@core/domain/practice`
+`reviewSessionMistakes(attempts: PracticeAttempt[]): { missed: PokerHand[];
+wronglyIncluded: PokerHand[] }` — `missed` = in-range hands answered "out", 
+`wronglyIncluded` = out-of-range hands answered "in", each de-duped in first-seen
+order (read `src/domain/practice.ts` to confirm).
 
 Task (mobile-only; reuse `@core`, do not edit `src/`):
-- In `mobile/app/index.tsx`'s `renderItem`, when `practiceStats[item.id]` exists with
-  `totalAttempts > 0`, render a small extra meta line/badge on the card, e.g.
-  `${totalAttempts} attempts · ${practiceAccuracyPercentage(stats).toFixed(0)}% acc`
-  (`testID="range-stats-<id>"`). When there is no stats entry (never practiced), show
-  nothing extra (or a subtle "Not practiced" — your call; keep it subtle).
-- Keep it presentational; no change to storage or the existing row actions.
-- Tests (extend `mobile/__tests__/library-screen.test.tsx`): seed a range AND record a
-  practice session so `loadPracticeStats()` has an entry for it — reuse
-  `@core/storage/practiceStatsStorage` `recordPracticeSession(...)` (read its exact
-  signature in `src/storage/practiceStatsStorage.ts`) or write the stats through the
-  shim directly. Render; assert `range-stats-<id>` shows the expected attempts/accuracy
-  text. A range with no stats shows no `range-stats-<id>`.
+- In `practice.tsx`, compute `reviewSessionMistakes(attempts)` (memoize on `attempts`).
+  Render a "Session review" section (below the stats) listing the `missed` hands and
+  the `wronglyIncluded` hands when each is non-empty — e.g. two labelled wrapping rows
+  of hand chips (reuse `ChipRow`'s look or simple `Text` chips; non-interactive is
+  fine). `testID`s e.g. `review-missed`, `review-wrong`. When there are no mistakes yet
+  (or none after some attempts), show nothing or a subtle "No mistakes" note.
+- Keep it presentational; do not change scoring/draw logic.
+- Test (extend/maybe add `mobile/__tests__/practice-screen.test.tsx`): with the
+  all-169-hands range (every prompt in range), answering "Out of range" makes the shown
+  hand a `missed` mistake — press `answer-out`, then assert `review-missed` appears and
+  contains the just-shown hand (read `practice-hand` text before answering). Use
+  `userEvent` if chaining; otherwise `fireEvent` + `waitFor`.
 
-Files: modify `mobile/app/index.tsx`, `mobile/__tests__/library-screen.test.tsx`.
+Files: modify `mobile/app/practice.tsx`, `mobile/__tests__/practice-screen.test.tsx`.
 No `src/` edits, no new dependency.
 
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
 `npm run bundle-check` — all must pass.
 
-Constraints: reuse `@core` for accuracy math (no hand-rolled %); read from the already
-focus-reloaded `practiceStats`; UI in `mobile/app/`. Do not edit `src/`.
+Constraints: reuse `@core/domain/practice` `reviewSessionMistakes` (no hand-rolled
+mistake bucketing); session state stays in the component; UI in `mobile/app/`. Do not
+edit `src/`.
 
 Suggested commit message:
-`feat(ios): show per-range practice stats on library cards`
+`feat(ios): add end-of-session mistakes review to practice`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)

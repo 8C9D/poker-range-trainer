@@ -14,6 +14,7 @@ import {
   sortRangesByName,
   sortRangesByUpdatedAt,
 } from '@core/domain/rangeLibrary';
+import { practiceAccuracyPercentage } from '@core/domain/practiceStats';
 import { duplicateRange } from '@core/domain/rangeDuplication';
 import { calculateRangePercentage } from '@core/domain/rangeMath';
 import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
@@ -256,7 +257,9 @@ export default function LibraryScreen() {
             </View>
           )
         }
-        renderItem={({ item }) => (
+        renderItem={({ item }) => {
+          const stats = practiceStats[item.id];
+          return (
           <View testID={`range-row-${item.id}`} style={styles.row}>
             <Pressable
               testID={`favorite-${item.id}`}
@@ -276,6 +279,12 @@ export default function LibraryScreen() {
                 <Text style={styles.rowMeta}>
                   {item.hands.length} hands · {calculateRangePercentage(item.hands).toFixed(1)}%
                 </Text>
+                {stats && stats.totalAttempts > 0 ? (
+                  <Text testID={`range-stats-${item.id}`} style={styles.rowStats}>
+                    {stats.totalAttempts} attempts · {practiceAccuracyPercentage(stats).toFixed(0)}%
+                    {' acc'}
+                  </Text>
+                ) : null}
               </Pressable>
             </Link>
             <Link href={{ pathname: '/practice', params: { id: item.id } }} asChild>
@@ -311,7 +320,8 @@ export default function LibraryScreen() {
               <Text style={styles.deleteText}>Delete</Text>
             </Pressable>
           </View>
-        )}
+          );
+        }}
       />
     </View>
   );
@@ -421,6 +431,11 @@ const styles = StyleSheet.create({
   rowMeta: {
     color: colors.text,
     fontSize: 13,
+  },
+  rowStats: {
+    color: colors.accent,
+    fontSize: 12,
+    fontWeight: '600',
   },
   practiceButton: {
     paddingHorizontal: 12,

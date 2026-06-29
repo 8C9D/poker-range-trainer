@@ -2,6 +2,7 @@ import { Alert } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 
+import { recordPracticeSession } from '@core/storage/practiceStatsStorage';
 import { loadSavedRanges, saveSavedRange } from '@core/storage/rangeStorage';
 import type { SavedRange } from '@core/types/range';
 
@@ -169,5 +170,23 @@ describe('LibraryScreen', () => {
 
     fireEvent.press(getByTestId('toggle-archived'));
     await waitFor(() => expect(queryByText('UTG Open')).not.toBeNull());
+  });
+
+  it('shows per-range practice stats on the card', async () => {
+    seed('r1', 'UTG Open');
+    recordPracticeSession('r1', { totalQuestions: 10, correctAnswers: 8 });
+
+    const { getByTestId } = await render(<LibraryScreen />);
+
+    expect(getByTestId('range-stats-r1')).toHaveTextContent(/10 attempts/);
+    expect(getByTestId('range-stats-r1')).toHaveTextContent(/80%/);
+  });
+
+  it('shows no stats line for a never-practiced range', async () => {
+    seed('r1', 'UTG Open');
+
+    const { queryByTestId } = await render(<LibraryScreen />);
+
+    expect(queryByTestId('range-stats-r1')).toBeNull();
   });
 });
