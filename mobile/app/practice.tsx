@@ -6,8 +6,10 @@ import {
   createPracticeAttempt,
   getRandomPracticeHand,
   reviewSessionMistakes,
+  summarizeHandAccuracy,
   summarizePracticeAttempts,
 } from '@core/domain/practice';
+import { recordHandAccuracy } from '@core/storage/handAccuracyStorage';
 import { recordPracticeSession } from '@core/storage/practiceStatsStorage';
 import { findSavedRangeById } from '@core/storage/rangeStorage';
 import type { PracticeAttempt } from '@core/types/practice';
@@ -46,6 +48,10 @@ export default function PracticeScreen() {
         totalQuestions: 1,
         correctAnswers: attempt.correct ? 1 : 0,
       });
+      // Likewise fold this answer into cumulative per-hand accuracy, which powers the
+      // weakest-hands view, the editor-grid heatmap, and the mistakes-only drill in
+      // later slices. summarizeHandAccuracy([attempt]) is the one-hand increment.
+      recordHandAccuracy(range.id, summarizeHandAccuracy([attempt]));
     },
     [hand, range],
   );

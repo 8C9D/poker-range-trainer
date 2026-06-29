@@ -1,6 +1,7 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
-import { generateHandMatrix } from '@core/domain/pokerHands';
+import { generateHandMatrix, type PokerHand } from '@core/domain/pokerHands';
+import { loadHandAccuracy } from '@core/storage/handAccuracyStorage';
 import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
 import { saveSavedRange } from '@core/storage/rangeStorage';
 
@@ -83,8 +84,11 @@ describe('PracticeScreen', () => {
     seedAllHandsRange();
     const { getByTestId } = await render(<PracticeScreen />);
 
-    // Every hand is in range: "in" is correct, "out" is wrong.
+    // Every hand is in range: "in" is correct, "out" is wrong. Await each press to
+    // settle before the next — back-to-back un-awaited presses overlap act() scopes
+    // and can corrupt React's scheduler for later tests in this file.
     fireEvent.press(getByTestId('answer-in'));
+    await waitFor(() => expect(getByTestId('stat-total')).toHaveTextContent('Total: 1'));
     fireEvent.press(getByTestId('answer-out'));
     await waitFor(() => expect(getByTestId('stat-total')).toHaveTextContent('Total: 2'));
 
@@ -98,5 +102,27 @@ describe('PracticeScreen', () => {
     await render(<PracticeScreen />);
 
     expect(loadPracticeStats().r1).toBeUndefined();
+  });
+
+  it('folds each answered hand into cumulative per-hand accuracy', async () => {
+    seedAllHandsRange();
+    const { getByTestId } = await render(<PracticeScreen />);
+
+    // Every hand is in range, so answering "out" is a false negative for that hand.
+    const shownHand = getByTestId('practice-hand').props.children as PokerHand;
+    fireEvent.press(getByTestId('answer-out'));
+    await waitFor(() => expect(getByTestId('stat-total')).toHaveTextContent('Total: 1'));
+
+    const stat = loadHandAccuracy().r1[shownHand];
+    expect(stat.attempts).toBe(1);
+    expect(stat.correct).toBe(0);
+    expect(stat.falseNegatives).toBe(1);
+  });
+
+  it('records no per-hand accuracy before any question is answered', async () => {
+    seedAllHandsRange();
+    await render(<PracticeScreen />);
+
+    expect(loadHandAccuracy().r1).toBeUndefined();
   });
 });
