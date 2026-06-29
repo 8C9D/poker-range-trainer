@@ -1,10 +1,11 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 
 import {
   createPracticeAttempt,
   getRandomPracticeHand,
+  reviewSessionMistakes,
   summarizePracticeAttempts,
 } from '@core/domain/practice';
 import { findSavedRangeById } from '@core/storage/rangeStorage';
@@ -37,6 +38,10 @@ export default function PracticeScreen() {
     },
     [hand, range],
   );
+
+  // Bucket the session's mistakes for the end-of-session review (recomputes when
+  // a new attempt is recorded). Kept above the early return to satisfy hook rules.
+  const review = useMemo(() => reviewSessionMistakes(attempts), [attempts]);
 
   if (!range) {
     return (
@@ -103,6 +108,40 @@ export default function PracticeScreen() {
           Accuracy: {summary.accuracyPercentage.toFixed(0)}%
         </Text>
       </View>
+
+      {review.missed.length > 0 || review.wronglyIncluded.length > 0 ? (
+        <View style={styles.review}>
+          <Text style={styles.reviewTitle}>Session review</Text>
+          {review.missed.length > 0 ? (
+            <View style={styles.reviewRow}>
+              <Text style={[styles.reviewLabel, styles.reviewLabelMissed]}>
+                Missed (in range)
+              </Text>
+              <View testID="review-missed" style={styles.reviewChips}>
+                {review.missed.map((reviewHand) => (
+                  <Text key={reviewHand} style={styles.reviewChip}>
+                    {reviewHand}
+                  </Text>
+                ))}
+              </View>
+            </View>
+          ) : null}
+          {review.wronglyIncluded.length > 0 ? (
+            <View style={styles.reviewRow}>
+              <Text style={[styles.reviewLabel, styles.reviewLabelWrong]}>
+                Wrongly included (out of range)
+              </Text>
+              <View testID="review-wrong" style={styles.reviewChips}>
+                {review.wronglyIncluded.map((reviewHand) => (
+                  <Text key={reviewHand} style={styles.reviewChip}>
+                    {reviewHand}
+                  </Text>
+                ))}
+              </View>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -178,5 +217,45 @@ const styles = StyleSheet.create({
   stat: {
     color: colors.text,
     fontSize: 14,
+  },
+  review: {
+    alignSelf: 'stretch',
+    gap: 12,
+    marginTop: 8,
+  },
+  reviewTitle: {
+    color: colors.textStrong,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  reviewRow: {
+    gap: 6,
+  },
+  reviewLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  reviewLabelMissed: {
+    color: colors.danger,
+  },
+  reviewLabelWrong: {
+    color: colors.accent,
+  },
+  reviewChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  reviewChip: {
+    backgroundColor: colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    overflow: 'hidden',
+    color: colors.textStrong,
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

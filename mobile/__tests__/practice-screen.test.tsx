@@ -60,4 +60,21 @@ describe('PracticeScreen', () => {
       expect(getByTestId('stat-correct')).toHaveTextContent('Correct: 0');
     });
   });
+
+  it('lists a forgotten hand in the session review after answering out of range', async () => {
+    seedAllHandsRange();
+    const { getByTestId, queryByTestId } = await render(<PracticeScreen />);
+
+    // No mistakes yet, so the review section is not rendered.
+    expect(queryByTestId('review-missed')).toBeNull();
+
+    // Every hand is in range, so answering "out" makes the shown hand a missed
+    // mistake. Read the hand before answering — answering re-randomizes it.
+    const shownHand = getByTestId('practice-hand').props.children as string;
+    fireEvent.press(getByTestId('answer-out'));
+
+    await waitFor(() => {
+      expect(getByTestId('review-missed')).toHaveTextContent(shownHand);
+    });
+  });
 });
