@@ -8,6 +8,7 @@ import {
   reviewSessionMistakes,
   summarizePracticeAttempts,
 } from '@core/domain/practice';
+import { recordPracticeSession } from '@core/storage/practiceStatsStorage';
 import { findSavedRangeById } from '@core/storage/rangeStorage';
 import type { PracticeAttempt } from '@core/types/practice';
 
@@ -35,6 +36,16 @@ export default function PracticeScreen() {
       setAttempts((prev) => [...prev, attempt]);
       setLastAttempt(attempt);
       setHand(getRandomPracticeHand());
+      // Fold this answer into the range's cumulative practice stats immediately, so
+      // the library's per-range stats and Practiced/Accuracy sorts reflect practice
+      // even mid-session — and survive the app being backgrounded or killed, which a
+      // mobile screen can't rely on an unmount/cleanup to handle. recordPracticeSession
+      // *adds* the given totals, so one-question increments accumulate to the same
+      // cumulative counts as recording the whole session once at the end.
+      recordPracticeSession(range.id, {
+        totalQuestions: 1,
+        correctAnswers: attempt.correct ? 1 : 0,
+      });
     },
     [hand, range],
   );

@@ -1,6 +1,7 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
 import { generateHandMatrix } from '@core/domain/pokerHands';
+import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
 import { saveSavedRange } from '@core/storage/rangeStorage';
 
 import PracticeScreen from '../app/practice';
@@ -76,5 +77,26 @@ describe('PracticeScreen', () => {
     await waitFor(() => {
       expect(getByTestId('review-missed')).toHaveTextContent(shownHand);
     });
+  });
+
+  it('folds each answered hand into the range cumulative practice stats', async () => {
+    seedAllHandsRange();
+    const { getByTestId } = await render(<PracticeScreen />);
+
+    // Every hand is in range: "in" is correct, "out" is wrong.
+    fireEvent.press(getByTestId('answer-in'));
+    fireEvent.press(getByTestId('answer-out'));
+    await waitFor(() => expect(getByTestId('stat-total')).toHaveTextContent('Total: 2'));
+
+    const stats = loadPracticeStats().r1;
+    expect(stats.totalAttempts).toBe(2);
+    expect(stats.correctAttempts).toBe(1);
+  });
+
+  it('records nothing before any question is answered', async () => {
+    seedAllHandsRange();
+    await render(<PracticeScreen />);
+
+    expect(loadPracticeStats().r1).toBeUndefined();
   });
 });
