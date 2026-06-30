@@ -4,8 +4,10 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 
 import {
   createPracticeAttempt,
+  getRandomHandFrom,
   getRandomPracticeHand,
   handAccuracyRate,
+  handsWithMistakes,
   rankHandAccuracy,
   reviewSessionMistakes,
   summarizeHandAccuracy,
@@ -37,6 +39,9 @@ export default function PracticeScreen() {
   const [handAccuracy, setHandAccuracy] = useState<RangeHandAccuracy>(() =>
     range ? (loadHandAccuracy()[range.id] ?? {}) : {},
   );
+  // When on, prompts are restricted to hands the user has gotten wrong (the mistakes
+  // pool) for a focused "practice mistakes only" drill.
+  const [mistakesOnly, setMistakesOnly] = useState(false);
 
   const answer = useCallback(
     (answeredInRange: boolean) => {
@@ -44,7 +49,6 @@ export default function PracticeScreen() {
       const attempt = createPracticeAttempt(hand, range.hands, answeredInRange);
       setAttempts((prev) => [...prev, attempt]);
       setLastAttempt(attempt);
-      setHand(getRandomPracticeHand());
       // Fold this answer into the range's cumulative practice stats immediately, so
       // the library's per-range stats and Practiced/Accuracy sorts reflect practice
       // even mid-session — and survive the app being backgrounded or killed, which a
@@ -60,10 +64,17 @@ export default function PracticeScreen() {
       // later slices. summarizeHandAccuracy([attempt]) is the one-hand increment.
       recordHandAccuracy(range.id, summarizeHandAccuracy([attempt]));
       // Storage is current (recorded above), so reload this range's cumulative per-hand
-      // accuracy to refresh the weakest-hands view.
-      setHandAccuracy(loadHandAccuracy()[range.id] ?? {});
+      // accuracy to refresh the weakest-hands view, and draw the next prompt — from the
+      // mistakes pool when the drill is on (computed from the fresh stats, not a stale
+      // closure), otherwise from all 169 hands.
+      const updated = loadHandAccuracy()[range.id] ?? {};
+      setHandAccuracy(updated);
+      const pool = handsWithMistakes(updated);
+      setHand(
+        mistakesOnly && pool.length > 0 ? getRandomHandFrom(pool) : getRandomPracticeHand(),
+      );
     },
-    [hand, range],
+    [hand, range, mistakesOnly],
   );
 
   // Bucket the session's mistakes for the end-of-session review (recomputes when
@@ -71,6 +82,8 @@ export default function PracticeScreen() {
   const review = useMemo(() => reviewSessionMistakes(attempts), [attempts]);
   // The range's weakest hands (lowest cumulative accuracy first), capped for display.
   const weakest = useMemo(() => rankHandAccuracy(handAccuracy).slice(0, 6), [handAccuracy]);
+  // Hands the user has gotten wrong — the prompt pool for the mistakes-only drill.
+  const mistakePool = useMemo(() => handsWithMistakes(handAccuracy), [handAccuracy]);
 
   if (!range) {
     return (
@@ -125,6 +138,27 @@ export default function PracticeScreen() {
           <Text style={styles.answerText}>Out of range</Text>
         </Pressable>
       </View>
+
+      {mistakePool.length > 0 ? (
+        <Pressable
+          testID="toggle-mistakes-only"
+          accessibilityRole="button"
+          accessibilityState={{ selected: mistakesOnly }}
+          style={[styles.mistakesToggle, mistakesOnly && styles.mistakesToggleActive]}
+          onPress={() => {
+            const next = !mistakesOnly;
+            setMistakesOnly(next);
+            // Turning the drill on swaps the current prompt for a mistake right away.
+            if (next && mistakePool.length > 0) setHand(getRandomHandFrom(mistakePool));
+          }}
+        >
+          <Text
+            style={[styles.mistakesToggleText, mistakesOnly && styles.mistakesToggleTextActive]}
+          >
+            Mistakes only
+          </Text>
+        </Pressable>
+      ) : null}
 
       <View style={styles.stats}>
         <Text testID="stat-total" style={styles.stat}>
@@ -250,6 +284,25 @@ const styles = StyleSheet.create({
     color: colors.onAccent,
     fontSize: 16,
     fontWeight: '600',
+  },
+  mistakesToggle: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  mistakesToggleActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  mistakesToggleText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  mistakesToggleTextActive: {
+    color: colors.onAccent,
   },
   stats: {
     flexDirection: 'row',

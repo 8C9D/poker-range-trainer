@@ -145,4 +145,21 @@ describe('PracticeScreen', () => {
 
     expect(queryByTestId('weakest-hands')).toBeNull();
   });
+
+  it('restricts prompts to the mistakes pool when Mistakes only is enabled', async () => {
+    seedAllHandsRange();
+    const { getByTestId, queryByTestId } = await render(<PracticeScreen />);
+
+    // No mistakes yet → no toggle.
+    expect(queryByTestId('toggle-mistakes-only')).toBeNull();
+
+    // Answer the shown hand wrong so it becomes the sole mistake in the pool.
+    const missed = getByTestId('practice-hand').props.children as PokerHand;
+    fireEvent.press(getByTestId('answer-out'));
+    await waitFor(() => expect(getByTestId('toggle-mistakes-only')).toBeTruthy());
+
+    // Enabling the drill redraws from the single-hand pool, so that hand is prompted.
+    fireEvent.press(getByTestId('toggle-mistakes-only'));
+    await waitFor(() => expect(getByTestId('practice-hand')).toHaveTextContent(missed));
+  });
 });
