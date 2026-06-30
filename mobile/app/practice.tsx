@@ -5,14 +5,16 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import {
   createPracticeAttempt,
   getRandomPracticeHand,
+  handAccuracyRate,
+  rankHandAccuracy,
   reviewSessionMistakes,
   summarizeHandAccuracy,
   summarizePracticeAttempts,
 } from '@core/domain/practice';
-import { recordHandAccuracy } from '@core/storage/handAccuracyStorage';
+import { loadHandAccuracy, recordHandAccuracy } from '@core/storage/handAccuracyStorage';
 import { recordPracticeSession } from '@core/storage/practiceStatsStorage';
 import { findSavedRangeById } from '@core/storage/rangeStorage';
-import type { PracticeAttempt } from '@core/types/practice';
+import type { PracticeAttempt, RangeHandAccuracy } from '@core/types/practice';
 
 import { colors } from '../theme/colors';
 
@@ -30,6 +32,11 @@ export default function PracticeScreen() {
   const [hand, setHand] = useState(() => getRandomPracticeHand());
   const [attempts, setAttempts] = useState<PracticeAttempt[]>([]);
   const [lastAttempt, setLastAttempt] = useState<PracticeAttempt | null>(null);
+  // Cumulative per-hand accuracy for this range (across all sessions), refreshed from
+  // storage after each answer so the weakest-hands view stays current within the session.
+  const [handAccuracy, setHandAccuracy] = useState<RangeHandAccuracy>(() =>
+    range ? (loadHandAccuracy()[range.id] ?? {}) : {},
+  );
 
   const answer = useCallback(
     (answeredInRange: boolean) => {
@@ -52,6 +59,9 @@ export default function PracticeScreen() {
       // weakest-hands view, the editor-grid heatmap, and the mistakes-only drill in
       // later slices. summarizeHandAccuracy([attempt]) is the one-hand increment.
       recordHandAccuracy(range.id, summarizeHandAccuracy([attempt]));
+      // Storage is current (recorded above), so reload this range's cumulative per-hand
+      // accuracy to refresh the weakest-hands view.
+      setHandAccuracy(loadHandAccuracy()[range.id] ?? {});
     },
     [hand, range],
   );
@@ -59,6 +69,8 @@ export default function PracticeScreen() {
   // Bucket the session's mistakes for the end-of-session review (recomputes when
   // a new attempt is recorded). Kept above the early return to satisfy hook rules.
   const review = useMemo(() => reviewSessionMistakes(attempts), [attempts]);
+  // The range's weakest hands (lowest cumulative accuracy first), capped for display.
+  const weakest = useMemo(() => rankHandAccuracy(handAccuracy).slice(0, 6), [handAccuracy]);
 
   if (!range) {
     return (
@@ -157,6 +169,19 @@ export default function PracticeScreen() {
               </View>
             </View>
           ) : null}
+        </View>
+      ) : null}
+
+      {weakest.length > 0 ? (
+        <View style={styles.review}>
+          <Text style={styles.reviewTitle}>Weakest hands</Text>
+          <View testID="weakest-hands" style={styles.reviewChips}>
+            {weakest.map((stat) => (
+              <Text key={stat.hand} style={styles.reviewChip}>
+                {stat.hand} {handAccuracyRate(stat).toFixed(0)}%
+              </Text>
+            ))}
+          </View>
         </View>
       ) : null}
     </View>

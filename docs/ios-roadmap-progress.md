@@ -58,61 +58,57 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 23 | End-of-session mistakes review in recognition practice (opens M5) | M5 | 2026-06-15 |
 | 24 | Persist recognition practice results into per-range practice stats | M5 | 2026-06-15 |
 | 25 | Persist per-hand accuracy from recognition practice | M5 | 2026-06-15 |
+| 26 | Weakest-hands view on the practice screen | M5 | 2026-06-15 |
 
 ## Next slice
 
-**Slice 26 — Weakest-hands view on the practice screen**
+**Slice 27 — "Practice mistakes only" toggle on the practice screen**
 
-Milestone: M5 — Practice depth (web v2–v2.3). (Slice 25 now persists cumulative per-hand
-accuracy; this surfaces it. Later M5 slices: the editor-grid accuracy heatmap, a
-"practice mistakes only" drill, session history, spaced repetition, multi-action,
+Milestone: M5 — Practice depth (web v2–v2.3). (Builds on slices 25–26. Later M5 slices:
+editor-grid accuracy heatmap, session history, spaced repetition, multi-action editor,
 build-from-memory, timed/weakness drills, and swipe/haptics.)
 
-Context: `mobile/app/practice.tsx` records each answer into cumulative per-hand accuracy
-(slice 25) and shows live session stats + an end-of-session mistakes review (slice 23).
-This slice adds a "Weakest hands" section showing the range's lowest-accuracy hands
-*cumulatively* (across all sessions, including this one), so the user knows what to drill.
-Because answers are recorded per-answer, storage is current after every answer — reload
-it after each answer and rank.
+Context: `mobile/app/practice.tsx` records cumulative per-hand accuracy (slice 25) and
+shows a weakest-hands view (slice 26), holding the range's cumulative per-hand accuracy
+in `handAccuracy` state (refreshed after each answer). This slice adds a "Mistakes only"
+toggle that restricts the random prompt pool to the hands the user has gotten wrong, the
+mobile parallel of the web's mistakes-only drill.
 
 Reuse (verified, import — never copy):
-- `@core/storage/handAccuracyStorage` `loadHandAccuracy(): Record<string,
-  RangeHandAccuracy>` (already used elsewhere; `RangeHandAccuracy` = `Record<PokerHand,
-  HandAccuracyStat>`).
-- `@core/domain/practice` `rankHandAccuracy(rangeStats: RangeHandAccuracy):
-  HandAccuracyStat[]` — ranks attempted hands weakest-first (ascending accuracy, then
-  more attempts, then canonical order). And `handAccuracyRate(stat): number` — 0–100
-  accuracy for display. Read `src/domain/practice.ts` to confirm.
+- `@core/domain/practice` `handsWithMistakes(rangeStats: RangeHandAccuracy): PokerHand[]`
+  — the hands with any recorded error (`falsePositives + falseNegatives > 0`), canonical
+  order. And `getRandomHandFrom(pool: PokerHand[], random?): PokerHand` — draw one hand
+  from a non-empty pool. (`getRandomPracticeHand` is already imported.) Read
+  `src/domain/practice.ts` to confirm.
 
 Task (mobile-only; reuse `@core`, do not edit `src/`):
-- Add state `const [handAccuracy, setHandAccuracy] = useState<RangeHandAccuracy>(() =>
-  range ? (loadHandAccuracy()[range.id] ?? {}) : {})` (type from `@core/types/practice`).
-  NOTE: `range` comes from a `useState` initializer above; keep hook order stable (no
-  early return before this hook — the existing `if (!range)` return is already after the
-  hooks).
-- In the `answer` handler, after the existing `recordHandAccuracy(...)` call, refresh:
-  `setHandAccuracy(loadHandAccuracy()[range.id] ?? {})` (storage is current because
-  recording is per-answer).
-- Compute `const weakest = useMemo(() => rankHandAccuracy(handAccuracy).slice(0, 6),
-  [handAccuracy])`. Render a "Weakest hands" section (e.g. below the session review) when
-  `weakest.length > 0`: a wrapping row of chips, each showing the hand and its
-  `handAccuracyRate(stat).toFixed(0)`% (reuse the slice-23 review chip styles). Container
-  `testID="weakest-hands"`. Render nothing when empty.
-- Presentational + a storage reload; do not change scoring/draw/record logic or existing
-  testIDs.
+- Add `const [mistakesOnly, setMistakesOnly] = useState(false)` and
+  `const mistakePool = useMemo(() => handsWithMistakes(handAccuracy), [handAccuracy])`.
+- Render a "Mistakes only" toggle Pressable (`testID="toggle-mistakes-only"`,
+  `accessibilityRole="button"`, `accessibilityState={{ selected: mistakesOnly }}`) ONLY
+  when `mistakePool.length > 0` (no mistakes ⇒ no toggle). Style it like the library's
+  favorite/archived chips. On press: flip `mistakesOnly`; when turning ON, redraw the
+  current hand from the pool immediately — `setHand(getRandomHandFrom(mistakePool))`.
+- Change the next-hand draw so it respects the mode. In the `answer` handler the next
+  draw must use a FRESH pool computed from the just-updated storage (not the stale closure
+  pool): after `setHandAccuracy(updated)` where `updated = loadHandAccuracy()[range.id] ??
+  {}`, draw `setHand(mistakesOnly ? getRandomHandFrom(handsWithMistakes(updated)) :
+  getRandomPracticeHand())`. After an answer the pool is always non-empty (the answer
+  itself is in it if wrong; if the answer was correct the prior mistakes remain), but
+  guard `handsWithMistakes(updated).length > 0` and fall back to `getRandomPracticeHand()`
+  to be safe. Add `mistakesOnly` to the `answer` useCallback deps.
+- Do not change scoring/recording logic or existing testIDs.
 
 Test (extend `mobile/__tests__/practice-screen.test.tsx`):
-- With the all-169-hands range, render, read `practice-hand`, press `answer-out` (wrong),
-  wait for `stat-total` = "Total: 1", then assert `weakest-hands` is shown and contains
-  the just-answered hand and "0%". (Pattern: read the hand string before pressing, like
-  the existing per-hand-accuracy test.)
-- Assert `weakest-hands` is absent before any answer (`queryByTestId('weakest-hands')`
-  is null).
-- IMPORTANT (test hygiene): when a test presses the answer buttons more than once, `await`
-  each press to settle (e.g. `waitFor` on `stat-total`) before the next — back-to-back
-  un-awaited `fireEvent.press` calls overlap React `act()` scopes and can corrupt the
-  scheduler for *later* tests in the file (this caused a slice-25 failure; the fix was to
-  await between presses). Single press + `waitFor` is fine.
+- With the all-169-hands range, render; assert `queryByTestId('toggle-mistakes-only')` is
+  null (no mistakes yet). Read `practice-hand` (the soon-to-be mistake), press
+  `answer-out`, then `await waitFor` until `toggle-mistakes-only` exists. Press the
+  toggle, then `await waitFor` that `practice-hand` shows the missed hand (pool of one ⇒
+  deterministic).
+- Test hygiene: a single `fireEvent.press` followed by `waitFor` is fine; if a test ever
+  presses more than once, `await` each press to settle before the next (back-to-back
+  un-awaited presses overlap React `act()` scopes and corrupt the scheduler for later
+  tests — this caused a slice-25 failure).
 
 Files: modify `mobile/app/practice.tsx`, `mobile/__tests__/practice-screen.test.tsx`.
 No `src/` edits, no new dependency.
@@ -120,11 +116,11 @@ No `src/` edits, no new dependency.
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
 `npm run bundle-check` — all must pass.
 
-Constraints: reuse `@core` `rankHandAccuracy` + `handAccuracyRate` (no hand-rolled
-ranking); cumulative data comes from `loadHandAccuracy()`; UI/screen logic stays in
-`mobile/app/`. Do not edit `src/`.
+Constraints: reuse `@core` `handsWithMistakes` + `getRandomHandFrom` (no hand-rolled
+pool/draw); compute the post-answer pool from fresh storage to avoid a stale closure;
+UI/screen logic stays in `mobile/app/`. Do not edit `src/`.
 
 Suggested commit message:
-`feat(ios): show weakest hands on the practice screen`
+`feat(ios): add a mistakes-only drill toggle to practice`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)

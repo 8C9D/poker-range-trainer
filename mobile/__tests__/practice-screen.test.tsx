@@ -125,4 +125,24 @@ describe('PracticeScreen', () => {
 
     expect(loadHandAccuracy().r1).toBeUndefined();
   });
+
+  it('lists the range weakest hands after a wrong answer', async () => {
+    seedAllHandsRange();
+    const { getByTestId } = await render(<PracticeScreen />);
+
+    // Every hand is in range, so answering "out" gives the shown hand 0% accuracy.
+    const shownHand = getByTestId('practice-hand').props.children as PokerHand;
+    fireEvent.press(getByTestId('answer-out'));
+    await waitFor(() => expect(getByTestId('stat-total')).toHaveTextContent('Total: 1'));
+
+    // Only the one answered hand has attempts, so it is the sole weakest chip at 0%.
+    expect(getByTestId('weakest-hands')).toHaveTextContent(`${shownHand} 0%`);
+  });
+
+  it('shows no weakest-hands section before any question is answered', async () => {
+    seedAllHandsRange();
+    const { queryByTestId } = await render(<PracticeScreen />);
+
+    expect(queryByTestId('weakest-hands')).toBeNull();
+  });
 });
