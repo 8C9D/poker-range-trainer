@@ -18,6 +18,7 @@ import { recordPracticeSession } from '@core/storage/practiceStatsStorage';
 import { findSavedRangeById } from '@core/storage/rangeStorage';
 import type { PracticeAttempt, RangeHandAccuracy } from '@core/types/practice';
 
+import { HandHeatmap } from '../components/HandHeatmap';
 import { colors } from '../theme/colors';
 
 /**
@@ -216,6 +217,13 @@ export default function PracticeScreen() {
               </Text>
             ))}
           </View>
+        </View>
+      ) : null}
+
+      {Object.keys(handAccuracy).length > 0 ? (
+        <View testID="accuracy-heatmap" style={styles.review}>
+          <Text style={styles.reviewTitle}>Accuracy heatmap</Text>
+          <HandHeatmap accuracy={handAccuracy} />
         </View>
       ) : null}
     </View>

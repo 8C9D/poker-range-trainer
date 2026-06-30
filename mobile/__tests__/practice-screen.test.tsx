@@ -162,4 +162,15 @@ describe('PracticeScreen', () => {
     fireEvent.press(getByTestId('toggle-mistakes-only'));
     await waitFor(() => expect(getByTestId('practice-hand')).toHaveTextContent(missed));
   });
+
+  it('shows the accuracy heatmap once a hand has been answered', async () => {
+    seedAllHandsRange();
+    const { getByTestId, queryByTestId } = await render(<PracticeScreen />);
+
+    // No accuracy yet → no heatmap.
+    expect(queryByTestId('accuracy-heatmap')).toBeNull();
+
+    fireEvent.press(getByTestId('answer-out'));
+    await waitFor(() => expect(getByTestId('accuracy-heatmap')).toBeTruthy());
+  });
 });

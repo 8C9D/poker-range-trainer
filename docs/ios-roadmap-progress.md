@@ -60,69 +60,80 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 25 | Persist per-hand accuracy from recognition practice | M5 | 2026-06-15 |
 | 26 | Weakest-hands view on the practice screen | M5 | 2026-06-15 |
 | 27 | "Practice mistakes only" drill toggle on the practice screen | M5 | 2026-06-15 |
+| 28 | Per-hand accuracy heatmap (`HandHeatmap`) on the practice screen | M5 | 2026-06-15 |
 
 ## Next slice
 
-**Slice 28 — Per-hand accuracy heatmap (`HandHeatmap`) on the practice screen**
+**Slice 29 — Build-from-memory practice mode (via a practice-mode picker)**
 
-Milestone: M5 — Practice depth (web v2–v2.3). (Builds on slices 25–27. Later M5 slices:
-session history, spaced repetition, multi-action editor, build-from-memory, timed/weakness
-drills, and swipe/haptics. Session-boundary features — history, spaced repetition — still
-need an explicit session-end trigger on mobile, since this RNTL setup does not run effect
-cleanup on unmount and a killed app won't either; defer those until that trigger exists.)
+Milestone: M5 — Practice depth (web v2–v2.3).
 
-Context: the practice screen holds the range's cumulative per-hand accuracy in
-`handAccuracy` state (refreshed after each answer). The web surfaces accuracy as a
-read-only 13×13 **heatmap** in a separate component (`src/components/HandHeatmap.tsx`,
-non-interactive, colored by `accuracyHeatLevel`). This slice authors the RN parallel and
-shows it on the practice screen.
+⚠️ DESIGN DECISION (confirm before building): the roadmap lists a "practice-mode picker"
+and "build-from-memory" but does not pin down how multiple practice modes are surfaced in
+the mobile navigation. The queued default mirrors the **web**: the library card's
+"Practice" affordance opens a small **mode picker** offering "Recognition" (the existing
+`practice.tsx`) and "Build from memory" (this new screen). Alternatives the user might
+prefer: a second card action ("Build") next to "Practice" (more card clutter), or a
+segmented control inside one practice screen. If the default is confirmed, proceed as
+below; otherwise adjust the entry point only — the build screen itself is unchanged.
+
+Context: recognition practice is launched from each library card via a `Link` to
+`/practice?id=:id` (`mobile/app/index.tsx`). Build-from-memory is a distinct mode: the
+user rebuilds a saved range from memory on a blank 13×13 grid, submits, and sees how they
+did (correct / missed / extra), reusing the tested comparison.
 
 Reuse (verified, import — never copy):
-- `@core/domain/pokerHands` `generateHandMatrix()` (13×13 order; `.flat()` for the 169
-  hands) — already used by `HandGrid`.
-- `@core/domain/practice` `accuracyHeatLevel(stat: HandAccuracyStat | undefined):
-  'untested' | 'low' | 'medium' | 'high'` and `handAccuracyRate(stat): number`. Read
-  `src/domain/practice.ts` + `src/components/HandHeatmap.tsx` to mirror behavior.
-- Type `RangeHandAccuracy` from `@core/types/practice`.
+- `@core/domain/practice` `compareBuiltRange(target: PokerHand[], built: PokerHand[]):
+  { correct: PokerHand[]; missed: PokerHand[]; extra: PokerHand[] }` — normalizes both
+  sides and splits into correct / missed (forgot) / extra (wrongly added), canonical
+  order. Read `src/domain/practice.ts` to confirm.
+- `mobile/components/HandGrid` (already built: controlled 13×13 with tap + drag-paint) for
+  building the guess; `@core/storage/rangeStorage` `findSavedRangeById`.
 
 Task (mobile-only; reuse `@core`, do not edit `src/`):
-- New component `mobile/components/HandHeatmap.tsx`: props `{ accuracy: RangeHandAccuracy }`.
-  Render a 13×13 grid (full width, `aspectRatio: 1`, like `HandGrid`'s container) of
-  non-interactive `Text`/`View` cells in `generateHandMatrix()` order. Each cell colored
-  by `accuracyHeatLevel(accuracy[hand])`. Mirror the web's dark heat palette: untested →
-  `colors.surface` bg / `colors.text`; low → `#da3633` bg, `#fff`; medium → `#bb8009` bg,
-  `#1c1400`; high → `#238636` bg, `#fff`. Each cell `testID={`heat-cell-${hand}`}` and
-  expose the level for tests/a11y via `accessibilityValue={{ text: level }}` (and
-  `accessibilityLabel={hand}`). Keep heat colors local to this component (UI only).
-- In `practice.tsx`, render `<HandHeatmap accuracy={handAccuracy} />` inside a titled
-  "Accuracy heatmap" section (container `testID="accuracy-heatmap"`) shown only when the
-  range has at least one attempted hand (`Object.keys(handAccuracy).length > 0`), e.g.
-  below the weakest-hands section.
-- Presentational; no change to scoring/draw/record logic or existing testIDs.
+- New screen `mobile/app/build.tsx` (Expo Router route `/build`, param `id`): load the
+  range via `findSavedRangeById`; hold a `Set<PokerHand>` of the user's built hands; render
+  `HandGrid` (selected = built set) so the user paints their guess; a "Check" button runs
+  `compareBuiltRange(range.hands, [...built])` and shows the three result groups as chip
+  rows (reuse the practice review chip look) with counts (e.g. "Correct 12", "Missed 3",
+  "Extra 1"); a "Reset"/"Try again" clears the built set. testIDs: `build-check`,
+  `build-correct`, `build-missed`, `build-extra`.
+- Entry point (per the confirmed decision). Default: add `mobile/app/practice-modes.tsx`
+  (route `/practice-modes`, param `id`) listing "Recognition" → `/practice?id=` and "Build
+  from memory" → `/build?id=`; change the library card's Practice `Link` to point at
+  `/practice-modes?id=`. Keep it minimal and themed.
+- Reuse `@core`; no new dependency. Keep the build comparison in `@core` (no hand-rolled
+  diff).
 
 Tests:
-- New `mobile/__tests__/hand-heatmap.test.tsx`: render `HandHeatmap` with an accuracy map
-  where one hand (e.g. `AA`) has `{ hand:'AA', attempts:2, correct:0, falsePositives:0,
-  falseNegatives:2 }` (rate 0 ⇒ low) and another (e.g. `KK`) has `{ ..., attempts:2,
-  correct:2, ... }` (rate 100 ⇒ high). Assert `getAllByTestId(/^heat-cell-/)` has length
-  169; assert `heat-cell-AA` accessibilityValue.text is `'low'`, `heat-cell-KK` is
-  `'high'`, and an absent hand (e.g. `heat-cell-72o`) is `'untested'`.
-- Extend `mobile/__tests__/practice-screen.test.tsx`: assert `accuracy-heatmap` is absent
-  before any answer; after one `answer-out` (single press + `waitFor` on `stat-total`),
-  assert `accuracy-heatmap` is present. (Test hygiene: await each press before the next.)
+- New `mobile/__tests__/build-screen.test.tsx` (mock `react-native-mmkv` + `expo-router`
+  like `practice-screen.test.tsx`; seed a small known range, e.g. hands `['AA','KK']`):
+  tap `hand-cell-AA` to build only `AA`, press `build-check`, then assert `build-correct`
+  contains `AA`, `build-missed` contains `KK`, and `build-extra` is empty/absent. Mind the
+  RNTL test hygiene notes below.
+- If the mode picker is added, a small `mobile/__tests__/practice-modes-screen.test.tsx`
+  asserting both mode links render.
 
-Files: add `mobile/components/HandHeatmap.tsx`, `mobile/__tests__/hand-heatmap.test.tsx`;
-modify `mobile/app/practice.tsx`, `mobile/__tests__/practice-screen.test.tsx`. No `src/`
-edits, no new dependency.
+RNTL test hygiene (learned in slices 25–26, applies here too):
+- `render(...)` is async — `await` it. Use `await findByTestId(...)` for the first element
+  read after render if a sync `getByTestId` proves flaky in-suite.
+- `await` each `fireEvent.press` to settle (e.g. `waitFor`) before the next press —
+  back-to-back un-awaited presses overlap React `act()` scopes and corrupt the scheduler
+  for later tests.
+- `toHaveTextContent(str)` matches the element's full normalized text (treat it as exact),
+  so assert the full chip text when a cell shows extra info.
+
+Files: add `mobile/app/build.tsx` (+ `mobile/app/practice-modes.tsx` if picker),
+`mobile/__tests__/build-screen.test.tsx` (+ picker test); modify `mobile/app/index.tsx`.
+No `src/` edits, no new dependency.
 
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
 `npm run bundle-check` — all must pass.
 
-Constraints: reuse `@core` `accuracyHeatLevel` + `handAccuracyRate` + `generateHandMatrix`
-(no hand-rolled heat bucketing or matrix); the new component is presentational RN UI in
-`mobile/components/`. Do not edit `src/`.
+Constraints: reuse `@core` `compareBuiltRange` + the existing `HandGrid`; screens in
+`mobile/app/`, RN UI in `mobile/components/`. Do not edit `src/`.
 
 Suggested commit message:
-`feat(ios): add a per-hand accuracy heatmap to practice`
+`feat(ios): add build-from-memory practice mode`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
