@@ -287,7 +287,7 @@ export default function LibraryScreen() {
                 ) : null}
               </Pressable>
             </Link>
-            <Link href={{ pathname: '/practice', params: { id: item.id } }} asChild>
+            <Link href={{ pathname: '/practice-modes', params: { id: item.id } }} asChild>
               <Pressable testID={`practice-${item.id}`} style={styles.practiceButton}>
                 <Text style={styles.practiceText}>Practice</Text>
               </Pressable>
