@@ -62,97 +62,68 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 27 | "Practice mistakes only" drill toggle on the practice screen | M5 | 2026-06-15 |
 | 28 | Per-hand accuracy heatmap (`HandHeatmap`) on the practice screen | M5 | 2026-06-15 |
 | 29 | Build-from-memory practice mode + practice-mode picker | M5 | 2026-06-21 |
+| 30 | Timed drill practice mode | M5 | 2026-06-21 |
 
 ## Next slice
 
-**Slice 30 — Timed drill practice mode**
+**Slice 31 — Swipe-to-answer + haptics on recognition practice (native upgrade)**
 
-Milestone: M5 — Practice depth (web v2–v2.3). Next roadmap M5 item after build-from-memory.
-Adds a third mode to the already-built practice-mode picker (slice 29) — no new navigation
-decision. (Later M5 slices: weakness-focused drill, session history, spaced repetition +
-due-today + streak, multi-action editor, and swipe-to-answer + haptics. Session-boundary
-features — history, spaced repetition — still need an explicit session-end trigger on
-mobile; defer them.)
+Milestone: M5 — Practice depth (web v2–v2.3). The roadmap explicitly calls for "swipe-to-
+answer (RN gestures) and `expo-haptics` feedback — the native upgrade over the web swipe."
+Self-contained; no session-boundary trigger needed. (Remaining M5 after this: weakness-
+focused drill — note it overlaps the slice-27 mistakes-only toggle, so reconsider its value;
+session history and spaced repetition + due-today + streak — both still need a session-end
+trigger decision on mobile [explicit "End session" button vs. expo-router `useFocusEffect`
+blur]; and the multi-action editor + action palette + per-action accuracy + action notation,
+a larger multi-slice feature. After M5, M6 advanced training begins.)
 
-Context: recognition practice (`mobile/app/practice.tsx`) shows a random hand and the user
-answers in/out, scoring via `@core/domain/practice` and recording per answer. A timed
-drill is the same answer loop under a fixed countdown: "answer as many as you can before
-the clock runs out." The countdown math is a pure, tested `@core` module driven by an
-injected `now`, so the screen owns only a 1-second tick.
+Context: `mobile/app/practice.tsx` answers via two `Pressable`s (`answer-in`/`answer-out`)
+calling `answer(boolean)`. This slice adds a horizontal swipe over the hand card as a second
+way to answer — swipe right = in range, swipe left = out of range — with a light haptic tap
+on each answer. Keep the buttons (accessibility + testability); the swipe is additive.
 
-Reuse (verified, import — never copy):
-- `@core/domain/timedDrill` `DRILL_DURATION_OPTIONS` (`[30,60,120]` seconds),
-  `DEFAULT_DRILL_SECONDS` (`60`), `getRemainingSeconds(startEpochMs, durationSeconds,
-  nowEpochMs): number` (whole seconds left, rounds up, clamped to [0, duration]), and
-  `isDrillOver(startEpochMs, durationSeconds, nowEpochMs): boolean`. Read
-  `src/domain/timedDrill.ts` to confirm.
-- `@core/domain/practice` `createPracticeAttempt`, `getRandomPracticeHand`,
-  `summarizePracticeAttempts` (as in `practice.tsx`).
-- `@core/storage/practiceStatsStorage` `recordPracticeSession` and
-  `@core/storage/handAccuracyStorage` `recordHandAccuracy` +
-  `@core/domain/practice summarizeHandAccuracy` — record each answer per-answer exactly as
-  recognition does (slices 24–25), so timed practice also feeds library stats/heatmaps.
-- `@core/storage/rangeStorage` `findSavedRangeById`.
+New dependency: `expo-haptics` (Expo module; bundles via `expo export`). Run `npm install`
+in `mobile/` after adding it. Haptics cannot be verified headlessly (no device) — test the
+swipe-decision logic and wiring, and rely on the bundle-check for integration; do not claim
+the haptic itself was verified.
 
-Task (mobile-only; reuse `@core`, do not edit `src/`):
-- New screen `mobile/app/timed.tsx` (Expo Router route `/timed`, param `id`). States:
-  `range` (from `findSavedRangeById`, once), a chosen `durationSeconds` (default
-  `DEFAULT_DRILL_SECONDS`), `startEpochMs: number | null` (null = not started), `nowEpochMs`
-  (drives the displayed countdown), `hand`, `attempts`, `lastAttempt`.
-- Pre-start: render duration chips from `DRILL_DURATION_OPTIONS` (testID
-  `duration-<n>`, selected style) and a "Start" button (`testID="timed-start"`) that sets
-  `startEpochMs = Date.now()`, `nowEpochMs = Date.now()`, and draws the first hand.
-- Running: a `useEffect` (deps `[startEpochMs, durationSeconds]`) starts a
-  `setInterval(() => setNowEpochMs(Date.now()), 250)` and clears it on cleanup; guard so it
-  only runs while started and not over. Show `getRemainingSeconds(startEpochMs,
-  durationSeconds, nowEpochMs)` as `testID="timed-remaining"`. Answer buttons (`answer-in`,
-  `answer-out`) score via `createPracticeAttempt`, append to `attempts`, set `lastAttempt`,
-  draw the next hand, and record per-answer (recordPracticeSession + recordHandAccuracy) —
-  but ignore answers once `isDrillOver(...)`.
-- Over (`isDrillOver(startEpochMs, durationSeconds, nowEpochMs)`): stop the interval, hide
-  the answer buttons, and show final `summarizePracticeAttempts(attempts)` (reuse the
-  `stat-total`/`stat-correct`/`stat-accuracy` labels) plus a `testID="timed-over"` "Time's
-  up" note and a "Practice again" button (`testID="timed-restart"`) that resets to the
-  pre-start state.
-- Add a third mode to `mobile/app/practice-modes.tsx`: a `Link` to `/timed?id=` with
-  `testID="mode-timed"`, title "Timed drill", desc "Answer as many as you can before the
-  clock runs out."
-- Reuse `@core`; no new dependency.
+Reuse / structure (reuse `@core`; new UI logic is mobile-only):
+- Add a small pure helper, e.g. `mobile/components/swipeAnswer.ts`
+  `resolveSwipeAnswer(translationX: number, threshold = 60): 'in' | 'out' | null` — right
+  past +threshold ⇒ `'in'`, left past −threshold ⇒ `'out'`, otherwise `null`. Pure and
+  unit-tested (mirrors how `HandGrid`'s `handAtPoint` is extracted + tested while the
+  gesture itself is not).
+- In `practice.tsx`, wrap the hand card in a `GestureDetector` with a `Gesture.Pan()` (use
+  `activeOffsetX([-20, 20])` so it doesn't fight vertical scroll / button taps). On end,
+  `const a = resolveSwipeAnswer(e.translationX); if (a) { answer(a === 'in'); }` and fire
+  `Haptics.selectionAsync()` (or `impactAsync(ImpactFeedbackStyle.Light)`). Follow
+  `HandGrid`'s ref pattern (`onSetSelectedRef`) so the long-lived gesture reads the latest
+  `answer` without rebuilding each render, and the existing `react-hooks/refs` eslint-disable
+  block style. The root already has `GestureHandlerRootView` (in `_layout.tsx`).
+- Keep all scoring/recording in the existing `answer` callback — the swipe just calls it.
 
 Tests:
-- New `mobile/__tests__/timed-screen.test.tsx` (mock `react-native-mmkv` + `expo-router`
-  like `practice-screen.test.tsx`; seed the all-169-hands range so every prompt is in
-  range). Use fake timers + a controlled clock:
-  - `jest.useFakeTimers()` and `jest.setSystemTime(0)` in `beforeEach`; restore real timers
-    in `afterEach`. The screen reads `Date.now()`, which fake timers control.
-  - Render, press `timed-start`, answer `answer-in` once and `await waitFor` that
-    `stat-total` shows 1 (await before any further press — RNTL act hygiene).
-  - Advance the clock past the drill: wrap `jest.setSystemTime(durationMs + 1000)` then
-    `jest.advanceTimersByTime(300)` in `act(...)`, and `await waitFor` that `timed-over`
-    appears and `answer-in` is gone (`queryByTestId` null).
-  - Assert `loadPracticeStats().r1.totalAttempts === 1` (the one answer was recorded).
-- Extend `mobile/__tests__/practice-modes-screen.test.tsx` to assert `mode-timed` renders.
+- New `mobile/__tests__/swipe-answer.test.ts`: assert `resolveSwipeAnswer(100)==='in'`,
+  `resolveSwipeAnswer(-100)==='out'`, `resolveSwipeAnswer(10)===null`,
+  `resolveSwipeAnswer(-10)===null`, and the threshold boundary.
+- `mobile/__tests__/practice-screen.test.tsx` already covers `answer()` via the buttons;
+  no gesture simulation needed. If you mock `expo-haptics`, add
+  `jest.mock('expo-haptics')` (or a manual mock under `__mocks__/expo-haptics.ts` returning
+  no-op async fns) so the import resolves under Jest. Verify the existing practice tests
+  still pass.
 
-RNTL/timer test hygiene (learned slices 24–28, applies here):
-- `render(...)` is async — `await` it; `await` each `fireEvent.press` to settle before the
-  next (back-to-back un-awaited presses overlap React `act()` and corrupt the scheduler for
-  later tests). `toHaveTextContent(str)` is an exact normalized match — assert full text.
-- With fake timers, advance the clock inside `act(() => { ... })` so React flushes the
-  interval's state update; combine `setSystemTime` (controls `Date.now()`) with
-  `advanceTimersByTime` (fires the interval).
+Files: add `mobile/components/swipeAnswer.ts`, `mobile/__tests__/swipe-answer.test.ts`
+(+ `mobile/__mocks__/expo-haptics.ts` if needed); modify `mobile/app/practice.tsx`,
+`mobile/package.json` (+ `package-lock.json`). No `src/` edits.
 
-Files: add `mobile/app/timed.tsx`, `mobile/__tests__/timed-screen.test.tsx`; modify
-`mobile/app/practice-modes.tsx`, `mobile/__tests__/practice-modes-screen.test.tsx`. No
-`src/` edits, no new dependency.
+Validation (mobile only): `npm install` (new dep), then `npm run lint`, `npm run typecheck`,
+`npm run test:run`, `npm run bundle-check` — all must pass.
 
-Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
-`npm run bundle-check` — all must pass.
-
-Constraints: reuse `@core` `timedDrill` for all countdown math (no hand-rolled remaining/
-over logic) and `@core` practice/storage for scoring + recording; screen in `mobile/app/`.
-Do not edit `src/`.
+Constraints: the swipe is additive (buttons stay); decision logic is a pure tested helper;
+gesture wiring follows `HandGrid`'s ref pattern; haptics via `expo-haptics`. Do not edit
+`src/`. Report honestly that the haptic feedback itself is not headlessly verifiable.
 
 Suggested commit message:
-`feat(ios): add a timed drill practice mode`
+`feat(ios): add swipe-to-answer and haptics to practice`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)

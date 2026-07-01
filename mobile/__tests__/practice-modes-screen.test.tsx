@@ -12,12 +12,14 @@ jest.mock('expo-router', () => ({
 }));
 
 describe('PracticeModesScreen', () => {
-  it('offers both the recognition and build-from-memory modes', async () => {
+  it('offers the recognition, build-from-memory, and timed modes', async () => {
     const { getByTestId, getByText } = await render(<PracticeModesScreen />);
 
     expect(getByTestId('mode-recognition')).toBeTruthy();
     expect(getByTestId('mode-build')).toBeTruthy();
+    expect(getByTestId('mode-timed')).toBeTruthy();
     expect(getByText('Recognition')).toBeTruthy();
     expect(getByText('Build from memory')).toBeTruthy();
+    expect(getByText('Timed drill')).toBeTruthy();
   });
 });

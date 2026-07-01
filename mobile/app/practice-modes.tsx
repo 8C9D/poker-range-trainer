@@ -28,6 +28,12 @@ export default function PracticeModesScreen() {
           <Text style={styles.modeDesc}>Rebuild the whole range on a blank grid, then check.</Text>
         </Pressable>
       </Link>
+      <Link href={{ pathname: '/timed', params: { id: idParam } }} asChild>
+        <Pressable testID="mode-timed" accessibilityRole="button" style={styles.mode}>
+          <Text style={styles.modeTitle}>Timed drill</Text>
+          <Text style={styles.modeDesc}>Answer as many as you can before the clock runs out.</Text>
+        </Pressable>
+      </Link>
     </View>
   );
 }
