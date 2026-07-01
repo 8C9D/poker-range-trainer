@@ -63,67 +63,74 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 28 | Per-hand accuracy heatmap (`HandHeatmap`) on the practice screen | M5 | 2026-06-15 |
 | 29 | Build-from-memory practice mode + practice-mode picker | M5 | 2026-06-21 |
 | 30 | Timed drill practice mode | M5 | 2026-06-21 |
+| 31 | Swipe-to-answer + haptics on recognition practice | M5 | 2026-06-21 |
 
 ## Next slice
 
-**Slice 31 — Swipe-to-answer + haptics on recognition practice (native upgrade)**
+**Slice 32 — Session history (record on an explicit "End session" + history view)**
 
-Milestone: M5 — Practice depth (web v2–v2.3). The roadmap explicitly calls for "swipe-to-
-answer (RN gestures) and `expo-haptics` feedback — the native upgrade over the web swipe."
-Self-contained; no session-boundary trigger needed. (Remaining M5 after this: weakness-
-focused drill — note it overlaps the slice-27 mistakes-only toggle, so reconsider its value;
-session history and spaced repetition + due-today + streak — both still need a session-end
-trigger decision on mobile [explicit "End session" button vs. expo-router `useFocusEffect`
-blur]; and the multi-action editor + action palette + per-action accuracy + action notation,
-a larger multi-slice feature. After M5, M6 advanced training begins.)
+Milestone: M5 — Practice depth (web v2–v2.3).
 
-Context: `mobile/app/practice.tsx` answers via two `Pressable`s (`answer-in`/`answer-out`)
-calling `answer(boolean)`. This slice adds a horizontal swipe over the hand card as a second
-way to answer — swipe right = in range, swipe left = out of range — with a light haptic tap
-on each answer. Keep the buttons (accessibility + testability); the swipe is additive.
+⚠️ DESIGN DECISION (confirm before building — being asked now): session history logs **one
+record per session** (`recordPracticeSessionHistory`), so it needs a *session-end trigger*,
+which the roadmap doesn't specify for mobile. The web records automatically when the user
+exits practice; on mobile that's unreliable — this RNTL/React-19 setup does NOT run effect
+cleanup on unmount (slice-24 finding), and a backgrounded/killed app won't either. The
+queued **recommended** default is an explicit **"End session" button** on the recognition
+practice screen (most reliable; a standard mobile pattern; deterministic to test).
+Alternative considered: expo-router `useFocusEffect` blur cleanup (more "automatic," matches
+web, but blur-cleanup reliability is uncertain and the test harness stubs `useFocusEffect`
+to a no-op). If the user picks the alternative, change only the trigger wiring; the record +
+view below are unchanged. (This same trigger will later drive spaced-repetition scheduling.)
 
-New dependency: `expo-haptics` (Expo module; bundles via `expo export`). Run `npm install`
-in `mobile/` after adding it. Haptics cannot be verified headlessly (no device) — test the
-swipe-decision logic and wiring, and rely on the bundle-check for integration; do not claim
-the haptic itself was verified.
+Context: `mobile/app/practice.tsx` records per-range stats and per-hand accuracy *per
+answer* (slices 24–25). Session history is different — a per-session summary list — so it
+must be recorded once at session end, not per answer.
 
-Reuse / structure (reuse `@core`; new UI logic is mobile-only):
-- Add a small pure helper, e.g. `mobile/components/swipeAnswer.ts`
-  `resolveSwipeAnswer(translationX: number, threshold = 60): 'in' | 'out' | null` — right
-  past +threshold ⇒ `'in'`, left past −threshold ⇒ `'out'`, otherwise `null`. Pure and
-  unit-tested (mirrors how `HandGrid`'s `handAtPoint` is extracted + tested while the
-  gesture itself is not).
-- In `practice.tsx`, wrap the hand card in a `GestureDetector` with a `Gesture.Pan()` (use
-  `activeOffsetX([-20, 20])` so it doesn't fight vertical scroll / button taps). On end,
-  `const a = resolveSwipeAnswer(e.translationX); if (a) { answer(a === 'in'); }` and fire
-  `Haptics.selectionAsync()` (or `impactAsync(ImpactFeedbackStyle.Light)`). Follow
-  `HandGrid`'s ref pattern (`onSetSelectedRef`) so the long-lived gesture reads the latest
-  `answer` without rebuilding each render, and the existing `react-hooks/refs` eslint-disable
-  block style. The root already has `GestureHandlerRootView` (in `_layout.tsx`).
-- Keep all scoring/recording in the existing `answer` callback — the swipe just calls it.
+Reuse (verified, import — never copy):
+- `@core/storage/sessionHistoryStorage` `recordPracticeSessionHistory(rangeId, summary:
+  Pick<PracticeSessionSummary,'totalQuestions'|'correctAnswers'>, playedAt?): void` (no-op
+  at 0 questions) and `loadSessionHistory(): Record<string, PracticeSessionRecord[]>`
+  (oldest-first per range). `PracticeSessionRecord` = `{ rangeId, playedAt, totalQuestions,
+  correctAnswers }` (`@core/types/practice`).
+- `@core/domain/practice` `summarizePracticeAttempts` (already imported) for the summary;
+  `@core/domain/accuracy accuracyPercentage` (or reuse the summary's `accuracyPercentage`)
+  for display.
 
-Tests:
-- New `mobile/__tests__/swipe-answer.test.ts`: assert `resolveSwipeAnswer(100)==='in'`,
-  `resolveSwipeAnswer(-100)==='out'`, `resolveSwipeAnswer(10)===null`,
-  `resolveSwipeAnswer(-10)===null`, and the threshold boundary.
-- `mobile/__tests__/practice-screen.test.tsx` already covers `answer()` via the buttons;
-  no gesture simulation needed. If you mock `expo-haptics`, add
-  `jest.mock('expo-haptics')` (or a manual mock under `__mocks__/expo-haptics.ts` returning
-  no-op async fns) so the import resolves under Jest. Verify the existing practice tests
-  still pass.
+Task (mobile-only; reuse `@core`, do not edit `src/`) — recommended default:
+- Add session-history state: `const [history, setHistory] = useState(() => range ?
+  (loadSessionHistory()[range.id] ?? []) : [])`.
+- Add an **"End session"** button (`testID="end-session"`) shown while the session has
+  attempts (`attempts.length > 0`). On press: `recordPracticeSessionHistory(range.id,
+  summarizePracticeAttempts(attempts))`, then reset the *session* (clear `attempts`,
+  `lastAttempt`; draw a fresh `hand`; keep cumulative `handAccuracy`), and refresh
+  `setHistory(loadSessionHistory()[range.id] ?? [])`. (Per-range stats/accuracy already
+  recorded per answer, so ending only logs the history row — no double count.)
+- Render a "Session history" section (`testID="session-history"`) when `history.length > 0`:
+  one row per past session showing `correctAnswers/totalQuestions` and the accuracy %.
+  Keep it presentational; most-recent-first is fine (reverse a copy — don't mutate).
+- Do not change scoring/draw/per-answer recording or existing testIDs.
 
-Files: add `mobile/components/swipeAnswer.ts`, `mobile/__tests__/swipe-answer.test.ts`
-(+ `mobile/__mocks__/expo-haptics.ts` if needed); modify `mobile/app/practice.tsx`,
-`mobile/package.json` (+ `package-lock.json`). No `src/` edits.
+Test (extend `mobile/__tests__/practice-screen.test.tsx`; import `loadSessionHistory` from
+`@core/storage/sessionHistoryStorage`):
+- All-169-hands range: `end-session` absent before any answer; press `answer-in`, `await`
+  `stat-total`=1, then assert `end-session` present. Press `end-session`; assert
+  `loadSessionHistory().r1` has length 1 with `{ totalQuestions:1, correctAnswers:1 }`, that
+  `session-history` is shown, and that the session reset (`stat-total` back to "Total: 0").
+- RNTL hygiene: `await render`; `await` each press before the next (overlapping act
+  corrupts later tests); `toHaveTextContent` is an exact normalized match.
 
-Validation (mobile only): `npm install` (new dep), then `npm run lint`, `npm run typecheck`,
-`npm run test:run`, `npm run bundle-check` — all must pass.
+Files: modify `mobile/app/practice.tsx`, `mobile/__tests__/practice-screen.test.tsx`. No
+`src/` edits, no new dependency.
 
-Constraints: the swipe is additive (buttons stay); decision logic is a pure tested helper;
-gesture wiring follows `HandGrid`'s ref pattern; haptics via `expo-haptics`. Do not edit
-`src/`. Report honestly that the haptic feedback itself is not headlessly verifiable.
+Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
+`npm run bundle-check` — all must pass.
+
+Constraints: reuse `@core` `recordPracticeSessionHistory` + `loadSessionHistory` (no
+hand-rolled history store); record once at session end (NOT per answer); UI in
+`mobile/app/`. Do not edit `src/`.
 
 Suggested commit message:
-`feat(ios): add swipe-to-answer and haptics to practice`
+`feat(ios): add practice session history`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)

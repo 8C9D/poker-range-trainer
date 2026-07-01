@@ -1,6 +1,8 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Stack, useLocalSearchParams } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 
 import {
   createPracticeAttempt,
@@ -19,6 +21,7 @@ import { findSavedRangeById } from '@core/storage/rangeStorage';
 import type { PracticeAttempt, RangeHandAccuracy } from '@core/types/practice';
 
 import { HandHeatmap } from '../components/HandHeatmap';
+import { resolveSwipeAnswer } from '../components/swipeAnswer';
 import { colors } from '../theme/colors';
 
 /**
@@ -78,6 +81,33 @@ export default function PracticeScreen() {
     [hand, range, mistakesOnly],
   );
 
+  // Keep the latest answer handler in a ref so the long-lived swipe gesture reads it
+  // without being rebuilt on every render (mirrors HandGrid's gesture ref pattern). The
+  // ref is synced in an effect, never during render.
+  const answerRef = useRef(answer);
+  useEffect(() => {
+    answerRef.current = answer;
+  });
+
+  /* eslint-disable react-hooks/refs -- the gesture callback runs at gesture time, never
+     during render; it reads answerRef for the latest handler. */
+  const swipeGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        // Require real horizontal movement so a tap on the answer buttons is unaffected.
+        .activeOffsetX([-20, 20])
+        .onEnd((event) => {
+          const choice = resolveSwipeAnswer(event.translationX);
+          if (choice === null) return;
+          answerRef.current(choice === 'in');
+          // A light haptic confirms the swipe registered (no-op on devices without a
+          // haptic engine; not verifiable headlessly).
+          void Haptics.selectionAsync();
+        }),
+    [],
+  );
+  /* eslint-enable react-hooks/refs */
+
   // Bucket the session's mistakes for the end-of-session review (recomputes when
   // a new attempt is recorded). Kept above the early return to satisfy hook rules.
   const review = useMemo(() => reviewSessionMistakes(attempts), [attempts]);
@@ -102,11 +132,15 @@ export default function PracticeScreen() {
       <Stack.Screen options={{ title: 'Practice' }} />
       <Text style={styles.rangeName}>{range.name || 'Untitled'}</Text>
 
-      <View style={styles.handCard}>
-        <Text testID="practice-hand" style={styles.hand}>
-          {hand}
-        </Text>
-      </View>
+      <GestureDetector gesture={swipeGesture}>
+        <View style={styles.handCard}>
+          <Text testID="practice-hand" style={styles.hand}>
+            {hand}
+          </Text>
+        </View>
+      </GestureDetector>
+
+      <Text style={styles.swipeHint}>Swipe the card → in range · ← out of range</Text>
 
       {lastAttempt ? (
         <Text
@@ -259,6 +293,11 @@ const styles = StyleSheet.create({
     color: colors.textStrong,
     fontSize: 56,
     fontWeight: '700',
+  },
+  swipeHint: {
+    fontSize: 12,
+    color: colors.text,
+    textAlign: 'center',
   },
   feedback: {
     fontSize: 16,
