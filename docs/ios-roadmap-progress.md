@@ -64,61 +64,52 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 29 | Build-from-memory practice mode + practice-mode picker | M5 | 2026-06-21 |
 | 30 | Timed drill practice mode | M5 | 2026-06-21 |
 | 31 | Swipe-to-answer + haptics on recognition practice | M5 | 2026-06-21 |
+| 32 | Practice session history (record on explicit End session + view) | M5 | 2026-06-21 |
 
 ## Next slice
 
-**Slice 32 — Session history (record on an explicit "End session" + history view)**
+**Slice 33 — Advance the spaced-repetition schedule on End session**
 
-Milestone: M5 — Practice depth (web v2–v2.3).
+Milestone: M5 — Practice depth (web v2–v2.3). Reuses the now-established explicit
+"End session" trigger (slice 32, user-confirmed — see [[ios-session-end-trigger]]). This is
+the *recording* half of spaced repetition; the *viewing* half (due-today + streak on the
+library) is the next slice (34). Behavior slice — no visible UI change on this screen; the
+payoff is the due-today/streak view in slice 34 (like slices 24–25 persisted data before a
+later view consumed it).
 
-⚠️ DESIGN DECISION (confirm before building — being asked now): session history logs **one
-record per session** (`recordPracticeSessionHistory`), so it needs a *session-end trigger*,
-which the roadmap doesn't specify for mobile. The web records automatically when the user
-exits practice; on mobile that's unreliable — this RNTL/React-19 setup does NOT run effect
-cleanup on unmount (slice-24 finding), and a backgrounded/killed app won't either. The
-queued **recommended** default is an explicit **"End session" button** on the recognition
-practice screen (most reliable; a standard mobile pattern; deterministic to test).
-Alternative considered: expo-router `useFocusEffect` blur cleanup (more "automatic," matches
-web, but blur-cleanup reliability is uncertain and the test harness stubs `useFocusEffect`
-to a no-op). If the user picks the alternative, change only the trigger wiring; the record +
-view below are unchanged. (This same trigger will later drive spaced-repetition scheduling.)
-
-Context: `mobile/app/practice.tsx` records per-range stats and per-hand accuracy *per
-answer* (slices 24–25). Session history is different — a per-session summary list — so it
-must be recorded once at session end, not per answer.
+Context: `mobile/app/practice.tsx`'s `endSession` callback already records session history
+and resets the session. The web's `handleEndPractice` additionally advances the range's
+spaced-repetition review state from the session's accuracy
+(`scheduleNextReview(prev, summary.accuracyPercentage, reviewedAt)`), persisted via
+`saveReviewState`. Mobile must do the same in `endSession`.
 
 Reuse (verified, import — never copy):
-- `@core/storage/sessionHistoryStorage` `recordPracticeSessionHistory(rangeId, summary:
-  Pick<PracticeSessionSummary,'totalQuestions'|'correctAnswers'>, playedAt?): void` (no-op
-  at 0 questions) and `loadSessionHistory(): Record<string, PracticeSessionRecord[]>`
-  (oldest-first per range). `PracticeSessionRecord` = `{ rangeId, playedAt, totalQuestions,
-  correctAnswers }` (`@core/types/practice`).
-- `@core/domain/practice` `summarizePracticeAttempts` (already imported) for the summary;
-  `@core/domain/accuracy accuracyPercentage` (or reuse the summary's `accuracyPercentage`)
-  for display.
+- `@core/domain/spacedRepetition` `seedReviewState(rangeId): RangeReviewState` (first
+  review) and `scheduleNextReview(prev: RangeReviewState, accuracyPercentage: number,
+  reviewedAt: string): RangeReviewState` (low `<50` shrinks ease + 1-day interval; medium
+  `50–79` holds; high `>=80` grows ease + multiplies interval; sets `dueAt`).
+- `@core/storage/reviewStateStorage` `loadReviewStates(): Record<string, RangeReviewState>`
+  and `saveReviewState(state: RangeReviewState): void`.
+- `RangeReviewState` from `@core/types/practice` (`{ rangeId, ease, intervalDays, dueAt,
+  lastReviewedAt }`). Read `src/domain/spacedRepetition.ts` + `src/App.tsx` (handleEndPractice)
+  to mirror.
 
-Task (mobile-only; reuse `@core`, do not edit `src/`) — recommended default:
-- Add session-history state: `const [history, setHistory] = useState(() => range ?
-  (loadSessionHistory()[range.id] ?? []) : [])`.
-- Add an **"End session"** button (`testID="end-session"`) shown while the session has
-  attempts (`attempts.length > 0`). On press: `recordPracticeSessionHistory(range.id,
-  summarizePracticeAttempts(attempts))`, then reset the *session* (clear `attempts`,
-  `lastAttempt`; draw a fresh `hand`; keep cumulative `handAccuracy`), and refresh
-  `setHistory(loadSessionHistory()[range.id] ?? [])`. (Per-range stats/accuracy already
-  recorded per answer, so ending only logs the history row — no double count.)
-- Render a "Session history" section (`testID="session-history"`) when `history.length > 0`:
-  one row per past session showing `correctAnswers/totalQuestions` and the accuracy %.
-  Keep it presentational; most-recent-first is fine (reverse a copy — don't mutate).
-- Do not change scoring/draw/per-answer recording or existing testIDs.
+Task (mobile-only; reuse `@core`, do not edit `src/`):
+- In `endSession`, compute the summary once
+  (`const summary = summarizePracticeAttempts(attempts)`), record history with it, and —
+  only when `summary.totalQuestions > 0` (don't schedule an empty session) — advance the
+  schedule: `const reviewedAt = new Date().toISOString(); const prev =
+  loadReviewStates()[range.id] ?? seedReviewState(range.id);
+  saveReviewState(scheduleNextReview(prev, summary.accuracyPercentage, reviewedAt));`
+- Keep the existing history recording + session reset. No new UI, no changed testIDs.
 
-Test (extend `mobile/__tests__/practice-screen.test.tsx`; import `loadSessionHistory` from
-`@core/storage/sessionHistoryStorage`):
-- All-169-hands range: `end-session` absent before any answer; press `answer-in`, `await`
-  `stat-total`=1, then assert `end-session` present. Press `end-session`; assert
-  `loadSessionHistory().r1` has length 1 with `{ totalQuestions:1, correctAnswers:1 }`, that
-  `session-history` is shown, and that the session reset (`stat-total` back to "Total: 0").
-- RNTL hygiene: `await render`; `await` each press before the next (overlapping act
-  corrupts later tests); `toHaveTextContent` is an exact normalized match.
+Test (extend `mobile/__tests__/practice-screen.test.tsx`; import `loadReviewStates` from
+`@core/storage/reviewStateStorage`):
+- All-169-hands range: answer `answer-in` once (100% accuracy), `await` `stat-total`=1,
+  press `end-session`, then assert `loadReviewStates().r1` exists with a non-empty `dueAt`
+  and `intervalDays >= 1` (a high-accuracy first review schedules ~1 day out). Optionally
+  assert `lastReviewedAt` is non-empty.
+- RNTL hygiene: `await render`; `await` each press before the next.
 
 Files: modify `mobile/app/practice.tsx`, `mobile/__tests__/practice-screen.test.tsx`. No
 `src/` edits, no new dependency.
@@ -126,11 +117,11 @@ Files: modify `mobile/app/practice.tsx`, `mobile/__tests__/practice-screen.test.
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
 `npm run bundle-check` — all must pass.
 
-Constraints: reuse `@core` `recordPracticeSessionHistory` + `loadSessionHistory` (no
-hand-rolled history store); record once at session end (NOT per answer); UI in
-`mobile/app/`. Do not edit `src/`.
+Constraints: reuse `@core` `scheduleNextReview` + `seedReviewState` + review storage (no
+hand-rolled scheduling); schedule only on End session with answered questions; UI/screen
+logic stays in `mobile/app/`. Do not edit `src/`.
 
 Suggested commit message:
-`feat(ios): add practice session history`
+`feat(ios): advance spaced-repetition schedule on session end`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)

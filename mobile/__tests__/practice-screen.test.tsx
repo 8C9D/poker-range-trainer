@@ -3,6 +3,7 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { generateHandMatrix, type PokerHand } from '@core/domain/pokerHands';
 import { loadHandAccuracy } from '@core/storage/handAccuracyStorage';
 import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
+import { loadSessionHistory } from '@core/storage/sessionHistoryStorage';
 import { saveSavedRange } from '@core/storage/rangeStorage';
 
 import PracticeScreen from '../app/practice';
@@ -172,5 +173,28 @@ describe('PracticeScreen', () => {
 
     fireEvent.press(getByTestId('answer-out'));
     await waitFor(() => expect(getByTestId('accuracy-heatmap')).toBeTruthy());
+  });
+
+  it('logs a session to history on End session and resets the session', async () => {
+    seedAllHandsRange();
+    const { getByTestId, queryByTestId } = await render(<PracticeScreen />);
+
+    // No End-session button or history before any answer.
+    expect(queryByTestId('end-session')).toBeNull();
+    expect(queryByTestId('session-history')).toBeNull();
+
+    // Answer one hand correctly (every hand is in range), then the button appears.
+    fireEvent.press(getByTestId('answer-in'));
+    await waitFor(() => expect(getByTestId('stat-total')).toHaveTextContent('Total: 1'));
+    expect(getByTestId('end-session')).toBeTruthy();
+
+    // Ending the session logs one record and resets the live session.
+    fireEvent.press(getByTestId('end-session'));
+    await waitFor(() => expect(getByTestId('session-history')).toBeTruthy());
+
+    const records = loadSessionHistory().r1;
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({ totalQuestions: 1, correctAnswers: 1 });
+    expect(getByTestId('stat-total')).toHaveTextContent('Total: 0');
   });
 });

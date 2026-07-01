@@ -4,6 +4,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 
+import { accuracyPercentage } from '@core/domain/accuracy';
 import {
   createPracticeAttempt,
   getRandomHandFrom,
@@ -17,8 +18,16 @@ import {
 } from '@core/domain/practice';
 import { loadHandAccuracy, recordHandAccuracy } from '@core/storage/handAccuracyStorage';
 import { recordPracticeSession } from '@core/storage/practiceStatsStorage';
+import {
+  loadSessionHistory,
+  recordPracticeSessionHistory,
+} from '@core/storage/sessionHistoryStorage';
 import { findSavedRangeById } from '@core/storage/rangeStorage';
-import type { PracticeAttempt, RangeHandAccuracy } from '@core/types/practice';
+import type {
+  PracticeAttempt,
+  PracticeSessionRecord,
+  RangeHandAccuracy,
+} from '@core/types/practice';
 
 import { HandHeatmap } from '../components/HandHeatmap';
 import { resolveSwipeAnswer } from '../components/swipeAnswer';
@@ -46,6 +55,11 @@ export default function PracticeScreen() {
   // When on, prompts are restricted to hands the user has gotten wrong (the mistakes
   // pool) for a focused "practice mistakes only" drill.
   const [mistakesOnly, setMistakesOnly] = useState(false);
+  // This range's past sessions (oldest-first), shown once any exist and refreshed when
+  // the current session is ended.
+  const [history, setHistory] = useState<PracticeSessionRecord[]>(() =>
+    range ? (loadSessionHistory()[range.id] ?? []) : [],
+  );
 
   const answer = useCallback(
     (answeredInRange: boolean) => {
@@ -80,6 +94,19 @@ export default function PracticeScreen() {
     },
     [hand, range, mistakesOnly],
   );
+
+  // End the current session: log it to this range's session history (a per-session
+  // record, unlike the per-answer stats/accuracy already recorded above), then reset the
+  // session for a fresh start while keeping cumulative accuracy. Mobile uses this explicit
+  // trigger because effect cleanup does not run on unmount in this setup.
+  const endSession = useCallback(() => {
+    if (!range) return;
+    recordPracticeSessionHistory(range.id, summarizePracticeAttempts(attempts));
+    setHistory(loadSessionHistory()[range.id] ?? []);
+    setAttempts([]);
+    setLastAttempt(null);
+    setHand(getRandomPracticeHand());
+  }, [range, attempts]);
 
   // Keep the latest answer handler in a ref so the long-lived swipe gesture reads it
   // without being rebuilt on every render (mirrors HandGrid's gesture ref pattern). The
@@ -206,6 +233,29 @@ export default function PracticeScreen() {
           Accuracy: {summary.accuracyPercentage.toFixed(0)}%
         </Text>
       </View>
+
+      {attempts.length > 0 ? (
+        <Pressable
+          testID="end-session"
+          accessibilityRole="button"
+          style={styles.endSession}
+          onPress={endSession}
+        >
+          <Text style={styles.endSessionText}>End session</Text>
+        </Pressable>
+      ) : null}
+
+      {history.length > 0 ? (
+        <View testID="session-history" style={styles.review}>
+          <Text style={styles.reviewTitle}>Session history</Text>
+          {[...history].reverse().map((record, index) => (
+            <Text key={`${record.playedAt}-${index}`} style={styles.historyRow}>
+              {record.correctAnswers}/{record.totalQuestions} ·{' '}
+              {accuracyPercentage(record.correctAnswers, record.totalQuestions).toFixed(0)}%
+            </Text>
+          ))}
+        </View>
+      ) : null}
 
       {review.missed.length > 0 || review.wronglyIncluded.length > 0 ? (
         <View style={styles.review}>
@@ -359,6 +409,22 @@ const styles = StyleSheet.create({
   stat: {
     color: colors.text,
     fontSize: 14,
+  },
+  endSession: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  endSessionText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  historyRow: {
+    color: colors.text,
+    fontSize: 13,
   },
   review: {
     alignSelf: 'stretch',
