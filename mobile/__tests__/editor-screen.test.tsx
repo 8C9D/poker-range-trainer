@@ -1,5 +1,6 @@
 import { Alert } from 'react-native';
 import { render, userEvent, waitFor } from '@testing-library/react-native';
+import type { ReactNode } from 'react';
 
 import { loadSavedRanges } from '@core/storage/rangeStorage';
 
@@ -16,6 +17,8 @@ jest.mock('expo-clipboard', () => ({
 }));
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({}),
+  // Link renders its children so the wrapped Pressable (e.g. "Edit actions") survives.
+  Link: ({ children }: { children: ReactNode }) => children,
   Stack: { Screen: () => null },
 }));
 

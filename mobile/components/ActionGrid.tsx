@@ -1,0 +1,90 @@
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { generateHandMatrix, type PokerHand } from '@core/domain/pokerHands';
+import type { RangeAction } from '@core/types/range';
+
+import { ACTION_COLORS } from '../theme/actionColors';
+import { colors } from '../theme/colors';
+
+// The 13×13 grid order comes from the reused core matrix; built once at module load (same
+// source as HandGrid / HandHeatmap).
+const HAND_MATRIX = generateHandMatrix();
+
+interface ActionGridProps {
+  /** Current per-hand action assignments. */
+  handActions: Record<PokerHand, RangeAction>;
+  /** The action a tap assigns. */
+  activeAction: RangeAction;
+  /** Assign `action` to `hand`, or clear it with `null`. */
+  onAssign: (hand: PokerHand, action: RangeAction | null) => void;
+}
+
+/**
+ * A controlled 13×13 grid for assigning a single `RangeAction` per hand. Each cell is
+ * colored by its assigned action (via {@link ACTION_COLORS}); tapping a cell assigns the
+ * active action, and tapping a cell already set to the active action clears it. Tap-only —
+ * drag-paint can be added later, as on `HandGrid`.
+ */
+export function ActionGrid({ handActions, activeAction, onAssign }: ActionGridProps) {
+  return (
+    <View style={styles.grid}>
+      {HAND_MATRIX.map((row, rowIndex) => (
+        <View key={rowIndex} style={styles.row}>
+          {row.map((hand) => {
+            const assigned = handActions[hand];
+            const isActive = assigned === activeAction;
+            return (
+              <Pressable
+                key={hand}
+                testID={`action-cell-${hand}`}
+                accessibilityRole="button"
+                accessibilityLabel={hand}
+                accessibilityState={{ selected: assigned !== undefined }}
+                onPress={() => onAssign(hand, isActive ? null : activeAction)}
+                style={[
+                  styles.cell,
+                  { backgroundColor: assigned ? ACTION_COLORS[assigned] : colors.surface },
+                ]}
+              >
+                <Text
+                  numberOfLines={1}
+                  style={[styles.label, assigned ? styles.labelAssigned : styles.labelUnassigned]}
+                >
+                  {hand}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  grid: {
+    width: '100%',
+    aspectRatio: 1,
+  },
+  row: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  cell: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  label: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  labelAssigned: {
+    color: colors.onAccent,
+  },
+  labelUnassigned: {
+    color: colors.text,
+  },
+});

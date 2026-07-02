@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput } from 'react-native';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Link, Stack, useLocalSearchParams } from 'expo-router';
 
 import type { PokerHand } from '@core/domain/pokerHands';
 import { mergeShortcutHands } from '@core/domain/rangeShortcuts';
@@ -109,6 +109,11 @@ export default function EditorScreen() {
       <HandGrid selected={selected} onSetSelected={handleSetSelected} />
       <RangeNotation selectedHands={[...selected]} onReplaceHands={onReplaceHands} />
       <RangeMetadataEditor value={metadata} onChange={setMetadata} />
+      <Link href={{ pathname: '/action-editor', params: { id: draft.id } }} asChild>
+        <Pressable testID="edit-actions" accessibilityRole="button" style={styles.actionsLink}>
+          <Text style={styles.actionsLinkText}>Edit actions →</Text>
+        </Pressable>
+      </Link>
       <Pressable
         testID="clear-range"
         accessibilityRole="button"
@@ -139,6 +144,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textStrong,
     backgroundColor: colors.surface,
+  },
+  actionsLink: {
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+  },
+  actionsLinkText: {
+    color: colors.accent,
+    fontSize: 14,
+    fontWeight: '600',
   },
   clearButton: {
     alignSelf: 'flex-start',

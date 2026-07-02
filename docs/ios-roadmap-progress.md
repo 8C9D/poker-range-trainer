@@ -67,77 +67,82 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 32 | Practice session history (record on explicit End session + view) | M5 | 2026-06-21 |
 | 33 | Advance spaced-repetition schedule on End session | M5 | 2026-06-21 |
 | 34 | Due-for-review badge + practice streak on the library | M5 | 2026-06-21 |
+| 35 | Multi-action editor foundation (palette + action grid + screen) | M5 | 2026-06-21 |
 
 ## Next slice
 
-**Slice 35 — Multi-action editor foundation: action palette + action grid (opens the M5
-multi-action cluster)**
+**Slice 36 — Preserve overlay fields when saving from the binary editor (bug fix)**
 
-Milestone: M5 — Practice depth (web v2–v2.3). This is the FIRST slice of the multi-action
-cluster (later slices: per-action accuracy practice / "ActionQuiz"; action notation
-import/export; and the mixed-frequency editor + quiz belong to M6). It lets a range tag each
-hand with a `RangeAction` (raise/call/fold/3-bet/…) — the `handActions` overlay — beyond the
-binary in/out grid.
+Milestone: M5 — Practice depth (housekeeping that protects the slice-35 multi-action
+feature). Found while building slice 35.
 
-⚠️ DESIGN DECISION (confirm before building — flagged for the user): WHERE does action
-editing live on mobile? The binary editor (`mobile/app/editor.tsx`) is already long (name,
-stats bar, shortcuts, grid, notation, metadata, clear). Options: (1) **a dedicated "Edit
-actions" screen** reached from a button in the editor (RECOMMENDED — keeps each grid full-
-width and uncluttered; mirrors the web's separate `MultiActionEditor`); (2) integrate a
-second action grid + palette inline below the binary grid in `editor.tsx` (everything in one
-place, but a very long screen); (3) make actions a separate top-level entry from the library
-card. Recommended: option 1. Confirm before building; the components below are the same
-regardless of entry point.
+Bug: `mobile/app/editor.tsx`'s live-save reconstructs the range from a 6-field snapshot
+(`{ id, name, hands, createdAt, updatedAt, metadata }`) and `saveSavedRange` *replaces* the
+stored entry — so every other field is dropped on save. That means editing a range in the
+binary editor strips `handActions` (the slice-35 action overlay), `favorite`, `archived`,
+`source`, `comboSelections`, `mixedStrategies`, and `handNotes`. Concretely: assign actions
+→ go back → toggle one hand in the binary grid → actions gone; or favorite a range → edit it
+→ favorite lost. This is pre-existing (predates multi-action) but slice 35 makes it visible.
 
-Reuse (verified, import — never copy):
-- `@core/types/range` `RANGE_ACTIONS`, `RANGE_ACTION_LABELS`, `type RangeAction`, and
-  `SavedRange.handActions?: Record<PokerHand, RangeAction>`.
-- `@core/domain/actionRange` `assignedHands(handActions)`, `handsForAction(handActions,
-  action)`, `actionRangePercentage(...)` (for live counts). Read `src/domain/actionRange.ts`
-  + `src/components/ActionPalette.tsx` / `ActionGrid.tsx` / `MultiActionEditor.tsx` to mirror.
-- `@core/domain/pokerHands` `generateHandMatrix` (reuse, as `HandGrid`/`HandHeatmap` do);
-  `@core/storage/rangeStorage` `findSavedRangeById` + `saveSavedRange`.
+Fix (mobile-only; reuse `@core`, do not edit `src/`): merge the editable fields onto the
+*current stored* range at save time instead of building a bare object. In the editor's
+live-save effect:
+```
+const existing = findSavedRangeById(draft.id);
+saveSavedRange({
+  ...existing,                       // preserve favorite/archived/handActions/source/…
+  id: draft.id,
+  name,
+  hands: [...selected],
+  createdAt: draft.createdAt,
+  updatedAt: new Date().toISOString(),
+  metadata,
+});
+```
+`existing` is `undefined` on a brand-new range's first save — spreading `undefined` is fine
+(`{ ...undefined }` is `{}`), but TS-narrow it (`...(existing ?? {})`) if the spread type
+complains. Reading the current stored range each save (rather than a mount snapshot) also
+means overlay fields written by the action editor after this screen mounted are picked up.
+Keep everything else (the hydratedRef first-run skip, the field set being edited) unchanged.
 
-Task (mobile-only; reuse `@core`, do not edit `src/`) — recommended (option 1):
-- New `mobile/components/ActionPalette.tsx`: a labelled row of action chips from
-  `RANGE_ACTIONS`/`RANGE_ACTION_LABELS`; one is the active action (selected style); tapping
-  selects it. testIDs `action-chip-<action>`. (Model on `ChipRow`, but single-select with a
-  required value.)
-- New `mobile/components/ActionGrid.tsx`: a controlled 13×13 grid (reuse `generateHandMatrix`,
-  mirror `HandGrid`'s layout) where each cell shows the hand colored by its assigned action
-  (a per-action color map kept local to the component, UI-only); tapping a cell assigns the
-  active action, tapping an already-that-action cell clears it. Props: `{ handActions,
-  activeAction, onAssign(hand, action|null) }`. testIDs `action-cell-<hand>`. (Drag-paint can
-  come later; tap-to-assign is enough for this slice.)
-- New screen `mobile/app/action-editor.tsx` (route `/action-editor`, param `id`): load the
-  range, hold a `handActions` map in state, render `ActionPalette` + `ActionGrid` + a live
-  "N hands assigned" line (`assignedHands(...).length`), and live-save `handActions` onto the
-  range via `saveSavedRange` (preserve all other fields). Add an "Edit actions" `Link`
-  (`testID="edit-actions"`) in `editor.tsx` to `/action-editor?id=<draft.id>`.
-- Reuse `@core` for all action math; colors/labels are UI-only mobile.
+Test (extend `mobile/__tests__/editor-screen.test.tsx`):
+- Seed a range with `id 'r1'` that has `favorite: true` and `handActions: { AA: 'raise' }`
+  (use `saveSavedRange` in the test; the expo-router mock already returns no id, so to edit
+  an existing range either (a) point the mock's `useLocalSearchParams` at `{ id: 'r1' }` in a
+  scoped test/describe, or (b) add a second test file — simplest is a new
+  `mobile/__tests__/editor-preserves-overlay.test.tsx` with the id-mock set to `r1`).
+  Render the editor, toggle a hand (e.g. press `hand-cell-KK`), then assert via
+  `findSavedRangeById('r1')` that `favorite === true` and `handActions.AA === 'raise'` still
+  hold and `KK` is now in `hands`.
+- RNTL hygiene: `await render`; `userEvent` for the interaction; `await waitFor`.
 
-Tests:
-- `mobile/__tests__/action-palette.test.tsx`: renders all `RANGE_ACTIONS` chips; tapping one
-  calls `onSelect` with that action.
-- `mobile/__tests__/action-grid.test.tsx`: tapping `action-cell-AA` calls `onAssign('AA',
-  activeAction)`; tapping it again (when already that action) calls `onAssign('AA', null)`.
-- `mobile/__tests__/action-editor-screen.test.tsx` (mock mmkv + expo-router; seed a range):
-  select an action, tap a hand cell, and assert the range's `handActions` persisted via
-  `loadSavedRanges`/`findSavedRangeById`. Use `userEvent` for multi-interaction (per the
-  editor test) and the RNTL hygiene notes ([[ios-mobile-toolchain]]).
-
-Files: add `mobile/components/ActionPalette.tsx`, `mobile/components/ActionGrid.tsx`,
-`mobile/app/action-editor.tsx`, the three test files; modify `mobile/app/editor.tsx`. No
-`src/` edits, no new dependency.
+Files: modify `mobile/app/editor.tsx`; add/extend a test
+(`mobile/__tests__/editor-preserves-overlay.test.tsx` recommended so the `id` mock is
+isolated). No `src/` edits, no new dependency.
 
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
 `npm run bundle-check` — all must pass.
 
-Constraints: reuse `@core` action types + `actionRange` domain (no hand-rolled action math);
-new RN UI in `mobile/components/`, screen in `mobile/app/`; `handActions` persists through
-`@core` storage. Do not edit `src/`.
+Constraints: merge onto the current stored range via `@core` storage (no field-by-field
+hand-copying beyond what's edited); keep the editor's existing behavior otherwise. Do not
+edit `src/`.
 
 Suggested commit message:
-`feat(ios): add a multi-action range editor (palette + action grid)`
+`fix(ios): preserve action/favorite/archive overlays when editing a range`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
+
+---
+
+## Deferred / candidate slices (not yet queued)
+
+- **Per-action accuracy practice ("ActionQuiz")** — a practice mode over `assignedHands` that
+  asks "what's the correct action?" reusing `@core/domain/actionRange` `correctActionFor` +
+  `summarizeActionAccuracy`; add to the practice-mode picker.
+- **Action notation import/export** — `formatActionNotation` / `parseActionNotation` UI on the
+  action editor (clipboard via `expo-clipboard`, as `RangeNotation` does).
+- **Weakness-focused drill** — likely redundant with the slice-27 mistakes-only toggle;
+  reconsider whether it adds value before building.
+- After these, **M6 — Advanced training** (board texture, made-hand/draw categorization,
+  range-vs-board, postflop practice, combo/blocker depth, mixed-frequency editor + quiz +
+  notation, range diff, per-hand notes, CSV import).
