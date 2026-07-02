@@ -17,7 +17,10 @@ import {
 import { practiceAccuracyPercentage } from '@core/domain/practiceStats';
 import { duplicateRange } from '@core/domain/rangeDuplication';
 import { calculateRangePercentage } from '@core/domain/rangeMath';
+import { currentStreak, isReviewDue } from '@core/domain/spacedRepetition';
 import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
+import { loadReviewStates } from '@core/storage/reviewStateStorage';
+import { loadSessionHistory } from '@core/storage/sessionHistoryStorage';
 import { deleteSavedRange, loadSavedRanges, saveSavedRange } from '@core/storage/rangeStorage';
 import {
   ACTION_TYPES,
@@ -53,6 +56,8 @@ const SORTS: readonly { key: SortKey; label: string }[] = [
 export default function LibraryScreen() {
   const [ranges, setRanges] = useState<SavedRange[]>(() => loadSavedRanges());
   const [practiceStats, setPracticeStats] = useState(() => loadPracticeStats());
+  const [reviewStates, setReviewStates] = useState(() => loadReviewStates());
+  const [sessionHistory, setSessionHistory] = useState(() => loadSessionHistory());
   const [query, setQuery] = useState('');
   const [position, setPosition] = useState<Position | undefined>(undefined);
   const [actionType, setActionType] = useState<ActionType | undefined>(undefined);
@@ -64,10 +69,20 @@ export default function LibraryScreen() {
   const reload = useCallback(() => {
     setRanges(loadSavedRanges());
     setPracticeStats(loadPracticeStats());
+    setReviewStates(loadReviewStates());
+    setSessionHistory(loadSessionHistory());
   }, []);
 
-  // Reload whenever the screen regains focus (e.g. returning from the editor).
+  // Reload whenever the screen regains focus (e.g. returning from the editor or practice).
   useFocusEffect(reload);
+
+  // Spaced-repetition signals: the current practice streak across all ranges (from session
+  // timestamps) and, per card, whether a previously-reviewed range is due again now.
+  const now = new Date().toISOString();
+  const streak = useMemo(
+    () => currentStreak(Object.values(sessionHistory).flat().map((record) => record.playedAt), now),
+    [sessionHistory, now],
+  );
 
   // Search + metadata filters narrow the list; `ranges` stays the full loaded set.
   const filtered = useMemo(
@@ -156,6 +171,11 @@ export default function LibraryScreen() {
           ),
         }}
       />
+      {streak > 0 ? (
+        <Text testID="practice-streak" style={styles.streak}>
+          🔥 {streak}-day streak
+        </Text>
+      ) : null}
       {ranges.length > 0 ? (
         <>
           <TextInput
@@ -259,6 +279,10 @@ export default function LibraryScreen() {
         }
         renderItem={({ item }) => {
           const stats = practiceStats[item.id];
+          // Badge a range only once it has a review state and is due again — not the
+          // never-reviewed default (which would badge nearly everything).
+          const reviewState = reviewStates[item.id];
+          const due = reviewState !== undefined && isReviewDue(reviewState, now);
           return (
           <View testID={`range-row-${item.id}`} style={styles.row}>
             <Pressable
@@ -275,7 +299,14 @@ export default function LibraryScreen() {
             </Pressable>
             <Link href={{ pathname: '/editor', params: { id: item.id } }} asChild>
               <Pressable style={styles.rowMain}>
-                <Text style={styles.rowName}>{item.name || 'Untitled'}</Text>
+                <View style={styles.rowNameLine}>
+                  <Text style={styles.rowName}>{item.name || 'Untitled'}</Text>
+                  {due ? (
+                    <Text testID={`due-${item.id}`} style={styles.dueBadge}>
+                      Due
+                    </Text>
+                  ) : null}
+                </View>
                 <Text style={styles.rowMeta}>
                   {item.hands.length} hands · {calculateRangePercentage(item.hands).toFixed(1)}%
                 </Text>
@@ -336,6 +367,13 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontSize: 16,
     fontWeight: '600',
+  },
+  streak: {
+    color: colors.accent,
+    fontSize: 14,
+    fontWeight: '700',
+    paddingHorizontal: 16,
+    paddingTop: 12,
   },
   search: {
     margin: 16,
@@ -423,10 +461,25 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     gap: 4,
   },
+  rowNameLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   rowName: {
     color: colors.textStrong,
     fontSize: 16,
     fontWeight: '600',
+  },
+  dueBadge: {
+    color: colors.onAccent,
+    backgroundColor: colors.accent,
+    fontSize: 11,
+    fontWeight: '700',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    overflow: 'hidden',
   },
   rowMeta: {
     color: colors.text,

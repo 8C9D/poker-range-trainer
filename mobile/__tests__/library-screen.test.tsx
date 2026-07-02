@@ -3,6 +3,8 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 
 import { recordPracticeSession } from '@core/storage/practiceStatsStorage';
+import { saveReviewState } from '@core/storage/reviewStateStorage';
+import { recordPracticeSessionHistory } from '@core/storage/sessionHistoryStorage';
 import { loadSavedRanges, saveSavedRange } from '@core/storage/rangeStorage';
 import type { SavedRange } from '@core/types/range';
 
@@ -188,5 +190,56 @@ describe('LibraryScreen', () => {
     const { queryByTestId } = await render(<LibraryScreen />);
 
     expect(queryByTestId('range-stats-r1')).toBeNull();
+  });
+
+  it('badges a range that is due for review but not one scheduled in the future', async () => {
+    seed('r1', 'Due Range');
+    seed('r2', 'Future Range');
+    // r1's review came due long ago; r2 is scheduled far in the future.
+    saveReviewState({
+      rangeId: 'r1',
+      ease: 2.5,
+      intervalDays: 1,
+      dueAt: '2020-01-01T00:00:00.000Z',
+      lastReviewedAt: '2019-12-31T00:00:00.000Z',
+    });
+    saveReviewState({
+      rangeId: 'r2',
+      ease: 2.5,
+      intervalDays: 1,
+      dueAt: '2999-01-01T00:00:00.000Z',
+      lastReviewedAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    const { getByTestId, queryByTestId } = await render(<LibraryScreen />);
+
+    expect(getByTestId('due-r1')).toBeTruthy();
+    expect(queryByTestId('due-r2')).toBeNull();
+  });
+
+  it('shows a practice streak from recent session history', async () => {
+    seed('r1', 'UTG Open');
+    const today = new Date();
+    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+    recordPracticeSessionHistory('r1', { totalQuestions: 1, correctAnswers: 1 }, today.toISOString());
+    recordPracticeSessionHistory(
+      'r1',
+      { totalQuestions: 1, correctAnswers: 1 },
+      yesterday.toISOString(),
+    );
+
+    const { getByTestId } = await render(<LibraryScreen />);
+
+    // Streak count itself is computed by the tested @core currentStreak; assert the
+    // header surfaces (a >0 streak) rather than the exact clock-dependent number.
+    expect(getByTestId('practice-streak')).toBeTruthy();
+  });
+
+  it('shows no streak header when there is no session history', async () => {
+    seed('r1', 'UTG Open');
+
+    const { queryByTestId } = await render(<LibraryScreen />);
+
+    expect(queryByTestId('practice-streak')).toBeNull();
   });
 });

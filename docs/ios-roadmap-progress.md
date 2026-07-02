@@ -66,69 +66,78 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 31 | Swipe-to-answer + haptics on recognition practice | M5 | 2026-06-21 |
 | 32 | Practice session history (record on explicit End session + view) | M5 | 2026-06-21 |
 | 33 | Advance spaced-repetition schedule on End session | M5 | 2026-06-21 |
+| 34 | Due-for-review badge + practice streak on the library | M5 | 2026-06-21 |
 
 ## Next slice
 
-**Slice 34 — Due-for-review badge + practice streak on the library**
+**Slice 35 — Multi-action editor foundation: action palette + action grid (opens the M5
+multi-action cluster)**
 
-Milestone: M5 — Practice depth (web v2–v2.3). The *viewing* half of spaced repetition
-(slice 33 records the schedule; this surfaces it). Completes the spaced-repetition feature.
+Milestone: M5 — Practice depth (web v2–v2.3). This is the FIRST slice of the multi-action
+cluster (later slices: per-action accuracy practice / "ActionQuiz"; action notation
+import/export; and the mixed-frequency editor + quiz belong to M6). It lets a range tag each
+hand with a `RangeAction` (raise/call/fold/3-bet/…) — the `handActions` overlay — beyond the
+binary in/out grid.
 
-Context: `mobile/app/index.tsx` (the library/home screen) already loads `practiceStats` and
-renders per-range cards with sorts/filters. Slice 33 now writes per-range review states
-(`dueAt`) on End session, and session history holds per-session `playedAt` timestamps. This
-slice surfaces two spaced-repetition signals: a **streak** header and a **"Due"** badge on
-cards that are scheduled and now due.
+⚠️ DESIGN DECISION (confirm before building — flagged for the user): WHERE does action
+editing live on mobile? The binary editor (`mobile/app/editor.tsx`) is already long (name,
+stats bar, shortcuts, grid, notation, metadata, clear). Options: (1) **a dedicated "Edit
+actions" screen** reached from a button in the editor (RECOMMENDED — keeps each grid full-
+width and uncluttered; mirrors the web's separate `MultiActionEditor`); (2) integrate a
+second action grid + palette inline below the binary grid in `editor.tsx` (everything in one
+place, but a very long screen); (3) make actions a separate top-level entry from the library
+card. Recommended: option 1. Confirm before building; the components below are the same
+regardless of entry point.
 
 Reuse (verified, import — never copy):
-- `@core/domain/spacedRepetition` `isReviewDue(state: RangeReviewState, now: string):
-  boolean` (a never-scheduled `dueAt:''` is never due) and `currentStreak(reviewTimestamps:
-  string[], today: string): number` (consecutive UTC days with ≥1 review; empty ⇒ 0). Read
-  `src/domain/spacedRepetition.ts` to confirm.
-- `@core/storage/reviewStateStorage` `loadReviewStates()`; `@core/storage/sessionHistoryStorage`
-  `loadSessionHistory()` (flatten all records' `playedAt` for the streak).
+- `@core/types/range` `RANGE_ACTIONS`, `RANGE_ACTION_LABELS`, `type RangeAction`, and
+  `SavedRange.handActions?: Record<PokerHand, RangeAction>`.
+- `@core/domain/actionRange` `assignedHands(handActions)`, `handsForAction(handActions,
+  action)`, `actionRangePercentage(...)` (for live counts). Read `src/domain/actionRange.ts`
+  + `src/components/ActionPalette.tsx` / `ActionGrid.tsx` / `MultiActionEditor.tsx` to mirror.
+- `@core/domain/pokerHands` `generateHandMatrix` (reuse, as `HandGrid`/`HandHeatmap` do);
+  `@core/storage/rangeStorage` `findSavedRangeById` + `saveSavedRange`.
 
-Design note (intentional): use `isReviewDue` for the per-card badge — NOT `selectDueRanges`,
-which also counts never-reviewed ranges as "due" and would badge nearly every card on a
-fresh install. The badge should mean "you've practiced this and it's due again," the
-meaningful spaced-rep reminder. (If a "Due today" *filter* is wanted later, that can use
-`selectDueRanges`.)
+Task (mobile-only; reuse `@core`, do not edit `src/`) — recommended (option 1):
+- New `mobile/components/ActionPalette.tsx`: a labelled row of action chips from
+  `RANGE_ACTIONS`/`RANGE_ACTION_LABELS`; one is the active action (selected style); tapping
+  selects it. testIDs `action-chip-<action>`. (Model on `ChipRow`, but single-select with a
+  required value.)
+- New `mobile/components/ActionGrid.tsx`: a controlled 13×13 grid (reuse `generateHandMatrix`,
+  mirror `HandGrid`'s layout) where each cell shows the hand colored by its assigned action
+  (a per-action color map kept local to the component, UI-only); tapping a cell assigns the
+  active action, tapping an already-that-action cell clears it. Props: `{ handActions,
+  activeAction, onAssign(hand, action|null) }`. testIDs `action-cell-<hand>`. (Drag-paint can
+  come later; tap-to-assign is enough for this slice.)
+- New screen `mobile/app/action-editor.tsx` (route `/action-editor`, param `id`): load the
+  range, hold a `handActions` map in state, render `ActionPalette` + `ActionGrid` + a live
+  "N hands assigned" line (`assignedHands(...).length`), and live-save `handActions` onto the
+  range via `saveSavedRange` (preserve all other fields). Add an "Edit actions" `Link`
+  (`testID="edit-actions"`) in `editor.tsx` to `/action-editor?id=<draft.id>`.
+- Reuse `@core` for all action math; colors/labels are UI-only mobile.
 
-Task (mobile-only; reuse `@core`, do not edit `src/`):
-- In `index.tsx`, load review states + session history alongside `practiceStats` (add to the
-  same `useState` initializers and the `reload` callback so they refresh on focus). Compute
-  `now = new Date().toISOString()` per render.
-- Streak: `const streak = currentStreak(Object.values(loadSessionHistory()).flat().map(r =>
-  r.playedAt), now)` (memoize on the loaded history). When `streak > 0`, show a header line
-  (`testID="practice-streak"`) like "🔥 {streak}-day streak" above the list.
-- Due badge: for each card, when `reviewStates[item.id]` exists and `isReviewDue(it, now)`,
-  render a small "Due" badge (`testID={`due-${item.id}`}`) in the row. Style like the
-  existing stat/favorite accents; keep it unobtrusive.
-- Presentational + loads; do not change existing list/sort/filter logic or testIDs.
+Tests:
+- `mobile/__tests__/action-palette.test.tsx`: renders all `RANGE_ACTIONS` chips; tapping one
+  calls `onSelect` with that action.
+- `mobile/__tests__/action-grid.test.tsx`: tapping `action-cell-AA` calls `onAssign('AA',
+  activeAction)`; tapping it again (when already that action) calls `onAssign('AA', null)`.
+- `mobile/__tests__/action-editor-screen.test.tsx` (mock mmkv + expo-router; seed a range):
+  select an action, tap a hand cell, and assert the range's `handActions` persisted via
+  `loadSavedRanges`/`findSavedRangeById`. Use `userEvent` for multi-interaction (per the
+  editor test) and the RNTL hygiene notes ([[ios-mobile-toolchain]]).
 
-Tests (extend `mobile/__tests__/library-screen.test.tsx`; it already mocks mmkv + expo-router;
-import what you need from `@core`):
-- Due badge: seed a range, then write a review state with a past `dueAt` (import
-  `saveReviewState` + `seedReviewState`/build a `RangeReviewState` with `dueAt` =
-  `'2020-01-01T00:00:00.000Z'`, `lastReviewedAt` set). Render; assert `due-<id>` is shown.
-  Seed a second range with a far-future `dueAt`; assert its `due-<id>` is absent.
-- Streak: record two session-history entries (`recordPracticeSessionHistory`) dated today and
-  yesterday (pass explicit `playedAt`), render, and assert `practice-streak` shows. (Compute
-  "today"/"yesterday" from `new Date()` so it isn't clock-fragile, or assert the element is
-  present + contains "streak".)
-- RNTL hygiene: `await render`; `fireEvent` is fine for single interactions here.
-
-Files: modify `mobile/app/index.tsx`, `mobile/__tests__/library-screen.test.tsx`. No `src/`
-edits, no new dependency.
+Files: add `mobile/components/ActionPalette.tsx`, `mobile/components/ActionGrid.tsx`,
+`mobile/app/action-editor.tsx`, the three test files; modify `mobile/app/editor.tsx`. No
+`src/` edits, no new dependency.
 
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
 `npm run bundle-check` — all must pass.
 
-Constraints: reuse `@core` `isReviewDue` + `currentStreak` + review/history storage (no
-hand-rolled due/streak logic); badge uses `isReviewDue` (not `selectDueRanges`); UI stays in
-`mobile/app/`. Do not edit `src/`.
+Constraints: reuse `@core` action types + `actionRange` domain (no hand-rolled action math);
+new RN UI in `mobile/components/`, screen in `mobile/app/`; `handActions` persists through
+`@core` storage. Do not edit `src/`.
 
 Suggested commit message:
-`feat(ios): show due-for-review badge and practice streak in the library`
+`feat(ios): add a multi-action range editor (palette + action grid)`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
