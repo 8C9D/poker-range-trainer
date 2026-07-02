@@ -3,6 +3,7 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { generateHandMatrix, type PokerHand } from '@core/domain/pokerHands';
 import { loadHandAccuracy } from '@core/storage/handAccuracyStorage';
 import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
+import { loadReviewStates } from '@core/storage/reviewStateStorage';
 import { loadSessionHistory } from '@core/storage/sessionHistoryStorage';
 import { saveSavedRange } from '@core/storage/rangeStorage';
 
@@ -196,5 +197,22 @@ describe('PracticeScreen', () => {
     expect(records).toHaveLength(1);
     expect(records[0]).toMatchObject({ totalQuestions: 1, correctAnswers: 1 });
     expect(getByTestId('stat-total')).toHaveTextContent('Total: 0');
+  });
+
+  it('advances the spaced-repetition schedule on End session', async () => {
+    seedAllHandsRange();
+    const { getByTestId } = await render(<PracticeScreen />);
+
+    // One correct answer (100% accuracy), then end the session.
+    fireEvent.press(getByTestId('answer-in'));
+    await waitFor(() => expect(getByTestId('stat-total')).toHaveTextContent('Total: 1'));
+    fireEvent.press(getByTestId('end-session'));
+
+    // A high-accuracy first review schedules the range ~1 day out.
+    await waitFor(() => expect(loadReviewStates().r1).toBeDefined());
+    const review = loadReviewStates().r1;
+    expect(review.dueAt).not.toBe('');
+    expect(review.lastReviewedAt).not.toBe('');
+    expect(review.intervalDays).toBeGreaterThanOrEqual(1);
   });
 });

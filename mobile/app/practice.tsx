@@ -16,7 +16,9 @@ import {
   summarizeHandAccuracy,
   summarizePracticeAttempts,
 } from '@core/domain/practice';
+import { scheduleNextReview, seedReviewState } from '@core/domain/spacedRepetition';
 import { loadHandAccuracy, recordHandAccuracy } from '@core/storage/handAccuracyStorage';
+import { loadReviewStates, saveReviewState } from '@core/storage/reviewStateStorage';
 import { recordPracticeSession } from '@core/storage/practiceStatsStorage';
 import {
   loadSessionHistory,
@@ -101,7 +103,16 @@ export default function PracticeScreen() {
   // trigger because effect cleanup does not run on unmount in this setup.
   const endSession = useCallback(() => {
     if (!range) return;
-    recordPracticeSessionHistory(range.id, summarizePracticeAttempts(attempts));
+    const summary = summarizePracticeAttempts(attempts);
+    recordPracticeSessionHistory(range.id, summary);
+    // Advance this range's spaced-repetition schedule from the session's accuracy
+    // (only when something was answered), mirroring the web's handleEndPractice. Drives
+    // the due-today / streak view on the library (a later slice).
+    if (summary.totalQuestions > 0) {
+      const reviewedAt = new Date().toISOString();
+      const prev = loadReviewStates()[range.id] ?? seedReviewState(range.id);
+      saveReviewState(scheduleNextReview(prev, summary.accuracyPercentage, reviewedAt));
+    }
     setHistory(loadSessionHistory()[range.id] ?? []);
     setAttempts([]);
     setLastAttempt(null);

@@ -65,63 +65,70 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 30 | Timed drill practice mode | M5 | 2026-06-21 |
 | 31 | Swipe-to-answer + haptics on recognition practice | M5 | 2026-06-21 |
 | 32 | Practice session history (record on explicit End session + view) | M5 | 2026-06-21 |
+| 33 | Advance spaced-repetition schedule on End session | M5 | 2026-06-21 |
 
 ## Next slice
 
-**Slice 33 — Advance the spaced-repetition schedule on End session**
+**Slice 34 — Due-for-review badge + practice streak on the library**
 
-Milestone: M5 — Practice depth (web v2–v2.3). Reuses the now-established explicit
-"End session" trigger (slice 32, user-confirmed — see [[ios-session-end-trigger]]). This is
-the *recording* half of spaced repetition; the *viewing* half (due-today + streak on the
-library) is the next slice (34). Behavior slice — no visible UI change on this screen; the
-payoff is the due-today/streak view in slice 34 (like slices 24–25 persisted data before a
-later view consumed it).
+Milestone: M5 — Practice depth (web v2–v2.3). The *viewing* half of spaced repetition
+(slice 33 records the schedule; this surfaces it). Completes the spaced-repetition feature.
 
-Context: `mobile/app/practice.tsx`'s `endSession` callback already records session history
-and resets the session. The web's `handleEndPractice` additionally advances the range's
-spaced-repetition review state from the session's accuracy
-(`scheduleNextReview(prev, summary.accuracyPercentage, reviewedAt)`), persisted via
-`saveReviewState`. Mobile must do the same in `endSession`.
+Context: `mobile/app/index.tsx` (the library/home screen) already loads `practiceStats` and
+renders per-range cards with sorts/filters. Slice 33 now writes per-range review states
+(`dueAt`) on End session, and session history holds per-session `playedAt` timestamps. This
+slice surfaces two spaced-repetition signals: a **streak** header and a **"Due"** badge on
+cards that are scheduled and now due.
 
 Reuse (verified, import — never copy):
-- `@core/domain/spacedRepetition` `seedReviewState(rangeId): RangeReviewState` (first
-  review) and `scheduleNextReview(prev: RangeReviewState, accuracyPercentage: number,
-  reviewedAt: string): RangeReviewState` (low `<50` shrinks ease + 1-day interval; medium
-  `50–79` holds; high `>=80` grows ease + multiplies interval; sets `dueAt`).
-- `@core/storage/reviewStateStorage` `loadReviewStates(): Record<string, RangeReviewState>`
-  and `saveReviewState(state: RangeReviewState): void`.
-- `RangeReviewState` from `@core/types/practice` (`{ rangeId, ease, intervalDays, dueAt,
-  lastReviewedAt }`). Read `src/domain/spacedRepetition.ts` + `src/App.tsx` (handleEndPractice)
-  to mirror.
+- `@core/domain/spacedRepetition` `isReviewDue(state: RangeReviewState, now: string):
+  boolean` (a never-scheduled `dueAt:''` is never due) and `currentStreak(reviewTimestamps:
+  string[], today: string): number` (consecutive UTC days with ≥1 review; empty ⇒ 0). Read
+  `src/domain/spacedRepetition.ts` to confirm.
+- `@core/storage/reviewStateStorage` `loadReviewStates()`; `@core/storage/sessionHistoryStorage`
+  `loadSessionHistory()` (flatten all records' `playedAt` for the streak).
+
+Design note (intentional): use `isReviewDue` for the per-card badge — NOT `selectDueRanges`,
+which also counts never-reviewed ranges as "due" and would badge nearly every card on a
+fresh install. The badge should mean "you've practiced this and it's due again," the
+meaningful spaced-rep reminder. (If a "Due today" *filter* is wanted later, that can use
+`selectDueRanges`.)
 
 Task (mobile-only; reuse `@core`, do not edit `src/`):
-- In `endSession`, compute the summary once
-  (`const summary = summarizePracticeAttempts(attempts)`), record history with it, and —
-  only when `summary.totalQuestions > 0` (don't schedule an empty session) — advance the
-  schedule: `const reviewedAt = new Date().toISOString(); const prev =
-  loadReviewStates()[range.id] ?? seedReviewState(range.id);
-  saveReviewState(scheduleNextReview(prev, summary.accuracyPercentage, reviewedAt));`
-- Keep the existing history recording + session reset. No new UI, no changed testIDs.
+- In `index.tsx`, load review states + session history alongside `practiceStats` (add to the
+  same `useState` initializers and the `reload` callback so they refresh on focus). Compute
+  `now = new Date().toISOString()` per render.
+- Streak: `const streak = currentStreak(Object.values(loadSessionHistory()).flat().map(r =>
+  r.playedAt), now)` (memoize on the loaded history). When `streak > 0`, show a header line
+  (`testID="practice-streak"`) like "🔥 {streak}-day streak" above the list.
+- Due badge: for each card, when `reviewStates[item.id]` exists and `isReviewDue(it, now)`,
+  render a small "Due" badge (`testID={`due-${item.id}`}`) in the row. Style like the
+  existing stat/favorite accents; keep it unobtrusive.
+- Presentational + loads; do not change existing list/sort/filter logic or testIDs.
 
-Test (extend `mobile/__tests__/practice-screen.test.tsx`; import `loadReviewStates` from
-`@core/storage/reviewStateStorage`):
-- All-169-hands range: answer `answer-in` once (100% accuracy), `await` `stat-total`=1,
-  press `end-session`, then assert `loadReviewStates().r1` exists with a non-empty `dueAt`
-  and `intervalDays >= 1` (a high-accuracy first review schedules ~1 day out). Optionally
-  assert `lastReviewedAt` is non-empty.
-- RNTL hygiene: `await render`; `await` each press before the next.
+Tests (extend `mobile/__tests__/library-screen.test.tsx`; it already mocks mmkv + expo-router;
+import what you need from `@core`):
+- Due badge: seed a range, then write a review state with a past `dueAt` (import
+  `saveReviewState` + `seedReviewState`/build a `RangeReviewState` with `dueAt` =
+  `'2020-01-01T00:00:00.000Z'`, `lastReviewedAt` set). Render; assert `due-<id>` is shown.
+  Seed a second range with a far-future `dueAt`; assert its `due-<id>` is absent.
+- Streak: record two session-history entries (`recordPracticeSessionHistory`) dated today and
+  yesterday (pass explicit `playedAt`), render, and assert `practice-streak` shows. (Compute
+  "today"/"yesterday" from `new Date()` so it isn't clock-fragile, or assert the element is
+  present + contains "streak".)
+- RNTL hygiene: `await render`; `fireEvent` is fine for single interactions here.
 
-Files: modify `mobile/app/practice.tsx`, `mobile/__tests__/practice-screen.test.tsx`. No
-`src/` edits, no new dependency.
+Files: modify `mobile/app/index.tsx`, `mobile/__tests__/library-screen.test.tsx`. No `src/`
+edits, no new dependency.
 
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
 `npm run bundle-check` — all must pass.
 
-Constraints: reuse `@core` `scheduleNextReview` + `seedReviewState` + review storage (no
-hand-rolled scheduling); schedule only on End session with answered questions; UI/screen
-logic stays in `mobile/app/`. Do not edit `src/`.
+Constraints: reuse `@core` `isReviewDue` + `currentStreak` + review/history storage (no
+hand-rolled due/streak logic); badge uses `isReviewDue` (not `selectDueRanges`); UI stays in
+`mobile/app/`. Do not edit `src/`.
 
 Suggested commit message:
-`feat(ios): advance spaced-repetition schedule on session end`
+`feat(ios): show due-for-review badge and practice streak in the library`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
