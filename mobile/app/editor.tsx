@@ -59,7 +59,14 @@ export default function EditorScreen() {
       hydratedRef.current = true;
       return;
     }
+    // Merge the edited fields onto the *current stored* range (read fresh each save) so
+    // overlay fields this screen doesn't edit — handActions, favorite, archived, source,
+    // comboSelections, mixedStrategies, handNotes — are preserved instead of being dropped
+    // by saveSavedRange replacing the entry. Reading storage each save also picks up
+    // overlays written elsewhere (e.g. the action editor) while this screen was open.
+    const existing = findSavedRangeById(draft.id);
     saveSavedRange({
+      ...(existing ?? {}),
       id: draft.id,
       name,
       hands: [...selected],

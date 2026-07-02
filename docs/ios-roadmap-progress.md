@@ -68,67 +68,77 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 33 | Advance spaced-repetition schedule on End session | M5 | 2026-06-21 |
 | 34 | Due-for-review badge + practice streak on the library | M5 | 2026-06-21 |
 | 35 | Multi-action editor foundation (palette + action grid + screen) | M5 | 2026-06-21 |
+| 36 | Preserve overlay fields when saving from the binary editor (fix) | M5 | 2026-06-21 |
 
 ## Next slice
 
-**Slice 36 — Preserve overlay fields when saving from the binary editor (bug fix)**
+**Slice 37 — Action quiz practice mode ("what's the correct action?")**
 
-Milestone: M5 — Practice depth (housekeeping that protects the slice-35 multi-action
-feature). Found while building slice 35.
+Milestone: M5 — Practice depth (web v2–v2.3). Continues the multi-action cluster (slice 35
+built the editor; slice 36 protected its persistence). Adds the per-action practice mode as a
+fourth option in the practice-mode picker.
 
-Bug: `mobile/app/editor.tsx`'s live-save reconstructs the range from a 6-field snapshot
-(`{ id, name, hands, createdAt, updatedAt, metadata }`) and `saveSavedRange` *replaces* the
-stored entry — so every other field is dropped on save. That means editing a range in the
-binary editor strips `handActions` (the slice-35 action overlay), `favorite`, `archived`,
-`source`, `comboSelections`, `mixedStrategies`, and `handNotes`. Concretely: assign actions
-→ go back → toggle one hand in the binary grid → actions gone; or favorite a range → edit it
-→ favorite lost. This is pre-existing (predates multi-action) but slice 35 makes it visible.
+Context: a range can now tag hands with actions (`handActions`). This mode quizzes the user:
+show a hand the chart assigns, the user picks an action, score against the correct one. Only
+hands the chart assigns are quizzed. Mirrors recognition practice's per-answer recording but
+over actions.
 
-Fix (mobile-only; reuse `@core`, do not edit `src/`): merge the editable fields onto the
-*current stored* range at save time instead of building a bare object. In the editor's
-live-save effect:
-```
-const existing = findSavedRangeById(draft.id);
-saveSavedRange({
-  ...existing,                       // preserve favorite/archived/handActions/source/…
-  id: draft.id,
-  name,
-  hands: [...selected],
-  createdAt: draft.createdAt,
-  updatedAt: new Date().toISOString(),
-  metadata,
-});
-```
-`existing` is `undefined` on a brand-new range's first save — spreading `undefined` is fine
-(`{ ...undefined }` is `{}`), but TS-narrow it (`...(existing ?? {})`) if the spread type
-complains. Reading the current stored range each save (rather than a mount snapshot) also
-means overlay fields written by the action editor after this screen mounted are picked up.
-Keep everything else (the hydratedRef first-run skip, the field set being edited) unchanged.
+Reuse (verified, import — never copy):
+- `@core/domain/actionRange` `assignedHands(handActions): PokerHand[]` (the prompt pool),
+  `correctActionFor(handActions, hand): RangeAction` (the expected action),
+  `summarizeActionAccuracy(attempts: ActionAttempt[]): ActionAccuracyStat[]`, and
+  `actionAccuracyRate(stat)`. Read `src/domain/actionRange.ts` + `src/components/ActionQuiz.tsx`.
+- `@core/domain/practice` `getRandomHandFrom(pool, random?)` (draw from the assigned pool).
+- `@core/storage/actionAccuracyStorage` `recordActionAccuracy(rangeId, actionStats)` +
+  `loadActionAccuracy()`.
+- `@core/types/practice` `ActionAttempt` = `{ hand, chosen, expected, correct }` (built
+  inline — there is NO `createActionAttempt` helper; compute `expected =
+  correctActionFor(...)`, `correct = chosen === expected`).
+- `@core/types/range` `RANGE_ACTIONS`, `RANGE_ACTION_LABELS`, `RangeAction`;
+  `@core/storage/rangeStorage` `findSavedRangeById`.
 
-Test (extend `mobile/__tests__/editor-screen.test.tsx`):
-- Seed a range with `id 'r1'` that has `favorite: true` and `handActions: { AA: 'raise' }`
-  (use `saveSavedRange` in the test; the expo-router mock already returns no id, so to edit
-  an existing range either (a) point the mock's `useLocalSearchParams` at `{ id: 'r1' }` in a
-  scoped test/describe, or (b) add a second test file — simplest is a new
-  `mobile/__tests__/editor-preserves-overlay.test.tsx` with the id-mock set to `r1`).
-  Render the editor, toggle a hand (e.g. press `hand-cell-KK`), then assert via
-  `findSavedRangeById('r1')` that `favorite === true` and `handActions.AA === 'raise'` still
-  hold and `KK` is now in `hands`.
-- RNTL hygiene: `await render`; `userEvent` for the interaction; `await waitFor`.
+Task (mobile-only; reuse `@core`, do not edit `src/`):
+- New screen `mobile/app/action-quiz.tsx` (route `/action-quiz`, param `id`): load the range;
+  `handActions = range.handActions ?? {}`; `pool = assignedHands(handActions)`. When the pool
+  is empty, show a message (`testID="no-actions"`, e.g. "No actions assigned — add some in
+  Edit actions") and no quiz. Otherwise hold `hand` (drawn via `getRandomHandFrom(pool)`) and
+  `attempts: ActionAttempt[]`.
+- Render the hand (`testID="quiz-hand"`) and a row of action buttons from `RANGE_ACTIONS`
+  (`testID={`quiz-action-<action>`}`). On press: `expected = correctActionFor(handActions,
+  hand)`; `attempt = { hand, chosen, expected, correct: chosen === expected }`; append; show
+  feedback (`testID="quiz-feedback"`, e.g. "Correct" / "Incorrect — AKs is a 3-bet"); draw the
+  next hand from the pool; record per answer via `recordActionAccuracy(range.id,
+  summarizeActionAccuracy([attempt]))`. Show running total/correct/accuracy
+  (`stat-total`/`stat-correct`/`stat-accuracy`, computed from attempts).
+- Add a fourth mode to `mobile/app/practice-modes.tsx`: `Link` to `/action-quiz?id=` with
+  `testID="mode-action-quiz"`, title "Action quiz", desc "Name the correct action for each
+  hand."
+- Reuse `@core`; no new dependency.
 
-Files: modify `mobile/app/editor.tsx`; add/extend a test
-(`mobile/__tests__/editor-preserves-overlay.test.tsx` recommended so the `id` mock is
-isolated). No `src/` edits, no new dependency.
+Tests:
+- New `mobile/__tests__/action-quiz-screen.test.tsx` (mock mmkv + expo-router; seed a range
+  with `handActions: { AA: 'raise', KK: 'raise', ... }` — assign a few hands all to one action
+  so the pool is non-empty and the expected action is known). Read `quiz-hand`, press the
+  matching `quiz-action-raise`, assert `quiz-feedback` shows "Correct" and `stat-correct`
+  increments; press a wrong action on the next hand and assert it scores incorrect. Assert
+  `loadActionAccuracy().<id>` recorded attempts. Also: seed a range with NO handActions, assert
+  `no-actions` shows and `quiz-hand` is absent.
+- Extend `mobile/__tests__/practice-modes-screen.test.tsx`: assert `mode-action-quiz` renders.
+- RNTL hygiene ([[ios-mobile-toolchain]]): `await render`; `await` each press (waitFor on a
+  resulting stat) before the next; `toHaveTextContent` is exact.
+
+Files: add `mobile/app/action-quiz.tsx`, `mobile/__tests__/action-quiz-screen.test.tsx`;
+modify `mobile/app/practice-modes.tsx`, `mobile/__tests__/practice-modes-screen.test.tsx`. No
+`src/` edits, no new dependency.
 
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
 `npm run bundle-check` — all must pass.
 
-Constraints: merge onto the current stored range via `@core` storage (no field-by-field
-hand-copying beyond what's edited); keep the editor's existing behavior otherwise. Do not
-edit `src/`.
+Constraints: reuse `@core` `assignedHands` + `correctActionFor` + `summarizeActionAccuracy` +
+action storage (no hand-rolled action scoring); screen in `mobile/app/`. Do not edit `src/`.
 
 Suggested commit message:
-`fix(ios): preserve action/favorite/archive overlays when editing a range`
+`feat(ios): add an action quiz practice mode`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
 
@@ -136,11 +146,8 @@ Suggested commit message:
 
 ## Deferred / candidate slices (not yet queued)
 
-- **Per-action accuracy practice ("ActionQuiz")** — a practice mode over `assignedHands` that
-  asks "what's the correct action?" reusing `@core/domain/actionRange` `correctActionFor` +
-  `summarizeActionAccuracy`; add to the practice-mode picker.
 - **Action notation import/export** — `formatActionNotation` / `parseActionNotation` UI on the
-  action editor (clipboard via `expo-clipboard`, as `RangeNotation` does).
+  action editor (clipboard via `expo-clipboard`, as `RangeNotation` does). Likely completes M5.
 - **Weakness-focused drill** — likely redundant with the slice-27 mistakes-only toggle;
   reconsider whether it adds value before building.
 - After these, **M6 — Advanced training** (board texture, made-hand/draw categorization,
