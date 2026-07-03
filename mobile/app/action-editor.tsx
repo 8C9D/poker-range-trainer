@@ -8,6 +8,7 @@ import { findSavedRangeById, saveSavedRange } from '@core/storage/rangeStorage';
 import type { RangeAction } from '@core/types/range';
 
 import { ActionGrid } from '../components/ActionGrid';
+import { ActionNotation } from '../components/ActionNotation';
 import { ActionPalette } from '../components/ActionPalette';
 import { colors } from '../theme/colors';
 
@@ -68,6 +69,7 @@ export default function ActionEditorScreen() {
       <Text testID="assigned-count" style={styles.count}>
         {assignedHands(handActions).length} hands assigned
       </Text>
+      <ActionNotation handActions={handActions} onReplaceActions={setHandActions} />
     </ScrollView>
   );
 }

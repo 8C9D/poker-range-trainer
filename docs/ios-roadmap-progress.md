@@ -70,62 +70,64 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 35 | Multi-action editor foundation (palette + action grid + screen) | M5 | 2026-06-21 |
 | 36 | Preserve overlay fields when saving from the binary editor (fix) | M5 | 2026-06-21 |
 | 37 | Action quiz practice mode (per-action accuracy) | M5 | 2026-06-21 |
+| 38 | Action notation import/export on the action editor | M5 | 2026-06-21 |
+
+**M5 — Practice depth: COMPLETE** (slices 23–38). The full training suite is on device:
+mistakes review, per-range/per-hand stats, weakest-hands, mistakes-only drill, accuracy
+heatmap, build-from-memory, practice-mode picker, timed drill, swipe-to-answer + haptics,
+session history, spaced repetition (record + due-badge + streak), and the multi-action
+cluster (editor, quiz, notation). The next slice opens **M6 — Advanced training (postflop)**.
 
 ## Next slice
 
-**Slice 38 — Action notation import/export on the action editor (completes M5)**
+**Slice 39 — Board input + flop texture tagging (opens M6 — Advanced training / postflop)**
 
-Milestone: M5 — Practice depth (web v2–v2.3). Last slice of the multi-action cluster; with it,
-**M5 is complete** (the next slice opens M6 — Advanced training).
+Milestone: M6 — Advanced training (web v4–v5). FIRST M6 slice. M6 is the postflop milestone:
+board texture, made-hand/draw categorization, range-vs-board, postflop decision practice,
+combo/blocker depth, mixed-frequency editor + quiz + notation, range diff, per-hand notes,
+CSV import. All the domain logic already exists in `@core` (`src/domain/boardTexture.ts`,
+`handCategory.ts`, `rangeVsBoard.ts`, `postflopScenario.ts`, `combos.ts`, `comboSelection.ts`,
+`blockerPractice.ts`, `mixedStrategy.ts`, `mixedNotation.ts`) — M6 is a reuse-and-re-author
+port, same as M2–M5.
 
-Context: `mobile/app/action-editor.tsx` (slice 35) edits `handActions` via the palette + grid.
-This adds a text import/export panel for the action overlay, the action-grouped parallel of
-the binary `RangeNotation` component (slice 14). Reuse the existing `RangeNotation` mobile
-component as the structural template.
+⚠️ DESIGN DECISION (confirm before building — this opens a whole new app area): postflop is a
+new surface the app has not had. TWO things to settle:
+  1. **Where postflop lives.** A new top-level "Postflop" tab/section? A new entry from the
+     practice-mode picker? A standalone "Board explorer" screen reached from the library? The
+     later M6 slices (range-vs-board, postflop practice) build on this, so the placement should
+     anticipate them. (Lean: a dedicated **"Board explorer" screen** — enter a flop, see its
+     texture + later its range interaction — reachable from a top-level entry; revisit when
+     range-vs-board lands.)
+  2. **Board-card input UX.** Entering a 3-card flop on mobile (rank × suit pickers? a tappable
+     card menu? text like "AhKd7s"?). `@core` likely has a card parser — check
+     `src/domain/cards.ts` / `boardTexture.ts` for the `Card` type + any `parseCard`/`parseBoard`
+     helper and reuse it; the slice's new work is the RN picker UI, not card logic.
+Confirm both before building (and the broader M6 scope/appetite — it's a large milestone).
 
 Reuse (verified, import — never copy):
-- `@core/domain/actionRange` `formatActionNotation(handActions): string` (one
-  `"{Label}: {hands}"` line per action with hands, canonical order; "" when empty) and
-  `parseActionNotation(input): Record<PokerHand, RangeAction>` (inverse; THROWS on a line
-  without a colon, an unknown action label, invalid hand notation, or a hand assigned to two
-  actions — surface the message). Read `src/domain/actionRange.ts`.
-- `expo-clipboard` (already a dependency, used by `mobile/components/RangeNotation.tsx`).
+- `@core/domain/boardTexture` `FLOP_TEXTURE_TAGS`, `type FlopTextureTag`,
+  `tagFlopTexture(board: Card[]): FlopTextureTag[]`. Find the `Card` type and any card-parsing
+  helper it imports (read `src/domain/boardTexture.ts` and follow the import) — reuse them.
 
-Task (mobile-only; reuse `@core`, do not edit `src/`):
-- New `mobile/components/ActionNotation.tsx` modeled on `RangeNotation.tsx`: props
-  `{ handActions: Record<PokerHand, RangeAction>; onReplaceActions: (handActions:
-  Record<PokerHand, RangeAction>) => void }`. Read-only "Current actions" = `formatActionNotation`
-  (`testID="action-notation-current"`, with a `action-notation-copy` button). A multiline input
-  (`testID="action-notation-input"`), a `action-notation-paste` button, and an
-  `action-notation-apply` button that runs `parseActionNotation(input)` and calls
-  `onReplaceActions` on success, or shows the thrown message in `action-notation-error` on
-  failure (leaving the current overlay untouched, exactly like `RangeNotation`).
-- In `action-editor.tsx`, render `<ActionNotation handActions={handActions}
-  onReplaceActions={setHandActions} />` (below the grid / count). Applying notation replaces
-  the overlay, which the existing live-save effect then persists.
-- Reuse `@core` for all formatting/parsing; clipboard wiring mirrors `RangeNotation`.
+Task (mobile-only; reuse `@core`, do not edit `src/`) — sketch (refine after the decision):
+- A board-input control (3 cards) using the reused `Card` representation, and a display of
+  `tagFlopTexture(board)` as labelled tags once a full, valid flop is entered. Placed per the
+  decision (lean: new `mobile/app/board.tsx` "Board explorer", reachable from a top-level link).
+- Tests: a unit test of the input→`tagFlopTexture` wiring (e.g. enter a known monotone/paired
+  flop, assert the expected tags render); component test for the card picker.
+- Reuse `@core` for ALL board/texture logic (no hand-rolled card parsing or texture rules).
 
-Tests:
-- New `mobile/__tests__/action-notation.test.tsx` (mock `expo-clipboard` like
-  `editor-screen.test.tsx`): render with a `handActions` map; assert `action-notation-current`
-  shows the formatted text (e.g. contains "Raise:"). Type valid notation (e.g. "Call: 22\nRaise:
-  AA") into the input, press Apply, and assert `onReplaceActions` was called with the parsed map
-  (`{ '22': 'call', AA: 'raise' }`). Type invalid notation (e.g. "Nonsense") and assert
-  `action-notation-error` appears and `onReplaceActions` was NOT called again.
-- RNTL hygiene ([[ios-mobile-toolchain]]): `await render`; `fireEvent.changeText` + press;
-  `toHaveTextContent` is exact (assert a substring via a scoped element or a regex matcher).
-
-Files: add `mobile/components/ActionNotation.tsx`, `mobile/__tests__/action-notation.test.tsx`;
-modify `mobile/app/action-editor.tsx`. No `src/` edits, no new dependency.
+Files: add `mobile/app/board.tsx` (+ a card-picker component) + tests; wire an entry point. No
+`src/` edits unless a tiny behavior-preserving seam is unavoidable (then run the web trio too).
 
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
-`npm run bundle-check` — all must pass.
+`npm run bundle-check` — all must pass. (If `src/` is touched, also the web trio.)
 
-Constraints: reuse `@core` `formatActionNotation` + `parseActionNotation` (no hand-rolled
-action notation); model on `RangeNotation`; UI in `mobile/components/`. Do not edit `src/`.
+Constraints: reuse `@core` board/texture domain; new RN UI in `mobile/components/`, screen in
+`mobile/app/`. Do not edit `src/`.
 
 Suggested commit message:
-`feat(ios): add action notation import/export to the action editor`
+`feat(ios): add board input and flop texture tagging`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
 
@@ -135,6 +137,5 @@ Suggested commit message:
 
 - **Weakness-focused drill** — likely redundant with the slice-27 mistakes-only toggle;
   reconsider whether it adds value before building.
-- After M5, **M6 — Advanced training** (board texture, made-hand/draw categorization,
-  range-vs-board, postflop practice, combo/blocker depth, mixed-frequency editor + quiz +
-  notation, range diff, per-hand notes, CSV import).
+- **Per-hand notes** (M6) — `SavedRange.handNotes` already exists in `@core`; a notes editor on
+  the (action or binary) editor is a small, self-contained M6 slice that needs no postflop UX.
