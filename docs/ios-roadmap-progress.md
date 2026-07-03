@@ -69,76 +69,63 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 34 | Due-for-review badge + practice streak on the library | M5 | 2026-06-21 |
 | 35 | Multi-action editor foundation (palette + action grid + screen) | M5 | 2026-06-21 |
 | 36 | Preserve overlay fields when saving from the binary editor (fix) | M5 | 2026-06-21 |
+| 37 | Action quiz practice mode (per-action accuracy) | M5 | 2026-06-21 |
 
 ## Next slice
 
-**Slice 37 — Action quiz practice mode ("what's the correct action?")**
+**Slice 38 — Action notation import/export on the action editor (completes M5)**
 
-Milestone: M5 — Practice depth (web v2–v2.3). Continues the multi-action cluster (slice 35
-built the editor; slice 36 protected its persistence). Adds the per-action practice mode as a
-fourth option in the practice-mode picker.
+Milestone: M5 — Practice depth (web v2–v2.3). Last slice of the multi-action cluster; with it,
+**M5 is complete** (the next slice opens M6 — Advanced training).
 
-Context: a range can now tag hands with actions (`handActions`). This mode quizzes the user:
-show a hand the chart assigns, the user picks an action, score against the correct one. Only
-hands the chart assigns are quizzed. Mirrors recognition practice's per-answer recording but
-over actions.
+Context: `mobile/app/action-editor.tsx` (slice 35) edits `handActions` via the palette + grid.
+This adds a text import/export panel for the action overlay, the action-grouped parallel of
+the binary `RangeNotation` component (slice 14). Reuse the existing `RangeNotation` mobile
+component as the structural template.
 
 Reuse (verified, import — never copy):
-- `@core/domain/actionRange` `assignedHands(handActions): PokerHand[]` (the prompt pool),
-  `correctActionFor(handActions, hand): RangeAction` (the expected action),
-  `summarizeActionAccuracy(attempts: ActionAttempt[]): ActionAccuracyStat[]`, and
-  `actionAccuracyRate(stat)`. Read `src/domain/actionRange.ts` + `src/components/ActionQuiz.tsx`.
-- `@core/domain/practice` `getRandomHandFrom(pool, random?)` (draw from the assigned pool).
-- `@core/storage/actionAccuracyStorage` `recordActionAccuracy(rangeId, actionStats)` +
-  `loadActionAccuracy()`.
-- `@core/types/practice` `ActionAttempt` = `{ hand, chosen, expected, correct }` (built
-  inline — there is NO `createActionAttempt` helper; compute `expected =
-  correctActionFor(...)`, `correct = chosen === expected`).
-- `@core/types/range` `RANGE_ACTIONS`, `RANGE_ACTION_LABELS`, `RangeAction`;
-  `@core/storage/rangeStorage` `findSavedRangeById`.
+- `@core/domain/actionRange` `formatActionNotation(handActions): string` (one
+  `"{Label}: {hands}"` line per action with hands, canonical order; "" when empty) and
+  `parseActionNotation(input): Record<PokerHand, RangeAction>` (inverse; THROWS on a line
+  without a colon, an unknown action label, invalid hand notation, or a hand assigned to two
+  actions — surface the message). Read `src/domain/actionRange.ts`.
+- `expo-clipboard` (already a dependency, used by `mobile/components/RangeNotation.tsx`).
 
 Task (mobile-only; reuse `@core`, do not edit `src/`):
-- New screen `mobile/app/action-quiz.tsx` (route `/action-quiz`, param `id`): load the range;
-  `handActions = range.handActions ?? {}`; `pool = assignedHands(handActions)`. When the pool
-  is empty, show a message (`testID="no-actions"`, e.g. "No actions assigned — add some in
-  Edit actions") and no quiz. Otherwise hold `hand` (drawn via `getRandomHandFrom(pool)`) and
-  `attempts: ActionAttempt[]`.
-- Render the hand (`testID="quiz-hand"`) and a row of action buttons from `RANGE_ACTIONS`
-  (`testID={`quiz-action-<action>`}`). On press: `expected = correctActionFor(handActions,
-  hand)`; `attempt = { hand, chosen, expected, correct: chosen === expected }`; append; show
-  feedback (`testID="quiz-feedback"`, e.g. "Correct" / "Incorrect — AKs is a 3-bet"); draw the
-  next hand from the pool; record per answer via `recordActionAccuracy(range.id,
-  summarizeActionAccuracy([attempt]))`. Show running total/correct/accuracy
-  (`stat-total`/`stat-correct`/`stat-accuracy`, computed from attempts).
-- Add a fourth mode to `mobile/app/practice-modes.tsx`: `Link` to `/action-quiz?id=` with
-  `testID="mode-action-quiz"`, title "Action quiz", desc "Name the correct action for each
-  hand."
-- Reuse `@core`; no new dependency.
+- New `mobile/components/ActionNotation.tsx` modeled on `RangeNotation.tsx`: props
+  `{ handActions: Record<PokerHand, RangeAction>; onReplaceActions: (handActions:
+  Record<PokerHand, RangeAction>) => void }`. Read-only "Current actions" = `formatActionNotation`
+  (`testID="action-notation-current"`, with a `action-notation-copy` button). A multiline input
+  (`testID="action-notation-input"`), a `action-notation-paste` button, and an
+  `action-notation-apply` button that runs `parseActionNotation(input)` and calls
+  `onReplaceActions` on success, or shows the thrown message in `action-notation-error` on
+  failure (leaving the current overlay untouched, exactly like `RangeNotation`).
+- In `action-editor.tsx`, render `<ActionNotation handActions={handActions}
+  onReplaceActions={setHandActions} />` (below the grid / count). Applying notation replaces
+  the overlay, which the existing live-save effect then persists.
+- Reuse `@core` for all formatting/parsing; clipboard wiring mirrors `RangeNotation`.
 
 Tests:
-- New `mobile/__tests__/action-quiz-screen.test.tsx` (mock mmkv + expo-router; seed a range
-  with `handActions: { AA: 'raise', KK: 'raise', ... }` — assign a few hands all to one action
-  so the pool is non-empty and the expected action is known). Read `quiz-hand`, press the
-  matching `quiz-action-raise`, assert `quiz-feedback` shows "Correct" and `stat-correct`
-  increments; press a wrong action on the next hand and assert it scores incorrect. Assert
-  `loadActionAccuracy().<id>` recorded attempts. Also: seed a range with NO handActions, assert
-  `no-actions` shows and `quiz-hand` is absent.
-- Extend `mobile/__tests__/practice-modes-screen.test.tsx`: assert `mode-action-quiz` renders.
-- RNTL hygiene ([[ios-mobile-toolchain]]): `await render`; `await` each press (waitFor on a
-  resulting stat) before the next; `toHaveTextContent` is exact.
+- New `mobile/__tests__/action-notation.test.tsx` (mock `expo-clipboard` like
+  `editor-screen.test.tsx`): render with a `handActions` map; assert `action-notation-current`
+  shows the formatted text (e.g. contains "Raise:"). Type valid notation (e.g. "Call: 22\nRaise:
+  AA") into the input, press Apply, and assert `onReplaceActions` was called with the parsed map
+  (`{ '22': 'call', AA: 'raise' }`). Type invalid notation (e.g. "Nonsense") and assert
+  `action-notation-error` appears and `onReplaceActions` was NOT called again.
+- RNTL hygiene ([[ios-mobile-toolchain]]): `await render`; `fireEvent.changeText` + press;
+  `toHaveTextContent` is exact (assert a substring via a scoped element or a regex matcher).
 
-Files: add `mobile/app/action-quiz.tsx`, `mobile/__tests__/action-quiz-screen.test.tsx`;
-modify `mobile/app/practice-modes.tsx`, `mobile/__tests__/practice-modes-screen.test.tsx`. No
-`src/` edits, no new dependency.
+Files: add `mobile/components/ActionNotation.tsx`, `mobile/__tests__/action-notation.test.tsx`;
+modify `mobile/app/action-editor.tsx`. No `src/` edits, no new dependency.
 
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
 `npm run bundle-check` — all must pass.
 
-Constraints: reuse `@core` `assignedHands` + `correctActionFor` + `summarizeActionAccuracy` +
-action storage (no hand-rolled action scoring); screen in `mobile/app/`. Do not edit `src/`.
+Constraints: reuse `@core` `formatActionNotation` + `parseActionNotation` (no hand-rolled
+action notation); model on `RangeNotation`; UI in `mobile/components/`. Do not edit `src/`.
 
 Suggested commit message:
-`feat(ios): add an action quiz practice mode`
+`feat(ios): add action notation import/export to the action editor`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
 
@@ -146,10 +133,8 @@ Suggested commit message:
 
 ## Deferred / candidate slices (not yet queued)
 
-- **Action notation import/export** — `formatActionNotation` / `parseActionNotation` UI on the
-  action editor (clipboard via `expo-clipboard`, as `RangeNotation` does). Likely completes M5.
 - **Weakness-focused drill** — likely redundant with the slice-27 mistakes-only toggle;
   reconsider whether it adds value before building.
-- After these, **M6 — Advanced training** (board texture, made-hand/draw categorization,
+- After M5, **M6 — Advanced training** (board texture, made-hand/draw categorization,
   range-vs-board, postflop practice, combo/blocker depth, mixed-frequency editor + quiz +
   notation, range diff, per-hand notes, CSV import).

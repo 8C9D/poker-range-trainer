@@ -34,6 +34,12 @@ export default function PracticeModesScreen() {
           <Text style={styles.modeDesc}>Answer as many as you can before the clock runs out.</Text>
         </Pressable>
       </Link>
+      <Link href={{ pathname: '/action-quiz', params: { id: idParam } }} asChild>
+        <Pressable testID="mode-action-quiz" accessibilityRole="button" style={styles.mode}>
+          <Text style={styles.modeTitle}>Action quiz</Text>
+          <Text style={styles.modeDesc}>Name the correct action for each hand.</Text>
+        </Pressable>
+      </Link>
     </View>
   );
 }
