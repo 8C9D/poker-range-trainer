@@ -71,63 +71,72 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 36 | Preserve overlay fields when saving from the binary editor (fix) | M5 | 2026-06-21 |
 | 37 | Action quiz practice mode (per-action accuracy) | M5 | 2026-06-21 |
 | 38 | Action notation import/export on the action editor | M5 | 2026-06-21 |
+| 39 | Board explorer: board input + flop texture tagging (opens M6) | M6 | 2026-06-21 |
 
 **M5 — Practice depth: COMPLETE** (slices 23–38). The full training suite is on device:
 mistakes review, per-range/per-hand stats, weakest-hands, mistakes-only drill, accuracy
 heatmap, build-from-memory, practice-mode picker, timed drill, swipe-to-answer + haptics,
 session history, spaced repetition (record + due-badge + streak), and the multi-action
-cluster (editor, quiz, notation). The next slice opens **M6 — Advanced training (postflop)**.
+cluster (editor, quiz, notation). **M6 — Advanced training (postflop)** has begun with the
+board explorer (slice 39).
 
 ## Next slice
 
-**Slice 39 — Board input + flop texture tagging (opens M6 — Advanced training / postflop)**
+**Slice 40 — Range-vs-board overlay on the board explorer**
 
-Milestone: M6 — Advanced training (web v4–v5). FIRST M6 slice. M6 is the postflop milestone:
-board texture, made-hand/draw categorization, range-vs-board, postflop decision practice,
-combo/blocker depth, mixed-frequency editor + quiz + notation, range diff, per-hand notes,
-CSV import. All the domain logic already exists in `@core` (`src/domain/boardTexture.ts`,
-`handCategory.ts`, `rangeVsBoard.ts`, `postflopScenario.ts`, `combos.ts`, `comboSelection.ts`,
-`blockerPractice.ts`, `mixedStrategy.ts`, `mixedNotation.ts`) — M6 is a reuse-and-re-author
-port, same as M2–M5.
+Milestone: M6 — Advanced training (web v4–v5). Builds directly on slice 39 (the board
+explorer) — the payoff its preview promised ("later: range-vs-board overlay"). User confirmed
+the board-explorer direction for M6.
 
-⚠️ DESIGN DECISION (confirm before building — this opens a whole new app area): postflop is a
-new surface the app has not had. TWO things to settle:
-  1. **Where postflop lives.** A new top-level "Postflop" tab/section? A new entry from the
-     practice-mode picker? A standalone "Board explorer" screen reached from the library? The
-     later M6 slices (range-vs-board, postflop practice) build on this, so the placement should
-     anticipate them. (Lean: a dedicated **"Board explorer" screen** — enter a flop, see its
-     texture + later its range interaction — reachable from a top-level entry; revisit when
-     range-vs-board lands.)
-  2. **Board-card input UX.** Entering a 3-card flop on mobile (rank × suit pickers? a tappable
-     card menu? text like "AhKd7s"?). `@core` likely has a card parser — check
-     `src/domain/cards.ts` / `boardTexture.ts` for the `Card` type + any `parseCard`/`parseBoard`
-     helper and reuse it; the slice's new work is the RN picker UI, not card logic.
-Confirm both before building (and the broader M6 scope/appetite — it's a large milestone).
+Context: `mobile/app/board.tsx` enters a 3-card flop and shows its texture tags. This slice
+adds: pick one saved range, and once a full valid flop is entered, show how that range hits
+the board — combo counts per made-hand/draw category — reusing the tested bucketer.
 
 Reuse (verified, import — never copy):
-- `@core/domain/boardTexture` `FLOP_TEXTURE_TAGS`, `type FlopTextureTag`,
-  `tagFlopTexture(board: Card[]): FlopTextureTag[]`. Find the `Card` type and any card-parsing
-  helper it imports (read `src/domain/boardTexture.ts` and follow the import) — reuse them.
+- `@core/domain/rangeVsBoard` `bucketRangeOnBoard(hands: PokerHand[], flop: Card[]):
+  Record<HandCategory, number>` — expands each hand class to combos, drops board-blocked
+  combos, categorizes the rest, and tallies per category (a combo can count to several). Read
+  `src/domain/rangeVsBoard.ts`.
+- `@core/domain/handCategory` `HAND_CATEGORIES` (order: set, trips, twoPair, overpair, topPair,
+  middlePair, bottomPair, pair, flushDraw, straightDraw, air), `type HandCategory`.
+- `@core/storage/rangeStorage` `loadSavedRanges`; the `Card`/board state already in `board.tsx`.
 
-Task (mobile-only; reuse `@core`, do not edit `src/`) — sketch (refine after the decision):
-- A board-input control (3 cards) using the reused `Card` representation, and a display of
-  `tagFlopTexture(board)` as labelled tags once a full, valid flop is entered. Placed per the
-  decision (lean: new `mobile/app/board.tsx` "Board explorer", reachable from a top-level link).
-- Tests: a unit test of the input→`tagFlopTexture` wiring (e.g. enter a known monotone/paired
-  flop, assert the expected tags render); component test for the card picker.
-- Reuse `@core` for ALL board/texture logic (no hand-rolled card parsing or texture rules).
+Task (mobile-only; reuse `@core`, do not edit `src/`):
+- In `board.tsx`, add a range picker: `loadSavedRanges()` into state (or `useFocusEffect`
+  reload like the library), and a row/list of selectable range chips (`testID={`board-range-
+  <id>`}`), one selected at a time (`selectedRangeId`). Keep it compact (the screen already has
+  the card pickers); a horizontal wrapping chip row is fine. Show nothing special when no
+  ranges exist.
+- When a range is selected AND the flop is full + not duplicate, compute
+  `bucketRangeOnBoard(range.hands, flop)` (memoize on `[range, cards]`) and render a breakdown
+  (`testID="range-vs-board"`): for each `HAND_CATEGORIES` entry with a non-zero count, a labelled
+  row "Label: N" (`testID={`category-<cat>`}`). A label map (UI-only) like set→"Set",
+  twoPair→"Two pair", topPair→"Top pair", flushDraw→"Flush draw", etc.
+- Presentational + a storage load; do not change the texture logic or existing testIDs.
 
-Files: add `mobile/app/board.tsx` (+ a card-picker component) + tests; wire an entry point. No
-`src/` edits unless a tiny behavior-preserving seam is unavoidable (then run the web trio too).
+Tests (extend `mobile/__tests__/board-screen.test.tsx`; it currently stubs only expo-router —
+now it also reads storage, so add `jest.mock('react-native-mmkv')` + `installLocalStorage()` +
+`localStorageShim.clear()` and seed a range with `saveSavedRange`):
+- Seed a range (e.g. hands `['AA','KK','AKs']`). Render, select it (`board-range-<id>`), enter a
+  known flop (e.g. As Kd 7s via the rank/suit taps), and assert `range-vs-board` shows with at
+  least one expected non-zero category (e.g. `category-topPair` or `category-set` present — pick
+  one the bucketer actually returns for that range+flop; if unsure, assert `range-vs-board` is
+  shown and contains a known category by computing `bucketRangeOnBoard` in the test to derive the
+  expectation). Assert `range-vs-board` is absent before a range is selected.
+- RNTL hygiene ([[ios-mobile-toolchain]]): `await render`; `userEvent` for the multi-tap
+  sequence; `toHaveTextContent` is exact.
+
+Files: modify `mobile/app/board.tsx`, `mobile/__tests__/board-screen.test.tsx`. No `src/`
+edits, no new dependency.
 
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
-`npm run bundle-check` — all must pass. (If `src/` is touched, also the web trio.)
+`npm run bundle-check` — all must pass.
 
-Constraints: reuse `@core` board/texture domain; new RN UI in `mobile/components/`, screen in
-`mobile/app/`. Do not edit `src/`.
+Constraints: reuse `@core` `bucketRangeOnBoard` + `HAND_CATEGORIES` (no hand-rolled combo
+bucketing); UI in `mobile/app/`. Do not edit `src/`.
 
 Suggested commit message:
-`feat(ios): add board input and flop texture tagging`
+`feat(ios): overlay how a range hits the board in the board explorer`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
 

@@ -164,6 +164,11 @@ export default function LibraryScreen() {
       <Stack.Screen
         options={{
           title: 'Ranges',
+          headerLeft: () => (
+            <Link href="/board" style={styles.headerLink}>
+              Boards
+            </Link>
+          ),
           headerRight: () => (
             <Link href="/editor" style={styles.headerLink}>
               New
