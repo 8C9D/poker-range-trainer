@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Stack } from 'expo-router';
+import { Link, Stack } from 'expo-router';
 
 import {
   formatCard,
@@ -131,7 +131,16 @@ export default function BoardScreen() {
 
   return (
     <View style={styles.screen}>
-      <Stack.Screen options={{ title: 'Board explorer' }} />
+      <Stack.Screen
+        options={{
+          title: 'Board explorer',
+          headerRight: () => (
+            <Link href="/combos" style={styles.headerLink}>
+              Combos
+            </Link>
+          ),
+        }}
+      />
       <Text style={styles.hint}>Tap a rank and a suit to fill each card.</Text>
 
       <View style={styles.slots}>
@@ -250,6 +259,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     padding: 24,
     gap: 20,
+  },
+  headerLink: {
+    color: colors.accent,
+    fontSize: 16,
+    fontWeight: '600',
   },
   hint: {
     color: colors.text,

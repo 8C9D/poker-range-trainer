@@ -74,65 +74,67 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 39 | Board explorer: board input + flop texture tagging (opens M6) | M6 | 2026-06-21 |
 | 40 | Range-vs-board overlay on the board explorer | M6 | 2026-06-21 |
 | 41 | Postflop decision practice (bet/check/call/raise/fold on a random spot) | M6 | 2026-06-22 |
+| 42 | Combo explorer: enumerate a hand's combos + blocker-aware counts | M6 | 2026-06-22 |
 
 **M5 — Practice depth: COMPLETE** (slices 23–38). The full training suite is on device:
 mistakes review, per-range/per-hand stats, weakest-hands, mistakes-only drill, accuracy
 heatmap, build-from-memory, practice-mode picker, timed drill, swipe-to-answer + haptics,
 session history, spaced repetition (record + due-badge + streak), and the multi-action
-cluster (editor, quiz, notation). **M6 — Advanced training (postflop)** is underway: board
-explorer (slice 39), range-vs-board overlay (slice 40), and postflop decision practice
-(slice 41 — reached from the practice-mode picker; deals a random hand-from-range on a
-random flop, grades bet/check/call/raise/fold against the `@core` heuristic). The combo-level
-cluster (enumeration, blocker counts, mixed frequencies) is next.
+cluster (editor, quiz, notation). **M6 — Advanced training** is underway: board explorer
+(slice 39), range-vs-board overlay (slice 40), postflop decision practice (slice 41), and the
+combo explorer (slice 42 — type a hand to see its concrete combos and how many survive a
+board, reached from the board explorer's "Combos" header link). Next in the combo-level cluster:
+combo selection (toggling individual combos into a range), then mixed frequencies.
 
 ## Next slice
 
-**Slice 42 — Combo enumeration + blocker-aware counts**
+**Slice 43 — `ComboSelector` RN component (toggle individual combos)**
 
-Milestone: M6 — Advanced training (web v4.1 "combo-level precision"). Opens the combo-level
-cluster that follows the board/postflop work (slices 39–41). This slice is the foundation:
-*displaying* the concrete 2-card combos of a hand and how many survive a board (blockers).
-Combo *selection* (toggling individual combos into a range) is a deliberately separate later
-slice — keep this one to enumeration + counts.
+Milestone: M6 — Advanced training (web v4.1 "combo-level precision"). Second unit of the
+combo-level cluster, after the read-only combo explorer (slice 42). This slice builds the
+controlled, presentational `ComboSelector` component — the combo equivalent of how `HandGrid`
+(slice 7) was built as a component before the editor screen (slice 9) wired it up. Persisting
+combo selections onto a saved range (`comboSelections`) is the NEXT slice; keep this one to the
+component + its test, with no editor/storage integration.
 
-Context: a preflop hand class expands to concrete combos (AA→6, AKs→4, AKo→12). Dead cards
-(a board, or specific blockers) remove combos that use those cards. All of this math is in
-`@core`; this slice is a read-only explorer over it.
+Context: a hand class's concrete combos can each be individually on/off; the selection is a
+`Set` of `comboKey`s (order-independent), owned by the parent. The web `ComboSelector`
+(`src/components/ComboSelector.tsx`) is exactly this: a controlled grid of per-combo toggle
+buttons reflecting on/off state, calling `onToggle(combo)`. Mirror it in RN primitives.
 
-Reuse (verified — read `src/domain/combos.ts` to confirm shapes before building):
-- `@core/domain/combos` `handClassCombos(hand: PokerHand): Card[][]`,
-  `comboKey(combo: Card[]): string`, `removeDeadCards(combos: Card[][], dead: Card[]): Card[][]`,
-  `availableComboCount(hands: PokerHand[], dead?: Card[]): number`.
-- `@core/domain/cards` (`Card`, `parseBoard`, `formatCard`, `RANKS`, `SUITS`).
-- `@core/domain/pokerHands` (`PokerHand`) and `@core/storage/rangeStorage` if the hand is picked
-  from a saved range; otherwise a free-text hand input is fine.
+Reuse (verified — read `src/domain/comboSelection.ts` + `src/components/ComboSelector.tsx`
+to confirm shapes before building):
+- `@core/domain/comboSelection` `type ComboSelection` (= `Set<string>`),
+  `isComboSelected(selection, combo): boolean`, `toggleCombo(selection, combo): ComboSelection`,
+  `selectedComboCount(selection): number`, `allCombosForHand(hand): ComboSelection`.
+- `@core/domain/combos` `handClassCombos(hand): Card[][]`, `comboKey(combo): string`.
+- `@core/domain/cards` (`Card`, `formatCard`, `type Suit`); `@core/domain/pokerHands` (`PokerHand`).
 
-DESIGN NOTE (resolve when building): decide the entry point + how dead cards are supplied —
-either a standalone `mobile/app/combos.tsx` reached from the home/library screen (mirrors how
-the board explorer is reached; user enters a hand + optional dead-card string), or a section on
-the board explorer reusing its already-entered flop as the dead cards. Pick the simplest that
-reuses `@core/domain/combos`. Check the web combo enumeration component (grep `handClassCombos`
-under `src/components/`) and mirror its presentation.
+Task (mobile-only; reuse `@core`, do not edit `src/`): a controlled `ComboSelector` RN component
+in `mobile/components/ComboSelector.tsx` with props `{ hand: PokerHand; selection: ComboSelection;
+onToggle: (combo: Card[]) => void }`. Render `handClassCombos(hand)` as a wrapped grid of toggle
+`Pressable`s (suit-colored card text like the combos explorer / board screen), each keyed by
+`comboKey`, showing on/off via style + `accessibilityState={{ selected }}` (from
+`isComboSelected`), and a "selected/total combos" count (`selectedComboCount`). The component owns
+no state — the parent passes `selection` and applies `toggleCombo` in `onToggle`.
 
-Task (mobile-only; reuse `@core`, do not edit `src/`): given a hand, list its concrete combos
-(formatted, e.g. "A♠K♠") and the total; given an optional dead-card input, show the surviving
-combos + count via `removeDeadCards` / `availableComboCount`. Extract the parse-and-filter glue
-into a small pure helper in `mobile/components/` (mirroring `swipeAnswer.ts` / `postflopDrill.ts`)
-so it is unit-testable without rendering. Tests (on the helper): AA→6, AKs→4, AKo→12 combos with
-no dead cards; and that supplying a dead card that touches the hand removes exactly the combos
-using it (e.g. AKs with dead `As` → 3 surviving combos).
+Tests (RNTL render, mirroring `action-grid.test.tsx` / `hand-grid.test.tsx`): render with a hand
+and an empty selection; assert the right number of combo cells (AKs→4); pressing a cell fires
+`onToggle` with that combo; a cell whose combo is in the passed selection reports
+`selected: true`.
 
-Files: add `mobile/app/combos.tsx` + `mobile/components/<comboHelper>.ts` (+ entry-point link)
-+ test. No `src/` edits, no new dependency.
+Files: add `mobile/components/ComboSelector.tsx` + `mobile/__tests__/combo-selector.test.tsx`.
+No `src/` edits, no new dependency, no screen wiring yet.
 
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
 `npm run bundle-check` — all must pass.
 
-Constraints: reuse `@core/domain/combos` for all combo math (no hand-rolled enumeration or
-blocker logic); screen in `mobile/app/`, pure helper in `mobile/components/`. Do not edit `src/`.
+Constraints: reuse `@core/domain/comboSelection` + `combos` for all combo logic (no hand-rolled
+toggling/keys); component is controlled (no internal selection state); lives in
+`mobile/components/`. Do not edit `src/`.
 
 Suggested commit message:
-`feat(ios): add combo enumeration with blocker-aware counts`
+`feat(ios): add controlled ComboSelector component`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
 
