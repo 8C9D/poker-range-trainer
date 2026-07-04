@@ -75,66 +75,74 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 40 | Range-vs-board overlay on the board explorer | M6 | 2026-06-21 |
 | 41 | Postflop decision practice (bet/check/call/raise/fold on a random spot) | M6 | 2026-06-22 |
 | 42 | Combo explorer: enumerate a hand's combos + blocker-aware counts | M6 | 2026-06-22 |
+| 43 | Controlled `ComboSelector` component (per-combo toggles) | M6 | 2026-06-22 |
 
 **M5 — Practice depth: COMPLETE** (slices 23–38). The full training suite is on device:
 mistakes review, per-range/per-hand stats, weakest-hands, mistakes-only drill, accuracy
 heatmap, build-from-memory, practice-mode picker, timed drill, swipe-to-answer + haptics,
 session history, spaced repetition (record + due-badge + streak), and the multi-action
 cluster (editor, quiz, notation). **M6 — Advanced training** is underway: board explorer
-(slice 39), range-vs-board overlay (slice 40), postflop decision practice (slice 41), and the
-combo explorer (slice 42 — type a hand to see its concrete combos and how many survive a
-board, reached from the board explorer's "Combos" header link). Next in the combo-level cluster:
-combo selection (toggling individual combos into a range), then mixed frequencies.
+(slice 39), range-vs-board overlay (slice 40), postflop decision practice (slice 41), the
+combo explorer (slice 42), and the controlled `ComboSelector` component (slice 43 —
+presentational per-combo toggles, not yet wired into the editor). Next in the combo-level
+cluster: wire `ComboSelector` into the editor + persist `comboSelections`, then mixed frequencies.
 
 ## Next slice
 
-**Slice 43 — `ComboSelector` RN component (toggle individual combos)**
+**Slice 44 — Wire `ComboSelector` into the editor + persist `comboSelections`**
 
-Milestone: M6 — Advanced training (web v4.1 "combo-level precision"). Second unit of the
-combo-level cluster, after the read-only combo explorer (slice 42). This slice builds the
-controlled, presentational `ComboSelector` component — the combo equivalent of how `HandGrid`
-(slice 7) was built as a component before the editor screen (slice 9) wired it up. Persisting
-combo selections onto a saved range (`comboSelections`) is the NEXT slice; keep this one to the
-component + its test, with no editor/storage integration.
+Milestone: M6 — Advanced training (web v4.1 "combo-level precision"). Third unit of the
+combo-level cluster: integrate the `ComboSelector` component (slice 43) into the binary range
+editor so a user can refine which concrete combos of an in-range hand are selected, and persist
+that onto the saved range as `comboSelections`. This completes combo selection (component +
+screen + storage), the combo analogue of how the editor screen (slice 9) wired up `HandGrid`.
 
-Context: a hand class's concrete combos can each be individually on/off; the selection is a
-`Set` of `comboKey`s (order-independent), owned by the parent. The web `ComboSelector`
-(`src/components/ComboSelector.tsx`) is exactly this: a controlled grid of per-combo toggle
-buttons reflecting on/off state, calling `onToggle(combo)`. Mirror it in RN primitives.
+Context: in the binary editor, a hand is either in or out of the range (`hands`). Combo-level
+precision lets an in-range hand keep only a subset of its combos. The web stores this as
+`SavedRange.comboSelections: Record<PokerHand, string[]>` — a per-hand serialized list of
+`comboKey`s; a hand WITHOUT an entry means "all combos in" (absence = all selected). Read how the
+web editor opens `ComboSelector` and reads/writes `comboSelections` before building, and mirror
+its semantics exactly (especially: only write an entry when a hand is actually refined; full
+selection should stay absent / be cleaned up so hands-only ranges stay byte-compatible).
 
-Reuse (verified — read `src/domain/comboSelection.ts` + `src/components/ComboSelector.tsx`
-to confirm shapes before building):
-- `@core/domain/comboSelection` `type ComboSelection` (= `Set<string>`),
-  `isComboSelected(selection, combo): boolean`, `toggleCombo(selection, combo): ComboSelection`,
-  `selectedComboCount(selection): number`, `allCombosForHand(hand): ComboSelection`.
-- `@core/domain/combos` `handClassCombos(hand): Card[][]`, `comboKey(combo): string`.
-- `@core/domain/cards` (`Card`, `formatCard`, `type Suit`); `@core/domain/pokerHands` (`PokerHand`).
+Reuse (verified — confirm against `src/` before building):
+- `mobile/components/ComboSelector` (slice 43).
+- `@core/domain/comboSelection` `toggleCombo`, `allCombosForHand(hand): ComboSelection`,
+  `serializeComboSelection(selection): string[]`, `deserializeComboSelection(keys): ComboSelection`.
+- `@core/domain/combos` `comboKey`, `handClassCombos`; `@core/types/range` `SavedRange`
+  (`comboSelections?`); `@core/storage/rangeStorage` `saveSavedRange` / `findSavedRangeById`.
 
-Task (mobile-only; reuse `@core`, do not edit `src/`): a controlled `ComboSelector` RN component
-in `mobile/components/ComboSelector.tsx` with props `{ hand: PokerHand; selection: ComboSelection;
-onToggle: (combo: Card[]) => void }`. Render `handClassCombos(hand)` as a wrapped grid of toggle
-`Pressable`s (suit-colored card text like the combos explorer / board screen), each keyed by
-`comboKey`, showing on/off via style + `accessibilityState={{ selected }}` (from
-`isComboSelected`), and a "selected/total combos" count (`selectedComboCount`). The component owns
-no state — the parent passes `selection` and applies `toggleCombo` in `onToggle`.
+DESIGN NOTE (resolve when building): decide how a hand's combo editor is opened from the mobile
+binary editor — e.g. long-press an in-range cell on the `HandGrid` to open that hand's
+`ComboSelector` (inline panel or modal), or a dedicated "Refine combos" affordance. Pick the
+simplest that fits the existing `editor.tsx` layout and reuses `ComboSelector`. Check the web
+editor's UX and mirror where reasonable, but native trigger conventions may differ — document the
+choice in a comment.
 
-Tests (RNTL render, mirroring `action-grid.test.tsx` / `hand-grid.test.tsx`): render with a hand
-and an empty selection; assert the right number of combo cells (AKs→4); pressing a cell fires
-`onToggle` with that combo; a cell whose combo is in the passed selection reports
-`selected: true`.
+Task (mobile-only; reuse `@core`, do not edit `src/`): in `mobile/app/editor.tsx`, manage a
+`comboSelections` map in editor state (seeded from the loaded range via
+`deserializeComboSelection`); when a hand's `ComboSelector` toggles a combo, update that hand's
+selection (`toggleCombo`) and reserialize; on save, write `comboSelections` onto the `SavedRange`
+(omitting hands whose selection is full, to match web). Toggling a hand OUT of the range should
+drop any stored combo refinement for it.
 
-Files: add `mobile/components/ComboSelector.tsx` + `mobile/__tests__/combo-selector.test.tsx`.
-No `src/` edits, no new dependency, no screen wiring yet.
+Tests (RNTL, mirroring `editor-screen.test.tsx` / `editor-preserves-overlay.test.tsx`): opening a
+hand's combo editor and deselecting a combo persists a `comboSelections` entry with the remaining
+combo keys on save; a hand left fully selected writes NO entry; removing the hand from the range
+clears its entry. Reuse the existing editor test harness (storage shim + expo-router mocks).
+
+Files: edit `mobile/app/editor.tsx`; add `mobile/__tests__/editor-combo-selection.test.tsx`
+(or extend `editor-screen.test.tsx`). No `src/` edits, no new dependency.
 
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
 `npm run bundle-check` — all must pass.
 
-Constraints: reuse `@core/domain/comboSelection` + `combos` for all combo logic (no hand-rolled
-toggling/keys); component is controlled (no internal selection state); lives in
-`mobile/components/`. Do not edit `src/`.
+Constraints: reuse `@core/domain/comboSelection` for all selection logic + serialization (no
+hand-rolled combo-key persistence); keep `comboSelections` byte-compatible with the web (absence =
+all combos in). Screen logic in `mobile/app/`, reuse the slice-43 component. Do not edit `src/`.
 
 Suggested commit message:
-`feat(ios): add controlled ComboSelector component`
+`feat(ios): refine and persist per-hand combo selections in the editor`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
 
