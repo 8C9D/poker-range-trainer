@@ -15,8 +15,27 @@ import {
   tagFlopTexture,
   type FlopTextureTag,
 } from '@core/domain/boardTexture';
+import { HAND_CATEGORIES, type HandCategory } from '@core/domain/handCategory';
+import { bucketRangeOnBoard } from '@core/domain/rangeVsBoard';
+import { loadSavedRanges } from '@core/storage/rangeStorage';
+import type { SavedRange } from '@core/types/range';
 
 import { colors } from '../theme/colors';
+
+/** Display labels for the made-hand / draw categories (UI only). */
+const CATEGORY_LABELS: Record<HandCategory, string> = {
+  set: 'Set',
+  trips: 'Trips',
+  twoPair: 'Two pair',
+  overpair: 'Overpair',
+  topPair: 'Top pair',
+  middlePair: 'Middle pair',
+  bottomPair: 'Bottom pair',
+  pair: 'Pair',
+  flushDraw: 'Flush draw',
+  straightDraw: 'Straight draw',
+  air: 'Air',
+};
 
 /** Display labels for the flop texture tags (UI only — @core has no labels). */
 const TAG_LABELS: Record<FlopTextureTag, string> = {
@@ -55,6 +74,9 @@ function isComplete(slot: Slot): slot is { rank: Rank; suit: Suit } {
  */
 export default function BoardScreen() {
   const [slots, setSlots] = useState<Slot[]>(EMPTY_SLOTS);
+  // Saved ranges (loaded once on mount) for the range-vs-board overlay.
+  const [ranges] = useState<SavedRange[]>(() => loadSavedRanges());
+  const [selectedRangeId, setSelectedRangeId] = useState<string | undefined>(undefined);
 
   const activeIndex = slots.findIndex((slot) => !isComplete(slot));
 
@@ -98,6 +120,13 @@ export default function BoardScreen() {
   const tags = useMemo<FlopTextureTag[]>(
     () => (full && !duplicate ? tagFlopTexture(cards) : []),
     [cards, full, duplicate],
+  );
+
+  // How the selected range hits this flop: combo counts per made-hand/draw category.
+  const selectedRange = ranges.find((range) => range.id === selectedRangeId);
+  const breakdown = useMemo<Record<HandCategory, number> | null>(
+    () => (selectedRange && full && !duplicate ? bucketRangeOnBoard(selectedRange.hands, cards) : null),
+    [selectedRange, full, duplicate, cards],
   );
 
   return (
@@ -174,6 +203,41 @@ export default function BoardScreen() {
               </Text>
             ))}
           </View>
+        </View>
+      ) : null}
+
+      {ranges.length > 0 ? (
+        <View style={styles.texture}>
+          <Text style={styles.textureTitle}>Range vs board</Text>
+          <View style={styles.tags}>
+            {ranges.map((range) => {
+              const selected = range.id === selectedRangeId;
+              return (
+                <Pressable
+                  key={range.id}
+                  testID={`board-range-${range.id}`}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  style={[styles.rangeChip, selected && styles.rangeChipActive]}
+                  onPress={() => setSelectedRangeId(selected ? undefined : range.id)}
+                >
+                  <Text style={[styles.rangeChipText, selected && styles.rangeChipTextActive]}>
+                    {range.name || 'Untitled'}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      ) : null}
+
+      {breakdown ? (
+        <View testID="range-vs-board" style={styles.breakdown}>
+          {HAND_CATEGORIES.filter((category) => breakdown[category] > 0).map((category) => (
+            <Text key={category} testID={`category-${category}`} style={styles.categoryRow}>
+              {CATEGORY_LABELS[category]}: {breakdown[category]}
+            </Text>
+          ))}
         </View>
       ) : null}
     </View>
@@ -274,5 +338,32 @@ const styles = StyleSheet.create({
     color: colors.textStrong,
     fontSize: 13,
     fontWeight: '600',
+  },
+  rangeChip: {
+    backgroundColor: colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  rangeChipActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  rangeChipText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  rangeChipTextActive: {
+    color: colors.onAccent,
+  },
+  breakdown: {
+    gap: 4,
+  },
+  categoryRow: {
+    color: colors.text,
+    fontSize: 14,
   },
 });

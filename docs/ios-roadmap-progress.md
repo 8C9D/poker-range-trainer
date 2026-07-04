@@ -72,6 +72,7 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 37 | Action quiz practice mode (per-action accuracy) | M5 | 2026-06-21 |
 | 38 | Action notation import/export on the action editor | M5 | 2026-06-21 |
 | 39 | Board explorer: board input + flop texture tagging (opens M6) | M6 | 2026-06-21 |
+| 40 | Range-vs-board overlay on the board explorer | M6 | 2026-06-21 |
 
 **M5 — Practice depth: COMPLETE** (slices 23–38). The full training suite is on device:
 mistakes review, per-range/per-hand stats, weakest-hands, mistakes-only drill, accuracy
@@ -82,61 +83,47 @@ board explorer (slice 39).
 
 ## Next slice
 
-**Slice 40 — Range-vs-board overlay on the board explorer**
+**Slice 41 — Postflop decision practice**
 
-Milestone: M6 — Advanced training (web v4–v5). Builds directly on slice 39 (the board
-explorer) — the payoff its preview promised ("later: range-vs-board overlay"). User confirmed
-the board-explorer direction for M6.
+Milestone: M6 — Advanced training (web v4–v5). The third piece the board-explorer preview
+promised ("postflop decision practice"). Builds on the board work (slices 39–40).
 
-Context: `mobile/app/board.tsx` enters a 3-card flop and shows its texture tags. This slice
-adds: pick one saved range, and once a full valid flop is entered, show how that range hits
-the board — combo counts per made-hand/draw category — reusing the tested bucketer.
+Context: a postflop scenario = a board + hero hand + action context; the user picks a decision
+(bet/check/call/raise/fold) and gets feedback against the suggested play. All the logic is in
+`@core`; this is a practice screen over it.
 
-Reuse (verified, import — never copy):
-- `@core/domain/rangeVsBoard` `bucketRangeOnBoard(hands: PokerHand[], flop: Card[]):
-  Record<HandCategory, number>` — expands each hand class to combos, drops board-blocked
-  combos, categorizes the rest, and tallies per category (a combo can count to several). Read
-  `src/domain/rangeVsBoard.ts`.
-- `@core/domain/handCategory` `HAND_CATEGORIES` (order: set, trips, twoPair, overpair, topPair,
-  middlePair, bottomPair, pair, flushDraw, straightDraw, air), `type HandCategory`.
-- `@core/storage/rangeStorage` `loadSavedRanges`; the `Card`/board state already in `board.tsx`.
+Reuse (verified — read `src/domain/postflopScenario.ts` to confirm shapes before building):
+- `@core/domain/postflopScenario` `POSTFLOP_DECISIONS` (`['bet','check','call','raise','fold']`),
+  `POSTFLOP_DECISION_LABELS`, `type PostflopDecision`, `interface PostflopScenario`,
+  `interface PostflopScenarioInput`, `buildPostflopScenario(input): PostflopScenario`,
+  `describeHeroHand(scenario): HandCategory[]`, `isFacingAggression(scenario): boolean`,
+  `suggestDecision(scenario): DecisionSuggestion` (the "correct" decision + rationale).
+- `@core/domain/cards` (`Card`, parsers); `@core/storage/rangeStorage` if scenarios derive from
+  a saved range.
 
-Task (mobile-only; reuse `@core`, do not edit `src/`):
-- In `board.tsx`, add a range picker: `loadSavedRanges()` into state (or `useFocusEffect`
-  reload like the library), and a row/list of selectable range chips (`testID={`board-range-
-  <id>`}`), one selected at a time (`selectedRangeId`). Keep it compact (the screen already has
-  the card pickers); a horizontal wrapping chip row is fine. Show nothing special when no
-  ranges exist.
-- When a range is selected AND the flop is full + not duplicate, compute
-  `bucketRangeOnBoard(range.hands, flop)` (memoize on `[range, cards]`) and render a breakdown
-  (`testID="range-vs-board"`): for each `HAND_CATEGORIES` entry with a non-zero count, a labelled
-  row "Label: N" (`testID={`category-<cat>`}`). A label map (UI-only) like set→"Set",
-  twoPair→"Two pair", topPair→"Top pair", flushDraw→"Flush draw", etc.
-- Presentational + a storage load; do not change the texture logic or existing testIDs.
+DESIGN NOTE (resolve when building): decide how a scenario is sourced — randomly generated from
+a chosen range + random board (preferred, mirrors the other practice modes), or hand-entered.
+Check how the web `PostflopScenario`/practice builds `PostflopScenarioInput` and mirror it.
+Likely a new screen `mobile/app/postflop.tsx` reached from the board explorer ("Practice this
+spot") or the practice-mode picker; pick the simplest that reuses `buildPostflopScenario` +
+`suggestDecision`.
 
-Tests (extend `mobile/__tests__/board-screen.test.tsx`; it currently stubs only expo-router —
-now it also reads storage, so add `jest.mock('react-native-mmkv')` + `installLocalStorage()` +
-`localStorageShim.clear()` and seed a range with `saveSavedRange`):
-- Seed a range (e.g. hands `['AA','KK','AKs']`). Render, select it (`board-range-<id>`), enter a
-  known flop (e.g. As Kd 7s via the rank/suit taps), and assert `range-vs-board` shows with at
-  least one expected non-zero category (e.g. `category-topPair` or `category-set` present — pick
-  one the bucketer actually returns for that range+flop; if unsure, assert `range-vs-board` is
-  shown and contains a known category by computing `bucketRangeOnBoard` in the test to derive the
-  expectation). Assert `range-vs-board` is absent before a range is selected.
-- RNTL hygiene ([[ios-mobile-toolchain]]): `await render`; `userEvent` for the multi-tap
-  sequence; `toHaveTextContent` is exact.
+Task (mobile-only; reuse `@core`, do not edit `src/`): a postflop practice screen showing the
+board + hero hand + context, decision buttons from `POSTFLOP_DECISIONS`, scoring each pick
+against `suggestDecision(scenario)` with feedback + running stats; reuse `describeHeroHand` to
+show what hero has. Tests: build a known scenario, assert the suggested decision scores correct
+and a different pick scores incorrect.
 
-Files: modify `mobile/app/board.tsx`, `mobile/__tests__/board-screen.test.tsx`. No `src/`
-edits, no new dependency.
+Files: add `mobile/app/postflop.tsx` (+ entry point) + test. No `src/` edits, no new dependency.
 
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
 `npm run bundle-check` — all must pass.
 
-Constraints: reuse `@core` `bucketRangeOnBoard` + `HAND_CATEGORIES` (no hand-rolled combo
-bucketing); UI in `mobile/app/`. Do not edit `src/`.
+Constraints: reuse `@core` `buildPostflopScenario` + `suggestDecision` + `describeHeroHand` (no
+hand-rolled postflop logic); screen in `mobile/app/`. Do not edit `src/`.
 
 Suggested commit message:
-`feat(ios): overlay how a range hits the board in the board explorer`
+`feat(ios): add postflop decision practice`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
 
