@@ -73,57 +73,66 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 38 | Action notation import/export on the action editor | M5 | 2026-06-21 |
 | 39 | Board explorer: board input + flop texture tagging (opens M6) | M6 | 2026-06-21 |
 | 40 | Range-vs-board overlay on the board explorer | M6 | 2026-06-21 |
+| 41 | Postflop decision practice (bet/check/call/raise/fold on a random spot) | M6 | 2026-06-22 |
 
 **M5 — Practice depth: COMPLETE** (slices 23–38). The full training suite is on device:
 mistakes review, per-range/per-hand stats, weakest-hands, mistakes-only drill, accuracy
 heatmap, build-from-memory, practice-mode picker, timed drill, swipe-to-answer + haptics,
 session history, spaced repetition (record + due-badge + streak), and the multi-action
-cluster (editor, quiz, notation). **M6 — Advanced training (postflop)** has begun with the
-board explorer (slice 39).
+cluster (editor, quiz, notation). **M6 — Advanced training (postflop)** is underway: board
+explorer (slice 39), range-vs-board overlay (slice 40), and postflop decision practice
+(slice 41 — reached from the practice-mode picker; deals a random hand-from-range on a
+random flop, grades bet/check/call/raise/fold against the `@core` heuristic). The combo-level
+cluster (enumeration, blocker counts, mixed frequencies) is next.
 
 ## Next slice
 
-**Slice 41 — Postflop decision practice**
+**Slice 42 — Combo enumeration + blocker-aware counts**
 
-Milestone: M6 — Advanced training (web v4–v5). The third piece the board-explorer preview
-promised ("postflop decision practice"). Builds on the board work (slices 39–40).
+Milestone: M6 — Advanced training (web v4.1 "combo-level precision"). Opens the combo-level
+cluster that follows the board/postflop work (slices 39–41). This slice is the foundation:
+*displaying* the concrete 2-card combos of a hand and how many survive a board (blockers).
+Combo *selection* (toggling individual combos into a range) is a deliberately separate later
+slice — keep this one to enumeration + counts.
 
-Context: a postflop scenario = a board + hero hand + action context; the user picks a decision
-(bet/check/call/raise/fold) and gets feedback against the suggested play. All the logic is in
-`@core`; this is a practice screen over it.
+Context: a preflop hand class expands to concrete combos (AA→6, AKs→4, AKo→12). Dead cards
+(a board, or specific blockers) remove combos that use those cards. All of this math is in
+`@core`; this slice is a read-only explorer over it.
 
-Reuse (verified — read `src/domain/postflopScenario.ts` to confirm shapes before building):
-- `@core/domain/postflopScenario` `POSTFLOP_DECISIONS` (`['bet','check','call','raise','fold']`),
-  `POSTFLOP_DECISION_LABELS`, `type PostflopDecision`, `interface PostflopScenario`,
-  `interface PostflopScenarioInput`, `buildPostflopScenario(input): PostflopScenario`,
-  `describeHeroHand(scenario): HandCategory[]`, `isFacingAggression(scenario): boolean`,
-  `suggestDecision(scenario): DecisionSuggestion` (the "correct" decision + rationale).
-- `@core/domain/cards` (`Card`, parsers); `@core/storage/rangeStorage` if scenarios derive from
-  a saved range.
+Reuse (verified — read `src/domain/combos.ts` to confirm shapes before building):
+- `@core/domain/combos` `handClassCombos(hand: PokerHand): Card[][]`,
+  `comboKey(combo: Card[]): string`, `removeDeadCards(combos: Card[][], dead: Card[]): Card[][]`,
+  `availableComboCount(hands: PokerHand[], dead?: Card[]): number`.
+- `@core/domain/cards` (`Card`, `parseBoard`, `formatCard`, `RANKS`, `SUITS`).
+- `@core/domain/pokerHands` (`PokerHand`) and `@core/storage/rangeStorage` if the hand is picked
+  from a saved range; otherwise a free-text hand input is fine.
 
-DESIGN NOTE (resolve when building): decide how a scenario is sourced — randomly generated from
-a chosen range + random board (preferred, mirrors the other practice modes), or hand-entered.
-Check how the web `PostflopScenario`/practice builds `PostflopScenarioInput` and mirror it.
-Likely a new screen `mobile/app/postflop.tsx` reached from the board explorer ("Practice this
-spot") or the practice-mode picker; pick the simplest that reuses `buildPostflopScenario` +
-`suggestDecision`.
+DESIGN NOTE (resolve when building): decide the entry point + how dead cards are supplied —
+either a standalone `mobile/app/combos.tsx` reached from the home/library screen (mirrors how
+the board explorer is reached; user enters a hand + optional dead-card string), or a section on
+the board explorer reusing its already-entered flop as the dead cards. Pick the simplest that
+reuses `@core/domain/combos`. Check the web combo enumeration component (grep `handClassCombos`
+under `src/components/`) and mirror its presentation.
 
-Task (mobile-only; reuse `@core`, do not edit `src/`): a postflop practice screen showing the
-board + hero hand + context, decision buttons from `POSTFLOP_DECISIONS`, scoring each pick
-against `suggestDecision(scenario)` with feedback + running stats; reuse `describeHeroHand` to
-show what hero has. Tests: build a known scenario, assert the suggested decision scores correct
-and a different pick scores incorrect.
+Task (mobile-only; reuse `@core`, do not edit `src/`): given a hand, list its concrete combos
+(formatted, e.g. "A♠K♠") and the total; given an optional dead-card input, show the surviving
+combos + count via `removeDeadCards` / `availableComboCount`. Extract the parse-and-filter glue
+into a small pure helper in `mobile/components/` (mirroring `swipeAnswer.ts` / `postflopDrill.ts`)
+so it is unit-testable without rendering. Tests (on the helper): AA→6, AKs→4, AKo→12 combos with
+no dead cards; and that supplying a dead card that touches the hand removes exactly the combos
+using it (e.g. AKs with dead `As` → 3 surviving combos).
 
-Files: add `mobile/app/postflop.tsx` (+ entry point) + test. No `src/` edits, no new dependency.
+Files: add `mobile/app/combos.tsx` + `mobile/components/<comboHelper>.ts` (+ entry-point link)
++ test. No `src/` edits, no new dependency.
 
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
 `npm run bundle-check` — all must pass.
 
-Constraints: reuse `@core` `buildPostflopScenario` + `suggestDecision` + `describeHeroHand` (no
-hand-rolled postflop logic); screen in `mobile/app/`. Do not edit `src/`.
+Constraints: reuse `@core/domain/combos` for all combo math (no hand-rolled enumeration or
+blocker logic); screen in `mobile/app/`, pure helper in `mobile/components/`. Do not edit `src/`.
 
 Suggested commit message:
-`feat(ios): add postflop decision practice`
+`feat(ios): add combo enumeration with blocker-aware counts`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
 

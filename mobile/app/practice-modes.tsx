@@ -40,6 +40,12 @@ export default function PracticeModesScreen() {
           <Text style={styles.modeDesc}>Name the correct action for each hand.</Text>
         </Pressable>
       </Link>
+      <Link href={{ pathname: '/postflop', params: { id: idParam } }} asChild>
+        <Pressable testID="mode-postflop" accessibilityRole="button" style={styles.mode}>
+          <Text style={styles.modeTitle}>Postflop spot</Text>
+          <Text style={styles.modeDesc}>Decide bet/check/call/raise/fold on a random flop.</Text>
+        </Pressable>
+      </Link>
     </View>
   );
 }
