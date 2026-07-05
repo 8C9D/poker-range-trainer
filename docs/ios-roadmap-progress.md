@@ -78,6 +78,7 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 43 | Controlled `ComboSelector` component (per-combo toggles) | M6 | 2026-06-22 |
 | 44 | Refine + persist per-hand combo selections in the editor | M6 | 2026-06-22 |
 | 45 | Blocker-aware combo drill (completes the combo cluster) | M6 | 2026-06-22 |
+| 46 | Controlled `MixedStrategyEditor` component (per-action steppers) | M6 | 2026-06-22 |
 
 **M5 — Practice depth: COMPLETE** (slices 23–38). The full training suite is on device:
 mistakes review, per-range/per-hand stats, weakest-hands, mistakes-only drill, accuracy
@@ -88,60 +89,62 @@ cluster (editor, quiz, notation). **M6 — Advanced training** is underway: boar
 **Combo cluster COMPLETE** (slices 42–45): combo explorer, `ComboSelector` component, per-hand
 combo refinement persisted as `comboSelections` in the editor, and the blocker-aware combo drill
 (a practice mode dealing unblocked combos, honoring `comboSelections` via `selectionForRange`).
-Next: the mixed-frequency cluster (`mixedStrategy` / `mixedNotation`) — editor, integration,
-quiz, notation — then range diff, per-hand notes, and CSV import.
+**Mixed-frequency cluster** begun: the controlled `MixedStrategyEditor` component (slice 46 —
+per-action −/+ steppers, not yet wired in). Next: a frequency-editor screen persisting
+`mixedStrategies`, then the mixed quiz and mixed notation — then range diff, per-hand notes, and
+CSV import.
 
 ## Next slice
 
-**Slice 46 — `MixedStrategyEditor` RN component (per-action frequencies)**
+**Slice 47 — Frequency-editor screen + persist `mixedStrategies`**
 
-Milestone: M6 — Advanced training (web v4.2 "mixed-frequency strategies"). Opens the
-mixed-frequency cluster, decomposed like the combo cluster: this slice is the controlled
-component for editing ONE hand's mixed strategy (the analogue of `ComboSelector` in slice 43);
-later slices wire it into a screen + persist `mixedStrategies` (like 44), then add the quiz and
-notation. Keep this one to the component + helper + test, with no screen/storage integration.
+Milestone: M6 — Advanced training (web v4.2 "mixed-frequency strategies"). Second unit of the
+mixed cluster: a screen that wires the `MixedStrategyEditor` (slice 46) to a saved range and
+persists per-hand strategies as `SavedRange.mixedStrategies`, analogous to how the action editor
+(`mobile/app/action-editor.tsx`) edits `handActions` and slice 44 persisted `comboSelections`.
 
-Context: a hand's mixed strategy is a list of weighted actions — `HandMixedStrategy = MixedAction[]`
-where `MixedAction = { action: RangeAction; frequency: number }` and `frequency` is a percent in
-[0, 100]. A complete strategy sums to 100. The web `MixedStrategyEditor` lets the user set each
-action's frequency; mirror it in RN with simple steppers (+/− buttons) per action — sliders are
-fiddly on device.
+Context: the web stores `mixedStrategies: Record<PokerHand, HandMixedStrategy>` and edits it with a
+per-hand active selection (`handleEditFrequencies` seeds the draft from `range.mixedStrategies` and
+sets the active hand to `range.hands[0]`; `handleSaveFrequencies` writes `mixedStrategies:
+freqDraft`). Mirror that: pick an in-range hand, edit its strategy, persist the map.
 
-Reuse (verified — read `src/domain/mixedStrategy.ts` + `src/components/MixedStrategyEditor.tsx`
-to confirm shapes before building):
-- `@core/domain/mixedStrategy` `interface MixedAction`, `type HandMixedStrategy`,
-  `normalizeMixedStrategy(actions): HandMixedStrategy`, `totalFrequency(actions): number`,
-  `isValidMixedStrategy(actions): boolean`.
-- `@core/types/range` `RANGE_ACTIONS`, `RANGE_ACTION_LABELS`, `type RangeAction`.
-- `mobile/theme/actionColors` `ACTION_COLORS` (for per-action coloring, as in the action editor).
+Reuse (verified — read `mobile/app/action-editor.tsx`, plus `src/App.tsx` `handleEditFrequencies`
+/ `handleSaveFrequencies` to mirror seed/persist semantics):
+- `mobile/components/MixedStrategyEditor` (slice 46).
+- `@core/domain/mixedStrategy` `type HandMixedStrategy`, `normalizeMixedStrategy`, `primaryAction`
+  (if a per-hand summary chip is shown).
+- `@core/storage/rangeStorage` `findSavedRangeById`, `saveSavedRange`; `@core/types/range`
+  `SavedRange` (`mixedStrategies?`).
 
-Task (mobile-only; reuse `@core`, do not edit `src/`): a controlled `MixedStrategyEditor` RN
-component in `mobile/components/MixedStrategyEditor.tsx` with props
-`{ strategy: HandMixedStrategy; onChange: (next: HandMixedStrategy) => void }`. Render a row per
-`RANGE_ACTION` showing its current frequency (0 when absent) with − / + steppers (clamp to
-[0, 100], fixed step e.g. 5), the running total (`totalFrequency`), and a valid/!=100 indicator
-(`isValidMixedStrategy`). The component owns no state — it computes the next strategy and calls
-`onChange`. Extract the stepping math into a small pure helper in `mobile/components/` (e.g.
-`stepMixedFrequency(strategy, action, delta, step): HandMixedStrategy`, normalized via
-`normalizeMixedStrategy`) so it unit-tests without rendering.
+DESIGN NOTE (resolve when building): a dedicated `mobile/app/frequency-editor.tsx` reached from the
+binary editor via an "Edit frequencies →" link (next to "Edit actions →"), mirroring how
+action-editor is reached. Use a hand-picker (chips of the range's hands) + the `MixedStrategyEditor`
+for the active hand. Persist on change (live-save, reading the stored range fresh and merging so
+other overlays survive, exactly like action-editor / the binary editor), or on an explicit save —
+match action-editor's approach for consistency. A hand whose normalized strategy is empty should
+not keep an entry.
 
-Tests: helper — stepping an action up adds/increases that action and `totalFrequency` reflects it;
-stepping below 0 clamps; reaching 100 makes `isValidMixedStrategy` true. Component (RNTL): pressing
-an action's + stepper fires `onChange` with the updated strategy; the total is displayed.
+Task (mobile-only; reuse `@core`, do not edit `src/`): add `mobile/app/frequency-editor.tsx`; seed
+a `mixedStrategies` draft from the loaded range; let the user pick an in-range hand and edit it via
+`MixedStrategyEditor`; persist `mixedStrategies` onto the `SavedRange` (preserving handActions,
+favorite, comboSelections, etc.). Add the "Edit frequencies →" link in `mobile/app/editor.tsx`.
 
-Files: add `mobile/components/MixedStrategyEditor.tsx` + `mobile/components/<stepHelper>.ts` +
-`mobile/__tests__/mixed-strategy-editor.test.tsx` (+ a helper test, may share the file). No `src/`
-edits, no new dependency, no screen wiring yet.
+Tests (RNTL, mirroring `action-editor-screen.test.tsx` + the storage shim): editing a hand's
+strategy persists a `mixedStrategies` entry for that hand; other overlay fields (e.g. handActions)
+survive the save. Reuse the editor test harness (storage shim + expo-router mocks).
+
+Files: add `mobile/app/frequency-editor.tsx` + `mobile/__tests__/frequency-editor-screen.test.tsx`;
+edit `mobile/app/editor.tsx` (add the link). No `src/` edits, no new dependency.
 
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
 `npm run bundle-check` — all must pass.
 
-Constraints: reuse `@core/domain/mixedStrategy` for all strategy math (no hand-rolled
-normalization/validation); component is controlled (no internal strategy state); lives in
-`mobile/components/`. Do not edit `src/`.
+Constraints: reuse `@core/domain/mixedStrategy` + the slice-46 component (no hand-rolled strategy
+math); preserve other overlays on save (read fresh + merge, like action-editor); screen in
+`mobile/app/`. Do not edit `src/`.
 
 Suggested commit message:
-`feat(ios): add controlled MixedStrategyEditor component`
+`feat(ios): add a mixed-frequency editor screen persisting mixedStrategies`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
 
