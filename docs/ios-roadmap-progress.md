@@ -76,73 +76,68 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 41 | Postflop decision practice (bet/check/call/raise/fold on a random spot) | M6 | 2026-06-22 |
 | 42 | Combo explorer: enumerate a hand's combos + blocker-aware counts | M6 | 2026-06-22 |
 | 43 | Controlled `ComboSelector` component (per-combo toggles) | M6 | 2026-06-22 |
+| 44 | Refine + persist per-hand combo selections in the editor | M6 | 2026-06-22 |
 
 **M5 — Practice depth: COMPLETE** (slices 23–38). The full training suite is on device:
 mistakes review, per-range/per-hand stats, weakest-hands, mistakes-only drill, accuracy
 heatmap, build-from-memory, practice-mode picker, timed drill, swipe-to-answer + haptics,
 session history, spaced repetition (record + due-badge + streak), and the multi-action
 cluster (editor, quiz, notation). **M6 — Advanced training** is underway: board explorer
-(slice 39), range-vs-board overlay (slice 40), postflop decision practice (slice 41), the
-combo explorer (slice 42), and the controlled `ComboSelector` component (slice 43 —
-presentational per-combo toggles, not yet wired into the editor). Next in the combo-level
-cluster: wire `ComboSelector` into the editor + persist `comboSelections`, then mixed frequencies.
+(slice 39), range-vs-board overlay (slice 40), postflop decision practice (slice 41), and the
+combo-level work — combo explorer (slice 42), `ComboSelector` component (slice 43), and
+per-hand combo refinement persisted as `comboSelections` in the editor (slice 44). Remaining in
+the combo cluster: the blocker-aware combo drill (`blockerPractice`); then mixed frequencies,
+range diff, per-hand notes, and CSV import.
 
 ## Next slice
 
-**Slice 44 — Wire `ComboSelector` into the editor + persist `comboSelections`**
+**Slice 45 — Blocker-aware combo drill (completes the combo cluster)**
 
-Milestone: M6 — Advanced training (web v4.1 "combo-level precision"). Third unit of the
-combo-level cluster: integrate the `ComboSelector` component (slice 43) into the binary range
-editor so a user can refine which concrete combos of an in-range hand are selected, and persist
-that onto the saved range as `comboSelections`. This completes combo selection (component +
-screen + storage), the combo analogue of how the editor screen (slice 9) wired up `HandGrid`.
+Milestone: M6 — Advanced training (web v4.1 "combo-level precision"). Final unit of the combo
+cluster, after enumeration (42), the `ComboSelector` component (43), and combo refinement in the
+editor (44). A practice screen that deals a concrete combo from a saved range that a board (dead
+cards) does not block, honoring the range's `comboSelections`. Mirror the web `ComboBlockerDrill`.
 
-Context: in the binary editor, a hand is either in or out of the range (`hands`). Combo-level
-precision lets an in-range hand keep only a subset of its combos. The web stores this as
-`SavedRange.comboSelections: Record<PokerHand, string[]>` — a per-hand serialized list of
-`comboKey`s; a hand WITHOUT an entry means "all combos in" (absence = all selected). Read how the
-web editor opens `ComboSelector` and reads/writes `comboSelections` before building, and mirror
-its semantics exactly (especially: only write an entry when a hand is actually refined; full
-selection should stay absent / be cleaned up so hands-only ranges stay byte-compatible).
+Context: given a range's hand classes + a board, only some concrete combos remain unblocked. The
+drill lets the user type a board, see how many combos remain, and deal a random unblocked combo —
+exploratory, no persisted stats (matches the web component). The eligible combos are further
+restricted by the range's combo refinements via `selectionForRange`.
 
-Reuse (verified — confirm against `src/` before building):
-- `mobile/components/ComboSelector` (slice 43).
-- `@core/domain/comboSelection` `toggleCombo`, `allCombosForHand(hand): ComboSelection`,
-  `serializeComboSelection(selection): string[]`, `deserializeComboSelection(keys): ComboSelection`.
-- `@core/domain/combos` `comboKey`, `handClassCombos`; `@core/types/range` `SavedRange`
-  (`comboSelections?`); `@core/storage/rangeStorage` `saveSavedRange` / `findSavedRangeById`.
+Reuse (verified — read `src/domain/blockerPractice.ts` + `src/components/ComboBlockerDrill.tsx`
+to confirm shapes before building):
+- `@core/domain/blockerPractice` `availablePracticeCombos(hands, dead, selection?): Card[][]`,
+  `drawPracticeCombo(hands, dead, selection?): Card[]` (read the exact signatures/arg order).
+- `@core/domain/comboSelection` `selectionForRange(hands, comboSelections?): ComboSelection`
+  (so refinements from slice 44 are honored).
+- `@core/domain/cards` `parseBoard`, `formatCard`, `type Card`; `@core/storage/rangeStorage`
+  `findSavedRangeById`; `@core/types/range` `SavedRange`.
 
-DESIGN NOTE (resolve when building): decide how a hand's combo editor is opened from the mobile
-binary editor — e.g. long-press an in-range cell on the `HandGrid` to open that hand's
-`ComboSelector` (inline panel or modal), or a dedicated "Refine combos" affordance. Pick the
-simplest that fits the existing `editor.tsx` layout and reuses `ComboSelector`. Check the web
-editor's UX and mirror where reasonable, but native trigger conventions may differ — document the
-choice in a comment.
+Task (mobile-only; reuse `@core`, do not edit `src/`): a `mobile/app/blocker-drill.tsx` screen
+reached from the practice-mode picker (`?id=<rangeId>`, like action-quiz / postflop). Load the
+range; build `selection = selectionForRange(range.hands, range.comboSelections)`. A board
+TextInput (dead cards); show the remaining-combo count via `availablePracticeCombos(...).length`
+(parse errors shown inline, empty board = no dead cards); a "Deal combo" button that shows a
+random `drawPracticeCombo(...)` result (suit-colored cards). Add the picker entry in
+`mobile/app/practice-modes.tsx`. Extract any parse/availability glue into a small pure helper in
+`mobile/components/` if it makes the logic testable without rendering.
 
-Task (mobile-only; reuse `@core`, do not edit `src/`): in `mobile/app/editor.tsx`, manage a
-`comboSelections` map in editor state (seeded from the loaded range via
-`deserializeComboSelection`); when a hand's `ComboSelector` toggles a combo, update that hand's
-selection (`toggleCombo`) and reserialize; on save, write `comboSelections` onto the `SavedRange`
-(omitting hands whose selection is full, to match web). Toggling a hand OUT of the range should
-drop any stored combo refinement for it.
+Tests: on the pure helper (or the parse logic) — a known range + board yields the expected
+remaining count and excludes blocked combos (e.g. range `['AKs']`, board `As` → 3 combos, none
+using As); an empty board yields all combos; an invalid board reports an error. Update
+`practice-modes-screen.test.tsx` to assert the new mode entry.
 
-Tests (RNTL, mirroring `editor-screen.test.tsx` / `editor-preserves-overlay.test.tsx`): opening a
-hand's combo editor and deselecting a combo persists a `comboSelections` entry with the remaining
-combo keys on save; a hand left fully selected writes NO entry; removing the hand from the range
-clears its entry. Reuse the existing editor test harness (storage shim + expo-router mocks).
-
-Files: edit `mobile/app/editor.tsx`; add `mobile/__tests__/editor-combo-selection.test.tsx`
-(or extend `editor-screen.test.tsx`). No `src/` edits, no new dependency.
+Files: add `mobile/app/blocker-drill.tsx` (+ small helper + test); edit
+`mobile/app/practice-modes.tsx` (+ its test). No `src/` edits, no new dependency.
 
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
 `npm run bundle-check` — all must pass.
 
-Constraints: reuse `@core/domain/comboSelection` for all selection logic + serialization (no
-hand-rolled combo-key persistence); keep `comboSelections` byte-compatible with the web (absence =
-all combos in). Screen logic in `mobile/app/`, reuse the slice-43 component. Do not edit `src/`.
+Constraints: reuse `@core/domain/blockerPractice` + `selectionForRange` for all combo/blocker
+logic (no hand-rolled enumeration or dead-card removal); screen in `mobile/app/`, any pure helper
+in `mobile/components/`. Do not edit `src/`.
 
 Suggested commit message:
-`feat(ios): refine and persist per-hand combo selections in the editor`
+`feat(ios): add blocker-aware combo drill`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
 
