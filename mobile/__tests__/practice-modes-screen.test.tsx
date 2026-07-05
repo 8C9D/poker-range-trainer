@@ -12,7 +12,7 @@ jest.mock('expo-router', () => ({
 }));
 
 describe('PracticeModesScreen', () => {
-  it('offers the recognition, build, timed, action-quiz, and postflop modes', async () => {
+  it('offers the recognition, build, timed, action-quiz, postflop, and blocker modes', async () => {
     const { getByTestId, getByText } = await render(<PracticeModesScreen />);
 
     expect(getByTestId('mode-recognition')).toBeTruthy();
@@ -20,10 +20,12 @@ describe('PracticeModesScreen', () => {
     expect(getByTestId('mode-timed')).toBeTruthy();
     expect(getByTestId('mode-action-quiz')).toBeTruthy();
     expect(getByTestId('mode-postflop')).toBeTruthy();
+    expect(getByTestId('mode-blocker-drill')).toBeTruthy();
     expect(getByText('Recognition')).toBeTruthy();
     expect(getByText('Build from memory')).toBeTruthy();
     expect(getByText('Timed drill')).toBeTruthy();
     expect(getByText('Action quiz')).toBeTruthy();
     expect(getByText('Postflop spot')).toBeTruthy();
+    expect(getByText('Blocker drill')).toBeTruthy();
   });
 });

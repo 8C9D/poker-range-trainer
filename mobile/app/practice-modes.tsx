@@ -46,6 +46,12 @@ export default function PracticeModesScreen() {
           <Text style={styles.modeDesc}>Decide bet/check/call/raise/fold on a random flop.</Text>
         </Pressable>
       </Link>
+      <Link href={{ pathname: '/blocker-drill', params: { id: idParam } }} asChild>
+        <Pressable testID="mode-blocker-drill" accessibilityRole="button" style={styles.mode}>
+          <Text style={styles.modeTitle}>Blocker drill</Text>
+          <Text style={styles.modeDesc}>Deal an unblocked combo from the range given a board.</Text>
+        </Pressable>
+      </Link>
     </View>
   );
 }

@@ -77,67 +77,71 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 42 | Combo explorer: enumerate a hand's combos + blocker-aware counts | M6 | 2026-06-22 |
 | 43 | Controlled `ComboSelector` component (per-combo toggles) | M6 | 2026-06-22 |
 | 44 | Refine + persist per-hand combo selections in the editor | M6 | 2026-06-22 |
+| 45 | Blocker-aware combo drill (completes the combo cluster) | M6 | 2026-06-22 |
 
 **M5 — Practice depth: COMPLETE** (slices 23–38). The full training suite is on device:
 mistakes review, per-range/per-hand stats, weakest-hands, mistakes-only drill, accuracy
 heatmap, build-from-memory, practice-mode picker, timed drill, swipe-to-answer + haptics,
 session history, spaced repetition (record + due-badge + streak), and the multi-action
 cluster (editor, quiz, notation). **M6 — Advanced training** is underway: board explorer
-(slice 39), range-vs-board overlay (slice 40), postflop decision practice (slice 41), and the
-combo-level work — combo explorer (slice 42), `ComboSelector` component (slice 43), and
-per-hand combo refinement persisted as `comboSelections` in the editor (slice 44). Remaining in
-the combo cluster: the blocker-aware combo drill (`blockerPractice`); then mixed frequencies,
-range diff, per-hand notes, and CSV import.
+(slice 39), range-vs-board overlay (slice 40), and postflop decision practice (slice 41).
+**Combo cluster COMPLETE** (slices 42–45): combo explorer, `ComboSelector` component, per-hand
+combo refinement persisted as `comboSelections` in the editor, and the blocker-aware combo drill
+(a practice mode dealing unblocked combos, honoring `comboSelections` via `selectionForRange`).
+Next: the mixed-frequency cluster (`mixedStrategy` / `mixedNotation`) — editor, integration,
+quiz, notation — then range diff, per-hand notes, and CSV import.
 
 ## Next slice
 
-**Slice 45 — Blocker-aware combo drill (completes the combo cluster)**
+**Slice 46 — `MixedStrategyEditor` RN component (per-action frequencies)**
 
-Milestone: M6 — Advanced training (web v4.1 "combo-level precision"). Final unit of the combo
-cluster, after enumeration (42), the `ComboSelector` component (43), and combo refinement in the
-editor (44). A practice screen that deals a concrete combo from a saved range that a board (dead
-cards) does not block, honoring the range's `comboSelections`. Mirror the web `ComboBlockerDrill`.
+Milestone: M6 — Advanced training (web v4.2 "mixed-frequency strategies"). Opens the
+mixed-frequency cluster, decomposed like the combo cluster: this slice is the controlled
+component for editing ONE hand's mixed strategy (the analogue of `ComboSelector` in slice 43);
+later slices wire it into a screen + persist `mixedStrategies` (like 44), then add the quiz and
+notation. Keep this one to the component + helper + test, with no screen/storage integration.
 
-Context: given a range's hand classes + a board, only some concrete combos remain unblocked. The
-drill lets the user type a board, see how many combos remain, and deal a random unblocked combo —
-exploratory, no persisted stats (matches the web component). The eligible combos are further
-restricted by the range's combo refinements via `selectionForRange`.
+Context: a hand's mixed strategy is a list of weighted actions — `HandMixedStrategy = MixedAction[]`
+where `MixedAction = { action: RangeAction; frequency: number }` and `frequency` is a percent in
+[0, 100]. A complete strategy sums to 100. The web `MixedStrategyEditor` lets the user set each
+action's frequency; mirror it in RN with simple steppers (+/− buttons) per action — sliders are
+fiddly on device.
 
-Reuse (verified — read `src/domain/blockerPractice.ts` + `src/components/ComboBlockerDrill.tsx`
+Reuse (verified — read `src/domain/mixedStrategy.ts` + `src/components/MixedStrategyEditor.tsx`
 to confirm shapes before building):
-- `@core/domain/blockerPractice` `availablePracticeCombos(hands, dead, selection?): Card[][]`,
-  `drawPracticeCombo(hands, dead, selection?): Card[]` (read the exact signatures/arg order).
-- `@core/domain/comboSelection` `selectionForRange(hands, comboSelections?): ComboSelection`
-  (so refinements from slice 44 are honored).
-- `@core/domain/cards` `parseBoard`, `formatCard`, `type Card`; `@core/storage/rangeStorage`
-  `findSavedRangeById`; `@core/types/range` `SavedRange`.
+- `@core/domain/mixedStrategy` `interface MixedAction`, `type HandMixedStrategy`,
+  `normalizeMixedStrategy(actions): HandMixedStrategy`, `totalFrequency(actions): number`,
+  `isValidMixedStrategy(actions): boolean`.
+- `@core/types/range` `RANGE_ACTIONS`, `RANGE_ACTION_LABELS`, `type RangeAction`.
+- `mobile/theme/actionColors` `ACTION_COLORS` (for per-action coloring, as in the action editor).
 
-Task (mobile-only; reuse `@core`, do not edit `src/`): a `mobile/app/blocker-drill.tsx` screen
-reached from the practice-mode picker (`?id=<rangeId>`, like action-quiz / postflop). Load the
-range; build `selection = selectionForRange(range.hands, range.comboSelections)`. A board
-TextInput (dead cards); show the remaining-combo count via `availablePracticeCombos(...).length`
-(parse errors shown inline, empty board = no dead cards); a "Deal combo" button that shows a
-random `drawPracticeCombo(...)` result (suit-colored cards). Add the picker entry in
-`mobile/app/practice-modes.tsx`. Extract any parse/availability glue into a small pure helper in
-`mobile/components/` if it makes the logic testable without rendering.
+Task (mobile-only; reuse `@core`, do not edit `src/`): a controlled `MixedStrategyEditor` RN
+component in `mobile/components/MixedStrategyEditor.tsx` with props
+`{ strategy: HandMixedStrategy; onChange: (next: HandMixedStrategy) => void }`. Render a row per
+`RANGE_ACTION` showing its current frequency (0 when absent) with − / + steppers (clamp to
+[0, 100], fixed step e.g. 5), the running total (`totalFrequency`), and a valid/!=100 indicator
+(`isValidMixedStrategy`). The component owns no state — it computes the next strategy and calls
+`onChange`. Extract the stepping math into a small pure helper in `mobile/components/` (e.g.
+`stepMixedFrequency(strategy, action, delta, step): HandMixedStrategy`, normalized via
+`normalizeMixedStrategy`) so it unit-tests without rendering.
 
-Tests: on the pure helper (or the parse logic) — a known range + board yields the expected
-remaining count and excludes blocked combos (e.g. range `['AKs']`, board `As` → 3 combos, none
-using As); an empty board yields all combos; an invalid board reports an error. Update
-`practice-modes-screen.test.tsx` to assert the new mode entry.
+Tests: helper — stepping an action up adds/increases that action and `totalFrequency` reflects it;
+stepping below 0 clamps; reaching 100 makes `isValidMixedStrategy` true. Component (RNTL): pressing
+an action's + stepper fires `onChange` with the updated strategy; the total is displayed.
 
-Files: add `mobile/app/blocker-drill.tsx` (+ small helper + test); edit
-`mobile/app/practice-modes.tsx` (+ its test). No `src/` edits, no new dependency.
+Files: add `mobile/components/MixedStrategyEditor.tsx` + `mobile/components/<stepHelper>.ts` +
+`mobile/__tests__/mixed-strategy-editor.test.tsx` (+ a helper test, may share the file). No `src/`
+edits, no new dependency, no screen wiring yet.
 
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
 `npm run bundle-check` — all must pass.
 
-Constraints: reuse `@core/domain/blockerPractice` + `selectionForRange` for all combo/blocker
-logic (no hand-rolled enumeration or dead-card removal); screen in `mobile/app/`, any pure helper
-in `mobile/components/`. Do not edit `src/`.
+Constraints: reuse `@core/domain/mixedStrategy` for all strategy math (no hand-rolled
+normalization/validation); component is controlled (no internal strategy state); lives in
+`mobile/components/`. Do not edit `src/`.
 
 Suggested commit message:
-`feat(ios): add blocker-aware combo drill`
+`feat(ios): add controlled MixedStrategyEditor component`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
 
