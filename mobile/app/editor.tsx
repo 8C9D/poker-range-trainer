@@ -200,6 +200,11 @@ export default function EditorScreen() {
           <Text style={styles.actionsLinkText}>Edit actions →</Text>
         </Pressable>
       </Link>
+      <Link href={{ pathname: '/frequency-editor', params: { id: draft.id } }} asChild>
+        <Pressable testID="edit-frequencies" accessibilityRole="button" style={styles.actionsLink}>
+          <Text style={styles.actionsLinkText}>Edit frequencies →</Text>
+        </Pressable>
+      </Link>
       <Pressable
         testID="clear-range"
         accessibilityRole="button"
