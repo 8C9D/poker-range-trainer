@@ -81,6 +81,7 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 46 | Controlled `MixedStrategyEditor` component (per-action steppers) | M6 | 2026-06-22 |
 | 47 | Frequency-editor screen persisting `mixedStrategies` | M6 | 2026-06-22 |
 | 48 | Mixed-frequency primary-action quiz | M6 | 2026-06-22 |
+| 49 | Mixed-frequency notation import/export (completes the mixed cluster) | M6 | 2026-06-22 |
 
 **M5 — Practice depth: COMPLETE** (slices 23–38). The full training suite is on device:
 mistakes review, per-range/per-hand stats, weakest-hands, mistakes-only drill, accuracy
@@ -91,57 +92,56 @@ cluster (editor, quiz, notation). **M6 — Advanced training** is underway: boar
 **Combo cluster COMPLETE** (slices 42–45): combo explorer, `ComboSelector` component, per-hand
 combo refinement persisted as `comboSelections` in the editor, and the blocker-aware combo drill
 (a practice mode dealing unblocked combos, honoring `comboSelections` via `selectionForRange`).
-**Mixed-frequency cluster** underway: the `MixedStrategyEditor` component (slice 46), a
-frequency-editor screen persisting `mixedStrategies` (slice 47), and a primary-action quiz
-(slice 48). Last unit: mixed notation import/export. After the mixed cluster: range diff, per-hand
-notes, and CSV import.
+**Mixed-frequency cluster COMPLETE** (slices 46–49): the `MixedStrategyEditor` component, a
+frequency-editor screen persisting `mixedStrategies`, a primary-action quiz, and notation
+import/export. Remaining in M6: range diff (`rangeDiff`), per-hand notes (`handNotes`), and CSV
+import (`rangeTransfer`).
 
 ## Next slice
 
-**Slice 49 — Mixed notation import/export (completes the mixed cluster)**
+**Slice 50 — Range diff view (compare two ranges)**
 
-Milestone: M6 — Advanced training (web v4.2 "mixed-frequency strategies"). Final unit of the mixed
-cluster: copy/paste interchange for `mixedStrategies`, mirroring the existing mobile
-`ActionNotation` (clipboard) component and the web `src/components/MixedNotation.tsx`.
+Milestone: M6 — Advanced training (web v5 "compare two ranges / range diff view"). Compare two
+saved ranges by membership and show common / only-A / only-B hands. Mirror the web
+`src/components/RangeDiffView.tsx`.
 
-Context: `formatMixedNotation(mixedStrategies): string` emits one `"{hand}: {action} {freq}, ..."`
-line per hand with a non-empty strategy (canonical order); `parseMixedNotation(input):
-Record<PokerHand, HandMixedStrategy>` parses it back and throws a clear `Error` on a malformed
-line / invalid hand / unknown action / non-numeric frequency. The component copies the current
-notation and applies pasted text by REPLACING the strategy map (exactly like `ActionNotation`).
+Context: `diffRanges(a, b): RangeDiff` splits two hand lists into `{ common, onlyA, onlyB }` in
+canonical order; `diffSummary(diff)` gives the three counts. Pure `@core` logic; this slice is the
+screen over it.
 
-Reuse (verified — read `mobile/components/ActionNotation.tsx` to mirror the copy/apply UX, plus
-`src/domain/mixedNotation.ts` + `src/components/MixedNotation.tsx`):
-- `@core/domain/mixedNotation` `formatMixedNotation(mixedStrategies): string`,
-  `parseMixedNotation(input): Record<PokerHand, HandMixedStrategy>`.
-- `@core/domain/mixedStrategy` `type HandMixedStrategy`; `expo-clipboard` (already a dependency,
-  used by `ActionNotation`).
+Reuse (verified — read `src/domain/rangeDiff.ts` + `src/components/RangeDiffView.tsx`):
+- `@core/domain/rangeDiff` `diffRanges(a: PokerHand[], b: PokerHand[]): RangeDiff`
+  (`{ common, onlyA, onlyB }`), `diffSummary(diff): { common, onlyA, onlyB }`.
+- `@core/storage/rangeStorage` `loadSavedRanges`, `findSavedRangeById`; `@core/types/range`
+  `SavedRange`; `@core/domain/pokerHands` `PokerHand`.
 
-Task (mobile-only; reuse `@core`, do not edit `src/`): add a `MixedNotation` RN component in
-`mobile/components/MixedNotation.tsx` with props `{ mixedStrategies: Record<PokerHand,
-HandMixedStrategy>; onReplaceStrategies: (next: Record<PokerHand, HandMixedStrategy>) => void }`.
-Show the current notation (`formatMixedNotation`), a "Copy" button (`Clipboard.setStringAsync`), a
-paste TextInput + "Apply" button that parses via `parseMixedNotation` and calls
-`onReplaceStrategies`, surfacing a parse error inline. Render it in the frequency-editor screen
-(`mobile/app/frequency-editor.tsx`), wiring `onReplaceStrategies` to the screen's
-`setMixedStrategies` so an import live-saves like the editor does.
+DESIGN NOTE (resolve when building): reach a `mobile/app/diff.tsx` screen with `?id=<rangeA>` from
+a library-card "Compare" action (mirrors the web's per-range compare), or from a home/header link;
+pick the simplest that fits the existing `index.tsx` card/header layout. On the screen, load range A
+and let the user pick range B from a chip list of the other saved ranges, then render the diff.
+Presentation: at minimum the three summary counts (`diffSummary`) plus the only-A / only-B / common
+hands as labeled chip groups; a tri-color 13×13 grid mirroring `RangeDiffView` is a nice-to-have if
+it stays simple (a small read-only grid colored by membership) — otherwise keep the chip groups.
 
-Tests (RNTL, mirroring `action-notation.test.tsx`): the component shows the formatted notation for
-a given map; applying valid pasted notation calls `onReplaceStrategies` with the parsed map;
-applying malformed text shows an error and does not call the callback. Mock `expo-clipboard` as in
-the existing notation test.
+Task (mobile-only; reuse `@core`, do not edit `src/`): add `mobile/app/diff.tsx`; pick range B;
+compute `diffRanges(rangeA.hands, rangeB.hands)`; show `diffSummary` counts + the partitioned hands.
+Add the entry point (library card action or header link) to reach it.
 
-Files: add `mobile/components/MixedNotation.tsx` + `mobile/__tests__/mixed-notation.test.tsx`; edit
-`mobile/app/frequency-editor.tsx` (render it). No `src/` edits, no new dependency.
+Tests (RNTL): with two seeded ranges, selecting range B renders the correct common / only-A /
+only-B counts (assert via `diffSummary`-backed testIDs). Reuse the storage shim + expo-router mocks.
+If a small pure helper is extracted, unit-test it instead/too.
+
+Files: add `mobile/app/diff.tsx` + `mobile/__tests__/diff-screen.test.tsx`; edit the entry-point
+screen (`mobile/app/index.tsx`). No `src/` edits, no new dependency.
 
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
 `npm run bundle-check` — all must pass.
 
-Constraints: reuse `@core/domain/mixedNotation` for format/parse (no hand-rolled notation);
-component in `mobile/components/`; mirror `ActionNotation`'s clipboard UX. Do not edit `src/`.
+Constraints: reuse `@core/domain/rangeDiff` for all comparison logic (no hand-rolled set math);
+screen in `mobile/app/`. Do not edit `src/`.
 
 Suggested commit message:
-`feat(ios): add mixed-frequency notation import/export`
+`feat(ios): add a range diff view to compare two ranges`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
 

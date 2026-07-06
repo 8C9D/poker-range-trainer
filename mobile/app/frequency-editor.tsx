@@ -6,6 +6,7 @@ import { primaryAction, type HandMixedStrategy } from '@core/domain/mixedStrateg
 import type { PokerHand } from '@core/domain/pokerHands';
 import { findSavedRangeById, saveSavedRange } from '@core/storage/rangeStorage';
 
+import { MixedNotation } from '../components/MixedNotation';
 import { MixedStrategyEditor } from '../components/MixedStrategyEditor';
 import { ACTION_COLORS } from '../theme/actionColors';
 import { colors } from '../theme/colors';
@@ -93,6 +94,11 @@ export default function FrequencyEditorScreen() {
               onChange={(next) => setStrategy(activeHand, next)}
             />
           ) : null}
+
+          <MixedNotation
+            mixedStrategies={mixedStrategies}
+            onReplaceStrategies={setMixedStrategies}
+          />
         </>
       )}
     </ScrollView>
