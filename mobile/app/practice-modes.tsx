@@ -52,6 +52,12 @@ export default function PracticeModesScreen() {
           <Text style={styles.modeDesc}>Deal an unblocked combo from the range given a board.</Text>
         </Pressable>
       </Link>
+      <Link href={{ pathname: '/mixed-quiz', params: { id: idParam } }} asChild>
+        <Pressable testID="mode-mixed-quiz" accessibilityRole="button" style={styles.mode}>
+          <Text style={styles.modeTitle}>Frequency quiz</Text>
+          <Text style={styles.modeDesc}>Name the primary action for each mixed-frequency hand.</Text>
+        </Pressable>
+      </Link>
     </View>
   );
 }

@@ -80,6 +80,7 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 45 | Blocker-aware combo drill (completes the combo cluster) | M6 | 2026-06-22 |
 | 46 | Controlled `MixedStrategyEditor` component (per-action steppers) | M6 | 2026-06-22 |
 | 47 | Frequency-editor screen persisting `mixedStrategies` | M6 | 2026-06-22 |
+| 48 | Mixed-frequency primary-action quiz | M6 | 2026-06-22 |
 
 **M5 — Practice depth: COMPLETE** (slices 23–38). The full training suite is on device:
 mistakes review, per-range/per-hand stats, weakest-hands, mistakes-only drill, accuracy
@@ -90,53 +91,57 @@ cluster (editor, quiz, notation). **M6 — Advanced training** is underway: boar
 **Combo cluster COMPLETE** (slices 42–45): combo explorer, `ComboSelector` component, per-hand
 combo refinement persisted as `comboSelections` in the editor, and the blocker-aware combo drill
 (a practice mode dealing unblocked combos, honoring `comboSelections` via `selectionForRange`).
-**Mixed-frequency cluster** underway: the `MixedStrategyEditor` component (slice 46) and a
-frequency-editor screen persisting `mixedStrategies`, reached from the binary editor (slice 47).
-Next: the mixed-action quiz, then mixed notation — then range diff, per-hand notes, and CSV import.
+**Mixed-frequency cluster** underway: the `MixedStrategyEditor` component (slice 46), a
+frequency-editor screen persisting `mixedStrategies` (slice 47), and a primary-action quiz
+(slice 48). Last unit: mixed notation import/export. After the mixed cluster: range diff, per-hand
+notes, and CSV import.
 
 ## Next slice
 
-**Slice 48 — Mixed-action quiz (primary-action recall)**
+**Slice 49 — Mixed notation import/export (completes the mixed cluster)**
 
-Milestone: M6 — Advanced training (web v4.2 "mixed-frequency strategies"). Third unit of the mixed
-cluster: a practice mode quizzing the PRIMARY action of each hand that carries a mixed strategy.
-Structurally almost identical to the existing `mobile/app/action-quiz.tsx`; mirror it and the web
-`src/components/MixedActionQuiz.tsx`.
+Milestone: M6 — Advanced training (web v4.2 "mixed-frequency strategies"). Final unit of the mixed
+cluster: copy/paste interchange for `mixedStrategies`, mirroring the existing mobile
+`ActionNotation` (clipboard) component and the web `src/components/MixedNotation.tsx`.
 
-Context: the quiz pool is `handsWithMixedStrategy(range.mixedStrategies)` (hands with a non-empty
-strategy, slice 47 lets the user create these). For a drawn hand the correct answer is
-`primaryAction(strategy) ?? 'fold'`; the user picks a `RangeAction` and gets feedback + a "Next
-hand" loop with running stats. No persistence (matches the web component).
+Context: `formatMixedNotation(mixedStrategies): string` emits one `"{hand}: {action} {freq}, ..."`
+line per hand with a non-empty strategy (canonical order); `parseMixedNotation(input):
+Record<PokerHand, HandMixedStrategy>` parses it back and throws a clear `Error` on a malformed
+line / invalid hand / unknown action / non-numeric frequency. The component copies the current
+notation and applies pasted text by REPLACING the strategy map (exactly like `ActionNotation`).
 
-Reuse (verified — read `src/components/MixedActionQuiz.tsx` + `mobile/app/action-quiz.tsx`):
-- `@core/domain/mixedStrategy` `handsWithMixedStrategy(mixedStrategies): PokerHand[]`,
-  `primaryAction(strategy): RangeAction | null`.
-- `@core/domain/practice` `getRandomHandFrom(pool, random?)`; `@core/domain/accuracy`
-  `accuracyPercentage`; `@core/types/range` `RANGE_ACTIONS`, `RANGE_ACTION_LABELS`, `RangeAction`;
-  `@core/storage/rangeStorage` `findSavedRangeById`; `mobile/theme/actionColors` `ACTION_COLORS`.
+Reuse (verified — read `mobile/components/ActionNotation.tsx` to mirror the copy/apply UX, plus
+`src/domain/mixedNotation.ts` + `src/components/MixedNotation.tsx`):
+- `@core/domain/mixedNotation` `formatMixedNotation(mixedStrategies): string`,
+  `parseMixedNotation(input): Record<PokerHand, HandMixedStrategy>`.
+- `@core/domain/mixedStrategy` `type HandMixedStrategy`; `expo-clipboard` (already a dependency,
+  used by `ActionNotation`).
 
-Task (mobile-only; reuse `@core`, do not edit `src/`): a `mobile/app/mixed-quiz.tsx` screen reached
-from the practice-mode picker (`?id=<rangeId>`, like action-quiz). Build the pool; if empty, show
-"assign frequencies first". Otherwise draw a hand (`getRandomHandFrom`), ask "What is the primary
-action?", score the pick against `primaryAction(strategy) ?? 'fold'` with feedback + a "Next hand"
-button + running total/correct/accuracy. Add the picker entry in `mobile/app/practice-modes.tsx`.
+Task (mobile-only; reuse `@core`, do not edit `src/`): add a `MixedNotation` RN component in
+`mobile/components/MixedNotation.tsx` with props `{ mixedStrategies: Record<PokerHand,
+HandMixedStrategy>; onReplaceStrategies: (next: Record<PokerHand, HandMixedStrategy>) => void }`.
+Show the current notation (`formatMixedNotation`), a "Copy" button (`Clipboard.setStringAsync`), a
+paste TextInput + "Apply" button that parses via `parseMixedNotation` and calls
+`onReplaceStrategies`, surfacing a parse error inline. Render it in the frequency-editor screen
+(`mobile/app/frequency-editor.tsx`), wiring `onReplaceStrategies` to the screen's
+`setMixedStrategies` so an import live-saves like the editor does.
 
-Tests (RNTL, mirroring `action-quiz-screen.test.tsx`): seed a range whose `mixedStrategies` has
-exactly ONE hand (so the draw is deterministic); pressing the primary action scores Correct and
-pressing a different action scores Incorrect; an empty-pool range shows the "assign frequencies"
-message. Update `practice-modes-screen.test.tsx` for the new mode entry.
+Tests (RNTL, mirroring `action-notation.test.tsx`): the component shows the formatted notation for
+a given map; applying valid pasted notation calls `onReplaceStrategies` with the parsed map;
+applying malformed text shows an error and does not call the callback. Mock `expo-clipboard` as in
+the existing notation test.
 
-Files: add `mobile/app/mixed-quiz.tsx` + `mobile/__tests__/mixed-quiz-screen.test.tsx`; edit
-`mobile/app/practice-modes.tsx` (+ its test). No `src/` edits, no new dependency.
+Files: add `mobile/components/MixedNotation.tsx` + `mobile/__tests__/mixed-notation.test.tsx`; edit
+`mobile/app/frequency-editor.tsx` (render it). No `src/` edits, no new dependency.
 
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
 `npm run bundle-check` — all must pass.
 
-Constraints: reuse `@core/domain/mixedStrategy` (`handsWithMixedStrategy`, `primaryAction`) for the
-pool + scoring (no hand-rolled logic); screen in `mobile/app/`. Do not edit `src/`.
+Constraints: reuse `@core/domain/mixedNotation` for format/parse (no hand-rolled notation);
+component in `mobile/components/`; mirror `ActionNotation`'s clipboard UX. Do not edit `src/`.
 
 Suggested commit message:
-`feat(ios): add a mixed-frequency primary-action quiz`
+`feat(ios): add mixed-frequency notation import/export`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
 
