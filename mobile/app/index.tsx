@@ -165,9 +165,14 @@ export default function LibraryScreen() {
         options={{
           title: 'Ranges',
           headerLeft: () => (
-            <Link href="/board" style={styles.headerLink}>
-              Boards
-            </Link>
+            <View style={styles.headerLeft}>
+              <Link href="/board" style={styles.headerLink}>
+                Boards
+              </Link>
+              <Link href="/diff" style={styles.headerLink}>
+                Compare
+              </Link>
+            </View>
           ),
           headerRight: () => (
             <Link href="/editor" style={styles.headerLink}>
@@ -367,6 +372,10 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    gap: 16,
   },
   headerLink: {
     color: colors.accent,

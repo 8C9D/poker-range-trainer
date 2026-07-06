@@ -82,6 +82,7 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 47 | Frequency-editor screen persisting `mixedStrategies` | M6 | 2026-06-22 |
 | 48 | Mixed-frequency primary-action quiz | M6 | 2026-06-22 |
 | 49 | Mixed-frequency notation import/export (completes the mixed cluster) | M6 | 2026-06-22 |
+| 50 | Range diff view (compare two ranges) | M6 | 2026-06-22 |
 
 **M5 — Practice depth: COMPLETE** (slices 23–38). The full training suite is on device:
 mistakes review, per-range/per-hand stats, weakest-hands, mistakes-only drill, accuracy
@@ -94,54 +95,53 @@ combo refinement persisted as `comboSelections` in the editor, and the blocker-a
 (a practice mode dealing unblocked combos, honoring `comboSelections` via `selectionForRange`).
 **Mixed-frequency cluster COMPLETE** (slices 46–49): the `MixedStrategyEditor` component, a
 frequency-editor screen persisting `mixedStrategies`, a primary-action quiz, and notation
-import/export. Remaining in M6: range diff (`rangeDiff`), per-hand notes (`handNotes`), and CSV
-import (`rangeTransfer`).
+import/export. The range diff view (slice 50 — compare two ranges, reached from a "Compare" header
+link) is also done. Remaining in M6: per-hand notes (`handNotes`), then CSV import
+(`rangeTransfer`) — the last M6 unit.
 
 ## Next slice
 
-**Slice 50 — Range diff view (compare two ranges)**
+**Slice 51 — Per-hand notes editor**
 
-Milestone: M6 — Advanced training (web v5 "compare two ranges / range diff view"). Compare two
-saved ranges by membership and show common / only-A / only-B hands. Mirror the web
-`src/components/RangeDiffView.tsx`.
+Milestone: M6 — Advanced training (web v5 "per-hand notes"). Attach a free-text note to individual
+in-range hands, persisted as `SavedRange.handNotes`. Mirror the web `HandNotesEditor`
+(`src/components/HandNotesEditor.tsx`) + `handleEditNotes`/`handleSaveNotes`, and follow the mobile
+frequency-editor pattern for the screen + persistence.
 
-Context: `diffRanges(a, b): RangeDiff` splits two hand lists into `{ common, onlyA, onlyB }` in
-canonical order; `diffSummary(diff)` gives the three counts. Pure `@core` logic; this slice is the
-screen over it.
+Context: `SavedRange.handNotes?: Record<PokerHand, string>` — a per-hand note map. The web editor
+picks an active hand and edits its note in a textarea; a non-blank note sets the entry, a blank one
+removes it. Storage `normalizeHandNotes` trims, drops blanks, and collapses `{}` to absent (so the
+overlay stays byte-compatible) — so you can pass the raw draft and let storage clean it.
 
-Reuse (verified — read `src/domain/rangeDiff.ts` + `src/components/RangeDiffView.tsx`):
-- `@core/domain/rangeDiff` `diffRanges(a: PokerHand[], b: PokerHand[]): RangeDiff`
-  (`{ common, onlyA, onlyB }`), `diffSummary(diff): { common, onlyA, onlyB }`.
-- `@core/storage/rangeStorage` `loadSavedRanges`, `findSavedRangeById`; `@core/types/range`
-  `SavedRange`; `@core/domain/pokerHands` `PokerHand`.
+Reuse (verified — read `src/components/HandNotesEditor.tsx` + `mobile/app/frequency-editor.tsx`):
+- `@core/domain/pokerHands` `ALL_HANDS` (canonical order), `PokerHand`.
+- `@core/storage/rangeStorage` `findSavedRangeById`, `saveSavedRange`; `@core/types/range`
+  `SavedRange` (`handNotes?`).
 
-DESIGN NOTE (resolve when building): reach a `mobile/app/diff.tsx` screen with `?id=<rangeA>` from
-a library-card "Compare" action (mirrors the web's per-range compare), or from a home/header link;
-pick the simplest that fits the existing `index.tsx` card/header layout. On the screen, load range A
-and let the user pick range B from a chip list of the other saved ranges, then render the diff.
-Presentation: at minimum the three summary counts (`diffSummary`) plus the only-A / only-B / common
-hands as labeled chip groups; a tri-color 13×13 grid mirroring `RangeDiffView` is a nice-to-have if
-it stays simple (a small read-only grid colored by membership) — otherwise keep the chip groups.
+Task (mobile-only; reuse `@core`, do not edit `src/`): add a `mobile/app/notes-editor.tsx` screen
+reached from the binary editor via an "Edit notes →" link (next to "Edit actions →" / "Edit
+frequencies →"). Seed a `handNotes` draft from the loaded range; a hand-picker (chips of the range's
+hands in `ALL_HANDS` order) selects the active hand; a multiline `TextInput` edits that hand's note
+(blank removes the entry). Live-save `handNotes` onto the range, preserving the other overlays
+(spread the loaded range, like action/frequency editors). Add the "Edit notes →" link in
+`mobile/app/editor.tsx`. The note editor is simple enough to inline in the screen (no separate
+component needed), but keep all persistence through `@core/storage`.
 
-Task (mobile-only; reuse `@core`, do not edit `src/`): add `mobile/app/diff.tsx`; pick range B;
-compute `diffRanges(rangeA.hands, rangeB.hands)`; show `diffSummary` counts + the partitioned hands.
-Add the entry point (library card action or header link) to reach it.
+Tests (RNTL, mirroring `frequency-editor-screen.test.tsx` + the storage shim): typing a note for the
+active hand persists a `handNotes` entry; clearing it removes the entry; other overlays (e.g.
+handActions) survive the save.
 
-Tests (RNTL): with two seeded ranges, selecting range B renders the correct common / only-A /
-only-B counts (assert via `diffSummary`-backed testIDs). Reuse the storage shim + expo-router mocks.
-If a small pure helper is extracted, unit-test it instead/too.
-
-Files: add `mobile/app/diff.tsx` + `mobile/__tests__/diff-screen.test.tsx`; edit the entry-point
-screen (`mobile/app/index.tsx`). No `src/` edits, no new dependency.
+Files: add `mobile/app/notes-editor.tsx` + `mobile/__tests__/notes-editor-screen.test.tsx`; edit
+`mobile/app/editor.tsx` (add the link). No `src/` edits, no new dependency.
 
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
 `npm run bundle-check` — all must pass.
 
-Constraints: reuse `@core/domain/rangeDiff` for all comparison logic (no hand-rolled set math);
-screen in `mobile/app/`. Do not edit `src/`.
+Constraints: persist via `@core/storage` (let `normalizeHandNotes` clean blanks); preserve other
+overlays on save; screen in `mobile/app/`. Do not edit `src/`.
 
 Suggested commit message:
-`feat(ios): add a range diff view to compare two ranges`
+`feat(ios): add a per-hand notes editor`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
 
