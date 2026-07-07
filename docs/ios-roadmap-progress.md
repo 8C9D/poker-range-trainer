@@ -84,6 +84,7 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 49 | Mixed-frequency notation import/export (completes the mixed cluster) | M6 | 2026-06-22 |
 | 50 | Range diff view (compare two ranges) | M6 | 2026-06-22 |
 | 51 | Per-hand notes editor (`handNotes`) | M6 | 2026-06-22 |
+| 52 | CSV import/export in the range editor (completes M6) | M6 | 2026-06-22 |
 
 **M5 — Practice depth: COMPLETE** (slices 23–38). The full training suite is on device:
 mistakes review, per-range/per-hand stats, weakest-hands, mistakes-only drill, accuracy
@@ -96,54 +97,67 @@ combo refinement persisted as `comboSelections` in the editor, and the blocker-a
 (a practice mode dealing unblocked combos, honoring `comboSelections` via `selectionForRange`).
 **Mixed-frequency cluster COMPLETE** (slices 46–49): the `MixedStrategyEditor` component, a
 frequency-editor screen persisting `mixedStrategies`, a primary-action quiz, and notation
-import/export. The range diff view (slice 50) and the per-hand notes editor (slice 51 — `handNotes`, reached from
-the binary editor) are also done. Last M6 unit: CSV import/export (`rangeTransfer`). After that, M6
-— Advanced training is COMPLETE and the roadmap moves to **M7 — Cloud, sync, and sharing**.
+import/export. The range diff view (slice 50), the per-hand notes editor (slice 51 — `handNotes`), and CSV
+import/export in the editor (slice 52 — `rangeTransfer`) are all done.
+
+**M6 — Advanced training: COMPLETE** (slices 39–52): board explorer + texture, range-vs-board,
+postflop decision practice, the combo cluster (explorer, selector, refinement, blocker drill), the
+mixed-frequency cluster (editor, screen, quiz, notation), range diff, per-hand notes, and CSV
+import/export. The roadmap now moves to **M7 — Cloud, sync, and sharing** (reusing the already-built
+`@core/cloud/*`), starting with the cloud env seam. Local-first throughout: with no
+`EXPO_PUBLIC_SUPABASE_*` set, the app stays fully usable offline and anonymous.
 
 ## Next slice
 
-**Slice 52 — CSV import/export (completes M6)**
+**Slice 53 — Cloud env seam (wire `EXPO_PUBLIC_SUPABASE_*` + handle `import.meta`)**
 
-Milestone: M6 — Advanced training (web v3.2 import/export ecosystem, "CSV import"). A clipboard
-CSV panel in the binary editor: export the current range's hands as CSV and import a CSV back into
-the range. Mirror the existing mobile `RangeNotation` / `ActionNotation` clipboard components.
+Milestone: M7 — Cloud, sync, and sharing (web v3). FIRST M7 slice and the second platform seam
+(the cloud env seam). The web `@core/cloud/cloudConfig` reads Vite env vars, defaulting its env
+source to `import.meta.env`; its `getCloudConfig(env)` / `isCloudConfigured(env)` already accept an
+INJECTED env, so the native side just supplies creds from `EXPO_PUBLIC_SUPABASE_URL` /
+`EXPO_PUBLIC_SUPABASE_ANON_KEY`. No account/credentials are needed: with the vars absent, cloud is
+unconfigured and the app stays local-first (this slice must NOT require a real Supabase project).
 
-Context: `formatRangeCsv(range): string` emits a summary block (`name,…`, counts) + a `hand`
-column; `parseRangeCsv(csv): { name?: string; hands: PokerHand[] }` reads the optional name row and
-the hand column back, validating each hand and throwing a clear `Error` on a missing/empty `hand`
-column or an invalid hand. CSV is a hands-only interchange (no actions/frequencies).
+Context: `src/cloud/cloudConfig.ts` has `const defaultEnv = import.meta.env as unknown as EnvSource`
+at MODULE LOAD. `import.meta` is Vite-only; on Metro/Hermes it may be a syntax/runtime problem the
+moment `@core/cloud/cloudConfig` is first bundled (no mobile screen imports it yet, so this slice is
+the first time Metro sees it). Resolving that is part of this slice.
 
-Reuse (verified — read `src/domain/rangeTransfer.ts` `formatRangeCsv` / `parseRangeCsv`, and the
-mobile `RangeNotation.tsx` to mirror the copy/paste/apply UX):
-- `@core/domain/rangeTransfer` `formatRangeCsv(range: SavedRange): string`,
-  `parseRangeCsv(csv): { name?: string; hands: PokerHand[] }`.
-- `@core/types/range` `SavedRange`; `@core/domain/pokerHands` `PokerHand`; `expo-clipboard`.
+Reuse (verified — read `src/cloud/cloudConfig.ts` to confirm shapes/names before building):
+- `@core/cloud/cloudConfig` `getCloudConfig(env): CloudConfig | null`, `isCloudConfigured(env): boolean`,
+  `interface CloudConfig`, and the `EnvSource` shape (`VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`).
 
-Task (mobile-only; reuse `@core`, do not edit `src/`): add a `RangeCsv` RN component in
-`mobile/components/RangeCsv.tsx` with props `{ name: string; hands: PokerHand[]; onImport: (result:
-{ name?: string; hands: PokerHand[] }) => void }`. Show the current CSV (`formatRangeCsv` over a
-minimal `{ name, hands }` cast to `SavedRange` — it only reads name+hands), a "Copy" button, a paste
-TextInput + "Apply" that runs `parseRangeCsv` and calls `onImport`, surfacing parse errors inline.
-Render it in `mobile/app/editor.tsx` (after `RangeNotation`), wiring `onImport` to set the name (when
-present) and replace the selected hands (reuse the editor's `onReplaceHands` + `setName`).
+Task (mobile-only; reuse `@core`, do NOT edit `src/`):
+1. Add `mobile/platform/cloudEnv.ts` exporting `getMobileCloudConfig(): CloudConfig | null` and
+   `isMobileCloudConfigured(): boolean`, which build an `EnvSource` `{ VITE_SUPABASE_URL:
+   process.env.EXPO_PUBLIC_SUPABASE_URL, VITE_SUPABASE_ANON_KEY: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY }`
+   and delegate to the core `getCloudConfig` / `isCloudConfigured` (the injected-env seam — no `src/`
+   edit).
+2. Make `@core/cloud/cloudConfig` bundle on Metro. Run `npm run bundle-check`; if `import.meta`
+   breaks it, add a Babel transform — install `babel-plugin-transform-import-meta` (dev dep) and add
+   it to `mobile/babel.config.js` (the roadmap pre-authorizes this transform). Re-run bundle-check
+   until the JS bundle builds. (`npm install` in `mobile/` needs the sandbox disabled per the env
+   notes.)
 
-Tests (RNTL, mirroring `range-notation.test.tsx` / `action-notation.test.tsx`, with `expo-clipboard`
-mocked): the component renders the formatted CSV for a name + hands; applying a valid pasted CSV
-(`hand` column, optional `name,` row) calls `onImport` with the parsed `{ name?, hands }`; applying
-malformed text (no `hand` column) shows an error and does not call `onImport`.
+Tests (`mobile/__tests__/cloud-env.test.ts`, no rendering): with the env vars unset,
+`isMobileCloudConfigured()` is false and `getMobileCloudConfig()` is null; with both set (set
+`process.env.EXPO_PUBLIC_SUPABASE_URL`/`_ANON_KEY` in the test, restore after), it is true and
+returns a `CloudConfig` with the url + anonKey. Mirror how `src/cloud/cloudConfig.test.ts` injects env.
 
-Files: add `mobile/components/RangeCsv.tsx` + `mobile/__tests__/range-csv.test.tsx`; edit
-`mobile/app/editor.tsx` (render it + wire `onImport`). No `src/` edits, no new dependency.
+Files: add `mobile/platform/cloudEnv.ts` + `mobile/__tests__/cloud-env.test.ts`; possibly edit
+`mobile/babel.config.js` + `mobile/package.json` (only if `import.meta` needs the transform). No
+`src/` edits.
 
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
-`npm run bundle-check` — all must pass.
+`npm run bundle-check` — all must pass. (If a dependency was added, run `npm install` first.)
 
-Constraints: reuse `@core/domain/rangeTransfer` for format/parse (no hand-rolled CSV); component in
-`mobile/components/`; mirror `RangeNotation`'s clipboard UX. Do not edit `src/`. This completes M6 —
-the next slice opens **M7 — Cloud, sync, and sharing**.
+Constraints: reuse `@core/cloud/cloudConfig` via its injected-env seam (no reimplemented config
+parsing, no `src/` edit); wrapper lives in `mobile/platform/`. Keep the app local-first when the env
+is absent. If Metro genuinely cannot bundle `import.meta` even with the transform, STOP and report
+rather than editing `src/`.
 
 Suggested commit message:
-`feat(ios): add CSV import/export to the range editor`
+`feat(ios): wire the Supabase cloud env seam for native`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
 

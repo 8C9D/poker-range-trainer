@@ -17,6 +17,7 @@ import type { RangeMetadata } from '@core/types/range';
 
 import { ComboSelector } from '../components/ComboSelector';
 import { HandGrid } from '../components/HandGrid';
+import { RangeCsv } from '../components/RangeCsv';
 import { RangeMetadataEditor } from '../components/RangeMetadataEditor';
 import { RangeNotation } from '../components/RangeNotation';
 import { RangeShortcuts } from '../components/RangeShortcuts';
@@ -127,6 +128,11 @@ export default function EditorScreen() {
     setSelected(new Set(hands));
   }, []);
 
+  const onImportCsv = useCallback((result: { name?: string; hands: PokerHand[] }) => {
+    if (result.name !== undefined) setName(result.name);
+    setSelected(new Set(result.hands));
+  }, []);
+
   const onToggleCombo = useCallback(
     (combo: Card[]) => {
       setComboDraft((prev) => {
@@ -194,6 +200,7 @@ export default function EditorScreen() {
         </View>
       ) : null}
       <RangeNotation selectedHands={[...selected]} onReplaceHands={onReplaceHands} />
+      <RangeCsv name={name} hands={[...selected]} onImport={onImportCsv} />
       <RangeMetadataEditor value={metadata} onChange={setMetadata} />
       <Link href={{ pathname: '/action-editor', params: { id: draft.id } }} asChild>
         <Pressable testID="edit-actions" accessibilityRole="button" style={styles.actionsLink}>
