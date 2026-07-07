@@ -83,6 +83,7 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 48 | Mixed-frequency primary-action quiz | M6 | 2026-06-22 |
 | 49 | Mixed-frequency notation import/export (completes the mixed cluster) | M6 | 2026-06-22 |
 | 50 | Range diff view (compare two ranges) | M6 | 2026-06-22 |
+| 51 | Per-hand notes editor (`handNotes`) | M6 | 2026-06-22 |
 
 **M5 — Practice depth: COMPLETE** (slices 23–38). The full training suite is on device:
 mistakes review, per-range/per-hand stats, weakest-hands, mistakes-only drill, accuracy
@@ -95,53 +96,54 @@ combo refinement persisted as `comboSelections` in the editor, and the blocker-a
 (a practice mode dealing unblocked combos, honoring `comboSelections` via `selectionForRange`).
 **Mixed-frequency cluster COMPLETE** (slices 46–49): the `MixedStrategyEditor` component, a
 frequency-editor screen persisting `mixedStrategies`, a primary-action quiz, and notation
-import/export. The range diff view (slice 50 — compare two ranges, reached from a "Compare" header
-link) is also done. Remaining in M6: per-hand notes (`handNotes`), then CSV import
-(`rangeTransfer`) — the last M6 unit.
+import/export. The range diff view (slice 50) and the per-hand notes editor (slice 51 — `handNotes`, reached from
+the binary editor) are also done. Last M6 unit: CSV import/export (`rangeTransfer`). After that, M6
+— Advanced training is COMPLETE and the roadmap moves to **M7 — Cloud, sync, and sharing**.
 
 ## Next slice
 
-**Slice 51 — Per-hand notes editor**
+**Slice 52 — CSV import/export (completes M6)**
 
-Milestone: M6 — Advanced training (web v5 "per-hand notes"). Attach a free-text note to individual
-in-range hands, persisted as `SavedRange.handNotes`. Mirror the web `HandNotesEditor`
-(`src/components/HandNotesEditor.tsx`) + `handleEditNotes`/`handleSaveNotes`, and follow the mobile
-frequency-editor pattern for the screen + persistence.
+Milestone: M6 — Advanced training (web v3.2 import/export ecosystem, "CSV import"). A clipboard
+CSV panel in the binary editor: export the current range's hands as CSV and import a CSV back into
+the range. Mirror the existing mobile `RangeNotation` / `ActionNotation` clipboard components.
 
-Context: `SavedRange.handNotes?: Record<PokerHand, string>` — a per-hand note map. The web editor
-picks an active hand and edits its note in a textarea; a non-blank note sets the entry, a blank one
-removes it. Storage `normalizeHandNotes` trims, drops blanks, and collapses `{}` to absent (so the
-overlay stays byte-compatible) — so you can pass the raw draft and let storage clean it.
+Context: `formatRangeCsv(range): string` emits a summary block (`name,…`, counts) + a `hand`
+column; `parseRangeCsv(csv): { name?: string; hands: PokerHand[] }` reads the optional name row and
+the hand column back, validating each hand and throwing a clear `Error` on a missing/empty `hand`
+column or an invalid hand. CSV is a hands-only interchange (no actions/frequencies).
 
-Reuse (verified — read `src/components/HandNotesEditor.tsx` + `mobile/app/frequency-editor.tsx`):
-- `@core/domain/pokerHands` `ALL_HANDS` (canonical order), `PokerHand`.
-- `@core/storage/rangeStorage` `findSavedRangeById`, `saveSavedRange`; `@core/types/range`
-  `SavedRange` (`handNotes?`).
+Reuse (verified — read `src/domain/rangeTransfer.ts` `formatRangeCsv` / `parseRangeCsv`, and the
+mobile `RangeNotation.tsx` to mirror the copy/paste/apply UX):
+- `@core/domain/rangeTransfer` `formatRangeCsv(range: SavedRange): string`,
+  `parseRangeCsv(csv): { name?: string; hands: PokerHand[] }`.
+- `@core/types/range` `SavedRange`; `@core/domain/pokerHands` `PokerHand`; `expo-clipboard`.
 
-Task (mobile-only; reuse `@core`, do not edit `src/`): add a `mobile/app/notes-editor.tsx` screen
-reached from the binary editor via an "Edit notes →" link (next to "Edit actions →" / "Edit
-frequencies →"). Seed a `handNotes` draft from the loaded range; a hand-picker (chips of the range's
-hands in `ALL_HANDS` order) selects the active hand; a multiline `TextInput` edits that hand's note
-(blank removes the entry). Live-save `handNotes` onto the range, preserving the other overlays
-(spread the loaded range, like action/frequency editors). Add the "Edit notes →" link in
-`mobile/app/editor.tsx`. The note editor is simple enough to inline in the screen (no separate
-component needed), but keep all persistence through `@core/storage`.
+Task (mobile-only; reuse `@core`, do not edit `src/`): add a `RangeCsv` RN component in
+`mobile/components/RangeCsv.tsx` with props `{ name: string; hands: PokerHand[]; onImport: (result:
+{ name?: string; hands: PokerHand[] }) => void }`. Show the current CSV (`formatRangeCsv` over a
+minimal `{ name, hands }` cast to `SavedRange` — it only reads name+hands), a "Copy" button, a paste
+TextInput + "Apply" that runs `parseRangeCsv` and calls `onImport`, surfacing parse errors inline.
+Render it in `mobile/app/editor.tsx` (after `RangeNotation`), wiring `onImport` to set the name (when
+present) and replace the selected hands (reuse the editor's `onReplaceHands` + `setName`).
 
-Tests (RNTL, mirroring `frequency-editor-screen.test.tsx` + the storage shim): typing a note for the
-active hand persists a `handNotes` entry; clearing it removes the entry; other overlays (e.g.
-handActions) survive the save.
+Tests (RNTL, mirroring `range-notation.test.tsx` / `action-notation.test.tsx`, with `expo-clipboard`
+mocked): the component renders the formatted CSV for a name + hands; applying a valid pasted CSV
+(`hand` column, optional `name,` row) calls `onImport` with the parsed `{ name?, hands }`; applying
+malformed text (no `hand` column) shows an error and does not call `onImport`.
 
-Files: add `mobile/app/notes-editor.tsx` + `mobile/__tests__/notes-editor-screen.test.tsx`; edit
-`mobile/app/editor.tsx` (add the link). No `src/` edits, no new dependency.
+Files: add `mobile/components/RangeCsv.tsx` + `mobile/__tests__/range-csv.test.tsx`; edit
+`mobile/app/editor.tsx` (render it + wire `onImport`). No `src/` edits, no new dependency.
 
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
 `npm run bundle-check` — all must pass.
 
-Constraints: persist via `@core/storage` (let `normalizeHandNotes` clean blanks); preserve other
-overlays on save; screen in `mobile/app/`. Do not edit `src/`.
+Constraints: reuse `@core/domain/rangeTransfer` for format/parse (no hand-rolled CSV); component in
+`mobile/components/`; mirror `RangeNotation`'s clipboard UX. Do not edit `src/`. This completes M6 —
+the next slice opens **M7 — Cloud, sync, and sharing**.
 
 Suggested commit message:
-`feat(ios): add a per-hand notes editor`
+`feat(ios): add CSV import/export to the range editor`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
 
