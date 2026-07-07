@@ -86,6 +86,7 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 51 | Per-hand notes editor (`handNotes`) | M6 | 2026-06-22 |
 | 52 | CSV import/export in the range editor (completes M6) | M6 | 2026-06-22 |
 | 53 | Cloud env seam: native Supabase config wrapper + `import.meta` handling | M7 | 2026-06-22 |
+| 54 | Native Supabase client factory (RN auth options + MMKV session storage) | M7 | 2026-06-22 |
 
 **M5 — Practice depth: COMPLETE** (slices 23–38). The full training suite is on device:
 mistakes review, per-range/per-hand stats, weakest-hands, mistakes-only drill, accuracy
@@ -108,62 +109,66 @@ import/export. **M7 — Cloud, sync, and sharing** has begun (reusing the alread
 env seam is done (slice 53 — `platform/cloudEnv.ts` injects `EXPO_PUBLIC_SUPABASE_*` into the core
 `getCloudConfig`; a mobile `ImportMeta.env` ambient decl lets `@core/cloud/cloudConfig` type-check;
 the jest run loaded that module, proving `babel-preset-expo` handles `import.meta` at runtime — so
-Metro will too). Next: the mobile Supabase client factory, then the auth screen, push/pull sync,
-delete-cloud-data, file backup, and deep links. Local-first throughout: with no
-`EXPO_PUBLIC_SUPABASE_*` set, the app stays fully usable offline and anonymous.
+Metro will too). The native Supabase client factory is also done (slice 54 —
+`platform/supabaseClient.ts` injects the mobile config + an RN `create` that persists the session
+through the MMKV `localStorage` shim with `detectSessionInUrl:false`; it short-circuits to `null`
+when unconfigured so the core never falls back to its Vite default; `@supabase/supabase-js` resolves
+from the root install, no mobile duplicate). Next: the auth screen (which first imports the factory,
+so Metro will then bundle `@supabase/supabase-js`), push/pull sync, delete-cloud-data, file backup,
+and deep links. Local-first throughout: with no `EXPO_PUBLIC_SUPABASE_*` set, the app stays fully
+usable offline and anonymous.
 
 ## Next slice
 
-**Slice 54 — Mobile Supabase client factory (RN client + session storage)**
+**Slice 55 — Auth screen (sign up / in / out + session)**
 
-Milestone: M7 — Cloud, sync, and sharing. SECOND M7 slice: the native Supabase client, the plumbing
-the auth/sync screens sit on. The core `@core/cloud/supabaseClient` `getSupabaseClient(deps)` already
-injects `config` and `create`, returning `null` when cloud is unconfigured; the mobile factory injects
-the slice-53 config + a `create` that adds RN-appropriate auth options. Keep this slice to the factory
-+ deps + test — NO auth UI yet (that is the next slice). Still local-first: no creds needed; an
-unconfigured factory returns `null`.
+Milestone: M7 — Cloud, sync, and sharing. THIRD M7 slice: an account screen over the reused
+`@core/cloud/auth`, using the slice-54 client factory. This is the FIRST screen to import the factory,
+so Metro will now bundle `@supabase/supabase-js` — the bundle-check is the real test of that. Still
+local-first: when unconfigured the screen shows an offline message and no form.
 
-Context: `getSupabaseClient({ config, create })` calls `create(url, anonKey)` synchronously, so to add
-RN auth options the factory must inject a sync `create` wrapping the real `createClient` (hence a static
-import of `@supabase/supabase-js`). RN session persistence reuses the already-installed MMKV
-`localStorage` shim (`globalThis.localStorage`), with `detectSessionInUrl: false` (no browser URL on
-device).
+Context: `@core/cloud/auth` exposes `signUp(email, pw, client?)`, `signIn(email, pw, client?)`,
+`signOut(client?)`, `getCurrentSession(client?)`, `onAuthChange(cb, client?)`, and
+`CloudNotConfiguredError`; each accepts an injected `client`. The screen resolves the client once via
+`getMobileSupabaseClient()` (null when unconfigured) and passes it to these functions. On RN,
+`@supabase/supabase-js` needs a WHATWG `URL` at runtime, so install `react-native-url-polyfill` and
+import `react-native-url-polyfill/auto` at app entry (`mobile/app/_layout.tsx`) before any cloud use.
 
-Reuse (verified — read `src/cloud/supabaseClient.ts` (`getSupabaseClient`, `resetSupabaseClient`,
-`SupabaseClientDeps`) + `mobile/platform/cloudEnv.ts`):
-- `@core/cloud/supabaseClient` `getSupabaseClient(deps): Promise<SupabaseClient | null>`,
-  `resetSupabaseClient()`.
-- `mobile/platform/cloudEnv` `getMobileCloudConfig()`.
-- `@supabase/supabase-js` `createClient` (a ROOT dep at `^2.108.0`; add it to `mobile/package.json` so
-  Metro/jest resolve it from `mobile/` — `npm install` with the sandbox disabled).
+Reuse (verified — read `src/cloud/auth.ts` + `mobile/platform/supabaseClient.ts`):
+- `@core/cloud/auth` `signIn`, `signUp`, `signOut`, `getCurrentSession`, `onAuthChange`,
+  `CloudNotConfiguredError`; `type Session` from `@supabase/supabase-js`.
+- `mobile/platform/supabaseClient` `getMobileSupabaseClient()`.
 
-Task (mobile-only; reuse `@core`, do NOT edit `src/`): add `mobile/platform/supabaseClient.ts`
-exporting `getMobileSupabaseClient(deps?)` that calls `getSupabaseClient({ config: deps?.config ??
-getMobileCloudConfig(), create: deps?.create ?? rnCreate })`, where `rnCreate(url, key, options?) =
-createClient(url, key, { ...options, auth: { storage: globalThis.localStorage, persistSession: true,
-autoRefreshToken: true, detectSessionInUrl: false } })`. Re-export `resetSupabaseClient`. Install
-`@supabase/supabase-js` in `mobile/`.
+DESIGN NOTE (resolve when building): a `mobile/app/auth.tsx` screen reached from a header "Account"
+link on the library (the header already has Boards/Compare on the left and New on the right — pick a
+slot, e.g. an "Account" link grouped with "New" on the right). Resolve the client on mount; if null,
+render an offline/"set EXPO_PUBLIC_SUPABASE_* to enable sync" message. Otherwise show the current
+session (`getCurrentSession` + subscribe via `onAuthChange`): when signed out, email + password fields
+with Sign in / Sign up; when signed in, the email + a Sign out button. Surface auth errors inline.
 
-Tests (`mobile/__tests__/supabase-client.test.ts`, no rendering, inject fakes so NO real client/network;
-call `resetSupabaseClient()` in `beforeEach`): unconfigured (`getMobileCloudConfig` returns null because
-env is unset) → `getMobileSupabaseClient()` resolves to `null`; with an injected `config` + a fake
-`create` (a `jest.fn` returning a sentinel) → resolves to the sentinel and the fake `create` was called
-with the url + anonKey.
+Task (mobile-only; reuse `@core`, do NOT edit `src/`): build the auth screen wiring the `@core/cloud/auth`
+functions with the resolved client; add the header entry; install `react-native-url-polyfill` and import
+it at entry. Keep all auth logic in `@core` (the screen only gathers input + renders state).
 
-Files: add `mobile/platform/supabaseClient.ts` + `mobile/__tests__/supabase-client.test.ts`; edit
-`mobile/package.json` (+ lockfile) to add `@supabase/supabase-js`. No `src/` edits.
+Tests (RNTL): mock `../platform/supabaseClient` so `getMobileSupabaseClient` resolves to `null` →
+the screen shows the offline message and no sign-in form. Then mock it to resolve a fake client and mock
+`@core/cloud/auth` (`signIn` a `jest.fn`, `getCurrentSession` → null) → entering email/password and
+pressing Sign in calls `signIn` with the entered values. Use `waitFor` for the async client resolution.
+
+Files: add `mobile/app/auth.tsx` + `mobile/__tests__/auth-screen.test.tsx`; edit `mobile/app/index.tsx`
+(header link) + `mobile/app/_layout.tsx` (url polyfill import); edit `mobile/package.json` (+ lockfile)
+to add `react-native-url-polyfill`. No `src/` edits.
 
 Validation (mobile only): run `npm install` first (sandbox disabled), then `npm run lint`,
-`npm run typecheck`, `npm run test:run`, `npm run bundle-check` — all must pass. (The factory is not yet
-imported by a screen, so Metro will not bundle `@supabase/supabase-js` this slice; that happens with the
-auth screen. If `npm install` cannot run in the sandbox, STOP and report — do not fake it.)
+`npm run typecheck`, `npm run test:run`, `npm run bundle-check` — all must pass. The bundle-check now
+pulls in `@supabase/supabase-js`; if Metro cannot bundle it (or `import.meta`/Node built-ins surface),
+diagnose, and if it cannot be fixed mobile-side, STOP and report (do not edit `src/`).
 
-Constraints: reuse `@core/cloud/supabaseClient` (no reimplemented client singleton); factory in
-`mobile/platform/`; reuse the MMKV `localStorage` shim for session storage; keep local-first when
-unconfigured. Do not edit `src/`.
+Constraints: reuse `@core/cloud/auth` for all auth ops (no hand-rolled Supabase calls); screen in
+`mobile/app/`; keep local-first when unconfigured. Do not edit `src/`.
 
 Suggested commit message:
-`feat(ios): add the native Supabase client factory`
+`feat(ios): add a cloud auth screen`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
 
