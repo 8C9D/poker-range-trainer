@@ -1,12 +1,14 @@
 import { render, userEvent, waitFor } from '@testing-library/react-native';
 
 import { getCurrentSession, onAuthChange, signIn } from '@core/cloud/auth';
+import { pullBackup, pushBackup } from '@core/cloud/backupRepo';
+import { buildBackup, restoreBackup } from '@core/storage/backup';
 
 import AuthScreen from '../app/auth';
 import { getMobileSupabaseClient } from '../platform/supabaseClient';
 
 jest.mock('expo-router', () => ({ Stack: { Screen: () => null } }));
-// Replace the client factory + auth module so no real Supabase client/network is involved.
+// Replace the client factory + cloud/storage modules so no real Supabase client/network is involved.
 jest.mock('../platform/supabaseClient', () => ({ getMobileSupabaseClient: jest.fn() }));
 jest.mock('@core/cloud/auth', () => ({
   signIn: jest.fn(),
@@ -15,17 +17,30 @@ jest.mock('@core/cloud/auth', () => ({
   getCurrentSession: jest.fn(),
   onAuthChange: jest.fn(),
 }));
+jest.mock('@core/cloud/backupRepo', () => ({
+  pushBackup: jest.fn(),
+  pullBackup: jest.fn(),
+  deleteBackup: jest.fn(),
+}));
+jest.mock('@core/storage/backup', () => ({ buildBackup: jest.fn(), restoreBackup: jest.fn() }));
 
 const mockGetClient = getMobileSupabaseClient as jest.Mock;
 const mockSignIn = signIn as jest.Mock;
 const mockGetSession = getCurrentSession as jest.Mock;
 const mockOnAuthChange = onAuthChange as jest.Mock;
+const mockPush = pushBackup as jest.Mock;
+const mockPull = pullBackup as jest.Mock;
+const mockBuild = buildBackup as jest.Mock;
+const mockRestore = restoreBackup as jest.Mock;
 
 describe('AuthScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockOnAuthChange.mockResolvedValue(() => {});
     mockGetSession.mockResolvedValue(null);
+    mockBuild.mockReturnValue({ ranges: [] });
+    mockPush.mockResolvedValue(undefined);
+    mockPull.mockResolvedValue(null);
   });
 
   it('shows the offline message and no form when cloud is unconfigured', async () => {
@@ -55,5 +70,29 @@ describe('AuthScreen', () => {
     await waitFor(() =>
       expect(mockSignIn).toHaveBeenCalledWith('you@example.com', 'secret123', fakeClient),
     );
+  });
+
+  it('pushes and pulls the library when signed in', async () => {
+    const fakeClient = { id: 'client' };
+    mockGetClient.mockResolvedValue(fakeClient);
+    mockGetSession.mockResolvedValue({ user: { email: 'you@example.com' } });
+    const backup = { ranges: [{ id: 'r1' }, { id: 'r2' }] };
+    mockBuild.mockReturnValue(backup);
+    mockPull.mockResolvedValue(backup);
+
+    const user = userEvent.setup();
+    const { getByTestId } = await render(<AuthScreen />);
+
+    // The signed-in view (with sync controls) appears once a session is present.
+    await waitFor(() => expect(getByTestId('sync-push')).toBeTruthy());
+
+    await user.press(getByTestId('sync-push'));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith(backup, { client: fakeClient }));
+
+    await user.press(getByTestId('sync-pull'));
+    await waitFor(() => {
+      expect(mockPull).toHaveBeenCalledWith({ client: fakeClient });
+      expect(mockRestore).toHaveBeenCalledWith(backup);
+    });
   });
 });

@@ -4,6 +4,8 @@ import { Stack } from 'expo-router';
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
 
 import { getCurrentSession, onAuthChange, signIn, signOut, signUp } from '@core/cloud/auth';
+import { pullBackup, pushBackup } from '@core/cloud/backupRepo';
+import { buildBackup, restoreBackup } from '@core/storage/backup';
 
 import { getMobileSupabaseClient } from '../platform/supabaseClient';
 import { colors } from '../theme/colors';
@@ -22,6 +24,7 @@ export default function AuthScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [syncStatus, setSyncStatus] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -77,6 +80,28 @@ export default function AuthScreen() {
     });
   }, [client, run]);
 
+  const handlePush = useCallback(() => {
+    if (!client) return;
+    void run(async () => {
+      await pushBackup(buildBackup(), { client });
+      setSyncStatus('Pushed your library to the cloud.');
+    });
+  }, [client, run]);
+
+  const handlePull = useCallback(() => {
+    if (!client) return;
+    void run(async () => {
+      const cloud = await pullBackup({ client });
+      if (cloud) {
+        restoreBackup(cloud);
+        const count = cloud.ranges.length;
+        setSyncStatus(`Restored ${count} range${count === 1 ? '' : 's'} from the cloud.`);
+      } else {
+        setSyncStatus('Nothing in the cloud yet.');
+      }
+    });
+  }, [client, run]);
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Stack.Screen options={{ title: 'Account' }} />
@@ -103,6 +128,35 @@ export default function AuthScreen() {
           >
             <Text style={styles.secondaryText}>Sign out</Text>
           </Pressable>
+
+          <View style={styles.divider} />
+          <Text style={styles.label}>Library sync</Text>
+          <Text style={styles.muted}>Push your whole library to the cloud, or pull it back on another device.</Text>
+          <View style={styles.syncRow}>
+            <Pressable
+              testID="sync-push"
+              accessibilityRole="button"
+              disabled={busy}
+              style={[styles.button, styles.flex1, busy && styles.buttonDisabled]}
+              onPress={handlePush}
+            >
+              <Text style={styles.buttonText}>Push to cloud</Text>
+            </Pressable>
+            <Pressable
+              testID="sync-pull"
+              accessibilityRole="button"
+              disabled={busy}
+              style={[styles.button, styles.secondary, styles.flex1, busy && styles.buttonDisabled]}
+              onPress={handlePull}
+            >
+              <Text style={styles.secondaryText}>Pull from cloud</Text>
+            </Pressable>
+          </View>
+          {syncStatus ? (
+            <Text testID="sync-status" style={styles.syncStatus}>
+              {syncStatus}
+            </Text>
+          ) : null}
         </View>
       ) : (
         <View style={styles.block}>
@@ -231,5 +285,22 @@ const styles = StyleSheet.create({
   errorText: {
     color: colors.danger,
     fontSize: 14,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+    marginVertical: 8,
+  },
+  syncRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  flex1: {
+    flex: 1,
+  },
+  syncStatus: {
+    color: colors.accent,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

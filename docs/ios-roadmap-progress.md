@@ -88,6 +88,7 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 53 | Cloud env seam: native Supabase config wrapper + `import.meta` handling | M7 | 2026-06-22 |
 | 54 | Native Supabase client factory (RN auth options + MMKV session storage) | M7 | 2026-06-22 |
 | 55 | Cloud auth screen (sign up / in / out + session) | M7 | 2026-06-22 |
+| 56 | Explicit push/pull library sync on the account screen | M7 | 2026-06-22 |
 
 **M5 — Practice depth: COMPLETE** (slices 23–38). The full training suite is on device:
 mistakes review, per-range/per-hand stats, weakest-hands, mistakes-only drill, accuracy
@@ -117,54 +118,47 @@ when unconfigured so the core never falls back to its Vite default; `@supabase/s
 from the root install, no mobile duplicate). The auth screen is done (slice 55 — sign up/in/out + session over `@core/cloud/auth`, reached from an
 "Account" header link; importing the factory made Metro bundle `@supabase/supabase-js` +
 `react-native-url-polyfill`, growing the JS bundle 3.9→4.6 MB and proving the whole cloud stack
-bundles on Metro). Next: explicit push/pull library sync, delete-cloud-data, file backup, and deep
-links. Local-first throughout: with no `EXPO_PUBLIC_SUPABASE_*` set, the app stays fully usable
-offline and anonymous.
+bundles on Metro). Explicit push/pull library sync is done (slice 56 — Push/Pull buttons on the signed-in account
+screen, over `@core/storage/backup` + `@core/cloud/backupRepo`). Next: delete-cloud-data, file
+backup export/import, and deep links. Local-first throughout: with no `EXPO_PUBLIC_SUPABASE_*` set,
+the app stays fully usable offline and anonymous.
 
 ## Next slice
 
-**Slice 56 — Explicit push / pull library sync**
+**Slice 57 — Delete cloud data**
 
-Milestone: M7 — Cloud, sync, and sharing. FOURTH M7 slice: explicit whole-library sync to/from the
-cloud, on the account screen when signed in. Matches the web's explicit push/pull model (the v3
-backend decision — no silent background sync).
+Milestone: M7 — Cloud, sync, and sharing. FIFTH M7 slice: let a signed-in user delete their cloud
+backup, completing the push/pull/delete trio. Small, self-contained extension of the account screen.
 
-Context: `buildBackup()` snapshots the whole local library into a `Backup`; `restoreBackup(backup)`
-writes it back to local storage. `pushBackup(backup, { client })` uploads it; `pullBackup({ client })`
-downloads the latest `Backup | null`. The web wires Push as `pushBackup(buildBackup())` and Pull as
-`const b = await pullBackup(); if (b) restoreBackup(b)` — mirror that, passing the resolved client.
+Context: `@core/cloud/backupRepo` already exposes `deleteBackup(deps): Promise<void>` (deps
+`{ client }`) — it removes the user's cloud backup row. The account screen has the resolved client +
+session and the existing busy/error/status handling from slice 56.
 
-Reuse (verified — read `src/storage/backup.ts` + `src/cloud/backupRepo.ts`, and `src/App.tsx`
-push/pull handlers):
-- `@core/storage/backup` `buildBackup(): Backup`, `restoreBackup(backup): void`, `type Backup`.
-- `@core/cloud/backupRepo` `pushBackup(backup, deps): Promise<void>`, `pullBackup(deps): Promise<Backup | null>`
-  (deps `{ client }`).
-- `mobile/app/auth.tsx`'s already-resolved client + session.
+Reuse (verified — read `src/cloud/backupRepo.ts` `deleteBackup`):
+- `@core/cloud/backupRepo` `deleteBackup(deps): Promise<void>`.
 
-Task (mobile-only; reuse `@core`, do NOT edit `src/`): in the SIGNED-IN section of `mobile/app/auth.tsx`,
-add "Push to cloud" and "Pull from cloud" buttons + a status line. Push: `await pushBackup(buildBackup(),
-{ client })`. Pull: `const b = await pullBackup({ client }); if (b) restoreBackup(b)` then show how many
-ranges were restored (or "nothing in the cloud yet" when null). Reuse the screen's existing busy/error
-handling; surface errors inline. (Pulled data lands in local storage; a full library-list refresh on
-return is a later nicety — note it, don't build a global store now.)
+Task (mobile-only; reuse `@core`, do NOT edit `src/`): in the SIGNED-IN sync section of
+`mobile/app/auth.tsx`, add a "Delete cloud data" button (destructive style) that, after a confirm
+(React Native `Alert.alert` with a destructive option, like the editor's clear-range), calls
+`await deleteBackup({ client })` and sets the sync status (e.g. "Deleted your cloud backup."). Only
+local storage is untouched — this just clears the cloud copy. Reuse the screen's `run` helper for
+busy/error handling.
 
-Tests (RNTL, extending `auth-screen.test.tsx`): with a signed-in mock (session present) + mocked
-`@core/cloud/backupRepo` (`pushBackup`/`pullBackup` jest.fns) and `@core/storage/backup`
-(`buildBackup` → sentinel, `restoreBackup` jest.fn): pressing Push calls `pushBackup` with the
-`buildBackup()` result + `{ client }`; pressing Pull calls `pullBackup` and, when it resolves a backup,
-calls `restoreBackup` with it.
+Tests (RNTL, extending `auth-screen.test.tsx`): with a signed-in mock + mocked `deleteBackup` and
+an `Alert.alert` spy that auto-confirms the destructive option (like `editor-screen.test.tsx`),
+pressing "Delete cloud data" calls `deleteBackup` with `{ client }`.
 
-Files: edit `mobile/app/auth.tsx`; edit/extend `mobile/__tests__/auth-screen.test.tsx`. No `src/`
-edits, no new dependency.
+Files: edit `mobile/app/auth.tsx`; extend `mobile/__tests__/auth-screen.test.tsx`. No `src/` edits,
+no new dependency.
 
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
 `npm run bundle-check` — all must pass.
 
-Constraints: reuse `@core/storage/backup` + `@core/cloud/backupRepo` (no hand-rolled snapshot/upload);
-sync UI only appears when signed in; keep local-first. Do not edit `src/`.
+Constraints: reuse `@core/cloud/backupRepo` `deleteBackup` (no hand-rolled delete); confirm before
+deleting; this clears only the cloud copy. Do not edit `src/`.
 
 Suggested commit message:
-`feat(ios): add explicit push/pull library sync`
+`feat(ios): add delete-cloud-data to the account screen`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
 
