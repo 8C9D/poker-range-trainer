@@ -89,6 +89,7 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 54 | Native Supabase client factory (RN auth options + MMKV session storage) | M7 | 2026-06-22 |
 | 55 | Cloud auth screen (sign up / in / out + session) | M7 | 2026-06-22 |
 | 56 | Explicit push/pull library sync on the account screen | M7 | 2026-06-22 |
+| 57 | Delete cloud data on the account screen | M7 | 2026-06-22 |
 
 **M5 — Practice depth: COMPLETE** (slices 23–38). The full training suite is on device:
 mistakes review, per-range/per-hand stats, weakest-hands, mistakes-only drill, accuracy
@@ -118,47 +119,63 @@ when unconfigured so the core never falls back to its Vite default; `@supabase/s
 from the root install, no mobile duplicate). The auth screen is done (slice 55 — sign up/in/out + session over `@core/cloud/auth`, reached from an
 "Account" header link; importing the factory made Metro bundle `@supabase/supabase-js` +
 `react-native-url-polyfill`, growing the JS bundle 3.9→4.6 MB and proving the whole cloud stack
-bundles on Metro). Explicit push/pull library sync is done (slice 56 — Push/Pull buttons on the signed-in account
-screen, over `@core/storage/backup` + `@core/cloud/backupRepo`). Next: delete-cloud-data, file
-backup export/import, and deep links. Local-first throughout: with no `EXPO_PUBLIC_SUPABASE_*` set,
-the app stays fully usable offline and anonymous.
+bundles on Metro). Explicit push/pull library sync (slice 56) and delete-cloud-data (slice 57 — confirm + `deleteBackup`)
+are done, completing the cloud push/pull/delete trio on the account screen. Next: file backup
+export/import (works offline, no account needed), then deep links. Local-first throughout: with no
+`EXPO_PUBLIC_SUPABASE_*` set, the app stays fully usable offline and anonymous.
 
 ## Next slice
 
-**Slice 57 — Delete cloud data**
+**Slice 58 — File backup export / import**
 
-Milestone: M7 — Cloud, sync, and sharing. FIFTH M7 slice: let a signed-in user delete their cloud
-backup, completing the push/pull/delete trio. Small, self-contained extension of the account screen.
+Milestone: M7 — Cloud, sync, and sharing. SIXTH M7 slice: export the whole library to a JSON file
+(share it out) and import one back — fully offline, NO account needed (distinct from cloud sync).
+Mirrors the web's file backup (`serializeBackup`/`parseBackup` + download/upload), using native
+file + share + document-picker modules.
 
-Context: `@core/cloud/backupRepo` already exposes `deleteBackup(deps): Promise<void>` (deps
-`{ client }`) — it removes the user's cloud backup row. The account screen has the resolved client +
-session and the existing busy/error/status handling from slice 56.
+Context: `serializeBackup(buildBackup())` produces the JSON; `restoreBackup(parseBackup(text))`
+imports it (`parseBackup` throws a clear `Error` on bad input). On device: write the JSON to a file
+in the app cache/document dir and present the share sheet; for import, pick a file, read its text,
+parse, and restore. The web wires Export as `serializeBackup(buildBackup())` → download and Import as
+`restoreBackup(parseBackup(await file.text()))` (see `src/App.tsx`).
 
-Reuse (verified — read `src/cloud/backupRepo.ts` `deleteBackup`):
-- `@core/cloud/backupRepo` `deleteBackup(deps): Promise<void>`.
+Reuse (verified — read `src/storage/backup.ts` `serializeBackup`/`parseBackup`/`buildBackup`/
+`restoreBackup`):
+- `@core/storage/backup` `buildBackup`, `serializeBackup`, `parseBackup`, `restoreBackup`.
+- Native deps (install via `npx expo install`): `expo-file-system` (write/read a file),
+  `expo-sharing` (`isAvailableAsync` + `shareAsync` for export), `expo-document-picker`
+  (`getDocumentAsync` for import).
 
-Task (mobile-only; reuse `@core`, do NOT edit `src/`): in the SIGNED-IN sync section of
-`mobile/app/auth.tsx`, add a "Delete cloud data" button (destructive style) that, after a confirm
-(React Native `Alert.alert` with a destructive option, like the editor's clear-range), calls
-`await deleteBackup({ client })` and sets the sync status (e.g. "Deleted your cloud backup."). Only
-local storage is untouched — this just clears the cloud copy. Reuse the screen's `run` helper for
-busy/error handling.
+DESIGN NOTE (resolve when building): put a "Back up to a file" / "Restore from a file" pair where it
+fits — a dedicated `mobile/app/backup.tsx` reached from a header/account link, OR a section on the
+account screen ABOVE the sign-in gate (file backup must work signed-out). A standalone screen reached
+from a library/account link is cleanest since it is account-independent. Export: write
+`serializeBackup(buildBackup())` to `FileSystem.documentDirectory + 'poker-ranges-backup.json'`, then
+`Sharing.shareAsync(uri)`. Import: `DocumentPicker.getDocumentAsync({ type: 'application/json' })` →
+read the picked uri via `FileSystem.readAsStringAsync` → `restoreBackup(parseBackup(text))` → show a
+"restored N ranges" / error status. Keep all snapshot/parse logic in `@core`.
 
-Tests (RNTL, extending `auth-screen.test.tsx`): with a signed-in mock + mocked `deleteBackup` and
-an `Alert.alert` spy that auto-confirms the destructive option (like `editor-screen.test.tsx`),
-pressing "Delete cloud data" calls `deleteBackup` with `{ client }`.
+Task (mobile-only; reuse `@core`, do NOT edit `src/`): add the file backup screen/section + the
+three expo deps; wire export + import as above with status + error handling. Extract the pure
+"text → restored count or error" glue into a small helper in `mobile/components/` if it aids testing.
 
-Files: edit `mobile/app/auth.tsx`; extend `mobile/__tests__/auth-screen.test.tsx`. No `src/` edits,
-no new dependency.
+Tests (RNTL, mock `expo-file-system` / `expo-sharing` / `expo-document-picker` + `@core/storage/backup`):
+pressing Export builds + serializes + writes + calls `shareAsync` with the file uri; pressing Import
+with a picked file reads its text, calls `parseBackup` + `restoreBackup`, and shows the restored
+count; a parse error is surfaced and `restoreBackup` is not called.
 
-Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
-`npm run bundle-check` — all must pass.
+Files: add `mobile/app/backup.tsx` (+ optional helper + entry link) + test; edit `mobile/package.json`
+(+ lockfile) for the three expo deps. No `src/` edits.
 
-Constraints: reuse `@core/cloud/backupRepo` `deleteBackup` (no hand-rolled delete); confirm before
-deleting; this clears only the cloud copy. Do not edit `src/`.
+Validation (mobile only): run `npm install`/`expo install` first (sandbox disabled), then `npm run lint`,
+`npm run typecheck`, `npm run test:run`, `npm run bundle-check` — all must pass. If the expo installs
+cannot run in the sandbox, STOP and report.
+
+Constraints: reuse `@core/storage/backup` for snapshot/serialize/parse/restore (no hand-rolled JSON);
+file backup works WITHOUT an account; screen in `mobile/app/`. Do not edit `src/`.
 
 Suggested commit message:
-`feat(ios): add delete-cloud-data to the account screen`
+`feat(ios): add file backup export/import`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
 

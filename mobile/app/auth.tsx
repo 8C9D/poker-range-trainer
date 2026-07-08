@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Stack } from 'expo-router';
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
 
 import { getCurrentSession, onAuthChange, signIn, signOut, signUp } from '@core/cloud/auth';
-import { pullBackup, pushBackup } from '@core/cloud/backupRepo';
+import { deleteBackup, pullBackup, pushBackup } from '@core/cloud/backupRepo';
 import { buildBackup, restoreBackup } from '@core/storage/backup';
 
 import { getMobileSupabaseClient } from '../platform/supabaseClient';
@@ -102,6 +102,26 @@ export default function AuthScreen() {
     });
   }, [client, run]);
 
+  const handleDelete = useCallback(() => {
+    if (!client) return;
+    Alert.alert(
+      'Delete cloud data',
+      'Remove your cloud backup? This clears only the cloud copy — your ranges stay on this device.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () =>
+            void run(async () => {
+              await deleteBackup({ client });
+              setSyncStatus('Deleted your cloud backup.');
+            }),
+        },
+      ],
+    );
+  }, [client, run]);
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Stack.Screen options={{ title: 'Account' }} />
@@ -157,6 +177,15 @@ export default function AuthScreen() {
               {syncStatus}
             </Text>
           ) : null}
+          <Pressable
+            testID="sync-delete"
+            accessibilityRole="button"
+            disabled={busy}
+            style={styles.deleteLink}
+            onPress={handleDelete}
+          >
+            <Text style={styles.deleteText}>Delete cloud data</Text>
+          </Pressable>
         </View>
       ) : (
         <View style={styles.block}>
@@ -300,6 +329,15 @@ const styles = StyleSheet.create({
   },
   syncStatus: {
     color: colors.accent,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  deleteLink: {
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+  },
+  deleteText: {
+    color: colors.danger,
     fontSize: 14,
     fontWeight: '600',
   },

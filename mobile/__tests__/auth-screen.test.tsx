@@ -1,7 +1,8 @@
+import { Alert } from 'react-native';
 import { render, userEvent, waitFor } from '@testing-library/react-native';
 
 import { getCurrentSession, onAuthChange, signIn } from '@core/cloud/auth';
-import { pullBackup, pushBackup } from '@core/cloud/backupRepo';
+import { deleteBackup, pullBackup, pushBackup } from '@core/cloud/backupRepo';
 import { buildBackup, restoreBackup } from '@core/storage/backup';
 
 import AuthScreen from '../app/auth';
@@ -30,6 +31,7 @@ const mockGetSession = getCurrentSession as jest.Mock;
 const mockOnAuthChange = onAuthChange as jest.Mock;
 const mockPush = pushBackup as jest.Mock;
 const mockPull = pullBackup as jest.Mock;
+const mockDelete = deleteBackup as jest.Mock;
 const mockBuild = buildBackup as jest.Mock;
 const mockRestore = restoreBackup as jest.Mock;
 
@@ -94,5 +96,25 @@ describe('AuthScreen', () => {
       expect(mockPull).toHaveBeenCalledWith({ client: fakeClient });
       expect(mockRestore).toHaveBeenCalledWith(backup);
     });
+  });
+
+  it('deletes cloud data after confirming', async () => {
+    const fakeClient = { id: 'client' };
+    mockGetClient.mockResolvedValue(fakeClient);
+    mockGetSession.mockResolvedValue({ user: { email: 'you@example.com' } });
+    mockDelete.mockResolvedValue(undefined);
+    // Auto-accept the destructive confirm (like editor-screen.test.tsx).
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
+      buttons?.find((b) => b.style === 'destructive')?.onPress?.();
+    });
+
+    const user = userEvent.setup();
+    const { getByTestId } = await render(<AuthScreen />);
+    await waitFor(() => expect(getByTestId('sync-delete')).toBeTruthy());
+
+    await user.press(getByTestId('sync-delete'));
+    await waitFor(() => expect(mockDelete).toHaveBeenCalledWith({ client: fakeClient }));
+
+    alertSpy.mockRestore();
   });
 });
