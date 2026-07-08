@@ -87,6 +87,7 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 52 | CSV import/export in the range editor (completes M6) | M6 | 2026-06-22 |
 | 53 | Cloud env seam: native Supabase config wrapper + `import.meta` handling | M7 | 2026-06-22 |
 | 54 | Native Supabase client factory (RN auth options + MMKV session storage) | M7 | 2026-06-22 |
+| 55 | Cloud auth screen (sign up / in / out + session) | M7 | 2026-06-22 |
 
 **M5 — Practice depth: COMPLETE** (slices 23–38). The full training suite is on device:
 mistakes review, per-range/per-hand stats, weakest-hands, mistakes-only drill, accuracy
@@ -113,62 +114,57 @@ Metro will too). The native Supabase client factory is also done (slice 54 —
 `platform/supabaseClient.ts` injects the mobile config + an RN `create` that persists the session
 through the MMKV `localStorage` shim with `detectSessionInUrl:false`; it short-circuits to `null`
 when unconfigured so the core never falls back to its Vite default; `@supabase/supabase-js` resolves
-from the root install, no mobile duplicate). Next: the auth screen (which first imports the factory,
-so Metro will then bundle `@supabase/supabase-js`), push/pull sync, delete-cloud-data, file backup,
-and deep links. Local-first throughout: with no `EXPO_PUBLIC_SUPABASE_*` set, the app stays fully
-usable offline and anonymous.
+from the root install, no mobile duplicate). The auth screen is done (slice 55 — sign up/in/out + session over `@core/cloud/auth`, reached from an
+"Account" header link; importing the factory made Metro bundle `@supabase/supabase-js` +
+`react-native-url-polyfill`, growing the JS bundle 3.9→4.6 MB and proving the whole cloud stack
+bundles on Metro). Next: explicit push/pull library sync, delete-cloud-data, file backup, and deep
+links. Local-first throughout: with no `EXPO_PUBLIC_SUPABASE_*` set, the app stays fully usable
+offline and anonymous.
 
 ## Next slice
 
-**Slice 55 — Auth screen (sign up / in / out + session)**
+**Slice 56 — Explicit push / pull library sync**
 
-Milestone: M7 — Cloud, sync, and sharing. THIRD M7 slice: an account screen over the reused
-`@core/cloud/auth`, using the slice-54 client factory. This is the FIRST screen to import the factory,
-so Metro will now bundle `@supabase/supabase-js` — the bundle-check is the real test of that. Still
-local-first: when unconfigured the screen shows an offline message and no form.
+Milestone: M7 — Cloud, sync, and sharing. FOURTH M7 slice: explicit whole-library sync to/from the
+cloud, on the account screen when signed in. Matches the web's explicit push/pull model (the v3
+backend decision — no silent background sync).
 
-Context: `@core/cloud/auth` exposes `signUp(email, pw, client?)`, `signIn(email, pw, client?)`,
-`signOut(client?)`, `getCurrentSession(client?)`, `onAuthChange(cb, client?)`, and
-`CloudNotConfiguredError`; each accepts an injected `client`. The screen resolves the client once via
-`getMobileSupabaseClient()` (null when unconfigured) and passes it to these functions. On RN,
-`@supabase/supabase-js` needs a WHATWG `URL` at runtime, so install `react-native-url-polyfill` and
-import `react-native-url-polyfill/auto` at app entry (`mobile/app/_layout.tsx`) before any cloud use.
+Context: `buildBackup()` snapshots the whole local library into a `Backup`; `restoreBackup(backup)`
+writes it back to local storage. `pushBackup(backup, { client })` uploads it; `pullBackup({ client })`
+downloads the latest `Backup | null`. The web wires Push as `pushBackup(buildBackup())` and Pull as
+`const b = await pullBackup(); if (b) restoreBackup(b)` — mirror that, passing the resolved client.
 
-Reuse (verified — read `src/cloud/auth.ts` + `mobile/platform/supabaseClient.ts`):
-- `@core/cloud/auth` `signIn`, `signUp`, `signOut`, `getCurrentSession`, `onAuthChange`,
-  `CloudNotConfiguredError`; `type Session` from `@supabase/supabase-js`.
-- `mobile/platform/supabaseClient` `getMobileSupabaseClient()`.
+Reuse (verified — read `src/storage/backup.ts` + `src/cloud/backupRepo.ts`, and `src/App.tsx`
+push/pull handlers):
+- `@core/storage/backup` `buildBackup(): Backup`, `restoreBackup(backup): void`, `type Backup`.
+- `@core/cloud/backupRepo` `pushBackup(backup, deps): Promise<void>`, `pullBackup(deps): Promise<Backup | null>`
+  (deps `{ client }`).
+- `mobile/app/auth.tsx`'s already-resolved client + session.
 
-DESIGN NOTE (resolve when building): a `mobile/app/auth.tsx` screen reached from a header "Account"
-link on the library (the header already has Boards/Compare on the left and New on the right — pick a
-slot, e.g. an "Account" link grouped with "New" on the right). Resolve the client on mount; if null,
-render an offline/"set EXPO_PUBLIC_SUPABASE_* to enable sync" message. Otherwise show the current
-session (`getCurrentSession` + subscribe via `onAuthChange`): when signed out, email + password fields
-with Sign in / Sign up; when signed in, the email + a Sign out button. Surface auth errors inline.
+Task (mobile-only; reuse `@core`, do NOT edit `src/`): in the SIGNED-IN section of `mobile/app/auth.tsx`,
+add "Push to cloud" and "Pull from cloud" buttons + a status line. Push: `await pushBackup(buildBackup(),
+{ client })`. Pull: `const b = await pullBackup({ client }); if (b) restoreBackup(b)` then show how many
+ranges were restored (or "nothing in the cloud yet" when null). Reuse the screen's existing busy/error
+handling; surface errors inline. (Pulled data lands in local storage; a full library-list refresh on
+return is a later nicety — note it, don't build a global store now.)
 
-Task (mobile-only; reuse `@core`, do NOT edit `src/`): build the auth screen wiring the `@core/cloud/auth`
-functions with the resolved client; add the header entry; install `react-native-url-polyfill` and import
-it at entry. Keep all auth logic in `@core` (the screen only gathers input + renders state).
+Tests (RNTL, extending `auth-screen.test.tsx`): with a signed-in mock (session present) + mocked
+`@core/cloud/backupRepo` (`pushBackup`/`pullBackup` jest.fns) and `@core/storage/backup`
+(`buildBackup` → sentinel, `restoreBackup` jest.fn): pressing Push calls `pushBackup` with the
+`buildBackup()` result + `{ client }`; pressing Pull calls `pullBackup` and, when it resolves a backup,
+calls `restoreBackup` with it.
 
-Tests (RNTL): mock `../platform/supabaseClient` so `getMobileSupabaseClient` resolves to `null` →
-the screen shows the offline message and no sign-in form. Then mock it to resolve a fake client and mock
-`@core/cloud/auth` (`signIn` a `jest.fn`, `getCurrentSession` → null) → entering email/password and
-pressing Sign in calls `signIn` with the entered values. Use `waitFor` for the async client resolution.
+Files: edit `mobile/app/auth.tsx`; edit/extend `mobile/__tests__/auth-screen.test.tsx`. No `src/`
+edits, no new dependency.
 
-Files: add `mobile/app/auth.tsx` + `mobile/__tests__/auth-screen.test.tsx`; edit `mobile/app/index.tsx`
-(header link) + `mobile/app/_layout.tsx` (url polyfill import); edit `mobile/package.json` (+ lockfile)
-to add `react-native-url-polyfill`. No `src/` edits.
+Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
+`npm run bundle-check` — all must pass.
 
-Validation (mobile only): run `npm install` first (sandbox disabled), then `npm run lint`,
-`npm run typecheck`, `npm run test:run`, `npm run bundle-check` — all must pass. The bundle-check now
-pulls in `@supabase/supabase-js`; if Metro cannot bundle it (or `import.meta`/Node built-ins surface),
-diagnose, and if it cannot be fixed mobile-side, STOP and report (do not edit `src/`).
-
-Constraints: reuse `@core/cloud/auth` for all auth ops (no hand-rolled Supabase calls); screen in
-`mobile/app/`; keep local-first when unconfigured. Do not edit `src/`.
+Constraints: reuse `@core/storage/backup` + `@core/cloud/backupRepo` (no hand-rolled snapshot/upload);
+sync UI only appears when signed in; keep local-first. Do not edit `src/`.
 
 Suggested commit message:
-`feat(ios): add a cloud auth screen`
+`feat(ios): add explicit push/pull library sync`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
 

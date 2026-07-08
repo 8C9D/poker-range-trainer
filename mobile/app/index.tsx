@@ -175,9 +175,14 @@ export default function LibraryScreen() {
             </View>
           ),
           headerRight: () => (
-            <Link href="/editor" style={styles.headerLink}>
-              New
-            </Link>
+            <View style={styles.headerRight}>
+              <Link href="/auth" style={styles.headerLink}>
+                Account
+              </Link>
+              <Link href="/editor" style={styles.headerLink}>
+                New
+              </Link>
+            </View>
           ),
         }}
       />
@@ -374,6 +379,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   headerLeft: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  headerRight: {
     flexDirection: 'row',
     gap: 16,
   },
