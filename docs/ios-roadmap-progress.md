@@ -92,6 +92,7 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 57 | Delete cloud data on the account screen | M7 | 2026-06-22 |
 | 58 | File backup export/import (expo-file-system / sharing / document-picker) | M7 | 2026-06-22 |
 | 59 | Shared-range deep-link viewer route (`r/:id`) | M7 | 2026-06-22 |
+| 60 | Shared-pack deep-link viewer route (`p/:id`) — completes M7 | M7 | 2026-06-22 |
 
 **M5 — Practice depth: COMPLETE** (slices 23–38). The full training suite is on device:
 mistakes review, per-range/per-hand stats, weakest-hands, mistakes-only drill, accuracy
@@ -126,54 +127,59 @@ export/import (slice 58 — share a JSON backup out / pick one back, offline, no
 Deep links: the user chose **custom-scheme deep links now** (defer universal `https://` links until a
 domain exists). The app's custom scheme `pokerrangetrainer://` was already set at scaffold, so
 `pokerrangetrainer://r/:id` opens the shared-range viewer route (slice 59 — `app/r/[id].tsx`: fetch
-via `@core/cloud/sharedRangesRepo`, "Add to my library", local-first). Last sharing unit: the shared
-**pack** route `p/:id` (mirror of the range route). After that, M7 is COMPLETE and only M8 (native
-polish + App Store pipeline) remains — dominated by user-action checkpoints (Apple Developer
-enrollment, bundle identifier, signing, EAS build, screenshots, submission) plus a few automatable
-config slices (icon/splash, `app.config` infoPlist, `eas.json`, store-metadata drafts). Universal
-links remain deferred (need a domain + hosted apple-app-site-association). Local-first throughout.
+via `@core/cloud/sharedRangesRepo`, "Add to my library", local-first). The shared **pack** route `p/:id` (slice 60) mirrors the range route and **completes M7 — Cloud, sync,
+and sharing**.
+
+**M7 — COMPLETE** (slices 53–60): cloud env seam, native Supabase client factory, auth screen,
+explicit push/pull sync, delete-cloud-data, offline file backup, and custom-scheme deep-link viewer
+routes for shared ranges + packs. Universal `https://` links remain deferred (need a domain + hosted
+apple-app-site-association). The app is local-first throughout: with no `EXPO_PUBLIC_SUPABASE_*` set
+it is fully usable offline and anonymous.
+
+Only **M8 — Native polish + App Store pipeline** remains. It mixes a few automatable config/UI slices
+(error boundary + offline/empty-state polish, `app.config` iOS `infoPlist` + privacy manifest,
+`eas.json` build/submit profiles, in-repo store-metadata drafts) with **design decisions** (app
+display name, icon/splash artwork) and **user-action checkpoints** (Apple Developer enrollment,
+bundle identifier, signing credentials, `eas build` / `eas submit`, TestFlight, screenshots,
+"Submit for Review"). The loop will do the automatable slices and STOP at the first decision/action it
+cannot make.
 
 ## Next slice
 
-**Slice 60 — Shared-pack deep-link viewer route (`p/:id`)** — completes M7
+**Slice 61 — Root error boundary + offline/empty-state polish (opens M8)**
 
-Milestone: M7 — Cloud, sync, and sharing (LAST M7 unit). The pack analogue of the slice-59 shared
-range route: `pokerrangetrainer://p/:id` opens a shared PACK (a named set of ranges), fetched from the
-cloud, with "Add all to my library". Mirror `app/r/[id].tsx` closely.
+Milestone: M8 — Native polish + App Store pipeline. FIRST M8 slice and a fully automatable one (no
+artwork, no Apple account, no design decision): a root React error boundary so a render error shows a
+recoverable fallback instead of a white screen, plus tightened offline/empty-state copy. Chosen first
+because the icon/splash slice needs artwork (a design asset) and `app.config`/bundle-id touch
+decisions — this one is pure RN UI.
 
-Context: `getSharedPack(id, token?, deps): Promise<RangePack | null>` (from `@core/cloud/sharedPacksRepo`)
-returns a `RangePack` = `{ name?: string; ranges: SavedRange[] }` (see `@core/domain/rangeTransfer`),
-no sign-in required, throws `CloudNotConfiguredError` when no client. Adding imports every range in the
-pack as a fresh copy (new id via `createRangeId`).
+Context: Expo Router supports an `ErrorBoundary` export from a route/layout, or a class
+`componentDidCatch` boundary wrapping the navigator in `app/_layout.tsx`. A render error currently
+unmounts to nothing; a fallback with a "Try again" reset is the native-polish baseline.
 
-Reuse (verified — read `src/cloud/sharedPacksRepo.ts` `getSharedPack` + `app/r/[id].tsx`):
-- `@core/cloud/sharedPacksRepo` `getSharedPack(id, token?, deps): Promise<RangePack | null>`;
-  `RangePack` type (`@core/domain/rangeTransfer`).
-- `mobile/platform/supabaseClient` `getMobileSupabaseClient`; `mobile/platform/createRangeId`;
-  `@core/storage/rangeStorage` `saveSavedRange`.
+Reuse: pure RN + the existing `mobile/theme/colors`. No `@core` change needed (this is presentation).
 
-Task (mobile-only; reuse `@core`, do NOT edit `src/`): add `mobile/app/p/[id].tsx` mirroring the range
-route — loading / not-configured / not-found / found states; show the pack name + range count; "Add all
-to my library" saves each range with a fresh id; status + error handling. Local-first (no cloud →
-message). Custom scheme already configured; no app.json change.
+Task (mobile-only; do NOT edit `src/`): add a reusable error-boundary component in
+`mobile/components/` (a small class component with `getDerivedStateFromError` / `componentDidCatch`
+rendering a themed fallback + a reset action), and wrap the app content in `app/_layout.tsx` with it.
+Optionally tidy any thin empty-state copy you pass. Keep it minimal and themed.
 
-Tests (RNTL, mirroring `shared-range-screen.test.tsx`): not-configured when the client is null; a
-fetched pack shows its name + count and "Add all" calls `saveSavedRange` once per range with fresh
-ids; not-found when `getSharedPack` resolves null.
+Tests (RNTL): a child that throws renders the fallback (with the error message / a "Try again"
+control) instead of crashing the tree; a non-throwing child renders normally. (Mock/raise an error in
+a test child component.)
 
-Files: add `mobile/app/p/[id].tsx` + `mobile/__tests__/shared-pack-screen.test.tsx`. No `src/` edits,
-no new dependency.
+Files: add `mobile/components/ErrorBoundary.tsx` + `mobile/__tests__/error-boundary.test.tsx`; edit
+`mobile/app/_layout.tsx` to wrap the navigator. No `src/` edits, no new dependency.
 
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
 `npm run bundle-check` — all must pass.
 
-Constraints: reuse `@core/cloud/sharedPacksRepo` (no hand-rolled fetch); route in `mobile/app/`;
-keep local-first. Do not edit `src/`. After this, M7 is COMPLETE; the next milestone is M8 (native
-polish + App Store pipeline), whose first slices are automatable config (icon/splash, `app.config`
-infoPlist + privacy manifest, `eas.json`, store-metadata drafts) before the Apple user-action
-checkpoints (enrollment, bundle id, signing, build, screenshots, submission).
+Constraints: presentation-only, in `mobile/`; do not edit `src/`. NOTE: later M8 slices reach the
+design/user-action checkpoints (app display name, icon/splash artwork, bundle identifier, signing,
+EAS build, screenshots, store submission) — STOP and hand those to the user.
 
-Suggested commit message: `feat(ios): add shared pack viewer route`
+Suggested commit message: `feat(ios): add a root error boundary and offline polish`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
 
