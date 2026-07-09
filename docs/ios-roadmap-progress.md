@@ -93,6 +93,7 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 58 | File backup export/import (expo-file-system / sharing / document-picker) | M7 | 2026-06-22 |
 | 59 | Shared-range deep-link viewer route (`r/:id`) | M7 | 2026-06-22 |
 | 60 | Shared-pack deep-link viewer route (`p/:id`) — completes M7 | M7 | 2026-06-22 |
+| 61 | Root error boundary + offline/empty-state polish (opens M8) | M8 | 2026-06-22 |
 
 **M5 — Practice depth: COMPLETE** (slices 23–38). The full training suite is on device:
 mistakes review, per-range/per-hand stats, weakest-hands, mistakes-only drill, accuracy
@@ -144,42 +145,77 @@ bundle identifier, signing credentials, `eas build` / `eas submit`, TestFlight, 
 "Submit for Review"). The loop will do the automatable slices and STOP at the first decision/action it
 cannot make.
 
+**M8 has begun.** The root error boundary (slice 61 — `mobile/components/ErrorBoundary.tsx`, a class
+boundary with `getDerivedStateFromError` / `componentDidCatch`) now wraps the navigator in
+`app/_layout.tsx`: a render error anywhere below shows a themed, recoverable fallback ("Something went
+wrong" + the error message + a "Try again" reset) instead of unmounting to a blank screen. App display
+name is already `Poker Range Trainer` and the custom scheme `pokerrangetrainer` is set; `ios.bundleIdentifier`
+is still unset (a user-action item). Remaining automatable M8 slices: iOS privacy manifest + build
+number (slice 62, queued), `eas.json` build/submit profiles, and in-repo store-metadata drafts. The
+icon/splash artwork slice is a **design decision** (needs assets) and the bundle id / signing / EAS
+build / submit steps are **user-action checkpoints** — the loop will STOP at the first of those.
+
 ## Next slice
 
-**Slice 61 — Root error boundary + offline/empty-state polish (opens M8)**
+**Slice 62 — iOS privacy manifest + build number in `app.json`**
 
-Milestone: M8 — Native polish + App Store pipeline. FIRST M8 slice and a fully automatable one (no
-artwork, no Apple account, no design decision): a root React error boundary so a render error shows a
-recoverable fallback instead of a white screen, plus tightened offline/empty-state copy. Chosen first
-because the icon/splash slice needs artwork (a design asset) and `app.config`/bundle-id touch
-decisions — this one is pure RN UI.
+Milestone: M8 — Native polish + App Store pipeline. The next automatable config slice in roadmap order
+(the roadmap's "`app.config` iOS `infoPlist` + privacy manifest" item). Apple requires a privacy
+manifest declaring **required-reason API** usage and tracking status for App Store submission, so this
+is a prerequisite for any later `eas build` / `eas submit`. It is fully automatable: additive keys in
+`app.json`, no bundle id, no artwork, no Apple account.
 
-Context: Expo Router supports an `ErrorBoundary` export from a route/layout, or a class
-`componentDidCatch` boundary wrapping the navigator in `app/_layout.tsx`. A render error currently
-unmounts to nothing; a fallback with a "Try again" reset is the native-polish baseline.
+Context: the app is configured via `mobile/app.json` (there is no `app.config.ts`). It already sets
+`name`, `slug`, `scheme`, `version` (1.0.0), `icon`, and `plugins`. There is no `ios.bundleIdentifier`
+yet (that is a user-action item — do NOT invent one) and no privacy manifest. Expo SDK 56 supports
+`ios.privacyManifests` in `app.json`, which Expo compiles into `PrivacyInfo.xcprivacy` at prebuild.
 
-Reuse: pure RN + the existing `mobile/theme/colors`. No `@core` change needed (this is presentation).
+Note on usage strings: this app touches NO permission-gated APIs (no camera, location, photos,
+microphone, contacts, calendars, notifications) — `expo-document-picker`, `expo-sharing`,
+`expo-file-system`, `expo-clipboard`, and `expo-haptics` need no `NS*UsageDescription`. So the slice
+adds the **privacy manifest + an iOS build number**, not usage strings (call this out in a comment if
+you add `ios.infoPlist`; otherwise omit `infoPlist`).
 
-Task (mobile-only; do NOT edit `src/`): add a reusable error-boundary component in
-`mobile/components/` (a small class component with `getDerivedStateFromError` / `componentDidCatch`
-rendering a themed fallback + a reset action), and wrap the app content in `app/_layout.tsx` with it.
-Optionally tidy any thin empty-state copy you pass. Keep it minimal and themed.
+Reuse: pure config. No `@core` change, no `src/` change, no new dependency.
 
-Tests (RNTL): a child that throws renders the fallback (with the error message / a "Try again"
-control) instead of crashing the tree; a non-throwing child renders normally. (Mock/raise an error in
-a test child component.)
+Task (mobile-only; do NOT edit `src/`): in `mobile/app.json` under `expo.ios`, add:
+- `"buildNumber": "1"` (pairs with `version` for store builds).
+- `"privacyManifests"` with:
+  - `"NSPrivacyTracking": false`
+  - `"NSPrivacyTrackingDomains": []`
+  - `"NSPrivacyCollectedDataTypes": []` (the binary collects nothing by default; the optional
+    Supabase sign-in's email disclosure belongs in the later App Privacy store-metadata slice, not
+    here)
+  - `"NSPrivacyAccessedAPITypes"` declaring the required-reason APIs the native deps use, each with
+    its reason code: **UserDefaults** (`NSPrivacyAccessedAPICategoryUserDefaults`, reason `CA92.1` —
+    RN/Expo core), **File timestamp** (`NSPrivacyAccessedAPICategoryFileTimestamp`, reason `C617.1` —
+    `expo-file-system` + `react-native-mmkv`), **Disk space** (`NSPrivacyAccessedAPICategoryDiskSpace`,
+    reason `E174.1` — `expo-file-system`), and **System boot time**
+    (`NSPrivacyAccessedAPICategorySystemBootTime`, reason `35F9.1`).
+- Optionally set `expo.ios.userInterfaceStyle`/top-level `userInterfaceStyle` to `"automatic"` so
+  system surfaces (alerts, action sheets) match the dark UI — only if it does not regress
+  bundle-check. (Currently `"light"`.) Keep this optional and minimal.
 
-Files: add `mobile/components/ErrorBoundary.tsx` + `mobile/__tests__/error-boundary.test.tsx`; edit
-`mobile/app/_layout.tsx` to wrap the navigator. No `src/` edits, no new dependency.
+Tests (Jest, no RN render needed): add `mobile/__tests__/app-config.test.ts` that imports/reads
+`app.json` and asserts the privacy manifest exists and is well-formed — `expo.ios.privacyManifests.NSPrivacyTracking === false`,
+`NSPrivacyAccessedAPITypes` is a non-empty array, and it includes the FileTimestamp + UserDefaults
+categories with non-empty reason arrays. Also assert `expo.ios.buildNumber` is set. (Read the JSON via
+`import config from '../app.json'` or `fs`.)
+
+Files: edit `mobile/app.json`; add `mobile/__tests__/app-config.test.ts`. No `src/` edits, no new
+dependency.
 
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
-`npm run bundle-check` — all must pass.
+`npm run bundle-check` — all must pass. (`bundle-check` confirms the config still exports; the manifest
+itself is materialized at native prebuild, which is out of scope here.)
 
-Constraints: presentation-only, in `mobile/`; do not edit `src/`. NOTE: later M8 slices reach the
-design/user-action checkpoints (app display name, icon/splash artwork, bundle identifier, signing,
-EAS build, screenshots, store submission) — STOP and hand those to the user.
+Constraints: config-only, in `mobile/`; do not edit `src/`; do NOT set `ios.bundleIdentifier` (user
+action). NOTE: the remaining M8 slices reach the design/user-action checkpoints (icon/splash artwork,
+bundle identifier, signing, EAS build, screenshots, store submission) — STOP and hand those to the
+user. The clearly-automatable ones still queued after this: `eas.json` build/submit profiles, and
+in-repo store-metadata drafts (description/keywords/privacy-policy).
 
-Suggested commit message: `feat(ios): add a root error boundary and offline polish`
+Suggested commit message: `chore(ios): add iOS privacy manifest and build number`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
 
