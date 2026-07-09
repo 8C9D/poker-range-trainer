@@ -91,6 +91,7 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 56 | Explicit push/pull library sync on the account screen | M7 | 2026-06-22 |
 | 57 | Delete cloud data on the account screen | M7 | 2026-06-22 |
 | 58 | File backup export/import (expo-file-system / sharing / document-picker) | M7 | 2026-06-22 |
+| 59 | Shared-range deep-link viewer route (`r/:id`) | M7 | 2026-06-22 |
 
 **M5 — Practice depth: COMPLETE** (slices 23–38). The full training suite is on device:
 mistakes review, per-range/per-hand stats, weakest-hands, mistakes-only drill, accuracy
@@ -122,48 +123,57 @@ from the root install, no mobile duplicate). The auth screen is done (slice 55 �
 `react-native-url-polyfill`, growing the JS bundle 3.9→4.6 MB and proving the whole cloud stack
 bundles on Metro). Explicit push/pull library sync (slice 56), delete-cloud-data (slice 57), and file backup
 export/import (slice 58 — share a JSON backup out / pick one back, offline, no account) are done.
-The ONLY remaining M7 unit is deep links / universal links for shared ranges + packs — which is a
-**design-decision checkpoint** (the deep-link scheme + universal-link domain are not pinned by the
-roadmap, and universal links need a real domain + apple-app-site-association you host). Per the
-`build-ios-app` skill this is a STOP: hand the scheme/domain decision to the user before building it.
-M8 (native polish + App Store pipeline) then follows, which is dominated by user-action checkpoints
-(Apple Developer enrollment, bundle identifier, signing, EAS build, screenshots, submission).
-Local-first throughout: with no `EXPO_PUBLIC_SUPABASE_*` set, the app stays fully usable offline.
+Deep links: the user chose **custom-scheme deep links now** (defer universal `https://` links until a
+domain exists). The app's custom scheme `pokerrangetrainer://` was already set at scaffold, so
+`pokerrangetrainer://r/:id` opens the shared-range viewer route (slice 59 — `app/r/[id].tsx`: fetch
+via `@core/cloud/sharedRangesRepo`, "Add to my library", local-first). Last sharing unit: the shared
+**pack** route `p/:id` (mirror of the range route). After that, M7 is COMPLETE and only M8 (native
+polish + App Store pipeline) remains — dominated by user-action checkpoints (Apple Developer
+enrollment, bundle identifier, signing, EAS build, screenshots, submission) plus a few automatable
+config slices (icon/splash, `app.config` infoPlist, `eas.json`, store-metadata drafts). Universal
+links remain deferred (need a domain + hosted apple-app-site-association). Local-first throughout.
 
 ## Next slice
 
-**Slice 59 — Deep links / universal links for shared ranges + packs**  ⛔ DESIGN-DECISION CHECKPOINT
+**Slice 60 — Shared-pack deep-link viewer route (`p/:id`)** — completes M7
 
-Milestone: M7 — Cloud, sync, and sharing (LAST M7 unit). Open a shared range / pack link in the
-native app: map `r/:id` and `p/:id` to in-app routes that fetch the shared item from the cloud and
-offer "Add to my library", reusing `@core/domain/shareRoute` + `@core/cloud/sharedRangesRepo` /
-`sharedPacksRepo`.
+Milestone: M7 — Cloud, sync, and sharing (LAST M7 unit). The pack analogue of the slice-59 shared
+range route: `pokerrangetrainer://p/:id` opens a shared PACK (a named set of ranges), fetched from the
+cloud, with "Add all to my library". Mirror `app/r/[id].tsx` closely.
 
-⛔ STOP BEFORE BUILDING — this is a design-decision (and partly user-infrastructure) checkpoint the
-`build-ios-app` skill calls out explicitly ("deep-link scheme/domain"). The roadmap does NOT pin:
-1. **Custom URL scheme** — e.g. `pokerranges://r/:id`. Needs a chosen scheme name (set in
-   `app.json` `expo.scheme`).
-2. **Universal links** — e.g. `https://<domain>/r/:id`. Needs a REAL domain you control, an
-   `apple-app-site-association` file hosted at that domain, and the Associated Domains capability —
-   user infrastructure, not just a code choice.
-Hand both to the user and get their answer before implementing. (Custom-scheme deep links can be
-built with a chosen scheme even without universal links; universal links are blocked on the domain.)
+Context: `getSharedPack(id, token?, deps): Promise<RangePack | null>` (from `@core/cloud/sharedPacksRepo`)
+returns a `RangePack` = `{ name?: string; ranges: SavedRange[] }` (see `@core/domain/rangeTransfer`),
+no sign-in required, throws `CloudNotConfiguredError` when no client. Adding imports every range in the
+pack as a fresh copy (new id via `createRangeId`).
 
-Once decided, likely split into: (a) in-app shared-viewer routes `app/r/[id].tsx` + `app/p/[id].tsx`
-that fetch via `sharedRangesRepo`/`sharedPacksRepo` (needs cloud configured; shows "cloud not
-configured" otherwise) and import via existing storage — automatable; then (b) wire the external
-scheme/universal-links config — gated on the decision above.
+Reuse (verified — read `src/cloud/sharedPacksRepo.ts` `getSharedPack` + `app/r/[id].tsx`):
+- `@core/cloud/sharedPacksRepo` `getSharedPack(id, token?, deps): Promise<RangePack | null>`;
+  `RangePack` type (`@core/domain/rangeTransfer`).
+- `mobile/platform/supabaseClient` `getMobileSupabaseClient`; `mobile/platform/createRangeId`;
+  `@core/storage/rangeStorage` `saveSavedRange`.
 
-Reuse (verify before building): `@core/domain/shareRoute` (route parsing), `@core/cloud/sharedRangesRepo`,
-`@core/cloud/sharedPacksRepo`; `mobile/platform/supabaseClient` for the client; Expo Router file routes
-for `r/[id]` and `p/[id]`.
+Task (mobile-only; reuse `@core`, do NOT edit `src/`): add `mobile/app/p/[id].tsx` mirroring the range
+route — loading / not-configured / not-found / found states; show the pack name + range count; "Add all
+to my library" saves each range with a fresh id; status + error handling. Local-first (no cloud →
+message). Custom scheme already configured; no app.json change.
 
-Validation (when built): the usual mobile four (`lint` / `typecheck` / `test:run` / `bundle-check`).
+Tests (RNTL, mirroring `shared-range-screen.test.tsx`): not-configured when the client is null; a
+fetched pack shows its name + count and "Add all" calls `saveSavedRange` once per range with fresh
+ids; not-found when `getSharedPack` resolves null.
 
-Constraints: reuse `@core` share/route + shared repos (no hand-rolled fetch); routes in `mobile/app/`;
-keep local-first (no cloud → graceful message). Do not edit `src/`.
+Files: add `mobile/app/p/[id].tsx` + `mobile/__tests__/shared-pack-screen.test.tsx`. No `src/` edits,
+no new dependency.
 
-Suggested commit message (part a): `feat(ios): add shared range/pack viewer routes`
+Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
+`npm run bundle-check` — all must pass.
+
+Constraints: reuse `@core/cloud/sharedPacksRepo` (no hand-rolled fetch); route in `mobile/app/`;
+keep local-first. Do not edit `src/`. After this, M7 is COMPLETE; the next milestone is M8 (native
+polish + App Store pipeline), whose first slices are automatable config (icon/splash, `app.config`
+infoPlist + privacy manifest, `eas.json`, store-metadata drafts) before the Apple user-action
+checkpoints (enrollment, bundle id, signing, build, screenshots, submission).
+
+Suggested commit message: `feat(ios): add shared pack viewer route`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
 
