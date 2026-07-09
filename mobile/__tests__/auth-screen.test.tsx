@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Alert } from 'react-native';
 import { render, userEvent, waitFor } from '@testing-library/react-native';
 
@@ -8,7 +9,10 @@ import { buildBackup, restoreBackup } from '@core/storage/backup';
 import AuthScreen from '../app/auth';
 import { getMobileSupabaseClient } from '../platform/supabaseClient';
 
-jest.mock('expo-router', () => ({ Stack: { Screen: () => null } }));
+jest.mock('expo-router', () => ({
+  Stack: { Screen: () => null },
+  Link: ({ children }: { children: ReactNode }) => children,
+}));
 // Replace the client factory + cloud/storage modules so no real Supabase client/network is involved.
 jest.mock('../platform/supabaseClient', () => ({ getMobileSupabaseClient: jest.fn() }));
 jest.mock('@core/cloud/auth', () => ({

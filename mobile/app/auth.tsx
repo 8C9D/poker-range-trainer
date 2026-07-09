@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Stack } from 'expo-router';
+import { Link, Stack } from 'expo-router';
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
 
 import { getCurrentSession, onAuthChange, signIn, signOut, signUp } from '@core/cloud/auth';
@@ -125,6 +125,12 @@ export default function AuthScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Stack.Screen options={{ title: 'Account' }} />
+
+      <Link href="/backup" asChild>
+        <Pressable testID="open-backup" accessibilityRole="button" style={styles.backupLink}>
+          <Text style={styles.backupLinkText}>File backup (export / import) →</Text>
+        </Pressable>
+      </Link>
 
       {client === undefined ? (
         <Text style={styles.muted}>Connecting…</Text>
@@ -339,6 +345,15 @@ const styles = StyleSheet.create({
   deleteText: {
     color: colors.danger,
     fontSize: 14,
+    fontWeight: '600',
+  },
+  backupLink: {
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+  },
+  backupLinkText: {
+    color: colors.accent,
+    fontSize: 15,
     fontWeight: '600',
   },
 });

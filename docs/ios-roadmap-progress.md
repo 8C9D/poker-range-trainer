@@ -90,6 +90,7 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 55 | Cloud auth screen (sign up / in / out + session) | M7 | 2026-06-22 |
 | 56 | Explicit push/pull library sync on the account screen | M7 | 2026-06-22 |
 | 57 | Delete cloud data on the account screen | M7 | 2026-06-22 |
+| 58 | File backup export/import (expo-file-system / sharing / document-picker) | M7 | 2026-06-22 |
 
 **M5 — Practice depth: COMPLETE** (slices 23–38). The full training suite is on device:
 mistakes review, per-range/per-hand stats, weakest-hands, mistakes-only drill, accuracy
@@ -119,63 +120,50 @@ when unconfigured so the core never falls back to its Vite default; `@supabase/s
 from the root install, no mobile duplicate). The auth screen is done (slice 55 — sign up/in/out + session over `@core/cloud/auth`, reached from an
 "Account" header link; importing the factory made Metro bundle `@supabase/supabase-js` +
 `react-native-url-polyfill`, growing the JS bundle 3.9→4.6 MB and proving the whole cloud stack
-bundles on Metro). Explicit push/pull library sync (slice 56) and delete-cloud-data (slice 57 — confirm + `deleteBackup`)
-are done, completing the cloud push/pull/delete trio on the account screen. Next: file backup
-export/import (works offline, no account needed), then deep links. Local-first throughout: with no
-`EXPO_PUBLIC_SUPABASE_*` set, the app stays fully usable offline and anonymous.
+bundles on Metro). Explicit push/pull library sync (slice 56), delete-cloud-data (slice 57), and file backup
+export/import (slice 58 — share a JSON backup out / pick one back, offline, no account) are done.
+The ONLY remaining M7 unit is deep links / universal links for shared ranges + packs — which is a
+**design-decision checkpoint** (the deep-link scheme + universal-link domain are not pinned by the
+roadmap, and universal links need a real domain + apple-app-site-association you host). Per the
+`build-ios-app` skill this is a STOP: hand the scheme/domain decision to the user before building it.
+M8 (native polish + App Store pipeline) then follows, which is dominated by user-action checkpoints
+(Apple Developer enrollment, bundle identifier, signing, EAS build, screenshots, submission).
+Local-first throughout: with no `EXPO_PUBLIC_SUPABASE_*` set, the app stays fully usable offline.
 
 ## Next slice
 
-**Slice 58 — File backup export / import**
+**Slice 59 — Deep links / universal links for shared ranges + packs**  ⛔ DESIGN-DECISION CHECKPOINT
 
-Milestone: M7 — Cloud, sync, and sharing. SIXTH M7 slice: export the whole library to a JSON file
-(share it out) and import one back — fully offline, NO account needed (distinct from cloud sync).
-Mirrors the web's file backup (`serializeBackup`/`parseBackup` + download/upload), using native
-file + share + document-picker modules.
+Milestone: M7 — Cloud, sync, and sharing (LAST M7 unit). Open a shared range / pack link in the
+native app: map `r/:id` and `p/:id` to in-app routes that fetch the shared item from the cloud and
+offer "Add to my library", reusing `@core/domain/shareRoute` + `@core/cloud/sharedRangesRepo` /
+`sharedPacksRepo`.
 
-Context: `serializeBackup(buildBackup())` produces the JSON; `restoreBackup(parseBackup(text))`
-imports it (`parseBackup` throws a clear `Error` on bad input). On device: write the JSON to a file
-in the app cache/document dir and present the share sheet; for import, pick a file, read its text,
-parse, and restore. The web wires Export as `serializeBackup(buildBackup())` → download and Import as
-`restoreBackup(parseBackup(await file.text()))` (see `src/App.tsx`).
+⛔ STOP BEFORE BUILDING — this is a design-decision (and partly user-infrastructure) checkpoint the
+`build-ios-app` skill calls out explicitly ("deep-link scheme/domain"). The roadmap does NOT pin:
+1. **Custom URL scheme** — e.g. `pokerranges://r/:id`. Needs a chosen scheme name (set in
+   `app.json` `expo.scheme`).
+2. **Universal links** — e.g. `https://<domain>/r/:id`. Needs a REAL domain you control, an
+   `apple-app-site-association` file hosted at that domain, and the Associated Domains capability —
+   user infrastructure, not just a code choice.
+Hand both to the user and get their answer before implementing. (Custom-scheme deep links can be
+built with a chosen scheme even without universal links; universal links are blocked on the domain.)
 
-Reuse (verified — read `src/storage/backup.ts` `serializeBackup`/`parseBackup`/`buildBackup`/
-`restoreBackup`):
-- `@core/storage/backup` `buildBackup`, `serializeBackup`, `parseBackup`, `restoreBackup`.
-- Native deps (install via `npx expo install`): `expo-file-system` (write/read a file),
-  `expo-sharing` (`isAvailableAsync` + `shareAsync` for export), `expo-document-picker`
-  (`getDocumentAsync` for import).
+Once decided, likely split into: (a) in-app shared-viewer routes `app/r/[id].tsx` + `app/p/[id].tsx`
+that fetch via `sharedRangesRepo`/`sharedPacksRepo` (needs cloud configured; shows "cloud not
+configured" otherwise) and import via existing storage — automatable; then (b) wire the external
+scheme/universal-links config — gated on the decision above.
 
-DESIGN NOTE (resolve when building): put a "Back up to a file" / "Restore from a file" pair where it
-fits — a dedicated `mobile/app/backup.tsx` reached from a header/account link, OR a section on the
-account screen ABOVE the sign-in gate (file backup must work signed-out). A standalone screen reached
-from a library/account link is cleanest since it is account-independent. Export: write
-`serializeBackup(buildBackup())` to `FileSystem.documentDirectory + 'poker-ranges-backup.json'`, then
-`Sharing.shareAsync(uri)`. Import: `DocumentPicker.getDocumentAsync({ type: 'application/json' })` →
-read the picked uri via `FileSystem.readAsStringAsync` → `restoreBackup(parseBackup(text))` → show a
-"restored N ranges" / error status. Keep all snapshot/parse logic in `@core`.
+Reuse (verify before building): `@core/domain/shareRoute` (route parsing), `@core/cloud/sharedRangesRepo`,
+`@core/cloud/sharedPacksRepo`; `mobile/platform/supabaseClient` for the client; Expo Router file routes
+for `r/[id]` and `p/[id]`.
 
-Task (mobile-only; reuse `@core`, do NOT edit `src/`): add the file backup screen/section + the
-three expo deps; wire export + import as above with status + error handling. Extract the pure
-"text → restored count or error" glue into a small helper in `mobile/components/` if it aids testing.
+Validation (when built): the usual mobile four (`lint` / `typecheck` / `test:run` / `bundle-check`).
 
-Tests (RNTL, mock `expo-file-system` / `expo-sharing` / `expo-document-picker` + `@core/storage/backup`):
-pressing Export builds + serializes + writes + calls `shareAsync` with the file uri; pressing Import
-with a picked file reads its text, calls `parseBackup` + `restoreBackup`, and shows the restored
-count; a parse error is surfaced and `restoreBackup` is not called.
+Constraints: reuse `@core` share/route + shared repos (no hand-rolled fetch); routes in `mobile/app/`;
+keep local-first (no cloud → graceful message). Do not edit `src/`.
 
-Files: add `mobile/app/backup.tsx` (+ optional helper + entry link) + test; edit `mobile/package.json`
-(+ lockfile) for the three expo deps. No `src/` edits.
-
-Validation (mobile only): run `npm install`/`expo install` first (sandbox disabled), then `npm run lint`,
-`npm run typecheck`, `npm run test:run`, `npm run bundle-check` — all must pass. If the expo installs
-cannot run in the sandbox, STOP and report.
-
-Constraints: reuse `@core/storage/backup` for snapshot/serialize/parse/restore (no hand-rolled JSON);
-file backup works WITHOUT an account; screen in `mobile/app/`. Do not edit `src/`.
-
-Suggested commit message:
-`feat(ios): add file backup export/import`
+Suggested commit message (part a): `feat(ios): add shared range/pack viewer routes`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
 
