@@ -94,6 +94,7 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 59 | Shared-range deep-link viewer route (`r/:id`) | M7 | 2026-06-22 |
 | 60 | Shared-pack deep-link viewer route (`p/:id`) — completes M7 | M7 | 2026-06-22 |
 | 61 | Root error boundary + offline/empty-state polish (opens M8) | M8 | 2026-06-22 |
+| 62 | iOS privacy manifest + build number in `app.json` | M8 | 2026-06-22 |
 
 **M5 — Practice depth: COMPLETE** (slices 23–38). The full training suite is on device:
 mistakes review, per-range/per-hand stats, weakest-hands, mistakes-only drill, accuracy
@@ -150,72 +151,66 @@ boundary with `getDerivedStateFromError` / `componentDidCatch`) now wraps the na
 `app/_layout.tsx`: a render error anywhere below shows a themed, recoverable fallback ("Something went
 wrong" + the error message + a "Try again" reset) instead of unmounting to a blank screen. App display
 name is already `Poker Range Trainer` and the custom scheme `pokerrangetrainer` is set; `ios.bundleIdentifier`
-is still unset (a user-action item). Remaining automatable M8 slices: iOS privacy manifest + build
-number (slice 62, queued), `eas.json` build/submit profiles, and in-repo store-metadata drafts. The
-icon/splash artwork slice is a **design decision** (needs assets) and the bundle id / signing / EAS
-build / submit steps are **user-action checkpoints** — the loop will STOP at the first of those.
+is still unset (a user-action item). The iOS **privacy manifest + build number** are now in `app.json`
+(slice 62 — `expo.ios.privacyManifests` declares `NSPrivacyTracking:false`, empty tracking-domain /
+collected-data lists, and required-reason APIs UserDefaults `CA92.1`, FileTimestamp `C617.1`, DiskSpace
+`E174.1`, SystemBootTime `35F9.1`; plus `ios.buildNumber:"1"`. No `NS*UsageDescription` strings are
+needed — the app touches no permission-gated APIs). Remaining automatable M8 slices: `eas.json`
+build/submit profiles (slice 63, queued) and in-repo store-metadata drafts. The icon/splash artwork
+slice is a **design decision** (needs assets) and the bundle id / signing / EAS build / submit steps
+are **user-action checkpoints** — the loop will STOP at the first of those.
 
 ## Next slice
 
-**Slice 62 — iOS privacy manifest + build number in `app.json`**
+**Slice 63 — `eas.json` build + submit profiles**
 
 Milestone: M8 — Native polish + App Store pipeline. The next automatable config slice in roadmap order
-(the roadmap's "`app.config` iOS `infoPlist` + privacy manifest" item). Apple requires a privacy
-manifest declaring **required-reason API** usage and tracking status for App Store submission, so this
-is a prerequisite for any later `eas build` / `eas submit`. It is fully automatable: additive keys in
-`app.json`, no bundle id, no artwork, no Apple account.
+(the roadmap's "`eas.json` build/submit profiles" item). Writing the EAS config is decision-free and
+needs no Apple account — it just defines the build profiles a later (user-action) `eas build` /
+`eas submit` will use. Apple-specific submit fields (Apple ID, App Store Connect app id, team id) are
+NOT invented here; they are supplied by the user at submit time.
 
-Context: the app is configured via `mobile/app.json` (there is no `app.config.ts`). It already sets
-`name`, `slug`, `scheme`, `version` (1.0.0), `icon`, and `plugins`. There is no `ios.bundleIdentifier`
-yet (that is a user-action item — do NOT invent one) and no privacy manifest. Expo SDK 56 supports
-`ios.privacyManifests` in `app.json`, which Expo compiles into `PrivacyInfo.xcprivacy` at prebuild.
-
-Note on usage strings: this app touches NO permission-gated APIs (no camera, location, photos,
-microphone, contacts, calendars, notifications) — `expo-document-picker`, `expo-sharing`,
-`expo-file-system`, `expo-clipboard`, and `expo-haptics` need no `NS*UsageDescription`. So the slice
-adds the **privacy manifest + an iOS build number**, not usage strings (call this out in a comment if
-you add `ios.infoPlist`; otherwise omit `infoPlist`).
+Context: there is no `mobile/eas.json` yet. EAS reads it for build/submit profiles. `eas-cli` is a
+build-time tool (run via `npx`/global at the user-action step) — writing `eas.json` adds NO npm
+dependency. `app.json` now carries `version` (1.0.0) and `ios.buildNumber` ("1"), so use
+`cli.appVersionSource: "local"` to keep `app.json` as the source of truth.
 
 Reuse: pure config. No `@core` change, no `src/` change, no new dependency.
 
-Task (mobile-only; do NOT edit `src/`): in `mobile/app.json` under `expo.ios`, add:
-- `"buildNumber": "1"` (pairs with `version` for store builds).
-- `"privacyManifests"` with:
-  - `"NSPrivacyTracking": false`
-  - `"NSPrivacyTrackingDomains": []`
-  - `"NSPrivacyCollectedDataTypes": []` (the binary collects nothing by default; the optional
-    Supabase sign-in's email disclosure belongs in the later App Privacy store-metadata slice, not
-    here)
-  - `"NSPrivacyAccessedAPITypes"` declaring the required-reason APIs the native deps use, each with
-    its reason code: **UserDefaults** (`NSPrivacyAccessedAPICategoryUserDefaults`, reason `CA92.1` —
-    RN/Expo core), **File timestamp** (`NSPrivacyAccessedAPICategoryFileTimestamp`, reason `C617.1` —
-    `expo-file-system` + `react-native-mmkv`), **Disk space** (`NSPrivacyAccessedAPICategoryDiskSpace`,
-    reason `E174.1` — `expo-file-system`), and **System boot time**
-    (`NSPrivacyAccessedAPICategorySystemBootTime`, reason `35F9.1`).
-- Optionally set `expo.ios.userInterfaceStyle`/top-level `userInterfaceStyle` to `"automatic"` so
-  system surfaces (alerts, action sheets) match the dark UI — only if it does not regress
-  bundle-check. (Currently `"light"`.) Keep this optional and minimal.
+Task (mobile-only; do NOT edit `src/`): add `mobile/eas.json` with:
+- `"cli": { "version": ">= 5.0.0", "appVersionSource": "local" }`.
+- `"build"` profiles:
+  - `"development"`: `developmentClient: true`, `distribution: "internal"`, `ios: { simulator: true }`
+    (a simulator dev-client build).
+  - `"preview"`: `distribution: "internal"` (an installable internal build).
+  - `"production"`: `autoIncrement: true` (store build; bumps the local `buildNumber`).
+- `"submit": { "production": {} }` — an empty production submit profile. Do NOT add `appleId`,
+  `ascAppId`, or `appleTeamId` (user-supplied at submit time; EAS prompts for them).
 
-Tests (Jest, no RN render needed): add `mobile/__tests__/app-config.test.ts` that imports/reads
-`app.json` and asserts the privacy manifest exists and is well-formed — `expo.ios.privacyManifests.NSPrivacyTracking === false`,
-`NSPrivacyAccessedAPITypes` is a non-empty array, and it includes the FileTimestamp + UserDefaults
-categories with non-empty reason arrays. Also assert `expo.ios.buildNumber` is set. (Read the JSON via
-`import config from '../app.json'` or `fs`.)
+Tests (Jest, no RN render): add `mobile/__tests__/eas-config.test.ts` that reads `eas.json` via `fs`
+and asserts: `cli.appVersionSource === "local"`; `build.development`, `build.preview`, and
+`build.production` all exist; `build.production.autoIncrement === true`; `build.development.ios.simulator === true`;
+and `submit.production` exists. (Mirror the `fs`-based pattern in `app-config.test.ts`.)
 
-Files: edit `mobile/app.json`; add `mobile/__tests__/app-config.test.ts`. No `src/` edits, no new
+Files: add `mobile/eas.json` + `mobile/__tests__/eas-config.test.ts`. No `src/` edits, no new
 dependency.
 
 Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
-`npm run bundle-check` — all must pass. (`bundle-check` confirms the config still exports; the manifest
-itself is materialized at native prebuild, which is out of scope here.)
+`npm run bundle-check` — all must pass. (`eas.json` doesn't affect the JS bundle; bundle-check just
+confirms nothing else broke.)
 
-Constraints: config-only, in `mobile/`; do not edit `src/`; do NOT set `ios.bundleIdentifier` (user
-action). NOTE: the remaining M8 slices reach the design/user-action checkpoints (icon/splash artwork,
-bundle identifier, signing, EAS build, screenshots, store submission) — STOP and hand those to the
-user. The clearly-automatable ones still queued after this: `eas.json` build/submit profiles, and
-in-repo store-metadata drafts (description/keywords/privacy-policy).
+Constraints: config-only, in `mobile/`; do not edit `src/`; do NOT add Apple credentials or set
+`ios.bundleIdentifier` (both user actions).
 
-Suggested commit message: `chore(ios): add iOS privacy manifest and build number`
+⚠️ AFTER THIS SLICE the loop is near the M8 wall. The only clearly-automatable slice likely left is the
+**in-repo store-metadata drafts** (app subtitle/description/keywords, a drafted privacy-policy markdown,
+and App Privacy questionnaire answers — content authoring, no Apple account). Everything else remaining
+is a **design decision** (icon + splash artwork) or a **user-action checkpoint** (Apple Developer
+enrollment, bundle identifier, `eas login` + signing credentials, App Store Connect app record,
+`eas build`, TestFlight, screenshots, `eas submit` → "Submit for Review"). Queue the store-metadata
+drafts next if appropriate, then **STOP and hand off** the design/user-action items with exact steps.
+
+Suggested commit message: `chore(ios): add EAS build and submit profiles`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
 
