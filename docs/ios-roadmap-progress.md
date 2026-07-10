@@ -95,6 +95,7 @@ The first target is **M0 — Foundation: Expo app + shared-core reuse**.
 | 60 | Shared-pack deep-link viewer route (`p/:id`) — completes M7 | M7 | 2026-06-22 |
 | 61 | Root error boundary + offline/empty-state polish (opens M8) | M8 | 2026-06-22 |
 | 62 | iOS privacy manifest + build number in `app.json` | M8 | 2026-06-22 |
+| 63 | `eas.json` build + submit profiles | M8 | 2026-06-22 |
 
 **M5 — Practice depth: COMPLETE** (slices 23–38). The full training suite is on device:
 mistakes review, per-range/per-hand stats, weakest-hands, mistakes-only drill, accuracy
@@ -155,62 +156,69 @@ is still unset (a user-action item). The iOS **privacy manifest + build number**
 (slice 62 — `expo.ios.privacyManifests` declares `NSPrivacyTracking:false`, empty tracking-domain /
 collected-data lists, and required-reason APIs UserDefaults `CA92.1`, FileTimestamp `C617.1`, DiskSpace
 `E174.1`, SystemBootTime `35F9.1`; plus `ios.buildNumber:"1"`. No `NS*UsageDescription` strings are
-needed — the app touches no permission-gated APIs). Remaining automatable M8 slices: `eas.json`
-build/submit profiles (slice 63, queued) and in-repo store-metadata drafts. The icon/splash artwork
-slice is a **design decision** (needs assets) and the bundle id / signing / EAS build / submit steps
-are **user-action checkpoints** — the loop will STOP at the first of those.
+needed — the app touches no permission-gated APIs). The **EAS build/submit profiles** are now in
+`mobile/eas.json` (slice 63 — `cli.appVersionSource:"local"` keeps `app.json` authoritative;
+`build.development` is a simulator dev-client, `build.preview` an internal build, `build.production`
+auto-increments; `submit.production` is left empty so Apple credentials are supplied at submit time).
+The only clearly-automatable M8 slice left is **in-repo store-metadata drafts** (slice 64, queued).
+After that, the icon/splash artwork slice is a **design decision** (needs assets) and the bundle id /
+signing / EAS build / submit steps are **user-action checkpoints** — the loop will STOP at the first of
+those.
 
 ## Next slice
 
-**Slice 63 — `eas.json` build + submit profiles**
+**Slice 64 — In-repo App Store metadata + privacy-policy drafts (last automatable M8 slice)**
 
-Milestone: M8 — Native polish + App Store pipeline. The next automatable config slice in roadmap order
-(the roadmap's "`eas.json` build/submit profiles" item). Writing the EAS config is decision-free and
-needs no Apple account — it just defines the build profiles a later (user-action) `eas build` /
-`eas submit` will use. Apple-specific submit fields (Apple ID, App Store Connect app id, team id) are
-NOT invented here; they are supplied by the user at submit time.
+Milestone: M8 — Native polish + App Store pipeline. The roadmap's "Draft store metadata in-repo" item,
+and the **final clearly-automatable slice** before the M8 wall. It authors draft content the user will
+paste into App Store Connect — no Apple account, no artwork, no code. After this, **STOP** (see below).
 
-Context: there is no `mobile/eas.json` yet. EAS reads it for build/submit profiles. `eas-cli` is a
-build-time tool (run via `npx`/global at the user-action step) — writing `eas.json` adds NO npm
-dependency. `app.json` now carries `version` (1.0.0) and `ios.buildNumber` ("1"), so use
-`cli.appVersionSource: "local"` to keep `app.json` as the source of truth.
+Context: the app is `Poker Range Trainer` (display name already set), local-first, with **optional**
+Supabase sign-in + cloud sync. App Store submission needs listing copy, an App Privacy disclosure, and
+a privacy policy hosted at a URL. Drafting all of that as in-repo markdown is automatable; hosting the
+policy and entering the listing are user actions.
 
-Reuse: pure config. No `@core` change, no `src/` change, no new dependency.
+Reuse: pure docs. No `@core` change, no `src/` change, no `mobile/` code change, no dependency.
 
-Task (mobile-only; do NOT edit `src/`): add `mobile/eas.json` with:
-- `"cli": { "version": ">= 5.0.0", "appVersionSource": "local" }`.
-- `"build"` profiles:
-  - `"development"`: `developmentClient: true`, `distribution: "internal"`, `ios: { simulator: true }`
-    (a simulator dev-client build).
-  - `"preview"`: `distribution: "internal"` (an installable internal build).
-  - `"production"`: `autoIncrement: true` (store build; bumps the local `buildNumber`).
-- `"submit": { "production": {} }` — an empty production submit profile. Do NOT add `appleId`,
-  `ascAppId`, or `appleTeamId` (user-supplied at submit time; EAS prompts for them).
+Task (docs-only): add two markdown files under `docs/`:
+1. `docs/ios-store-listing.md` — drafts of: app name (`Poker Range Trainer`), subtitle (≤30 chars),
+   promotional text (≤170 chars), full description (≤4000 chars, covering the 13×13 grid editor,
+   shortcuts/notation, library organization, the practice suite incl. spaced repetition + heatmaps,
+   postflop/combo/mixed-frequency training, and optional cloud sync), keywords (≤100 chars, comma-
+   separated), primary/secondary category suggestion, and placeholders for support URL / marketing URL.
+   Include an **App Privacy questionnaire** section stating the truthful data practices: with no
+   `EXPO_PUBLIC_SUPABASE_*` the app collects nothing; with cloud sign-in it stores the user's **email**
+   (account) and their **range/practice content**, linked to identity, used for **app functionality
+   only — NOT tracking** (`NSPrivacyTracking:false`, consistent with slice 62's manifest). Mark every
+   user-entered value (URLs, final category) clearly as TODO/placeholder.
+2. `docs/privacy-policy.md` — a drafted privacy policy matching the above (local-first; optional
+   account stores email + user content in Supabase; no third-party tracking/ads/analytics; data
+   deletion via the in-app "Delete cloud data"; contact email placeholder). Note it must be hosted at a
+   public URL the user supplies to App Store Connect.
 
-Tests (Jest, no RN render): add `mobile/__tests__/eas-config.test.ts` that reads `eas.json` via `fs`
-and asserts: `cli.appVersionSource === "local"`; `build.development`, `build.preview`, and
-`build.production` all exist; `build.production.autoIncrement === true`; `build.development.ios.simulator === true`;
-and `submit.production` exists. (Mirror the `fs`-based pattern in `app-config.test.ts`.)
+Tests: none — this is prose with no logic (consistent with the repo's other docs). Do NOT fabricate a
+test for static copy.
 
-Files: add `mobile/eas.json` + `mobile/__tests__/eas-config.test.ts`. No `src/` edits, no new
-dependency.
+Files: add `docs/ios-store-listing.md` + `docs/privacy-policy.md`. No `src/` edits, no `mobile/` code
+edits, no dependency.
 
-Validation (mobile only): `npm run lint`, `npm run typecheck`, `npm run test:run`,
-`npm run bundle-check` — all must pass. (`eas.json` doesn't affect the JS bundle; bundle-check just
-confirms nothing else broke.)
+Validation: run the mobile toolchain anyway to confirm nothing broke — `npm run lint`,
+`npm run typecheck`, `npm run test:run`, `npm run bundle-check` (from `mobile/`). All must pass. (Docs
+don't touch shared `src/`, so the web trio is not required.)
 
-Constraints: config-only, in `mobile/`; do not edit `src/`; do NOT add Apple credentials or set
-`ios.bundleIdentifier` (both user actions).
+Constraints: docs-only; truthful disclosures (match the privacy manifest); mark all user-supplied
+fields as placeholders; invent NO Apple IDs, bundle identifier, or real URLs.
 
-⚠️ AFTER THIS SLICE the loop is near the M8 wall. The only clearly-automatable slice likely left is the
-**in-repo store-metadata drafts** (app subtitle/description/keywords, a drafted privacy-policy markdown,
-and App Privacy questionnaire answers — content authoring, no Apple account). Everything else remaining
-is a **design decision** (icon + splash artwork) or a **user-action checkpoint** (Apple Developer
-enrollment, bundle identifier, `eas login` + signing credentials, App Store Connect app record,
-`eas build`, TestFlight, screenshots, `eas submit` → "Submit for Review"). Queue the store-metadata
-drafts next if appropriate, then **STOP and hand off** the design/user-action items with exact steps.
+🛑 **STOP after this slice — the loop reaches the M8 wall.** Everything remaining is a **design
+decision** or a **user-action checkpoint** the agent must NOT fake:
+- **Design:** app icon set + splash artwork (needs real assets — ask the user for artwork or a brief).
+- **User actions:** enroll in the Apple Developer Program; choose the **bundle identifier** (then set
+  `ios.bundleIdentifier` in `app.json`); `eas login` + let EAS generate Apple **signing** credentials;
+  create the **App Store Connect** app record; `eas build --platform ios --profile production`;
+  distribute to **TestFlight**; capture **screenshots**; `eas submit` → **Submit for Review**.
+The final report should hand these off with exact commands/steps.
 
-Suggested commit message: `chore(ios): add EAS build and submit profiles`
+Suggested commit message: `docs(ios): draft App Store listing and privacy policy`
 
 (End with the standard `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.)
 
