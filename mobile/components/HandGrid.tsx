@@ -4,7 +4,8 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 import { generateHandMatrix, type PokerHand } from '@core/domain/pokerHands';
 
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/colors';
+import type { ThemeColors } from '../theme/colors';
 
 // The 13×13 grid order comes straight from the reused core matrix (pairs on the
 // diagonal, suited upper-right, offsuit lower-left). Built once at module load.
@@ -31,16 +32,19 @@ interface HandCellProps {
   selected: boolean;
   disabled: boolean;
   onSetSelected: (hand: PokerHand, selected: boolean) => void;
+  theme: ThemeColors;
 }
 
-// Memoized so toggling one hand re-renders only that cell, not all 169. Props are
-// primitives plus a handler the parent should keep stable (e.g. via useCallback).
+// Memoized so toggling one hand re-renders only that cell, not all 169. `theme` is a
+// stable module-constant palette, so it never breaks memoization.
 const HandCell = memo(function HandCell({
   hand,
   selected,
   disabled,
   onSetSelected,
+  theme,
 }: HandCellProps) {
+  const isPair = hand.length === 2 && hand[0] === hand[1];
   return (
     <Pressable
       testID={`hand-cell-${hand}`}
@@ -49,11 +53,14 @@ const HandCell = memo(function HandCell({
       accessibilityState={{ selected, disabled }}
       disabled={disabled}
       onPress={() => onSetSelected(hand, !selected)}
-      style={[styles.cell, selected ? styles.cellSelected : styles.cellUnselected]}
+      style={[
+        styles.cell,
+        { backgroundColor: selected ? theme.goldFill : isPair ? theme.pairbg : theme.cellbg },
+      ]}
     >
       <Text
         numberOfLines={1}
-        style={[styles.label, selected ? styles.labelSelected : styles.labelUnselected]}
+        style={[styles.label, { color: selected ? theme.onAccent : theme.ink2 }]}
       >
         {hand}
       </Text>
@@ -79,6 +86,7 @@ export interface HandGridProps {
  * so re-entering a hand mid-drag never flips it.
  */
 export function HandGrid({ selected, onSetSelected, disabled = false }: HandGridProps) {
+  const theme = useTheme();
   const sideRef = useRef(0);
   const paintModeRef = useRef(false);
   const paintedRef = useRef<Set<PokerHand>>(new Set());
@@ -138,6 +146,7 @@ export function HandGrid({ selected, onSetSelected, disabled = false }: HandGrid
                 selected={selected.has(hand)}
                 disabled={disabled}
                 onSetSelected={onSetSelected}
+                theme={theme}
               />
             ))}
           </View>
@@ -151,32 +160,21 @@ const styles = StyleSheet.create({
   grid: {
     width: '100%',
     aspectRatio: 1,
+    gap: 2,
   },
   row: {
     flex: 1,
     flexDirection: 'row',
+    gap: 2,
   },
   cell: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
-  cellSelected: {
-    backgroundColor: colors.accent,
-  },
-  cellUnselected: {
-    backgroundColor: colors.surface,
+    borderRadius: 3,
   },
   label: {
     fontSize: 11,
     fontWeight: '600',
-  },
-  labelSelected: {
-    color: colors.onAccent,
-  },
-  labelUnselected: {
-    color: colors.text,
   },
 });

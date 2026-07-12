@@ -14,14 +14,6 @@ import { fonts } from '../theme/fonts';
 import { useTheme } from '../theme/colors';
 import type { ThemeColors } from '../theme/colors';
 
-// Legend swatches mirror the HandHeatmap cell colors (re-themed onto the Coach heat
-// ramp together at M8). Order: untested / low (<50) / medium (50-79) / high (80+).
-const LEGEND: { label: string; color: string; border?: boolean }[] = [
-  { label: 'Untested', color: 'transparent', border: true },
-  { label: '<50%', color: '#da3633' },
-  { label: '50–79%', color: '#bb8009' },
-  { label: '80+%', color: '#238636' },
-];
 
 /**
  * The Range page's Stats tab: accuracy heatmap (+ legend), weakest hands with a
@@ -44,6 +36,14 @@ export function RangeStats({ id }: { id: string }) {
   const recentSessions = history.slice(-8).reverse();
   const hasAnyData = weakest.length > 0 || actionEntries.length > 0 || history.length > 0;
 
+  // Legend swatches mirror the HandHeatmap heat ramp: untested / <50 / 50-79 / 80+.
+  const legend = [
+    { label: 'Untested', color: theme.cellbg },
+    { label: '<50%', color: theme.h1c },
+    { label: '50–79%', color: theme.h2c },
+    { label: '80+%', color: theme.h3c },
+  ];
+
   if (!hasAnyData) {
     return (
       <View style={styles.card}>
@@ -61,15 +61,9 @@ export function RangeStats({ id }: { id: string }) {
           <Text style={styles.sectionTitle}>Accuracy heatmap</Text>
           <HandHeatmap accuracy={handAccuracy} />
           <View style={styles.legend}>
-            {LEGEND.map((entry) => (
+            {legend.map((entry) => (
               <View key={entry.label} style={styles.legendItem}>
-                <View
-                  style={[
-                    styles.swatch,
-                    { backgroundColor: entry.color },
-                    entry.border && { borderWidth: StyleSheet.hairlineWidth, borderColor: theme.line2 },
-                  ]}
-                />
+                <View style={[styles.swatch, { backgroundColor: entry.color }]} />
                 <Text style={styles.legendLabel}>{entry.label}</Text>
               </View>
             ))}

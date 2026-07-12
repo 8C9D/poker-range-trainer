@@ -7,7 +7,8 @@ import {
   countSelectedCombos,
 } from '@core/domain/rangeMath';
 
-import { colors } from '../theme/colors';
+import { fonts } from '../theme/fonts';
+import { useTheme } from '../theme/colors';
 
 export interface RangeStatsBarProps {
   /** The selected hands to summarize. */
@@ -19,17 +20,18 @@ export interface RangeStatsBarProps {
  * all Hold'em combos it covers. All math reuses `@core/domain/rangeMath`.
  */
 export function RangeStatsBar({ hands }: RangeStatsBarProps) {
+  const theme = useTheme();
   const combos = countSelectedCombos(hands);
   const percent = calculateRangePercentage(hands);
   return (
     <View style={styles.bar}>
-      <Text testID="stat-hands" style={styles.stat}>
+      <Text testID="stat-hands" style={[styles.stat, { color: theme.ink2 }]}>
         {hands.length} {hands.length === 1 ? 'hand' : 'hands'}
       </Text>
-      <Text testID="stat-combos" style={styles.stat}>
+      <Text testID="stat-combos" style={[styles.stat, { color: theme.ink2 }]}>
         {combos}/{TOTAL_HOLDEM_COMBOS} combos
       </Text>
-      <Text testID="stat-percent" style={styles.stat}>
+      <Text testID="stat-percent" style={[styles.stat, { color: theme.ink2 }]}>
         {percent.toFixed(1)}%
       </Text>
     </View>
@@ -44,8 +46,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   stat: {
-    color: colors.text,
+    fontFamily: fonts.bodySemibold,
     fontSize: 13,
-    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
   },
 });
