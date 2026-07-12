@@ -166,7 +166,7 @@ export default function LibraryScreen() {
     <View style={styles.header}>
       <View style={styles.titleRow}>
         <Text style={styles.title}>Library</Text>
-        <Link href="/editor" asChild>
+        <Link href="/range/new" asChild>
           <Pressable testID="new-range" style={styles.primaryBtn}>
             <Text style={styles.primaryBtnText}>New range</Text>
           </Pressable>
