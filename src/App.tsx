@@ -80,6 +80,8 @@ import {
   serializeRangeExport,
   serializeRangePack,
 } from './domain/rangeTransfer'
+import { AppShell } from './app/AppShell'
+import { useHashRoute } from './app/routes'
 import type { ActionAttempt, PracticeAttempt } from './types/practice'
 import type {
   ActionType,
@@ -162,10 +164,45 @@ function App() {
     )
   }
 
-  return <AppShell />
+  return <CoachApp />
 }
 
-function AppShell() {
+/**
+ * The Coach shell: rail/tab navigation around the routed screens. The legacy
+ * single-page layout remains the default route while the new screens land.
+ */
+function CoachApp() {
+  const route = useHashRoute()
+  return (
+    <AppShell route={route}>
+      {route.screen === 'today' ? (
+        <ScreenPlaceholder title="Today" />
+      ) : route.screen === 'library' || route.screen === 'range' ? (
+        <ScreenPlaceholder title="Library" />
+      ) : route.screen === 'progress' ? (
+        <ScreenPlaceholder title="Progress" />
+      ) : route.screen === 'account' ? (
+        <ScreenPlaceholder title="Account" />
+      ) : (
+        <LegacyPage />
+      )}
+    </AppShell>
+  )
+}
+
+function ScreenPlaceholder({ title }: { title: string }) {
+  return (
+    <section className="coach-card" aria-label={title}>
+      <h2>{title}</h2>
+      <p>
+        This screen is being rebuilt. Everything still works from the{' '}
+        <a href="#/">current page</a>.
+      </p>
+    </section>
+  )
+}
+
+function LegacyPage() {
   const auth = useAuthSession()
   const [selected, setSelected] = useState<Set<PokerHand>>(new Set())
   const [name, setName] = useState('')

@@ -1,0 +1,39 @@
+# Coach UI refactor progress
+
+State file for the "Coach" UI refactor: a training-first app shell (Today / Library / Progress / Account) replacing the old single stacked page.
+Update this checklist in every slice's commit so a future session can resume.
+
+## Milestones
+
+- [x] 1. Design tokens + fonts + app shell with hash routing; old page still reachable (default route).
+- [ ] 2. Today screen (streak chip, Start review CTA, due list, week tiles, empty states); becomes the default route.
+- [ ] 3. Library screen (search, filters/sorts, favorites/archived, thumbnail rows, New range).
+- [ ] 4. Range page with tabs (Overview / Edit / Actions / Combos / Frequencies / Stats) + header menu actions.
+- [ ] 5. Practice flow (mode picker, full-screen drill overlay, feedback dwell, session-end ring + delta, review queue).
+- [ ] 6. Progress screen (tiles, weekly bar chart, library analytics, weakest hands + Drill these).
+- [ ] 7. Account & data screen (auth, sync, cloud data, backup/import/export).
+- [ ] 8. Shared-link pages restyle; delete legacy layout and dead CSS/components; final polish pass.
+
+## Where things live now
+
+- Tokens + shared component classes: `src/theme.css` (light default, dark via `prefers-color-scheme`).
+- Fonts: imported in `src/main.tsx` (`@fontsource-variable/bricolage-grotesque`, `@fontsource-variable/instrument-sans`).
+- Routing: `src/app/routes.ts` (`#/today`, `#/library`, `#/library/:id[/:tab]`, `#/progress`, `#/account`; empty/unknown hash = legacy page for now).
+- Shell: `src/app/AppShell.tsx` (icon rail, bottom tabs under 640px).
+- `src/App.tsx`: share routes -> shared pages; otherwise `CoachApp` (shell + routed screens). The old page lives on as `LegacyPage` inside `App.tsx` until slice 8.
+
+## Decisions
+
+- Old `App.test.tsx` tests keep passing against the legacy default route; they are rewritten per slice as flows move into the new IA.
+- Share routes (`#/r/:id`, `#/p/:id`, `#range=` import) are handled before the shell router, unchanged.
+
+## Feature inventory checklist (nothing may be lost; tick when reachable in the NEW IA)
+
+- [ ] Editor: grid, drag painting, shortcuts, live %/combos, notation, scenario metadata, source, per-hand notes
+- [ ] Library: search, position/action/stack/game filters, 4 sorts, duplicate, archive, favorite, per-range stats
+- [ ] Practice: recognition (+hand pool), build-from-memory, timed, weakness, action quiz, mixed quiz, combo drill, postflop drill, missing-hands review, swipe, session stats
+- [ ] Tracking: per-range stats, per-hand heatmap, per-action accuracy, session history, due queue + streak
+- [ ] Advanced: multi-action + notation, combo selections, mixed frequencies + notation, range diff, range-vs-board
+- [ ] Data: backup export/import, range JSON/CSV/SVG, share links, packs, cloud publish/unpublish + fork, `#/r/:id` + `#/p/:id`
+- [ ] Cloud: auth, push/pull sync, delete cloud data, local-only mode
+- [ ] Platform: PWA, responsive, code-split Supabase
