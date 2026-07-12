@@ -111,7 +111,10 @@ describe('RangeScreen', () => {
 
     const { getByTestId, findByTestId } = await render(<RangeScreen />);
     fireEvent.press(getByTestId('range-menu-button'));
-    fireEvent.press(await findByTestId('menu-favorite'));
+    // Export items are present in the menu.
+    expect(await findByTestId('menu-copy-notation')).toBeTruthy();
+    expect(getByTestId('menu-copy-csv')).toBeTruthy();
+    fireEvent.press(getByTestId('menu-favorite'));
 
     await waitFor(() => expect(loadSavedRanges()[0].favorite).toBe(true));
   });

@@ -1,8 +1,11 @@
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Link, Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import * as Clipboard from 'expo-clipboard';
 
 import { accuracyPercentage } from '@core/domain/accuracy';
+import { formatRangeNotation } from '@core/domain/rangeNotation';
+import { formatRangeCsv } from '@core/domain/rangeTransfer';
 import { calculateRangePercentage, countSelectedCombos } from '@core/domain/rangeMath';
 import { duplicateRange } from '@core/domain/rangeDuplication';
 import { setRangeArchived } from '@core/domain/rangeArchive';
@@ -128,6 +131,12 @@ export default function RangeScreen() {
     setMenuOpen(false);
     refresh();
   };
+  const copyText = (text: string, label: string) => {
+    setMenuOpen(false);
+    Clipboard.setStringAsync(text)
+      .then(() => Alert.alert('Copied', `${label} copied to clipboard.`))
+      .catch(() => Alert.alert('Copy failed', 'Could not copy to the clipboard.'));
+  };
   const doDelete = () => {
     setMenuOpen(false);
     Alert.alert('Delete range', `Delete "${range.name || 'Untitled'}"? This cannot be undone.`, [
@@ -192,6 +201,18 @@ export default function RangeScreen() {
                 <Text style={styles.menuItemText}>Compare…</Text>
               </Pressable>
             </Link>
+            <MenuItem
+              testID="menu-copy-notation"
+              label="Copy notation"
+              onPress={() => copyText(formatRangeNotation(range.hands), 'Range notation')}
+              theme={theme}
+            />
+            <MenuItem
+              testID="menu-copy-csv"
+              label="Copy CSV"
+              onPress={() => copyText(formatRangeCsv(range), 'Range CSV')}
+              theme={theme}
+            />
             <MenuItem testID="menu-delete" label="Delete" onPress={doDelete} theme={theme} danger />
           </View>
         ) : null}
