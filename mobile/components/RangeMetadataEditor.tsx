@@ -12,7 +12,8 @@ import {
   type RangeMetadata,
 } from '@core/types/range';
 
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/colors';
+import type { ThemeColors } from '../theme/colors';
 import { ChipRow } from './ChipRow';
 
 export interface RangeMetadataEditorProps {
@@ -28,6 +29,8 @@ export interface RangeMetadataEditorProps {
  * normalizes/drops empty fields, so this only collects values.
  */
 export function RangeMetadataEditor({ value, onChange }: RangeMetadataEditorProps) {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   function set<K extends keyof RangeMetadata>(key: K, next: RangeMetadata[K]): void {
     onChange({ ...value, [key]: next });
   }
@@ -94,7 +97,7 @@ export function RangeMetadataEditor({ value, onChange }: RangeMetadataEditorProp
             if (Number.isFinite(parsed) && parsed > 0) set('stackDepthBb', parsed);
           }}
           placeholder="e.g. 100"
-          placeholderTextColor={colors.text}
+          placeholderTextColor={theme.ink3}
         />
       </View>
 
@@ -106,7 +109,7 @@ export function RangeMetadataEditor({ value, onChange }: RangeMetadataEditorProp
           value={value.notes ?? ''}
           onChangeText={(text) => set('notes', text)}
           placeholder="Optional notes about this scenario"
-          placeholderTextColor={colors.text}
+          placeholderTextColor={theme.ink3}
           multiline
         />
       </View>
@@ -114,34 +117,36 @@ export function RangeMetadataEditor({ value, onChange }: RangeMetadataEditorProp
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    gap: 12,
-  },
-  heading: {
-    color: colors.textStrong,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  field: {
-    gap: 6,
-  },
-  label: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  input: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 14,
-    color: colors.textStrong,
-    backgroundColor: colors.surface,
-  },
-  notes: {
-    minHeight: 44,
-  },
-});
+function makeStyles(theme: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      gap: 12,
+    },
+    heading: {
+      color: theme.ink,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    field: {
+      gap: 6,
+    },
+    label: {
+      color: theme.ink2,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    input: {
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line2,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      fontSize: 14,
+      color: theme.ink,
+      backgroundColor: theme.card,
+    },
+    notes: {
+      minHeight: 44,
+    },
+  });
+}

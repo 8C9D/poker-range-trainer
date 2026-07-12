@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/colors';
+import type { ThemeColors } from '../theme/colors';
 
 export interface ChipRowProps<T extends string> {
   /** Row label shown above the chips. */
@@ -30,6 +31,8 @@ export function ChipRow<T extends string>({
   selected,
   onSelect,
 }: ChipRowProps<T>) {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
@@ -56,38 +59,40 @@ export function ChipRow<T extends string>({
   );
 }
 
-const styles = StyleSheet.create({
-  field: {
-    gap: 6,
-  },
-  label: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  chips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  chipSelected: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  chipText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  chipTextSelected: {
-    color: colors.onAccent,
-  },
-});
+function makeStyles(theme: ThemeColors) {
+  return StyleSheet.create({
+    field: {
+      gap: 6,
+    },
+    label: {
+      color: theme.ink2,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    chips: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    chip: {
+      backgroundColor: theme.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line,
+      borderRadius: 14,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+    },
+    chipSelected: {
+      backgroundColor: theme.goldFill,
+      borderColor: theme.goldFill,
+    },
+    chipText: {
+      color: theme.ink2,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    chipTextSelected: {
+      color: theme.onAccent,
+    },
+  });
+}

@@ -23,7 +23,8 @@ import { RangeNotation } from './RangeNotation';
 import { RangeShortcuts } from './RangeShortcuts';
 import { RangeStatsBar } from './RangeStatsBar';
 import { createRangeId } from '../platform/createRangeId';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/colors';
+import type { ThemeColors } from '../theme/colors';
 
 interface RangeEditorProps {
   /** Existing range id to edit, or undefined to start a fresh draft. */
@@ -40,6 +41,8 @@ interface RangeEditorProps {
  * screen and the Range page's Edit tab share one implementation.
  */
 export function RangeEditor({ id: idParam, showNotesLink = true }: RangeEditorProps) {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   // Resolve the range (or a new draft) exactly once; id + createdAt stay stable across
   // re-renders and live saves.
   const [draft] = useState(() => {
@@ -157,7 +160,7 @@ export function RangeEditor({ id: idParam, showNotesLink = true }: RangeEditorPr
         testID="range-name-input"
         style={styles.nameInput}
         placeholder="Range name"
-        placeholderTextColor={colors.text}
+        placeholderTextColor={theme.ink3}
         value={name}
         onChangeText={setName}
       />
@@ -218,77 +221,79 @@ export function RangeEditor({ id: idParam, showNotesLink = true }: RangeEditorPr
   );
 }
 
-const styles = StyleSheet.create({
-  content: {
-    padding: 16,
-    gap: 16,
-  },
-  nameInput: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    color: colors.textStrong,
-    backgroundColor: colors.surface,
-  },
-  combosSection: {
-    gap: 10,
-  },
-  sectionTitle: {
-    color: colors.textStrong,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  sectionHint: {
-    color: colors.text,
-    fontSize: 13,
-  },
-  chips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  chipRefined: {
-    borderColor: colors.accent,
-  },
-  chipActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  chipText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  chipTextActive: {
-    color: colors.onAccent,
-  },
-  actionsLink: {
-    alignSelf: 'flex-start',
-    paddingVertical: 8,
-  },
-  actionsLinkText: {
-    color: colors.accent,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  clearButton: {
-    alignSelf: 'flex-start',
-    paddingVertical: 8,
-  },
-  clearText: {
-    color: colors.danger,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-});
+function makeStyles(theme: ThemeColors) {
+  return StyleSheet.create({
+    content: {
+      padding: 16,
+      gap: 16,
+    },
+    nameInput: {
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line2,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      fontSize: 16,
+      color: theme.ink,
+      backgroundColor: theme.card,
+    },
+    combosSection: {
+      gap: 10,
+    },
+    sectionTitle: {
+      color: theme.ink,
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    sectionHint: {
+      color: theme.ink2,
+      fontSize: 13,
+    },
+    chips: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    chip: {
+      backgroundColor: theme.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line,
+      borderRadius: 14,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+    },
+    chipRefined: {
+      borderColor: theme.accent,
+    },
+    chipActive: {
+      backgroundColor: theme.goldFill,
+      borderColor: theme.goldFill,
+    },
+    chipText: {
+      color: theme.ink2,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    chipTextActive: {
+      color: theme.onAccent,
+    },
+    actionsLink: {
+      alignSelf: 'flex-start',
+      paddingVertical: 8,
+    },
+    actionsLinkText: {
+      color: theme.accent,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    clearButton: {
+      alignSelf: 'flex-start',
+      paddingVertical: 8,
+    },
+    clearText: {
+      color: theme.bad,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+  });
+}

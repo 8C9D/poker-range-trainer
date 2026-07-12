@@ -5,7 +5,8 @@ import * as Clipboard from 'expo-clipboard';
 import type { PokerHand } from '@core/domain/pokerHands';
 import { formatRangeNotation, parseRangeNotation } from '@core/domain/rangeNotation';
 
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/colors';
+import type { ThemeColors } from '../theme/colors';
 
 export interface RangeNotationProps {
   /** Current selection, mirrored back as deterministic notation. */
@@ -23,6 +24,8 @@ export interface RangeNotationProps {
  * formatting stays in the domain layer.
  */
 export function RangeNotation({ selectedHands, onReplaceHands }: RangeNotationProps) {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   const [input, setInput] = useState('');
   const [error, setError] = useState('');
 
@@ -72,7 +75,7 @@ export function RangeNotation({ selectedHands, onReplaceHands }: RangeNotationPr
         value={input}
         onChangeText={setInput}
         placeholder="e.g. 77+, AJs+, KQo"
-        placeholderTextColor={colors.text}
+        placeholderTextColor={theme.ink3}
         autoCapitalize="characters"
         autoCorrect={false}
         multiline
@@ -104,66 +107,68 @@ export function RangeNotation({ selectedHands, onReplaceHands }: RangeNotationPr
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    gap: 8,
-  },
-  label: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  currentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  current: {
-    flex: 1,
-    color: colors.textStrong,
-    fontSize: 14,
-  },
-  input: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    minHeight: 44,
-    fontSize: 14,
-    color: colors.textStrong,
-    backgroundColor: colors.surface,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  smallButton: {
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  smallButtonText: {
-    color: colors.accent,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  applyButton: {
-    backgroundColor: colors.accent,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  applyText: {
-    color: colors.onAccent,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  error: {
-    color: colors.danger,
-    fontSize: 13,
-  },
-});
+function makeStyles(theme: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      gap: 8,
+    },
+    label: {
+      color: theme.ink2,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    currentRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    current: {
+      flex: 1,
+      color: theme.ink,
+      fontSize: 14,
+    },
+    input: {
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line2,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      minHeight: 44,
+      fontSize: 14,
+      color: theme.ink,
+      backgroundColor: theme.card,
+    },
+    actions: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    smallButton: {
+      backgroundColor: theme.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line,
+      borderRadius: 8,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+    },
+    smallButtonText: {
+      color: theme.accent,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    applyButton: {
+      backgroundColor: theme.goldFill,
+      borderRadius: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+    },
+    applyText: {
+      color: theme.onAccent,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    error: {
+      color: theme.bad,
+      fontSize: 13,
+    },
+  });
+}

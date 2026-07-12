@@ -9,7 +9,8 @@ import {
   selectSuitedBroadways,
 } from '@core/domain/rangeShortcuts';
 
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/colors';
+import type { ThemeColors } from '../theme/colors';
 
 export interface RangeShortcutsProps {
   /** Merge the shortcut's hands into the current selection. */
@@ -28,6 +29,8 @@ const SHORTCUTS: readonly { label: string; testID: string; getHands: () => Poker
 
 /** Buttons that add common hand groups to the current selection (never remove). */
 export function RangeShortcuts({ onAddHands }: RangeShortcutsProps) {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   return (
     <View style={styles.container}>
       {SHORTCUTS.map(({ label, testID, getHands }) => (
@@ -46,23 +49,25 @@ export function RangeShortcuts({ onAddHands }: RangeShortcutsProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  button: {
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  buttonText: {
-    color: colors.accent,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-});
+function makeStyles(theme: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    button: {
+      backgroundColor: theme.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line,
+      borderRadius: 16,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+    },
+    buttonText: {
+      color: theme.accent,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+  });
+}

@@ -6,7 +6,8 @@ import { compareBuiltRange } from '@core/domain/practice';
 import { findSavedRangeById } from '@core/storage/rangeStorage';
 
 import { HandGrid } from '../HandGrid';
-import { colors } from '../../theme/colors';
+import { useTheme } from '../../theme/colors';
+import type { ThemeColors } from '../../theme/colors';
 
 type BuildResult = ReturnType<typeof compareBuiltRange>;
 
@@ -16,6 +17,8 @@ type BuildResult = ReturnType<typeof compareBuiltRange>;
  * overlay's build mode.
  */
 export function BuildDrill({ id }: { id?: string }) {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   const [range] = useState(() => (id ? findSavedRangeById(id) : undefined));
   const [built, setBuilt] = useState<Set<PokerHand>>(() => new Set());
   const [result, setResult] = useState<BuildResult | null>(null);
@@ -58,9 +61,9 @@ export function BuildDrill({ id }: { id?: string }) {
       </View>
       {result ? (
         <View style={styles.results}>
-          <ResultGroup label="Correct" testID="build-correct" hands={result.correct} labelStyle={styles.labelCorrect} />
-          <ResultGroup label="Missed" testID="build-missed" hands={result.missed} labelStyle={styles.labelMissed} />
-          <ResultGroup label="Extra" testID="build-extra" hands={result.extra} labelStyle={styles.labelExtra} />
+          <ResultGroup styles={styles} label="Correct" testID="build-correct" hands={result.correct} labelStyle={styles.labelCorrect} />
+          <ResultGroup styles={styles} label="Missed" testID="build-missed" hands={result.missed} labelStyle={styles.labelMissed} />
+          <ResultGroup styles={styles} label="Extra" testID="build-extra" hands={result.extra} labelStyle={styles.labelExtra} />
         </View>
       ) : null}
     </ScrollView>
@@ -68,11 +71,13 @@ export function BuildDrill({ id }: { id?: string }) {
 }
 
 function ResultGroup({
+  styles,
   label,
   testID,
   hands,
   labelStyle,
 }: {
+  styles: ReturnType<typeof makeStyles>;
   label: string;
   testID: string;
   hands: PokerHand[];
@@ -95,33 +100,35 @@ function ResultGroup({
   );
 }
 
-const styles = StyleSheet.create({
-  content: { padding: 16, gap: 16 },
-  notFound: { color: colors.text, fontSize: 16, marginTop: 32, textAlign: 'center' },
-  hint: { color: colors.text, fontSize: 14 },
-  actions: { flexDirection: 'row', gap: 12 },
-  button: { paddingHorizontal: 24, paddingVertical: 14, borderRadius: 12 },
-  checkButton: { backgroundColor: colors.accent },
-  checkText: { color: colors.onAccent, fontSize: 16, fontWeight: '600' },
-  resetButton: { backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
-  resetText: { color: colors.text, fontSize: 16, fontWeight: '600' },
-  results: { gap: 12 },
-  group: { gap: 6 },
-  groupLabel: { fontSize: 14, fontWeight: '700' },
-  labelCorrect: { color: colors.accent },
-  labelMissed: { color: colors.danger },
-  labelExtra: { color: colors.text },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: {
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    overflow: 'hidden',
-    color: colors.textStrong,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-});
+function makeStyles(theme: ThemeColors) {
+  return StyleSheet.create({
+    content: { padding: 16, gap: 16 },
+    notFound: { color: theme.ink2, fontSize: 16, marginTop: 32, textAlign: 'center' },
+    hint: { color: theme.ink2, fontSize: 14 },
+    actions: { flexDirection: 'row', gap: 12 },
+    button: { paddingHorizontal: 24, paddingVertical: 14, borderRadius: 12 },
+    checkButton: { backgroundColor: theme.goldFill },
+    checkText: { color: theme.onAccent, fontSize: 16, fontWeight: '600' },
+    resetButton: { backgroundColor: theme.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.line },
+    resetText: { color: theme.ink2, fontSize: 16, fontWeight: '600' },
+    results: { gap: 12 },
+    group: { gap: 6 },
+    groupLabel: { fontSize: 14, fontWeight: '700' },
+    labelCorrect: { color: theme.accent },
+    labelMissed: { color: theme.bad },
+    labelExtra: { color: theme.ink2 },
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    chip: {
+      backgroundColor: theme.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line,
+      borderRadius: 14,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      overflow: 'hidden',
+      color: theme.ink,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+  });
+}

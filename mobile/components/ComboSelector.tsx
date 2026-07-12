@@ -5,7 +5,8 @@ import { comboKey, handClassCombos } from '@core/domain/combos';
 import { isComboSelected, type ComboSelection } from '@core/domain/comboSelection';
 import type { PokerHand } from '@core/domain/pokerHands';
 
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/colors';
+import type { ThemeColors } from '../theme/colors';
 
 const SUIT_SYMBOLS: Record<Suit, string> = { s: '♠', h: '♥', d: '♦', c: '♣' };
 
@@ -26,6 +27,8 @@ interface ComboSelectorProps {
  * `isComboSelected`) — this component holds no state.
  */
 export function ComboSelector({ hand, selection, onToggle }: ComboSelectorProps) {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   const combos = handClassCombos(hand);
   const selectedHere = combos.filter((combo) => isComboSelected(selection, combo)).length;
 
@@ -68,45 +71,47 @@ export function ComboSelector({ hand, selection, onToggle }: ComboSelectorProps)
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    gap: 8,
-  },
-  count: {
-    color: colors.accent,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  cell: {
-    flexDirection: 'row',
-    gap: 4,
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  cellOn: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  cardText: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  cardOn: {
-    color: colors.onAccent,
-  },
-  cardRed: {
-    color: '#f87171',
-  },
-  cardDefault: {
-    color: colors.textStrong,
-  },
-});
+function makeStyles(theme: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      gap: 8,
+    },
+    count: {
+      color: theme.accent,
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    grid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    cell: {
+      flexDirection: 'row',
+      gap: 4,
+      backgroundColor: theme.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+    },
+    cellOn: {
+      backgroundColor: theme.goldFill,
+      borderColor: theme.goldFill,
+    },
+    cardText: {
+      fontSize: 18,
+      fontWeight: '700',
+    },
+    cardOn: {
+      color: theme.onAccent,
+    },
+    cardRed: {
+      color: theme.heart,
+    },
+    cardDefault: {
+      color: theme.ink,
+    },
+  });
+}

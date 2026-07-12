@@ -6,7 +6,8 @@ import { formatMixedNotation, parseMixedNotation } from '@core/domain/mixedNotat
 import type { HandMixedStrategy } from '@core/domain/mixedStrategy';
 import type { PokerHand } from '@core/domain/pokerHands';
 
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/colors';
+import type { ThemeColors } from '../theme/colors';
 
 export interface MixedNotationProps {
   /** Current per-hand mixed strategies, mirrored back as one line per hand. */
@@ -23,6 +24,8 @@ export interface MixedNotationProps {
  * native clipboard. All formatting/parsing stays in the domain layer.
  */
 export function MixedNotation({ mixedStrategies, onReplaceStrategies }: MixedNotationProps) {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   const [input, setInput] = useState('');
   const [error, setError] = useState('');
 
@@ -72,7 +75,7 @@ export function MixedNotation({ mixedStrategies, onReplaceStrategies }: MixedNot
         value={input}
         onChangeText={setInput}
         placeholder={'e.g. AA: raise 60, call 40'}
-        placeholderTextColor={colors.text}
+        placeholderTextColor={theme.ink3}
         autoCapitalize="none"
         autoCorrect={false}
         multiline
@@ -104,66 +107,68 @@ export function MixedNotation({ mixedStrategies, onReplaceStrategies }: MixedNot
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    gap: 8,
-  },
-  label: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  currentRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  current: {
-    flex: 1,
-    color: colors.textStrong,
-    fontSize: 14,
-  },
-  input: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    minHeight: 60,
-    fontSize: 14,
-    color: colors.textStrong,
-    backgroundColor: colors.surface,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  smallButton: {
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  smallButtonText: {
-    color: colors.accent,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  applyButton: {
-    backgroundColor: colors.accent,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  applyText: {
-    color: colors.onAccent,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  error: {
-    color: colors.danger,
-    fontSize: 13,
-  },
-});
+function makeStyles(theme: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      gap: 8,
+    },
+    label: {
+      color: theme.ink2,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    currentRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 8,
+    },
+    current: {
+      flex: 1,
+      color: theme.ink,
+      fontSize: 14,
+    },
+    input: {
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line2,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      minHeight: 60,
+      fontSize: 14,
+      color: theme.ink,
+      backgroundColor: theme.card,
+    },
+    actions: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    smallButton: {
+      backgroundColor: theme.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line,
+      borderRadius: 8,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+    },
+    smallButtonText: {
+      color: theme.accent,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    applyButton: {
+      backgroundColor: theme.goldFill,
+      borderRadius: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+    },
+    applyText: {
+      color: theme.onAccent,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    error: {
+      color: theme.bad,
+      fontSize: 13,
+    },
+  });
+}

@@ -9,7 +9,8 @@ import type { RangeAction } from '@core/types/range';
 import { ActionGrid } from './ActionGrid';
 import { ActionNotation } from './ActionNotation';
 import { ActionPalette } from './ActionPalette';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/colors';
+import type { ThemeColors } from '../theme/colors';
 
 /**
  * Multi-action editor body for one saved range: pick the active action in the palette,
@@ -18,6 +19,8 @@ import { colors } from '../theme/colors';
  * Shared by the flat action-editor route and the Range page's Actions tab.
  */
 export function ActionsEditor({ id }: { id?: string }) {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   const [range] = useState(() => (id ? findSavedRangeById(id) : undefined));
   const [handActions, setHandActions] = useState<Record<PokerHand, RangeAction>>(
     () => range?.handActions ?? ({} as Record<PokerHand, RangeAction>),
@@ -59,8 +62,10 @@ export function ActionsEditor({ id }: { id?: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  content: { gap: 16 },
-  notFound: { color: colors.text, fontSize: 16, marginTop: 32, textAlign: 'center' },
-  count: { color: colors.text, fontSize: 14 },
-});
+function makeStyles(theme: ThemeColors) {
+  return StyleSheet.create({
+    content: { gap: 16 },
+    notFound: { color: theme.ink2, fontSize: 16, marginTop: 32, textAlign: 'center' },
+    count: { color: theme.ink2, fontSize: 14 },
+  });
+}

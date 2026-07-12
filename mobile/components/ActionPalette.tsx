@@ -2,8 +2,9 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { RANGE_ACTIONS, RANGE_ACTION_LABELS, type RangeAction } from '@core/types/range';
 
-import { ACTION_COLORS } from '../theme/actionColors';
-import { colors } from '../theme/colors';
+import { actionColors } from '../theme/actionColors';
+import { useTheme } from '../theme/colors';
+import type { ThemeColors } from '../theme/colors';
 
 interface ActionPaletteProps {
   /** The currently active action — taps on the grid assign this. */
@@ -18,6 +19,9 @@ interface ActionPaletteProps {
  * `ChipRow`, there is always exactly one selection (no clearing).
  */
 export function ActionPalette({ active, onSelect }: ActionPaletteProps) {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
+  const ACTION_COLORS = actionColors(theme);
   return (
     <View style={styles.row}>
       {RANGE_ACTIONS.map((action) => {
@@ -44,26 +48,28 @@ export function ActionPalette({ active, onSelect }: ActionPaletteProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  chipText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  chipTextActive: {
-    color: colors.onAccent,
-  },
-});
+function makeStyles(theme: ThemeColors) {
+  return StyleSheet.create({
+    row: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    chip: {
+      backgroundColor: theme.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line,
+      borderRadius: 14,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+    },
+    chipText: {
+      color: theme.ink2,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    chipTextActive: {
+      color: theme.onAccent,
+    },
+  });
+}

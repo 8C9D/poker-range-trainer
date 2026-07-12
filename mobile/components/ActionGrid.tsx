@@ -3,8 +3,9 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { generateHandMatrix, type PokerHand } from '@core/domain/pokerHands';
 import type { RangeAction } from '@core/types/range';
 
-import { ACTION_COLORS } from '../theme/actionColors';
-import { colors } from '../theme/colors';
+import { actionColors } from '../theme/actionColors';
+import { useTheme } from '../theme/colors';
+import type { ThemeColors } from '../theme/colors';
 
 // The 13×13 grid order comes from the reused core matrix; built once at module load (same
 // source as HandGrid / HandHeatmap).
@@ -26,6 +27,9 @@ interface ActionGridProps {
  * drag-paint can be added later, as on `HandGrid`.
  */
 export function ActionGrid({ handActions, activeAction, onAssign }: ActionGridProps) {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
+  const ACTION_COLORS = actionColors(theme);
   return (
     <View style={styles.grid}>
       {HAND_MATRIX.map((row, rowIndex) => (
@@ -43,7 +47,7 @@ export function ActionGrid({ handActions, activeAction, onAssign }: ActionGridPr
                 onPress={() => onAssign(hand, isActive ? null : activeAction)}
                 style={[
                   styles.cell,
-                  { backgroundColor: assigned ? ACTION_COLORS[assigned] : colors.surface },
+                  { backgroundColor: assigned ? ACTION_COLORS[assigned] : theme.cellbg },
                 ]}
               >
                 <Text
@@ -61,30 +65,32 @@ export function ActionGrid({ handActions, activeAction, onAssign }: ActionGridPr
   );
 }
 
-const styles = StyleSheet.create({
-  grid: {
-    width: '100%',
-    aspectRatio: 1,
-  },
-  row: {
-    flex: 1,
-    flexDirection: 'row',
-  },
-  cell: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
-  label: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  labelAssigned: {
-    color: colors.onAccent,
-  },
-  labelUnassigned: {
-    color: colors.text,
-  },
-});
+function makeStyles(theme: ThemeColors) {
+  return StyleSheet.create({
+    grid: {
+      width: '100%',
+      aspectRatio: 1,
+    },
+    row: {
+      flex: 1,
+      flexDirection: 'row',
+    },
+    cell: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line,
+    },
+    label: {
+      fontSize: 11,
+      fontWeight: '600',
+    },
+    labelAssigned: {
+      color: theme.onAccent,
+    },
+    labelUnassigned: {
+      color: theme.ink2,
+    },
+  });
+}

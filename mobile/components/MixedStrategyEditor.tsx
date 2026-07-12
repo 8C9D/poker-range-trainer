@@ -7,8 +7,9 @@ import {
 } from '@core/domain/mixedStrategy';
 import { RANGE_ACTIONS, RANGE_ACTION_LABELS, type RangeAction } from '@core/types/range';
 
-import { ACTION_COLORS } from '../theme/actionColors';
-import { colors } from '../theme/colors';
+import { actionColors } from '../theme/actionColors';
+import { useTheme } from '../theme/colors';
+import type { ThemeColors } from '../theme/colors';
 import { stepMixedFrequency } from './mixedStrategyStep';
 
 interface MixedStrategyEditorProps {
@@ -25,6 +26,9 @@ interface MixedStrategyEditorProps {
  * reported via `onChange`. Shows the live total and whether it sums to 100. Holds no state.
  */
 export function MixedStrategyEditor({ strategy, onChange }: MixedStrategyEditorProps) {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
+  const ACTION_COLORS = actionColors(theme);
   const byAction = new Map<RangeAction, number>();
   for (const entry of strategy) byAction.set(entry.action, entry.frequency);
 
@@ -70,55 +74,57 @@ export function MixedStrategyEditor({ strategy, onChange }: MixedStrategyEditorP
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    gap: 8,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  swatch: {
-    width: 14,
-    height: 14,
-    borderRadius: 4,
-  },
-  label: {
-    flex: 1,
-    color: colors.textStrong,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  stepper: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
-  stepperText: {
-    color: colors.textStrong,
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  value: {
-    minWidth: 48,
-    textAlign: 'center',
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  total: {
-    marginTop: 4,
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  totalValid: {
-    color: colors.accent,
-  },
-});
+function makeStyles(theme: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      gap: 8,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    swatch: {
+      width: 14,
+      height: 14,
+      borderRadius: 4,
+    },
+    label: {
+      flex: 1,
+      color: theme.ink,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    stepper: {
+      width: 36,
+      height: 36,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 8,
+      backgroundColor: theme.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line,
+    },
+    stepperText: {
+      color: theme.ink,
+      fontSize: 20,
+      fontWeight: '700',
+    },
+    value: {
+      minWidth: 48,
+      textAlign: 'center',
+      color: theme.ink2,
+      fontSize: 15,
+      fontWeight: '600',
+    },
+    total: {
+      marginTop: 4,
+      color: theme.ink2,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    totalValid: {
+      color: theme.accent,
+    },
+  });
+}

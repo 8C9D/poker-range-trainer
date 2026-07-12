@@ -7,7 +7,8 @@ import { selectionForRange } from '@core/domain/comboSelection';
 import { findSavedRangeById } from '@core/storage/rangeStorage';
 
 import { availabilityForBoard, isBlockerAvailabilityError } from '../blockerDrill';
-import { colors } from '../../theme/colors';
+import { useTheme } from '../../theme/colors';
+import type { ThemeColors } from '../../theme/colors';
 
 const SUIT_SYMBOLS: Record<Suit, string> = { s: '♠', h: '♥', d: '♦', c: '♣' };
 
@@ -18,6 +19,8 @@ const SUIT_SYMBOLS: Record<Suit, string> = { s: '♠', h: '♥', d: '♦', c: '�
  * overlay's combo mode.
  */
 export function ComboDrill({ id }: { id?: string }) {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   const [range] = useState(() => (id ? findSavedRangeById(id) : undefined));
   const [board, setBoard] = useState('');
   const [combo, setCombo] = useState<Card[] | null>(null);
@@ -60,7 +63,7 @@ export function ComboDrill({ id }: { id?: string }) {
             setCombo(null);
           }}
           placeholder="e.g. AsKd7h"
-          placeholderTextColor={colors.text}
+          placeholderTextColor={theme.ink3}
           autoCapitalize="characters"
           autoCorrect={false}
           style={styles.input}
@@ -102,44 +105,46 @@ export function ComboDrill({ id }: { id?: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  content: { padding: 24, gap: 16 },
-  notFound: { color: colors.text, fontSize: 16, marginTop: 32, textAlign: 'center' },
-  hint: { color: colors.text, fontSize: 14 },
-  field: { gap: 6 },
-  label: { color: colors.textStrong, fontSize: 14, fontWeight: '600' },
-  input: {
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    color: colors.textStrong,
-    fontSize: 18,
-  },
-  error: { color: colors.danger, fontSize: 14 },
-  empty: { color: colors.text, fontSize: 15 },
-  remaining: { color: colors.accent, fontSize: 16, fontWeight: '700' },
-  dealButton: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.accent,
-    borderRadius: 10,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-  },
-  dealButtonText: { color: colors.onAccent, fontSize: 15, fontWeight: '600' },
-  combo: {
-    flexDirection: 'row',
-    gap: 8,
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    alignSelf: 'flex-start',
-  },
-  cardText: { color: colors.textStrong, fontSize: 32, fontWeight: '700' },
-  redSuit: { color: '#f87171' },
-});
+function makeStyles(theme: ThemeColors) {
+  return StyleSheet.create({
+    content: { padding: 24, gap: 16 },
+    notFound: { color: theme.ink2, fontSize: 16, marginTop: 32, textAlign: 'center' },
+    hint: { color: theme.ink2, fontSize: 14 },
+    field: { gap: 6 },
+    label: { color: theme.ink, fontSize: 14, fontWeight: '600' },
+    input: {
+      backgroundColor: theme.card,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line2,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      color: theme.ink,
+      fontSize: 18,
+    },
+    error: { color: theme.bad, fontSize: 14 },
+    empty: { color: theme.ink2, fontSize: 15 },
+    remaining: { color: theme.accent, fontSize: 16, fontWeight: '700' },
+    dealButton: {
+      alignSelf: 'flex-start',
+      backgroundColor: theme.goldFill,
+      borderRadius: 10,
+      paddingHorizontal: 18,
+      paddingVertical: 12,
+    },
+    dealButtonText: { color: theme.onAccent, fontSize: 15, fontWeight: '600' },
+    combo: {
+      flexDirection: 'row',
+      gap: 8,
+      backgroundColor: theme.card,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line,
+      borderRadius: 12,
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      alignSelf: 'flex-start',
+    },
+    cardText: { color: theme.ink, fontSize: 32, fontWeight: '700' },
+    redSuit: { color: theme.heart },
+  });
+}

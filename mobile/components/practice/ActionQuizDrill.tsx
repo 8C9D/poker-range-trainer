@@ -10,8 +10,9 @@ import { findSavedRangeById } from '@core/storage/rangeStorage';
 import { RANGE_ACTIONS, RANGE_ACTION_LABELS, type RangeAction } from '@core/types/range';
 import type { ActionAttempt } from '@core/types/practice';
 
-import { ACTION_COLORS } from '../../theme/actionColors';
-import { colors } from '../../theme/colors';
+import { actionColors } from '../../theme/actionColors';
+import { useTheme } from '../../theme/colors';
+import type { ThemeColors } from '../../theme/colors';
 
 const EMPTY_ACTIONS: Record<PokerHand, RangeAction> = {};
 
@@ -21,6 +22,9 @@ const EMPTY_ACTIONS: Record<PokerHand, RangeAction> = {};
  * action-quiz route and the practice overlay's action mode.
  */
 export function ActionQuizDrill({ id }: { id?: string }) {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
+  const ACTION_COLORS = actionColors(theme);
   const [range] = useState(() => (id ? findSavedRangeById(id) : undefined));
   const handActions = range?.handActions ?? EMPTY_ACTIONS;
   const pool = useMemo(() => assignedHands(handActions), [handActions]);
@@ -110,24 +114,26 @@ export function ActionQuizDrill({ id }: { id?: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  body: { flex: 1, padding: 24, gap: 24, alignItems: 'center', justifyContent: 'center' },
-  notFound: { color: colors.text, fontSize: 16, marginTop: 32, textAlign: 'center' },
-  handCard: {
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 16,
-    paddingVertical: 32,
-    paddingHorizontal: 48,
-  },
-  hand: { color: colors.textStrong, fontSize: 56, fontWeight: '700' },
-  feedback: { fontSize: 16, color: colors.text, textAlign: 'center' },
-  feedbackCorrect: { color: colors.accent },
-  feedbackWrong: { color: colors.danger },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 },
-  actionButton: { paddingHorizontal: 18, paddingVertical: 12, borderRadius: 12 },
-  actionButtonText: { color: colors.onAccent, fontSize: 15, fontWeight: '600' },
-  stats: { flexDirection: 'row', gap: 20, marginTop: 8 },
-  stat: { color: colors.text, fontSize: 14 },
-});
+function makeStyles(theme: ThemeColors) {
+  return StyleSheet.create({
+    body: { flex: 1, padding: 24, gap: 24, alignItems: 'center', justifyContent: 'center' },
+    notFound: { color: theme.ink2, fontSize: 16, marginTop: 32, textAlign: 'center' },
+    handCard: {
+      backgroundColor: theme.card,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line,
+      borderRadius: 16,
+      paddingVertical: 32,
+      paddingHorizontal: 48,
+    },
+    hand: { color: theme.ink, fontSize: 56, fontWeight: '700' },
+    feedback: { fontSize: 16, color: theme.ink2, textAlign: 'center' },
+    feedbackCorrect: { color: theme.accent },
+    feedbackWrong: { color: theme.bad },
+    actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 },
+    actionButton: { paddingHorizontal: 18, paddingVertical: 12, borderRadius: 12 },
+    actionButtonText: { color: theme.onAccent, fontSize: 15, fontWeight: '600' },
+    stats: { flexDirection: 'row', gap: 20, marginTop: 8 },
+    stat: { color: theme.ink2, fontSize: 14 },
+  });
+}

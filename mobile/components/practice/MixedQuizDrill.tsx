@@ -8,8 +8,9 @@ import type { PokerHand } from '@core/domain/pokerHands';
 import { findSavedRangeById } from '@core/storage/rangeStorage';
 import { RANGE_ACTIONS, RANGE_ACTION_LABELS, type RangeAction } from '@core/types/range';
 
-import { ACTION_COLORS } from '../../theme/actionColors';
-import { colors } from '../../theme/colors';
+import { actionColors } from '../../theme/actionColors';
+import { useTheme } from '../../theme/colors';
+import type { ThemeColors } from '../../theme/colors';
 
 const EMPTY_STRATEGIES: Record<PokerHand, HandMixedStrategy> = {};
 
@@ -25,6 +26,9 @@ interface AnsweredState {
  * frequency-quiz route and the practice overlay's frequency mode.
  */
 export function MixedQuizDrill({ id }: { id?: string }) {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
+  const ACTION_COLORS = actionColors(theme);
   const [range] = useState(() => (id ? findSavedRangeById(id) : undefined));
   const mixedStrategies = range?.mixedStrategies ?? EMPTY_STRATEGIES;
   const pool = useMemo(() => handsWithMixedStrategy(mixedStrategies), [mixedStrategies]);
@@ -129,35 +133,37 @@ export function MixedQuizDrill({ id }: { id?: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  body: { flex: 1, padding: 24, gap: 20, alignItems: 'center', justifyContent: 'center' },
-  notFound: { color: colors.text, fontSize: 16, marginTop: 32, textAlign: 'center' },
-  prompt: { color: colors.textStrong, fontSize: 16, fontWeight: '600' },
-  handCard: {
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 16,
-    paddingVertical: 28,
-    paddingHorizontal: 44,
-  },
-  hand: { color: colors.textStrong, fontSize: 52, fontWeight: '700' },
-  feedback: { fontSize: 16, color: colors.text, textAlign: 'center' },
-  feedbackCorrect: { color: colors.accent },
-  feedbackWrong: { color: colors.danger },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 },
-  actionButton: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12 },
-  actionButtonDisabled: { opacity: 0.4 },
-  actionButtonText: { color: colors.onAccent, fontSize: 15, fontWeight: '600' },
-  nextButton: {
-    backgroundColor: colors.brand,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.accent,
-    borderRadius: 10,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-  },
-  nextButtonText: { color: colors.accent, fontSize: 15, fontWeight: '600' },
-  stats: { flexDirection: 'row', gap: 20, marginTop: 8 },
-  stat: { color: colors.text, fontSize: 14 },
-});
+function makeStyles(theme: ThemeColors) {
+  return StyleSheet.create({
+    body: { flex: 1, padding: 24, gap: 20, alignItems: 'center', justifyContent: 'center' },
+    notFound: { color: theme.ink2, fontSize: 16, marginTop: 32, textAlign: 'center' },
+    prompt: { color: theme.ink, fontSize: 16, fontWeight: '600' },
+    handCard: {
+      backgroundColor: theme.card,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line,
+      borderRadius: 16,
+      paddingVertical: 28,
+      paddingHorizontal: 44,
+    },
+    hand: { color: theme.ink, fontSize: 52, fontWeight: '700' },
+    feedback: { fontSize: 16, color: theme.ink2, textAlign: 'center' },
+    feedbackCorrect: { color: theme.accent },
+    feedbackWrong: { color: theme.bad },
+    actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 },
+    actionButton: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12 },
+    actionButtonDisabled: { opacity: 0.4 },
+    actionButtonText: { color: theme.onAccent, fontSize: 15, fontWeight: '600' },
+    nextButton: {
+      backgroundColor: theme.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.accent,
+      borderRadius: 10,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+    },
+    nextButtonText: { color: theme.accent, fontSize: 15, fontWeight: '600' },
+    stats: { flexDirection: 'row', gap: 20, marginTop: 8 },
+    stat: { color: theme.ink2, fontSize: 14 },
+  });
+}

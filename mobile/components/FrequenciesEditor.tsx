@@ -7,8 +7,9 @@ import { findSavedRangeById, saveSavedRange } from '@core/storage/rangeStorage';
 
 import { MixedNotation } from './MixedNotation';
 import { MixedStrategyEditor } from './MixedStrategyEditor';
-import { ACTION_COLORS } from '../theme/actionColors';
-import { colors } from '../theme/colors';
+import { actionColors } from '../theme/actionColors';
+import { useTheme } from '../theme/colors';
+import type { ThemeColors } from '../theme/colors';
 
 /**
  * Mixed-frequency editor body for one saved range: pick an in-range hand, then set how
@@ -17,6 +18,9 @@ import { colors } from '../theme/colors';
  * the range's other fields. Shared by the flat frequency-editor route and the Frequencies tab.
  */
 export function FrequenciesEditor({ id }: { id?: string }) {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
+  const ACTION_COLORS = actionColors(theme);
   const [range] = useState(() => (id ? findSavedRangeById(id) : undefined));
   const [mixedStrategies, setMixedStrategies] = useState<Record<PokerHand, HandMixedStrategy>>(
     () => range?.mixedStrategies ?? {},
@@ -35,7 +39,7 @@ export function FrequenciesEditor({ id }: { id?: string }) {
 
   const setStrategy = useCallback((hand: PokerHand, next: HandMixedStrategy) => {
     setMixedStrategies((prev) => ({ ...prev, [hand]: next }));
-  }, []);
+  }, [setMixedStrategies]);
 
   if (!range) {
     return <Text style={styles.notFound}>Range not found</Text>;
@@ -84,24 +88,26 @@ export function FrequenciesEditor({ id }: { id?: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  content: { gap: 16 },
-  notFound: { color: colors.text, fontSize: 16, marginTop: 32, textAlign: 'center' },
-  hint: { color: colors.text, fontSize: 14 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  chipText: { color: colors.text, fontSize: 13, fontWeight: '600' },
-  chipTextActive: { color: colors.onAccent },
-});
+function makeStyles(theme: ThemeColors) {
+  return StyleSheet.create({
+    content: { gap: 16 },
+    notFound: { color: theme.ink2, fontSize: 16, marginTop: 32, textAlign: 'center' },
+    hint: { color: theme.ink2, fontSize: 14 },
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    chip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: theme.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line,
+      borderRadius: 14,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+    },
+    chipActive: { backgroundColor: theme.goldFill, borderColor: theme.goldFill },
+    dot: { width: 8, height: 8, borderRadius: 4 },
+    chipText: { color: theme.ink2, fontSize: 13, fontWeight: '600' },
+    chipTextActive: { color: theme.onAccent },
+  });
+}
