@@ -368,7 +368,7 @@ function RangeRow({
   const meta = range.metadata;
   const percentage = calculateRangePercentage(range.hands);
   return (
-    <Link href={{ pathname: '/editor', params: { id: range.id } }} asChild>
+    <Link href={{ pathname: '/range/[id]', params: { id: range.id } }} asChild>
       <Pressable
         testID={`range-row-${range.id}`}
         accessibilityRole="button"
