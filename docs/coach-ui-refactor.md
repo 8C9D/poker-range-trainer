@@ -7,7 +7,7 @@ Update this checklist in every slice's commit so a future session can resume.
 
 - [x] 1. Design tokens + fonts + app shell with hash routing; old page still reachable (default route).
 - [x] 2. Today screen (streak chip, Start review CTA, due list, week tiles, empty states); now the default route. Legacy page moved to `#/legacy`.
-- [ ] 3. Library screen (search, filters/sorts, favorites/archived, thumbnail rows, New range).
+- [x] 3. Library screen (search, filters/sorts, favorites/archived, thumbnail rows linking to `#/library/:id`, New range -> `#/library/new`). Range page itself is still a placeholder (slice 4).
 - [ ] 4. Range page with tabs (Overview / Edit / Actions / Combos / Frequencies / Stats) + header menu actions.
 - [ ] 5. Practice flow (mode picker, full-screen drill overlay, feedback dwell, session-end ring + delta, review queue).
 - [ ] 6. Progress screen (tiles, weekly bar chart, library analytics, weakest hands + Drill these).
@@ -26,6 +26,7 @@ Update this checklist in every slice's commit so a future session can resume.
 - Review queue: `CoachApp` state (`reviewQueue`/`reviewIndex`) rendering `PracticeSession` per range with a "Range k of N" bar; slice 5 replaces the visuals with the drill overlay.
 - Range grid thumbnail: `src/components/RangeThumbnail.tsx` (SVG, gold-on-well, decorative).
 - Weekly stats: `src/domain/weeklyStats.ts` (`summarizeWeek`); date/greeting helpers in `src/app/format.ts`.
+- Library screen: `src/screens/LibraryScreen.tsx`; same filter/sort pipeline as the old `RangeLibrary` via `domain/rangeLibrary` helpers; per-range mutations move to the Range page.
 
 ## Decisions
 

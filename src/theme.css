@@ -130,6 +130,7 @@
   border: 1px solid var(--line-2);
   border-radius: 10px;
   cursor: pointer;
+  text-decoration: none;
   transition: border-color 150ms ease, background-color 150ms ease, transform 150ms ease;
 }
 

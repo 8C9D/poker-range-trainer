@@ -78,6 +78,7 @@ import {
 import { AppShell } from './app/AppShell'
 import { useHashRoute } from './app/routes'
 import { recordFinishedPracticeSession } from './app/sessionRecording'
+import { LibraryScreen } from './screens/LibraryScreen'
 import { TodayScreen } from './screens/TodayScreen'
 import type { ActionAttempt, PracticeAttempt } from './types/practice'
 import type {
@@ -233,8 +234,10 @@ function CoachApp() {
     <AppShell route={route}>
       {route.screen === 'today' ? (
         <TodayScreen onStartReview={startReview} />
-      ) : route.screen === 'library' || route.screen === 'range' ? (
-        <ScreenPlaceholder title="Library" />
+      ) : route.screen === 'library' ? (
+        <LibraryScreen />
+      ) : route.screen === 'range' || route.screen === 'newRange' ? (
+        <ScreenPlaceholder title="Range" />
       ) : route.screen === 'progress' ? (
         <ScreenPlaceholder title="Progress" />
       ) : route.screen === 'account' ? (

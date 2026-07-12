@@ -47,6 +47,7 @@ function activeDestination(route: AppRoute): Destination | null {
     case 'today':
       return 'today'
     case 'library':
+    case 'newRange':
     case 'range':
       return 'library'
     case 'progress':

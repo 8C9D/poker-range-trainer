@@ -9,6 +9,10 @@ describe('parseAppRoute', () => {
     expect(parseAppRoute('#/account')).toEqual({ screen: 'account' })
   })
 
+  it('parses the new-range route', () => {
+    expect(parseAppRoute('#/library/new')).toEqual({ screen: 'newRange' })
+  })
+
   it('parses a range page with a default overview tab', () => {
     expect(parseAppRoute('#/library/abc-123')).toEqual({
       screen: 'range',
@@ -51,6 +55,7 @@ describe('routeHash', () => {
     const routes = [
       { screen: 'today' },
       { screen: 'library' },
+      { screen: 'newRange' },
       { screen: 'range', id: 'abc', tab: 'overview' },
       { screen: 'range', id: 'a b', tab: 'stats' },
       { screen: 'progress' },
