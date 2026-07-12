@@ -4,7 +4,7 @@ import type { HandMixedStrategy } from '@core/domain/mixedStrategy';
 import type { PokerHand } from '@core/domain/pokerHands';
 import { saveSavedRange } from '@core/storage/rangeStorage';
 
-import MixedQuizScreen from '../app/mixed-quiz';
+import { MixedQuizDrill } from '../components/practice/MixedQuizDrill';
 import { installLocalStorage, localStorageShim } from '../platform/localStorageShim';
 
 // In-memory MMKV + expo-router stub pointing at range "r1".
@@ -45,7 +45,7 @@ describe('MixedQuizScreen', () => {
 
   it('scores the primary action as correct', async () => {
     seedRange(ONE_STRATEGY);
-    const { getByTestId } = await render(<MixedQuizScreen />);
+    const { getByTestId } = await render(<MixedQuizDrill id="r1" />);
 
     expect(getByTestId('quiz-hand')).toHaveTextContent('AA');
     fireEvent.press(getByTestId('mixed-action-raise'));
@@ -58,7 +58,7 @@ describe('MixedQuizScreen', () => {
 
   it('scores a different action as incorrect', async () => {
     seedRange(ONE_STRATEGY);
-    const { getByTestId } = await render(<MixedQuizScreen />);
+    const { getByTestId } = await render(<MixedQuizDrill id="r1" />);
 
     fireEvent.press(getByTestId('mixed-action-fold'));
 
@@ -70,7 +70,7 @@ describe('MixedQuizScreen', () => {
 
   it('shows a message when the range has no mixed frequencies', async () => {
     seedRange();
-    const { getByTestId, queryByTestId } = await render(<MixedQuizScreen />);
+    const { getByTestId, queryByTestId } = await render(<MixedQuizDrill id="r1" />);
 
     expect(getByTestId('no-frequencies')).toBeTruthy();
     expect(queryByTestId('quiz-hand')).toBeNull();

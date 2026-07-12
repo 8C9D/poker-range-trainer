@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 
 import { findSavedRangeById, saveSavedRange } from '@core/storage/rangeStorage';
 
-import EditorScreen from '../app/editor';
+import { RangeEditor } from '../components/RangeEditor';
 import { installLocalStorage, localStorageShim } from '../platform/localStorageShim';
 
 // Native module stubs + an expo-router mock that opens range "r1" (editing an existing
@@ -42,7 +42,7 @@ describe('EditorScreen overlay preservation', () => {
     });
 
     const user = userEvent.setup();
-    const { getByTestId } = await render(<EditorScreen />);
+    const { getByTestId } = await render(<RangeEditor id="r1" />);
 
     // Toggle a hand in the binary grid → live-save fires.
     await user.press(getByTestId('hand-cell-KK'));

@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 
 import { findSavedRangeById, saveSavedRange } from '@core/storage/rangeStorage';
 
-import EditorScreen from '../app/editor';
+import { RangeEditor } from '../components/RangeEditor';
 import { installLocalStorage, localStorageShim } from '../platform/localStorageShim';
 
 // Native module stubs + an expo-router mock that opens range "r1" for editing.
@@ -41,7 +41,7 @@ describe('EditorScreen combo selection', () => {
 
   it('persists a refined hand\'s remaining combos on save', async () => {
     const user = userEvent.setup();
-    const { getByTestId } = await render(<EditorScreen />);
+    const { getByTestId } = await render(<RangeEditor id="r1" />);
 
     // Open AKs's combo editor and deselect the AhKh combo.
     await user.press(getByTestId('refine-hand-AKs'));
@@ -59,7 +59,7 @@ describe('EditorScreen combo selection', () => {
 
   it('writes no entry for a fully-selected hand', async () => {
     const user = userEvent.setup();
-    const { getByTestId } = await render(<EditorScreen />);
+    const { getByTestId } = await render(<RangeEditor id="r1" />);
 
     // Refine AKs so a save fires; AA is never touched and stays all-on.
     await user.press(getByTestId('refine-hand-AKs'));
@@ -74,7 +74,7 @@ describe('EditorScreen combo selection', () => {
 
   it('drops a hand\'s refinement when it leaves the range', async () => {
     const user = userEvent.setup();
-    const { getByTestId } = await render(<EditorScreen />);
+    const { getByTestId } = await render(<RangeEditor id="r1" />);
 
     await user.press(getByTestId('refine-hand-AKs'));
     await user.press(getByTestId('combo-cell-AhKh'));

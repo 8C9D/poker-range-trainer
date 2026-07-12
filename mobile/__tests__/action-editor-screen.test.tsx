@@ -2,7 +2,7 @@ import { render, userEvent, waitFor } from '@testing-library/react-native';
 
 import { findSavedRangeById, saveSavedRange } from '@core/storage/rangeStorage';
 
-import ActionEditorScreen from '../app/action-editor';
+import { ActionsEditor } from '../components/ActionsEditor';
 import { installLocalStorage, localStorageShim } from '../platform/localStorageShim';
 
 // In-memory MMKV + expo-router stub pointing at range "r1".
@@ -35,7 +35,7 @@ describe('ActionEditorScreen', () => {
     seedRange();
     // userEvent (async) for the two interactions — picking an action then a hand cell.
     const user = userEvent.setup();
-    const { getByTestId } = await render(<ActionEditorScreen />);
+    const { getByTestId } = await render(<ActionsEditor id="r1" />);
 
     await user.press(getByTestId('action-chip-call'));
     await user.press(getByTestId('action-cell-AA'));

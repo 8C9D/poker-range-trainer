@@ -5,7 +5,7 @@ import { loadActionAccuracy } from '@core/storage/actionAccuracyStorage';
 import { saveSavedRange } from '@core/storage/rangeStorage';
 import type { RangeAction } from '@core/types/range';
 
-import ActionQuizScreen from '../app/action-quiz';
+import { ActionQuizDrill } from '../components/practice/ActionQuizDrill';
 import { installLocalStorage, localStorageShim } from '../platform/localStorageShim';
 
 // In-memory MMKV + expo-router stub pointing at range "r1".
@@ -41,7 +41,7 @@ describe('ActionQuizScreen', () => {
 
   it('scores a correct action and records per-action accuracy', async () => {
     seedRange(ALL_RAISE);
-    const { getByTestId } = await render(<ActionQuizScreen />);
+    const { getByTestId } = await render(<ActionQuizDrill id="r1" />);
 
     fireEvent.press(getByTestId('quiz-action-raise'));
 
@@ -55,7 +55,7 @@ describe('ActionQuizScreen', () => {
 
   it('scores a wrong action as incorrect', async () => {
     seedRange(ALL_RAISE);
-    const { getByTestId } = await render(<ActionQuizScreen />);
+    const { getByTestId } = await render(<ActionQuizDrill id="r1" />);
 
     fireEvent.press(getByTestId('quiz-action-fold'));
 
@@ -67,7 +67,7 @@ describe('ActionQuizScreen', () => {
 
   it('shows a message when the range has no assigned actions', async () => {
     seedRange();
-    const { getByTestId, queryByTestId } = await render(<ActionQuizScreen />);
+    const { getByTestId, queryByTestId } = await render(<ActionQuizDrill id="r1" />);
 
     expect(getByTestId('no-actions')).toBeTruthy();
     expect(queryByTestId('quiz-hand')).toBeNull();

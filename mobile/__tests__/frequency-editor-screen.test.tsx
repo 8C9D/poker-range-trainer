@@ -2,7 +2,7 @@ import { render, userEvent, waitFor } from '@testing-library/react-native';
 
 import { findSavedRangeById, saveSavedRange } from '@core/storage/rangeStorage';
 
-import FrequencyEditorScreen from '../app/frequency-editor';
+import { FrequenciesEditor } from '../components/FrequenciesEditor';
 import { installLocalStorage, localStorageShim } from '../platform/localStorageShim';
 
 // In-memory MMKV + expo-router stub pointing at range "r1".
@@ -36,7 +36,7 @@ describe('FrequencyEditorScreen', () => {
   it('live-saves a hand mixed strategy onto the range', async () => {
     const user = userEvent.setup();
     // The first range hand (AA) is active by default, so its MixedStrategyEditor is shown.
-    const { getByTestId } = await render(<FrequencyEditorScreen />);
+    const { getByTestId } = await render(<FrequenciesEditor id="r1" />);
 
     await user.press(getByTestId('mixed-inc-raise'));
 
@@ -49,7 +49,7 @@ describe('FrequencyEditorScreen', () => {
 
   it('preserves other overlays (handActions) when saving frequencies', async () => {
     const user = userEvent.setup();
-    const { getByTestId } = await render(<FrequencyEditorScreen />);
+    const { getByTestId } = await render(<FrequenciesEditor id="r1" />);
 
     await user.press(getByTestId('mixed-inc-raise'));
 

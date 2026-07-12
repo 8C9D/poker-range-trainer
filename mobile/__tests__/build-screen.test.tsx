@@ -2,7 +2,7 @@ import { render, userEvent, waitFor } from '@testing-library/react-native';
 
 import { saveSavedRange } from '@core/storage/rangeStorage';
 
-import BuildScreen from '../app/build';
+import { BuildDrill } from '../components/practice/BuildDrill';
 import { installLocalStorage, localStorageShim } from '../platform/localStorageShim';
 
 // In-memory MMKV + expo-router stub pointing at range "r1".
@@ -35,7 +35,7 @@ describe('BuildScreen', () => {
   it('compares the built guess against the target range', async () => {
     seedRange();
     const user = userEvent.setup();
-    const { getByTestId, queryByTestId } = await render(<BuildScreen />);
+    const { getByTestId, queryByTestId } = await render(<BuildDrill id="r1" />);
 
     // No result until the user checks.
     expect(queryByTestId('build-correct')).toBeNull();
@@ -55,7 +55,7 @@ describe('BuildScreen', () => {
   it('flags a hand the user added that is not in the range as extra', async () => {
     seedRange();
     const user = userEvent.setup();
-    const { getByTestId, queryByTestId } = await render(<BuildScreen />);
+    const { getByTestId, queryByTestId } = await render(<BuildDrill id="r1" />);
 
     // Build AA (correct) plus QQ (not in the range) — QQ is extra, KK still missed.
     await user.press(getByTestId('hand-cell-AA'));

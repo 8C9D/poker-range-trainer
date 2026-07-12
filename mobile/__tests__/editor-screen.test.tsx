@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 
 import { loadSavedRanges } from '@core/storage/rangeStorage';
 
-import EditorScreen from '../app/editor';
+import { RangeEditor } from '../components/RangeEditor';
 import { installLocalStorage, localStorageShim } from '../platform/localStorageShim';
 
 // Native modules: in-memory MMKV + deterministic crypto + stubbed clipboard, plus a
@@ -39,7 +39,7 @@ describe('EditorScreen', () => {
       buttons?.find((b) => b.style === 'destructive')?.onPress?.();
     });
 
-    const { getByTestId } = await render(<EditorScreen />);
+    const { getByTestId } = await render(<RangeEditor />);
 
     await user.type(getByTestId('range-name-input'), 'UTG Open');
     await user.press(getByTestId('hand-cell-AA'));
