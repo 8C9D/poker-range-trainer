@@ -75,6 +75,7 @@ import { AppShell } from './app/AppShell'
 import { useHashRoute } from './app/routes'
 import { recordFinishedPracticeSession } from './app/sessionRecording'
 import { PracticeHost, type PracticeRequest } from './practice/PracticeHost'
+import { AccountScreen } from './screens/AccountScreen'
 import { LibraryScreen } from './screens/LibraryScreen'
 import { ProgressScreen } from './screens/ProgressScreen'
 import { RangeScreen } from './screens/RangeScreen'
@@ -213,23 +214,11 @@ function CoachApp() {
           }
         />
       ) : route.screen === 'account' ? (
-        <ScreenPlaceholder title="Account" />
+        <AccountScreen />
       ) : (
         <LegacyPage />
       )}
     </AppShell>
-  )
-}
-
-function ScreenPlaceholder({ title }: { title: string }) {
-  return (
-    <section className="coach-card" aria-label={title}>
-      <h2>{title}</h2>
-      <p>
-        This screen is being rebuilt. Everything still works from the{' '}
-        <a href="#/legacy">current page</a>.
-      </p>
-    </section>
   )
 }
 

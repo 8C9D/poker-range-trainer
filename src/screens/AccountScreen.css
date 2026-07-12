@@ -1,0 +1,51 @@
+.account {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.account h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.account-section h3 {
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+
+.account-note {
+  margin: 0 0 10px;
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+.account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.account-file {
+  cursor: pointer;
+}
+
+.account-file input {
+  display: none;
+}
+
+.account-status {
+  margin: 10px 0 0;
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+
+@media (max-width: 640px) {
+  .account-actions .coach-btn {
+    min-height: 44px;
+  }
+}

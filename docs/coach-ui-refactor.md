@@ -11,7 +11,7 @@ Update this checklist in every slice's commit so a future session can resume.
 - [x] 4. Range page with tabs (Overview / Edit / Actions / Combos / Frequencies / Stats) + header menu (duplicate, favorite, archive, delete, exports, share, publish, compare). New-range mode at `#/library/new`. Practice button currently launches the recognition drill directly; the mode picker lands in slice 5.
 - [x] 5. Practice flow: mode picker (conditional modes), full-screen recognition drill (cards, scenario line, action-verb buttons, swipe, 20-question sessions, hit/miss dwell), timed + weakness variants, session-end ring with growth delta + streak, review queue with Next range. Build/action/mixed/combo/postflop/board modes run inside the overlay frame (deep restyle deferred to slice 8 polish).
 - [x] 6. Progress screen: streak/30-day/all-time tiles, 7-day gold bar chart (today emphasized), library analytics, weakest hands across ranges + "Drill these" (per-range pools via `PracticeRequest.handPools`). Domain helpers: `domain/weakHands.ts`, `dailyHandCounts` in `domain/weeklyStats.ts`.
-- [ ] 7. Account & data screen (auth, sync, cloud data, backup/import/export).
+- [x] 7. Account & data screen: AuthPanel, push/pull sync (confirm before overwrite), delete cloud data, publish/unpublish pack link, sync status; backup export/import, range JSON/CSV/pack import, pack export; local-only note. Same gating as before (configured + signed in).
 - [ ] 8. Shared-link pages restyle; delete legacy layout and dead CSS/components; final polish pass.
 
 ## Where things live now
