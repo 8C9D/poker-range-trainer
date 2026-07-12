@@ -23,6 +23,9 @@ import {
   type SavedRange,
 } from '@core/types/range';
 
+import { ActionsEditor } from '../../components/ActionsEditor';
+import { ComboExplorer } from '../../components/ComboExplorer';
+import { FrequenciesEditor } from '../../components/FrequenciesEditor';
 import { RangeEditor } from '../../components/RangeEditor';
 import { RangeThumbnail } from '../../components/RangeThumbnail';
 import { Screen } from '../../components/Screen';
@@ -228,30 +231,9 @@ export default function RangeScreen() {
         <View style={styles.tabContent}>
           {tab === 'overview' ? <OverviewTab range={range} theme={theme} styles={styles} /> : null}
           {tab === 'edit' ? <RangeEditor id={range.id} /> : null}
-          {tab === 'actions' ? (
-            <LinkCard
-              label="Edit actions"
-              hint="Assign a per-hand action mix."
-              href={{ pathname: '/action-editor', params: { id: range.id } }}
-              styles={styles}
-            />
-          ) : null}
-          {tab === 'combos' ? (
-            <LinkCard
-              label="Refine combos"
-              hint="Pick which combos of each hand stay in."
-              href={{ pathname: '/combos', params: { id: range.id } }}
-              styles={styles}
-            />
-          ) : null}
-          {tab === 'frequencies' ? (
-            <LinkCard
-              label="Edit frequencies"
-              hint="Set mixed-strategy frequencies per hand."
-              href={{ pathname: '/frequency-editor', params: { id: range.id } }}
-              styles={styles}
-            />
-          ) : null}
+          {tab === 'actions' ? <ActionsEditor id={range.id} /> : null}
+          {tab === 'combos' ? <ComboExplorer /> : null}
+          {tab === 'frequencies' ? <FrequenciesEditor id={range.id} /> : null}
           {tab === 'stats' ? (
             <LinkCard
               label="Practice & stats"

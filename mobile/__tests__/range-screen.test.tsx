@@ -65,6 +65,33 @@ describe('RangeScreen', () => {
     expect(await findByTestId('range-name-input')).toBeTruthy();
   });
 
+  it('shows the actions editor in the Actions tab', async () => {
+    seed({ id: 'r1', name: 'UTG Open' });
+
+    const { getByTestId, findByTestId } = await render(<RangeScreen />);
+    fireEvent.press(getByTestId('range-tab-actions'));
+
+    expect(await findByTestId('action-cell-AA')).toBeTruthy();
+  });
+
+  it('shows the combo explorer in the Combos tab', async () => {
+    seed({ id: 'r1', name: 'UTG Open' });
+
+    const { getByTestId, findByTestId } = await render(<RangeScreen />);
+    fireEvent.press(getByTestId('range-tab-combos'));
+
+    expect(await findByTestId('combo-hand-input')).toBeTruthy();
+  });
+
+  it('shows the frequencies editor in the Frequencies tab', async () => {
+    seed({ id: 'r1', name: 'UTG Open' });
+
+    const { getByTestId, findByTestId } = await render(<RangeScreen />);
+    fireEvent.press(getByTestId('range-tab-frequencies'));
+
+    expect(await findByTestId('freq-hand-AA')).toBeTruthy();
+  });
+
   it('opens the overflow menu and toggles favorite', async () => {
     seed({ id: 'r1', name: 'UTG Open' });
 
