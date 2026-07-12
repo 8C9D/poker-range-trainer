@@ -6,10 +6,10 @@ import { HandGrid } from './HandGrid'
 import App from '../App'
 import type { PokerHand } from '../domain/pokerHands'
 
-// The App-level cases exercise the legacy editor page, which lives at #/legacy
-// while the Coach screens land.
+// The App-level cases exercise the editor through the new-range page.
 beforeEach(() => {
-  window.location.hash = '#/legacy'
+  localStorage.clear()
+  window.location.hash = '#/library/new'
 })
 
 /**

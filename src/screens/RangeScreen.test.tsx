@@ -229,6 +229,65 @@ describe('RangeScreen tabs', () => {
   })
 })
 
+describe('RangeScreen editor validation', () => {
+  it('disables saving until a name and at least one hand are set', async () => {
+    const user = userEvent.setup()
+    render(<RangeScreen id={null} tab="edit" onPractice={vi.fn()} />)
+    const save = screen.getByRole('button', { name: 'Save Range' })
+    expect(save).toBeDisabled()
+    expect(
+      screen.getByText('Enter a range name and select at least one hand to save.'),
+    ).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('Range name'), 'My Range')
+    expect(save).toBeDisabled()
+    expect(screen.getByText('Select at least one hand to save.')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    expect(save).toBeEnabled()
+  })
+
+  it('blocks saving on an invalid stack depth with an inline error', async () => {
+    const user = userEvent.setup()
+    render(<RangeScreen id={null} tab="edit" onPractice={vi.fn()} />)
+    await user.type(screen.getByLabelText('Range name'), 'My Range')
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.type(screen.getByLabelText('Stack depth'), '-5')
+    expect(screen.getByText('Stack depth must be a positive number.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save Range' })).toBeDisabled()
+  })
+
+  it('persists scenario metadata and source through a save', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange())
+    render(<RangeScreen id="r1" tab="edit" onPractice={vi.fn()} />)
+    await user.selectOptions(screen.getByLabelText('Position'), 'btn')
+    await user.selectOptions(screen.getByLabelText('Action type'), 'open')
+    await user.type(screen.getByLabelText('Stack depth'), '100')
+    await user.selectOptions(screen.getByLabelText('Source'), 'solver')
+    await user.type(screen.getByLabelText('Reference'), 'GTOWizard 6-max')
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    const saved = findSavedRangeById('r1')!
+    expect(saved.metadata).toMatchObject({ position: 'btn', actionType: 'open', stackDepthBb: 100 })
+    expect(saved.source).toEqual({ kind: 'solver', reference: 'GTOWizard 6-max' })
+    // The header chips reflect the saved metadata.
+    expect(screen.getByText('BTN', { selector: '.coach-chip' })).toBeInTheDocument()
+    expect(screen.getByText('100bb', { selector: '.coach-chip' })).toBeInTheDocument()
+  })
+
+  it('saves per-hand notes with the range', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange())
+    render(<RangeScreen id="r1" tab="edit" onPractice={vi.fn()} />)
+    // The hand-notes editor lists the selected hands; note the first hand.
+    await user.selectOptions(screen.getByLabelText('Hand'), 'AA')
+    await user.type(screen.getByLabelText('Note for AA'), 'never fold')
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }))
+    expect(findSavedRangeById('r1')?.handNotes?.['AA']).toBe('never fold')
+  })
+})
+
 describe('RangeScreen new-range mode', () => {
   it('creates a range and navigates to its page on save', async () => {
     const user = userEvent.setup()

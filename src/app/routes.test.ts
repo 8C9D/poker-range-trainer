@@ -44,10 +44,6 @@ describe('parseAppRoute', () => {
     expect(parseAppRoute('#/')).toEqual({ screen: 'today' })
     expect(parseAppRoute('#/nope')).toEqual({ screen: 'today' })
   })
-
-  it('keeps the legacy page reachable during the migration', () => {
-    expect(parseAppRoute('#/legacy')).toEqual({ screen: 'legacy' })
-  })
 })
 
 describe('routeHash', () => {
@@ -60,7 +56,6 @@ describe('routeHash', () => {
       { screen: 'range', id: 'a b', tab: 'stats' },
       { screen: 'progress' },
       { screen: 'account' },
-      { screen: 'legacy' },
     ] as const
     for (const route of routes) {
       expect(parseAppRoute(routeHash(route))).toEqual(route)

@@ -10,7 +10,6 @@ export type AppRoute =
   | { screen: 'range'; id: string; tab: RangeTab }
   | { screen: 'progress' }
   | { screen: 'account' }
-  | { screen: 'legacy' }
 
 /**
  * Parse the location hash into an app route. Share routes (#/r/:id, #/p/:id)
@@ -36,9 +35,6 @@ export function parseAppRoute(hash: string): AppRoute {
       return { screen: 'progress' }
     case 'account':
       return { screen: 'account' }
-    case 'legacy':
-      // Migration escape hatch: the old single-page layout until slice 8 removes it.
-      return { screen: 'legacy' }
     default:
       return { screen: 'today' }
   }
@@ -60,8 +56,6 @@ export function routeHash(route: AppRoute): string {
       return '#/progress'
     case 'account':
       return '#/account'
-    case 'legacy':
-      return '#/legacy'
   }
 }
 

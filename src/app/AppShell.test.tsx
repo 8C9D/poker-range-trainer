@@ -35,15 +35,4 @@ describe('AppShell', () => {
     )
     expect(screen.getByRole('link', { name: 'Library' })).toHaveAttribute('aria-current', 'page')
   })
-
-  it('marks nothing active on the legacy route', () => {
-    render(
-      <AppShell route={{ screen: 'legacy' }}>
-        <p>content</p>
-      </AppShell>,
-    )
-    for (const name of ['Today', 'Library', 'Progress', 'Account']) {
-      expect(screen.getByRole('link', { name })).not.toHaveAttribute('aria-current')
-    }
-  })
 })

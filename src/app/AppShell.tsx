@@ -42,7 +42,7 @@ const DESTINATIONS: Array<{ key: Destination; label: string }> = [
 ]
 
 /** Which rail destination a route belongs to (range pages live under Library). */
-function activeDestination(route: AppRoute): Destination | null {
+function activeDestination(route: AppRoute): Destination {
   switch (route.screen) {
     case 'today':
       return 'today'
@@ -54,8 +54,6 @@ function activeDestination(route: AppRoute): Destination | null {
       return 'progress'
     case 'account':
       return 'account'
-    default:
-      return null
   }
 }
 
