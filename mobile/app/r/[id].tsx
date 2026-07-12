@@ -7,9 +7,12 @@ import { calculateRangePercentage } from '@core/domain/rangeMath';
 import { saveSavedRange } from '@core/storage/rangeStorage';
 import type { SavedRange } from '@core/types/range';
 
+import { Screen } from '../../components/Screen';
 import { createRangeId } from '../../platform/createRangeId';
 import { getMobileSupabaseClient } from '../../platform/supabaseClient';
-import { colors } from '../../theme/colors';
+import { fonts } from '../../theme/fonts';
+import { useTheme } from '../../theme/colors';
+import type { ThemeColors } from '../../theme/colors';
 
 type ViewState = 'loading' | 'not-configured' | 'error' | 'done';
 
@@ -21,6 +24,9 @@ type ViewState = 'loading' | 'not-configured' | 'error' | 'done';
  * message instead of failing. An optional `token` query param carries the secret for private links.
  */
 export default function SharedRangeScreen() {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
+
   const params = useLocalSearchParams<{ id?: string; token?: string }>();
   const id = typeof params.id === 'string' ? params.id : undefined;
   const token = typeof params.token === 'string' ? params.token : undefined;
@@ -62,96 +68,102 @@ export default function SharedRangeScreen() {
   }, [range]);
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Stack.Screen options={{ title: 'Shared range' }} />
+    <Screen>
+      <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+        <Stack.Screen options={{ title: 'Shared range' }} />
 
-      {state === 'loading' ? (
-        <Text testID="shared-loading" style={styles.muted}>
-          Loading…
-        </Text>
-      ) : state === 'not-configured' ? (
-        <Text testID="shared-not-configured" style={styles.muted}>
-          Shared links need cloud configured. Set EXPO_PUBLIC_SUPABASE_URL and
-          EXPO_PUBLIC_SUPABASE_ANON_KEY to open them.
-        </Text>
-      ) : state === 'error' ? (
-        <Text testID="shared-error" style={styles.error}>
-          {error}
-        </Text>
-      ) : range ? (
-        <>
-          <Text testID="shared-range-name" style={styles.name}>
-            {range.name || 'Untitled range'}
+        {state === 'loading' ? (
+          <Text testID="shared-loading" style={styles.muted}>
+            Loading…
           </Text>
-          <Text style={styles.meta}>
-            {range.hands.length} hands · {calculateRangePercentage(range.hands).toFixed(1)}%
+        ) : state === 'not-configured' ? (
+          <Text testID="shared-not-configured" style={styles.muted}>
+            Shared links need cloud configured. Set EXPO_PUBLIC_SUPABASE_URL and
+            EXPO_PUBLIC_SUPABASE_ANON_KEY to open them.
           </Text>
-          <Pressable
-            testID="shared-add"
-            accessibilityRole="button"
-            style={styles.button}
-            onPress={handleAdd}
-          >
-            <Text style={styles.buttonText}>Add to my library</Text>
-          </Pressable>
-          {status ? (
-            <Text testID="shared-status" style={styles.status}>
-              {status}
+        ) : state === 'error' ? (
+          <Text testID="shared-error" style={styles.error}>
+            {error}
+          </Text>
+        ) : range ? (
+          <>
+            <Text testID="shared-range-name" style={styles.name}>
+              {range.name || 'Untitled range'}
             </Text>
-          ) : null}
-        </>
-      ) : (
-        <Text testID="shared-not-found" style={styles.muted}>
-          That shared range was not found — the link may be wrong or no longer shared.
-        </Text>
-      )}
-    </ScrollView>
+            <Text style={styles.meta}>
+              {range.hands.length} hands · {calculateRangePercentage(range.hands).toFixed(1)}%
+            </Text>
+            <Pressable
+              testID="shared-add"
+              accessibilityRole="button"
+              style={styles.button}
+              onPress={handleAdd}
+            >
+              <Text style={styles.buttonText}>Add to my library</Text>
+            </Pressable>
+            {status ? (
+              <Text testID="shared-status" style={styles.status}>
+                {status}
+              </Text>
+            ) : null}
+          </>
+        ) : (
+          <Text testID="shared-not-found" style={styles.muted}>
+            That shared range was not found — the link may be wrong or no longer shared.
+          </Text>
+        )}
+      </ScrollView>
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    padding: 24,
-    gap: 14,
-  },
-  muted: {
-    color: colors.text,
-    fontSize: 15,
-    lineHeight: 22,
-    marginTop: 16,
-  },
-  name: {
-    color: colors.textStrong,
-    fontSize: 22,
-    fontWeight: '700',
-  },
-  meta: {
-    color: colors.text,
-    fontSize: 15,
-  },
-  button: {
-    backgroundColor: colors.accent,
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonText: {
-    color: colors.onAccent,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  status: {
-    color: colors.accent,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  error: {
-    color: colors.danger,
-    fontSize: 14,
-  },
-});
+function makeStyles(theme: ThemeColors) {
+  return StyleSheet.create({
+    screen: {
+      flex: 1,
+    },
+    content: {
+      padding: 24,
+      gap: 14,
+    },
+    muted: {
+      color: theme.ink2,
+      fontFamily: fonts.body,
+      fontSize: 15,
+      lineHeight: 22,
+      marginTop: 16,
+    },
+    name: {
+      color: theme.ink,
+      fontFamily: fonts.display,
+      fontSize: 22,
+    },
+    meta: {
+      color: theme.ink2,
+      fontFamily: fonts.body,
+      fontSize: 15,
+    },
+    button: {
+      backgroundColor: theme.goldFill,
+      borderRadius: 12,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    buttonText: {
+      color: theme.onAccent,
+      fontFamily: fonts.bodySemibold,
+      fontSize: 16,
+    },
+    status: {
+      color: theme.accent,
+      fontFamily: fonts.bodySemibold,
+      fontSize: 14,
+    },
+    error: {
+      color: theme.bad,
+      fontFamily: fonts.body,
+      fontSize: 14,
+    },
+  });
+}

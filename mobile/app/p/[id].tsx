@@ -6,9 +6,12 @@ import { getSharedPack } from '@core/cloud/sharedPacksRepo';
 import type { RangePack } from '@core/domain/rangeTransfer';
 import { saveSavedRange } from '@core/storage/rangeStorage';
 
+import { Screen } from '../../components/Screen';
 import { createRangeId } from '../../platform/createRangeId';
 import { getMobileSupabaseClient } from '../../platform/supabaseClient';
-import { colors } from '../../theme/colors';
+import { fonts } from '../../theme/fonts';
+import { useTheme } from '../../theme/colors';
+import type { ThemeColors } from '../../theme/colors';
 
 type ViewState = 'loading' | 'not-configured' | 'error' | 'done';
 
@@ -19,6 +22,9 @@ type ViewState = 'loading' | 'not-configured' | 'error' | 'done';
  * Fetch reuses `@core/cloud/sharedPacksRepo`; adding reuses `@core/storage`. Local-first.
  */
 export default function SharedPackScreen() {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
+
   const params = useLocalSearchParams<{ id?: string; token?: string }>();
   const id = typeof params.id === 'string' ? params.id : undefined;
   const token = typeof params.token === 'string' ? params.token : undefined;
@@ -63,96 +69,102 @@ export default function SharedPackScreen() {
   }, [pack]);
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Stack.Screen options={{ title: 'Shared pack' }} />
+    <Screen>
+      <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+        <Stack.Screen options={{ title: 'Shared pack' }} />
 
-      {state === 'loading' ? (
-        <Text testID="shared-loading" style={styles.muted}>
-          Loading…
-        </Text>
-      ) : state === 'not-configured' ? (
-        <Text testID="shared-not-configured" style={styles.muted}>
-          Shared links need cloud configured. Set EXPO_PUBLIC_SUPABASE_URL and
-          EXPO_PUBLIC_SUPABASE_ANON_KEY to open them.
-        </Text>
-      ) : state === 'error' ? (
-        <Text testID="shared-error" style={styles.error}>
-          {error}
-        </Text>
-      ) : pack ? (
-        <>
-          <Text testID="shared-pack-name" style={styles.name}>
-            {pack.name || 'Untitled pack'}
+        {state === 'loading' ? (
+          <Text testID="shared-loading" style={styles.muted}>
+            Loading…
           </Text>
-          <Text style={styles.meta}>
-            {pack.ranges.length} range{pack.ranges.length === 1 ? '' : 's'}
+        ) : state === 'not-configured' ? (
+          <Text testID="shared-not-configured" style={styles.muted}>
+            Shared links need cloud configured. Set EXPO_PUBLIC_SUPABASE_URL and
+            EXPO_PUBLIC_SUPABASE_ANON_KEY to open them.
           </Text>
-          <Pressable
-            testID="shared-add-all"
-            accessibilityRole="button"
-            style={styles.button}
-            onPress={handleAddAll}
-          >
-            <Text style={styles.buttonText}>Add all to my library</Text>
-          </Pressable>
-          {status ? (
-            <Text testID="shared-status" style={styles.status}>
-              {status}
+        ) : state === 'error' ? (
+          <Text testID="shared-error" style={styles.error}>
+            {error}
+          </Text>
+        ) : pack ? (
+          <>
+            <Text testID="shared-pack-name" style={styles.name}>
+              {pack.name || 'Untitled pack'}
             </Text>
-          ) : null}
-        </>
-      ) : (
-        <Text testID="shared-not-found" style={styles.muted}>
-          That shared pack was not found — the link may be wrong or no longer shared.
-        </Text>
-      )}
-    </ScrollView>
+            <Text style={styles.meta}>
+              {pack.ranges.length} range{pack.ranges.length === 1 ? '' : 's'}
+            </Text>
+            <Pressable
+              testID="shared-add-all"
+              accessibilityRole="button"
+              style={styles.button}
+              onPress={handleAddAll}
+            >
+              <Text style={styles.buttonText}>Add all to my library</Text>
+            </Pressable>
+            {status ? (
+              <Text testID="shared-status" style={styles.status}>
+                {status}
+              </Text>
+            ) : null}
+          </>
+        ) : (
+          <Text testID="shared-not-found" style={styles.muted}>
+            That shared pack was not found — the link may be wrong or no longer shared.
+          </Text>
+        )}
+      </ScrollView>
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    padding: 24,
-    gap: 14,
-  },
-  muted: {
-    color: colors.text,
-    fontSize: 15,
-    lineHeight: 22,
-    marginTop: 16,
-  },
-  name: {
-    color: colors.textStrong,
-    fontSize: 22,
-    fontWeight: '700',
-  },
-  meta: {
-    color: colors.text,
-    fontSize: 15,
-  },
-  button: {
-    backgroundColor: colors.accent,
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonText: {
-    color: colors.onAccent,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  status: {
-    color: colors.accent,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  error: {
-    color: colors.danger,
-    fontSize: 14,
-  },
-});
+function makeStyles(theme: ThemeColors) {
+  return StyleSheet.create({
+    screen: {
+      flex: 1,
+    },
+    content: {
+      padding: 24,
+      gap: 14,
+    },
+    muted: {
+      color: theme.ink2,
+      fontFamily: fonts.body,
+      fontSize: 15,
+      lineHeight: 22,
+      marginTop: 16,
+    },
+    name: {
+      color: theme.ink,
+      fontFamily: fonts.display,
+      fontSize: 22,
+    },
+    meta: {
+      color: theme.ink2,
+      fontFamily: fonts.body,
+      fontSize: 15,
+    },
+    button: {
+      backgroundColor: theme.goldFill,
+      borderRadius: 12,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    buttonText: {
+      color: theme.onAccent,
+      fontFamily: fonts.bodySemibold,
+      fontSize: 16,
+    },
+    status: {
+      color: theme.accent,
+      fontFamily: fonts.bodySemibold,
+      fontSize: 14,
+    },
+    error: {
+      color: theme.bad,
+      fontFamily: fonts.body,
+      fontSize: 14,
+    },
+  });
+}

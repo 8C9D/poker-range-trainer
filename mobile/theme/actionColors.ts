@@ -20,16 +20,3 @@ export function actionColors(theme: ThemeColors): Record<RangeAction, string> {
     mixed: theme.ink2, // meta action, quiet
   };
 }
-
-// --- Legacy static palette (pre-Coach) ------------------------------------------
-// Still consumed by the flat-route action editors/grids not yet ported to the Coach
-// IA. Removed together with those screens at the end of the port.
-export const ACTION_COLORS: Record<RangeAction, string> = {
-  fold: '#6b7280', // gray
-  call: '#22c55e', // green
-  raise: '#f59e0b', // amber
-  threeBet: '#ef4444', // red
-  fourBet: '#a855f7', // purple
-  jam: '#ec4899', // pink
-  mixed: '#06b6d4', // cyan
-};

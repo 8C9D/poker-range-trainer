@@ -16,7 +16,8 @@ import {
 import { findSavedRangeById } from '@core/storage/rangeStorage';
 
 import { dealPostflopScenario, scorePostflopDecision, type PostflopScore } from '../components/postflopDrill';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/colors';
+import type { ThemeColors } from '../theme/colors';
 
 /** Display labels for the made-hand / draw categories (UI only — @core has no labels). */
 const CATEGORY_LABELS: Record<HandCategory, string> = {
@@ -45,6 +46,9 @@ const EMPTY_HANDS: PokerHand[] = [];
  * across spots; no persistence (the heuristic is a guide, not graded truth).
  */
 export default function PostflopScreen() {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
+
   const params = useLocalSearchParams<{ id?: string }>();
   const idParam = typeof params.id === 'string' ? params.id : undefined;
   const [range] = useState(() => (idParam ? findSavedRangeById(idParam) : undefined));
@@ -177,123 +181,125 @@ export default function PostflopScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.background,
-    padding: 24,
-    gap: 20,
-  },
-  notFound: {
-    color: colors.text,
-    fontSize: 16,
-    marginTop: 48,
-    textAlign: 'center',
-  },
-  rangeName: {
-    color: colors.text,
-    fontSize: 16,
-  },
-  spot: {
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 16,
-    padding: 20,
-    gap: 8,
-    alignItems: 'center',
-  },
-  hero: {
-    color: colors.textStrong,
-    fontSize: 40,
-    fontWeight: '700',
-  },
-  flop: {
-    color: colors.textStrong,
-    fontSize: 28,
-    fontWeight: '600',
-  },
-  category: {
-    color: colors.accent,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  context: {
-    color: colors.text,
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  decisions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  decisionButton: {
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: colors.accent,
-  },
-  decisionButtonDisabled: {
-    opacity: 0.4,
-  },
-  decisionButtonText: {
-    color: colors.onAccent,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  prompt: {
-    color: colors.text,
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  feedbackCard: {
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 12,
-    padding: 16,
-    gap: 10,
-  },
-  feedback: {
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  feedbackCorrect: {
-    color: colors.accent,
-  },
-  feedbackWrong: {
-    color: colors.danger,
-  },
-  rationale: {
-    color: colors.text,
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  nextButton: {
-    alignSelf: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: colors.brand,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.accent,
-  },
-  nextButtonText: {
-    color: colors.accent,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  stats: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 20,
-    marginTop: 4,
-  },
-  stat: {
-    color: colors.text,
-    fontSize: 14,
-  },
-});
+function makeStyles(theme: ThemeColors) {
+  return StyleSheet.create({
+    screen: {
+      flex: 1,
+      backgroundColor: theme.bg,
+      padding: 24,
+      gap: 20,
+    },
+    notFound: {
+      color: theme.ink2,
+      fontSize: 16,
+      marginTop: 48,
+      textAlign: 'center',
+    },
+    rangeName: {
+      color: theme.ink2,
+      fontSize: 16,
+    },
+    spot: {
+      backgroundColor: theme.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line,
+      borderRadius: 16,
+      padding: 20,
+      gap: 8,
+      alignItems: 'center',
+    },
+    hero: {
+      color: theme.ink,
+      fontSize: 40,
+      fontWeight: '700',
+    },
+    flop: {
+      color: theme.ink,
+      fontSize: 28,
+      fontWeight: '600',
+    },
+    category: {
+      color: theme.accent,
+      fontSize: 15,
+      fontWeight: '600',
+    },
+    context: {
+      color: theme.ink2,
+      fontSize: 14,
+      textAlign: 'center',
+    },
+    decisions: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      gap: 10,
+    },
+    decisionButton: {
+      paddingHorizontal: 18,
+      paddingVertical: 12,
+      borderRadius: 12,
+      backgroundColor: theme.goldFill,
+    },
+    decisionButtonDisabled: {
+      opacity: 0.4,
+    },
+    decisionButtonText: {
+      color: theme.onAccent,
+      fontSize: 15,
+      fontWeight: '600',
+    },
+    prompt: {
+      color: theme.ink2,
+      fontSize: 16,
+      textAlign: 'center',
+    },
+    feedbackCard: {
+      backgroundColor: theme.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line,
+      borderRadius: 12,
+      padding: 16,
+      gap: 10,
+    },
+    feedback: {
+      fontSize: 16,
+      fontWeight: '600',
+      textAlign: 'center',
+    },
+    feedbackCorrect: {
+      color: theme.accent,
+    },
+    feedbackWrong: {
+      color: theme.bad,
+    },
+    rationale: {
+      color: theme.ink2,
+      fontSize: 14,
+      textAlign: 'center',
+    },
+    nextButton: {
+      alignSelf: 'center',
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderRadius: 10,
+      backgroundColor: theme.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line2,
+    },
+    nextButtonText: {
+      color: theme.accent,
+      fontSize: 15,
+      fontWeight: '600',
+    },
+    stats: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 20,
+      marginTop: 4,
+    },
+    stat: {
+      color: theme.ink2,
+      fontSize: 14,
+    },
+  });
+}

@@ -83,20 +83,3 @@ export const dark: ThemeColors = {
 export function useTheme(): ThemeColors {
   return useColorScheme() === 'dark' ? dark : light;
 }
-
-// --- Legacy dark palette (pre-Coach) --------------------------------------------
-// Still consumed by the flat-route screens/components that have not yet been ported
-// to the Coach IA. Removed together with those screens at the end of the port.
-export const colors = {
-  brand: '#1a1626',
-  background: '#16171d',
-  surface: '#1f2028',
-  border: '#2e303a',
-  text: '#9ca3af',
-  textStrong: '#f3f4f6',
-  accent: '#c084fc',
-  onAccent: '#ffffff',
-  danger: '#f87171',
-} as const;
-
-export type Colors = typeof colors;

@@ -20,7 +20,8 @@ import { bucketRangeOnBoard } from '@core/domain/rangeVsBoard';
 import { loadSavedRanges } from '@core/storage/rangeStorage';
 import type { SavedRange } from '@core/types/range';
 
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/colors';
+import type { ThemeColors } from '../theme/colors';
 
 /** Display labels for the made-hand / draw categories (UI only). */
 const CATEGORY_LABELS: Record<HandCategory, string> = {
@@ -73,6 +74,9 @@ function isComplete(slot: Slot): slot is { rank: Rank; suit: Suit } {
  * (`tagFlopTexture`) over the reused `Card` type — the screen only gathers the cards.
  */
 export default function BoardScreen() {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
+
   const [slots, setSlots] = useState<Slot[]>(EMPTY_SLOTS);
   // Saved ranges (loaded once on mount) for the range-vs-board overlay.
   const [ranges] = useState<SavedRange[]>(() => loadSavedRanges());
@@ -253,131 +257,133 @@ export default function BoardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.background,
-    padding: 24,
-    gap: 20,
-  },
-  headerLink: {
-    color: colors.accent,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  hint: {
-    color: colors.text,
-    fontSize: 14,
-  },
-  slots: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  slot: {
-    width: 64,
-    height: 88,
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  slotActive: {
-    borderColor: colors.accent,
-    borderWidth: 2,
-  },
-  slotText: {
-    color: colors.textStrong,
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  pickerRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  pickChip: {
-    minWidth: 36,
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  pickText: {
-    color: colors.textStrong,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  redSuit: {
-    color: '#f87171',
-  },
-  clear: {
-    alignSelf: 'flex-start',
-    paddingVertical: 6,
-  },
-  clearText: {
-    color: colors.danger,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  error: {
-    color: colors.danger,
-    fontSize: 14,
-  },
-  texture: {
-    gap: 8,
-  },
-  textureTitle: {
-    color: colors.textStrong,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  tags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  tag: {
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.accent,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    overflow: 'hidden',
-    color: colors.textStrong,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  rangeChip: {
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  rangeChipActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  rangeChipText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  rangeChipTextActive: {
-    color: colors.onAccent,
-  },
-  breakdown: {
-    gap: 4,
-  },
-  categoryRow: {
-    color: colors.text,
-    fontSize: 14,
-  },
-});
+function makeStyles(theme: ThemeColors) {
+  return StyleSheet.create({
+    screen: {
+      flex: 1,
+      backgroundColor: theme.bg,
+      padding: 24,
+      gap: 20,
+    },
+    headerLink: {
+      color: theme.accent,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    hint: {
+      color: theme.ink2,
+      fontSize: 14,
+    },
+    slots: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    slot: {
+      width: 64,
+      height: 88,
+      borderRadius: 10,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line,
+      backgroundColor: theme.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    slotActive: {
+      borderColor: theme.accent,
+      borderWidth: 2,
+    },
+    slotText: {
+      color: theme.ink,
+      fontSize: 24,
+      fontWeight: '700',
+    },
+    pickerRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    pickChip: {
+      minWidth: 36,
+      alignItems: 'center',
+      backgroundColor: theme.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line,
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+    },
+    pickText: {
+      color: theme.ink,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    redSuit: {
+      color: theme.heart,
+    },
+    clear: {
+      alignSelf: 'flex-start',
+      paddingVertical: 6,
+    },
+    clearText: {
+      color: theme.bad,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    error: {
+      color: theme.bad,
+      fontSize: 14,
+    },
+    texture: {
+      gap: 8,
+    },
+    textureTitle: {
+      color: theme.ink,
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    tags: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    tag: {
+      backgroundColor: theme.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.accent,
+      borderRadius: 14,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      overflow: 'hidden',
+      color: theme.ink,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    rangeChip: {
+      backgroundColor: theme.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line,
+      borderRadius: 14,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+    },
+    rangeChipActive: {
+      backgroundColor: theme.goldFill,
+      borderColor: theme.goldFill,
+    },
+    rangeChipText: {
+      color: theme.ink2,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    rangeChipTextActive: {
+      color: theme.onAccent,
+    },
+    breakdown: {
+      gap: 4,
+    },
+    categoryRow: {
+      color: theme.ink2,
+      fontSize: 14,
+    },
+  });
+}

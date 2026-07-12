@@ -1,5 +1,5 @@
 import { actionColors } from '../theme/actionColors';
-import { colors, dark, light } from '../theme/colors';
+import { dark, light } from '../theme/colors';
 
 // Locks the mobile Coach palette to the web app's tokens (`src/theme.css`) — the
 // visual parallel of the storage-key parity test. Whole-object equality also guards
@@ -97,22 +97,5 @@ describe('action colors', () => {
     const keys = Object.keys(map);
     expect(keys).toEqual(['fold', 'call', 'raise', 'threeBet', 'fourBet', 'jam', 'mixed']);
     expect(new Set(Object.values(map)).size).toBe(keys.length);
-  });
-});
-
-// --- Legacy pre-Coach dark palette (removed with the flat-route screens) ---------
-describe('legacy theme colors', () => {
-  it('still exposes the pre-Coach dark palette for un-ported screens', () => {
-    expect(colors).toEqual({
-      brand: '#1a1626',
-      background: '#16171d',
-      surface: '#1f2028',
-      border: '#2e303a',
-      text: '#9ca3af',
-      textStrong: '#f3f4f6',
-      accent: '#c084fc',
-      onAccent: '#ffffff',
-      danger: '#f87171',
-    });
   });
 });

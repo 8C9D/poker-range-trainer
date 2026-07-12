@@ -1,7 +1,8 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/colors';
+import type { ThemeColors } from '../theme/colors';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -38,55 +39,67 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   render(): ReactNode {
     const { error } = this.state;
     if (error) {
-      return (
-        <View style={styles.screen}>
-          <Text style={styles.title}>Something went wrong</Text>
-          <Text testID="error-message" style={styles.message}>
-            {error.message || 'An unexpected error occurred.'}
-          </Text>
-          <Pressable
-            testID="error-retry"
-            accessibilityRole="button"
-            style={styles.button}
-            onPress={this.reset}
-          >
-            <Text style={styles.buttonText}>Try again</Text>
-          </Pressable>
-        </View>
-      );
+      return <ErrorFallback error={error} onRetry={this.reset} />;
     }
     return this.props.children;
   }
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 16,
-    padding: 24,
-    backgroundColor: colors.background,
-  },
-  title: {
-    color: colors.textStrong,
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  message: {
-    color: colors.text,
-    fontSize: 15,
-    textAlign: 'center',
-  },
-  button: {
-    backgroundColor: colors.accent,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  buttonText: {
-    color: colors.onAccent,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});
+/**
+ * Themed fallback UI. Split out as a function component so it can resolve the active
+ * Coach palette with `useTheme()` — hooks can't run in the class boundary above.
+ */
+function ErrorFallback({ error, onRetry }: { error: Error; onRetry: () => void }) {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
+  return (
+    <View style={styles.screen}>
+      <Text style={styles.title}>Something went wrong</Text>
+      <Text testID="error-message" style={styles.message}>
+        {error.message || 'An unexpected error occurred.'}
+      </Text>
+      <Pressable
+        testID="error-retry"
+        accessibilityRole="button"
+        style={styles.button}
+        onPress={onRetry}
+      >
+        <Text style={styles.buttonText}>Try again</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function makeStyles(theme: ThemeColors) {
+  return StyleSheet.create({
+    screen: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 16,
+      padding: 24,
+      backgroundColor: theme.bg,
+    },
+    title: {
+      color: theme.ink,
+      fontSize: 20,
+      fontWeight: '700',
+    },
+    message: {
+      color: theme.ink2,
+      fontSize: 15,
+      textAlign: 'center',
+    },
+    button: {
+      backgroundColor: theme.goldFill,
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      borderRadius: 8,
+    },
+    buttonText: {
+      color: theme.onAccent,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+  });
+}

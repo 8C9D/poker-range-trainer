@@ -5,7 +5,8 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { ALL_HANDS, type PokerHand } from '@core/domain/pokerHands';
 import { findSavedRangeById, saveSavedRange } from '@core/storage/rangeStorage';
 
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/colors';
+import type { ThemeColors } from '../theme/colors';
 
 /**
  * Per-hand notes editor for one saved range (M6 / web v5): pick an in-range hand, then attach a
@@ -15,6 +16,9 @@ import { colors } from '../theme/colors';
  * the notes analogue of the action / frequency editors.
  */
 export default function NotesEditorScreen() {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
+
   const params = useLocalSearchParams<{ id?: string }>();
   const idParam = typeof params.id === 'string' ? params.id : undefined;
   const [range] = useState(() => (idParam ? findSavedRangeById(idParam) : undefined));
@@ -106,7 +110,7 @@ export default function NotesEditorScreen() {
                 value={handNotes[activeHand] ?? ''}
                 onChangeText={setNote}
                 placeholder={`Optional note for ${activeHand}`}
-                placeholderTextColor={colors.text}
+                placeholderTextColor={theme.ink3}
                 multiline
               />
             </View>
@@ -117,76 +121,78 @@ export default function NotesEditorScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    padding: 16,
-    gap: 16,
-  },
-  notFound: {
-    color: colors.text,
-    fontSize: 16,
-    marginTop: 48,
-    textAlign: 'center',
-  },
-  rangeName: {
-    color: colors.textStrong,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  hint: {
-    color: colors.text,
-    fontSize: 14,
-  },
-  chips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  chipHasNote: {
-    borderColor: colors.accent,
-  },
-  chipActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  chipText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  chipTextActive: {
-    color: colors.onAccent,
-  },
-  field: {
-    gap: 6,
-  },
-  label: {
-    color: colors.textStrong,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  input: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    minHeight: 80,
-    fontSize: 15,
-    color: colors.textStrong,
-    backgroundColor: colors.surface,
-    textAlignVertical: 'top',
-  },
-});
+function makeStyles(theme: ThemeColors) {
+  return StyleSheet.create({
+    screen: {
+      flex: 1,
+      backgroundColor: theme.bg,
+    },
+    content: {
+      padding: 16,
+      gap: 16,
+    },
+    notFound: {
+      color: theme.ink2,
+      fontSize: 16,
+      marginTop: 48,
+      textAlign: 'center',
+    },
+    rangeName: {
+      color: theme.ink,
+      fontSize: 18,
+      fontWeight: '700',
+    },
+    hint: {
+      color: theme.ink2,
+      fontSize: 14,
+    },
+    chips: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    chip: {
+      backgroundColor: theme.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line,
+      borderRadius: 14,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+    },
+    chipHasNote: {
+      borderColor: theme.accent,
+    },
+    chipActive: {
+      backgroundColor: theme.goldFill,
+      borderColor: theme.goldFill,
+    },
+    chipText: {
+      color: theme.ink2,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    chipTextActive: {
+      color: theme.onAccent,
+    },
+    field: {
+      gap: 6,
+    },
+    label: {
+      color: theme.ink,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    input: {
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line2,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      minHeight: 80,
+      fontSize: 15,
+      color: theme.ink,
+      backgroundColor: theme.card,
+      textAlignVertical: 'top',
+    },
+  });
+}

@@ -6,19 +6,23 @@ import { generateHandMatrix, type PokerHand } from '@core/domain/pokerHands';
 import { diffRanges, diffSummary } from '@core/domain/rangeDiff';
 import { loadSavedRanges } from '@core/storage/rangeStorage';
 
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/colors';
+import type { ThemeColors } from '../theme/colors';
 
 // The 13×13 grid order from the reused core matrix, built once (same source as HandGrid).
 const HAND_MATRIX = generateHandMatrix();
 
 type Bucket = 'common' | 'onlyA' | 'onlyB' | 'none';
 
-const BUCKET_COLORS: Record<Bucket, string> = {
-  common: '#22c55e', // green — in both
-  onlyA: '#60a5fa', // blue — only A
-  onlyB: '#f59e0b', // amber — only B
-  none: colors.surface,
-};
+// Bucket fill colors, resolved from the active Coach palette: both / only-A / only-B / none.
+function bucketColors(theme: ThemeColors): Record<Bucket, string> {
+  return {
+    common: theme.call, // in both
+    onlyA: theme.diamond, // only A
+    onlyB: theme.raise, // only B
+    none: theme.cellbg,
+  };
+}
 
 /**
  * Range diff view (M6 / web v5): compare two saved ranges by membership. Pick range A and range B
@@ -27,6 +31,10 @@ const BUCKET_COLORS: Record<Bucket, string> = {
  * comparison logic is reused — this screen only gathers the two ranges and colors the grid.
  */
 export default function DiffScreen() {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
+  const bucketFill = bucketColors(theme);
+
   const params = useLocalSearchParams<{ id?: string }>();
   const idParam = typeof params.id === 'string' ? params.id : undefined;
   const [ranges] = useState(() => loadSavedRanges());
@@ -99,19 +107,19 @@ export default function DiffScreen() {
         <>
           <View style={styles.legend}>
             <View style={styles.legendItem}>
-              <View style={[styles.swatch, { backgroundColor: BUCKET_COLORS.common }]} />
+              <View style={[styles.swatch, { backgroundColor: bucketFill.common }]} />
               <Text testID="diff-summary-common" style={styles.legendText}>
                 Both: {summary.common}
               </Text>
             </View>
             <View style={styles.legendItem}>
-              <View style={[styles.swatch, { backgroundColor: BUCKET_COLORS.onlyA }]} />
+              <View style={[styles.swatch, { backgroundColor: bucketFill.onlyA }]} />
               <Text testID="diff-summary-onlyA" style={styles.legendText}>
                 Only A: {summary.onlyA}
               </Text>
             </View>
             <View style={styles.legendItem}>
-              <View style={[styles.swatch, { backgroundColor: BUCKET_COLORS.onlyB }]} />
+              <View style={[styles.swatch, { backgroundColor: bucketFill.onlyB }]} />
               <Text testID="diff-summary-onlyB" style={styles.legendText}>
                 Only B: {summary.onlyB}
               </Text>
@@ -128,7 +136,7 @@ export default function DiffScreen() {
                       key={hand}
                       testID={`diff-cell-${hand}`}
                       accessibilityLabel={`${hand} ${bucket}`}
-                      style={[styles.cell, { backgroundColor: BUCKET_COLORS[bucket] }]}
+                      style={[styles.cell, { backgroundColor: bucketFill[bucket] }]}
                     >
                       <Text numberOfLines={1} style={styles.cellLabel}>
                         {hand}
@@ -147,97 +155,99 @@ export default function DiffScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    padding: 16,
-    gap: 16,
-  },
-  notFound: {
-    color: colors.text,
-    fontSize: 16,
-    marginTop: 48,
-    textAlign: 'center',
-    paddingHorizontal: 24,
-  },
-  pickerBlock: {
-    gap: 8,
-  },
-  label: {
-    color: colors.textStrong,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  chips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  chipActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  chipText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  chipTextActive: {
-    color: colors.onAccent,
-  },
-  legend: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 14,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  swatch: {
-    width: 12,
-    height: 12,
-    borderRadius: 3,
-  },
-  legendText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  grid: {
-    width: '100%',
-    aspectRatio: 1,
-  },
-  row: {
-    flex: 1,
-    flexDirection: 'row',
-  },
-  cell: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.background,
-  },
-  cellLabel: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: '#0b0b0f',
-  },
-  hint: {
-    color: colors.text,
-    fontSize: 14,
-  },
-});
+function makeStyles(theme: ThemeColors) {
+  return StyleSheet.create({
+    screen: {
+      flex: 1,
+      backgroundColor: theme.bg,
+    },
+    content: {
+      padding: 16,
+      gap: 16,
+    },
+    notFound: {
+      color: theme.ink2,
+      fontSize: 16,
+      marginTop: 48,
+      textAlign: 'center',
+      paddingHorizontal: 24,
+    },
+    pickerBlock: {
+      gap: 8,
+    },
+    label: {
+      color: theme.ink,
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    chips: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    chip: {
+      backgroundColor: theme.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line,
+      borderRadius: 14,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+    },
+    chipActive: {
+      backgroundColor: theme.goldFill,
+      borderColor: theme.goldFill,
+    },
+    chipText: {
+      color: theme.ink2,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    chipTextActive: {
+      color: theme.onAccent,
+    },
+    legend: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 14,
+    },
+    legendItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    swatch: {
+      width: 12,
+      height: 12,
+      borderRadius: 3,
+    },
+    legendText: {
+      color: theme.ink2,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    grid: {
+      width: '100%',
+      aspectRatio: 1,
+    },
+    row: {
+      flex: 1,
+      flexDirection: 'row',
+    },
+    cell: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.bg,
+    },
+    cellLabel: {
+      fontSize: 9,
+      fontWeight: '600',
+      color: '#0b0b0f',
+    },
+    hint: {
+      color: theme.ink2,
+      fontSize: 14,
+    },
+  });
+}

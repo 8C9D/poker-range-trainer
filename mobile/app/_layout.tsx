@@ -23,7 +23,7 @@ import {
 } from '@expo-google-fonts/instrument-sans';
 
 import { ErrorBoundary } from '../components/ErrorBoundary';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/colors';
 
 // Hold the native splash until the Coach fonts are ready, so the first painted frame
 // already uses Bricolage Grotesque / Instrument Sans (no flash of system font). Keys
@@ -53,6 +53,8 @@ export default function RootLayout() {
     }
   }, [fontsLoaded, fontError]);
 
+  const theme = useTheme();
+
   if (!fontsLoaded && !fontError) {
     return null;
   }
@@ -63,10 +65,10 @@ export default function RootLayout() {
       <ErrorBoundary>
         <Stack
           screenOptions={{
-            headerStyle: { backgroundColor: colors.brand },
-            headerTintColor: colors.accent,
-            headerTitleStyle: { color: colors.textStrong },
-            contentStyle: { backgroundColor: colors.background },
+            headerStyle: { backgroundColor: theme.surface },
+            headerTintColor: theme.accent,
+            headerTitleStyle: { color: theme.ink },
+            contentStyle: { backgroundColor: theme.bg },
           }}
         >
           {/* The tab group owns its own chrome (bottom bar + in-content headers). */}
