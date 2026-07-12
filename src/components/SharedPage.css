@@ -1,0 +1,64 @@
+/* Shared read-only viewers (#/r/:id and #/p/:id) live outside the app shell
+ * but speak the same design language. */
+.shared-range-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 32px clamp(16px, 4vw, 32px) 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.shared-range-page h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.shared-range-page h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.shared-range-page > p {
+  margin: 0;
+  color: var(--ink-2);
+}
+
+.shared-range-page .primary {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 18px;
+  min-height: 44px;
+  font: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--on-accent);
+  background: var(--gold-fill);
+  border: 1px solid var(--gold-fill);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.shared-range-page .primary:hover {
+  border-color: var(--accent-strong);
+}
+
+.shared-range-note,
+.shared-range-forked {
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+
+.shared-pack-range {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}

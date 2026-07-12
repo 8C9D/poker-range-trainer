@@ -71,24 +71,24 @@
   }
 }
 
-/* The Coach shell is a full-bleed app layout; undo the legacy centered column. */
-#root:has(.coach-shell) {
-  width: 100%;
-  max-width: none;
-  border-inline: none;
-  text-align: left;
-}
-
-:root:has(.coach-shell) {
+:root {
   font: 16px/1.5 var(--font-ui);
-  letter-spacing: 0;
   color: var(--ink);
   background: var(--bg);
+  color-scheme: light dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-.coach-shell h1,
-.coach-shell h2,
-.coach-shell h3 {
+body {
+  margin: 0;
+}
+
+h1,
+h2,
+h3 {
   font-family: var(--font-display);
   color: var(--ink);
 }

@@ -19,10 +19,15 @@ interface HandCellProps {
  *   real mouse clicks (detail >= 1) were already handled on mousedown.
  */
 export function HandCell({ hand, selected, onMouseDown, onMouseEnter, onClick }: HandCellProps) {
+  // Pairs (e.g. "AA") sit on the grid diagonal and get their own background.
+  const isPair = hand.length === 2 && hand[0] === hand[1]
+  const className = ['hand-cell', isPair ? 'pair' : '', selected ? 'selected' : '']
+    .filter(Boolean)
+    .join(' ')
   return (
     <button
       type="button"
-      className={selected ? 'hand-cell selected' : 'hand-cell'}
+      className={className}
       aria-pressed={selected}
       onMouseDown={(event) => onMouseDown(hand, event.button)}
       onMouseEnter={(event) => onMouseEnter(hand, event.buttons)}

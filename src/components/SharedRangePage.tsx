@@ -6,6 +6,7 @@ import { isCloudConfigured } from '../cloud/cloudConfig'
 import type { SavedRange } from '../types/range'
 import { ActionGrid } from './ActionGrid'
 import { HandGrid } from './HandGrid'
+import './SharedPage.css'
 
 interface SharedRangePageProps {
   id: string

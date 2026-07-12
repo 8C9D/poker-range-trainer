@@ -9,7 +9,7 @@
  *    straight to the network.
  */
 
-const CACHE_NAME = 'prt-shell-v1'
+const CACHE_NAME = 'prt-shell-v2'
 const SHELL_ASSETS = [
   '/',
   '/index.html',

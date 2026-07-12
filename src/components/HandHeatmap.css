@@ -14,47 +14,71 @@
   justify-content: center;
   font-family: var(--mono);
   font-size: clamp(8px, 1.4vw, 12px);
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 3px;
 }
 
-.heat-cell.heat-untested {
-  color: var(--text);
-  background: var(--code-bg);
+/* Accuracy heat uses the gold ramp tokens; text colors flip with the theme
+ * so every step stays readable in light and dark. */
+.heat-cell.heat-untested,
+.heat-swatch.heat-untested {
+  color: var(--ink-3);
+  background: var(--cellbg);
 }
 
-.heat-cell.heat-low {
-  color: #fff;
-  background: #cf222e;
-  border-color: #cf222e;
+.heat-cell.heat-low,
+.heat-swatch.heat-low {
+  color: var(--ink);
+  background: var(--h1c);
+  border-color: var(--h1c);
 }
 
-.heat-cell.heat-medium {
-  color: #3d2c00;
-  background: #d4a72c;
-  border-color: #d4a72c;
+.heat-cell.heat-medium,
+.heat-swatch.heat-medium {
+  color: #241c05;
+  background: var(--h2c);
+  border-color: var(--h2c);
 }
 
-.heat-cell.heat-high {
-  color: #fff;
-  background: #1a7f37;
-  border-color: #1a7f37;
+.heat-cell.heat-high,
+.heat-swatch.heat-high {
+  color: #fffef9;
+  background: var(--h3c);
+  border-color: var(--h3c);
 }
 
 @media (prefers-color-scheme: dark) {
-  .heat-cell.heat-low {
-    background: #da3633;
-    border-color: #da3633;
+  .heat-cell.heat-medium,
+  .heat-swatch.heat-medium {
+    color: #e9eaec;
   }
 
-  .heat-cell.heat-medium {
-    color: #1c1400;
-    background: #bb8009;
-    border-color: #bb8009;
+  .heat-cell.heat-high,
+  .heat-swatch.heat-high {
+    color: #241c05;
   }
+}
 
-  .heat-cell.heat-high {
-    background: #238636;
-    border-color: #238636;
-  }
+.heatmap-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin: 0 0 4px;
+  padding: 0;
+  list-style: none;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+
+.heatmap-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.heat-swatch {
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
 }

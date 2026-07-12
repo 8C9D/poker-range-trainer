@@ -16,19 +16,26 @@
   padding: 0;
   font-family: var(--mono);
   font-size: clamp(9px, 1.6vw, 13px);
-  color: var(--text-h);
-  background: var(--code-bg);
-  border: 1px solid var(--border);
+  color: var(--ink);
+  background: var(--cellbg);
+  border: 1px solid var(--line);
   border-radius: 3px;
   cursor: pointer;
   user-select: none;
   transition:
-    background 0.12s ease,
-    border-color 0.12s ease;
+    background 120ms ease,
+    border-color 120ms ease,
+    transform 120ms ease;
+}
+
+/* Pairs sit on the diagonal and read slightly differently. */
+.hand-cell.pair {
+  background: var(--pairbg);
 }
 
 .hand-cell:hover {
-  border-color: var(--accent-border);
+  border-color: var(--accent);
+  transform: scale(1.08);
 }
 
 .hand-cell:focus-visible {
@@ -37,7 +44,8 @@
 }
 
 .hand-cell.selected {
-  color: #fff;
-  background: var(--accent);
-  border-color: var(--accent);
+  color: var(--on-accent);
+  background: var(--gold-fill);
+  border-color: var(--gold-fill);
+  font-weight: 600;
 }

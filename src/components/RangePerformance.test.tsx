@@ -48,7 +48,7 @@ describe('RangePerformance', () => {
       <RangePerformance range={makeRange({ name: 'BTN' })} accuracy={{}} history={[]} onClose={vi.fn()} onPracticeMistakes={vi.fn()} />,
     )
 
-    expect(screen.getByRole('heading', { name: /Performance: BTN/ })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Performance' })).toBeInTheDocument()
     expect(screen.getByText(/No practice data yet/)).toBeInTheDocument()
     expect(screen.queryByRole('table', { name: 'Per-hand accuracy' })).not.toBeInTheDocument()
     // No heatmap in the empty state.
@@ -88,7 +88,7 @@ describe('RangePerformance', () => {
     expect(within(row).getByText('1')).toBeInTheDocument() // wrongly included (false positives)
   })
 
-  it('calls onClose when "Back to library" is clicked', async () => {
+  it('calls onClose when "Close" is clicked', async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()
     render(
@@ -101,7 +101,7 @@ describe('RangePerformance', () => {
       />,
     )
 
-    await user.click(screen.getByRole('button', { name: 'Back to library' }))
+    await user.click(screen.getByRole('button', { name: 'Close' }))
 
     expect(onClose).toHaveBeenCalledTimes(1)
   })

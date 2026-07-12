@@ -29,7 +29,6 @@ interface RangePerformanceProps {
  * domain helpers; this component is pure presentation fed by props.
  */
 export function RangePerformance({
-  range,
   accuracy,
   history,
   actionAccuracy = {},
@@ -48,14 +47,14 @@ export function RangePerformance({
   return (
     <section className="practice-session" aria-label="Range performance">
       <header className="practice-header">
-        <h2>Performance: {range.name}</h2>
+        <h2>Performance</h2>
         {hasMistakes && (
           <button type="button" className="primary" onClick={onPracticeMistakes}>
             Practice mistakes
           </button>
         )}
         <button type="button" onClick={onClose}>
-          Back to library
+          Close
         </button>
       </header>
 

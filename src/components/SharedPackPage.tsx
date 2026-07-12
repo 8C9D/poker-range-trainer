@@ -6,6 +6,7 @@ import type { RangePack } from '../domain/rangeTransfer'
 import { isCloudConfigured } from '../cloud/cloudConfig'
 import { ActionGrid } from './ActionGrid'
 import { HandGrid } from './HandGrid'
+import './SharedPage.css'
 
 interface SharedPackPageProps {
   id: string

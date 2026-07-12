@@ -17,22 +17,39 @@ interface HandHeatmapProps {
  * presentational — unlike `HandGrid`, the cells are non-interactive `<div>`s.
  * The `data-heat` attribute exposes the level for tests and styling.
  */
+const LEGEND = [
+  { level: 'untested', label: 'Untested' },
+  { level: 'low', label: '<50' },
+  { level: 'medium', label: '50–79' },
+  { level: 'high', label: '80+' },
+] as const
+
 export function HandHeatmap({ accuracy }: HandHeatmapProps) {
   return (
-    <div className="hand-heatmap" aria-label="Accuracy heatmap">
-      {HANDS.map((hand) => {
+    <div>
+      <ul className="heatmap-legend" aria-label="Heatmap legend">
+        {LEGEND.map(({ level, label }) => (
+          <li key={level}>
+            <span className={`heat-swatch heat-${level}`} aria-hidden="true" />
+            {label}
+          </li>
+        ))}
+      </ul>
+      <div className="hand-heatmap" aria-label="Accuracy heatmap">
+        {HANDS.map((hand) => {
         const stat = accuracy[hand]
         const level = accuracyHeatLevel(stat)
         const title =
           stat && stat.attempts > 0
             ? `${hand}: ${handAccuracyRate(stat).toFixed(0)}% (${stat.attempts} attempts)`
             : `${hand}: untested`
-        return (
-          <div key={hand} className={`heat-cell heat-${level}`} data-heat={level} title={title}>
-            {hand}
-          </div>
-        )
-      })}
+          return (
+            <div key={hand} className={`heat-cell heat-${level}`} data-heat={level} title={title}>
+              {hand}
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

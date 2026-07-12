@@ -1,50 +1,45 @@
 # Coach UI refactor progress
 
 State file for the "Coach" UI refactor: a training-first app shell (Today / Library / Progress / Account) replacing the old single stacked page.
-Update this checklist in every slice's commit so a future session can resume.
+The refactor is COMPLETE; this file stays as a map of where things live.
 
 ## Milestones
 
 - [x] 1. Design tokens + fonts + app shell with hash routing; old page still reachable (default route).
-- [x] 2. Today screen (streak chip, Start review CTA, due list, week tiles, empty states); now the default route. Legacy page moved to `#/legacy`.
-- [x] 3. Library screen (search, filters/sorts, favorites/archived, thumbnail rows linking to `#/library/:id`, New range -> `#/library/new`). Range page itself is still a placeholder (slice 4).
-- [x] 4. Range page with tabs (Overview / Edit / Actions / Combos / Frequencies / Stats) + header menu (duplicate, favorite, archive, delete, exports, share, publish, compare). New-range mode at `#/library/new`. Practice button currently launches the recognition drill directly; the mode picker lands in slice 5.
-- [x] 5. Practice flow: mode picker (conditional modes), full-screen recognition drill (cards, scenario line, action-verb buttons, swipe, 20-question sessions, hit/miss dwell), timed + weakness variants, session-end ring with growth delta + streak, review queue with Next range. Build/action/mixed/combo/postflop/board modes run inside the overlay frame (deep restyle deferred to slice 8 polish).
+- [x] 2. Today screen (streak chip, Start review CTA, due list, week tiles, empty states); now the default route.
+- [x] 3. Library screen (search, filters/sorts, favorites/archived, thumbnail rows linking to `#/library/:id`, New range -> `#/library/new`).
+- [x] 4. Range page with tabs (Overview / Edit / Actions / Combos / Frequencies / Stats) + header menu (duplicate, favorite, archive, delete, exports, share, publish, compare). New-range mode at `#/library/new`.
+- [x] 5. Practice flow: mode picker (conditional modes), full-screen recognition drill (cards, scenario line, action-verb buttons, swipe, 20-question sessions, hit/miss dwell), timed + weakness variants, session-end ring with growth delta + streak, review queue with Next range. Build/action/mixed/combo/postflop/board modes run inside the overlay frame.
 - [x] 6. Progress screen: streak/30-day/all-time tiles, 7-day gold bar chart (today emphasized), library analytics, weakest hands across ranges + "Drill these" (per-range pools via `PracticeRequest.handPools`). Domain helpers: `domain/weakHands.ts`, `dailyHandCounts` in `domain/weeklyStats.ts`.
 - [x] 7. Account & data screen: AuthPanel, push/pull sync (confirm before overwrite), delete cloud data, publish/unpublish pack link, sync status; backup export/import, range JSON/CSV/pack import, pack export; local-only note. Same gating as before (configured + signed in).
-- [ ] 8. Shared-link pages restyle; delete legacy layout and dead CSS/components; final polish pass.
+- [x] 8. Legacy layout and dead components deleted (`LegacyPage`, `RangeLibrary`, `LibraryAnalytics`, `DueToday`, `GettingStarted`, `PracticeSession`, `TimedDrillSession`, `WeaknessFocusedDrill`, `App.css`, the `#/legacy` route). Shared-link pages restyled (`SharedPage.css`). Grid/heatmap moved onto Coach tokens (`--cellbg`/`--pairbg`/`--gold-fill`, heat ramp + legend). Legacy CSS vars aliased to Coach tokens in `src/index.css`. PWA theme colors updated; SW cache bumped to v2.
 
-## Where things live now
+## Where things live
 
-- Tokens + shared component classes: `src/theme.css` (light default, dark via `prefers-color-scheme`).
+- Tokens + shared component classes: `src/theme.css` (light default, dark via `prefers-color-scheme`; global base typography). Legacy var aliases (`--text`, `--border`, `--code-bg`, ...) map onto Coach tokens in `src/index.css` so the remaining pre-Coach component CSS themes automatically.
 - Fonts: imported in `src/main.tsx` (`@fontsource-variable/bricolage-grotesque`, `@fontsource-variable/instrument-sans`).
-- Routing: `src/app/routes.ts` (`#/today`, `#/library`, `#/library/:id[/:tab]`, `#/progress`, `#/account`, `#/legacy`; empty/unknown hash = Today).
+- Routing: `src/app/routes.ts` (`#/today`, `#/library`, `#/library/new`, `#/library/:id[/:tab]`, `#/progress`, `#/account`; empty/unknown hash = Today). Share routes (`#/r/:id`, `#/p/:id`, `#range=` import) are handled in `App.tsx` before the shell router.
 - Shell: `src/app/AppShell.tsx` (icon rail, bottom tabs under 640px).
-- `src/App.tsx`: share routes -> shared pages; otherwise `CoachApp` (shell + routed screens + the review-queue runner). The old page lives on as `LegacyPage` inside `App.tsx` until slice 8.
-- Today screen: `src/screens/TodayScreen.tsx`; loads its own storage state on mount (practice unmounts the screen, so it always re-reads on return).
-- Shared session recorder: `src/app/sessionRecording.ts` (`recordFinishedPracticeSession` - stats + hand accuracy + history + review schedule); used by both the legacy page and the review queue. Note: it always advances the review schedule, even for a zero-answer session (pre-refactor behavior kept).
-- Review queue: `CoachApp` state (`reviewQueue`/`reviewIndex`) rendering `PracticeSession` per range with a "Range k of N" bar; slice 5 replaces the visuals with the drill overlay.
-- Range grid thumbnail: `src/components/RangeThumbnail.tsx` (SVG, gold-on-well, decorative).
-- Weekly stats: `src/domain/weeklyStats.ts` (`summarizeWeek`); date/greeting helpers in `src/app/format.ts`.
-- Library screen: `src/screens/LibraryScreen.tsx`; same filter/sort pipeline as the old `RangeLibrary` via `domain/rangeLibrary` helpers; per-range mutations move to the Range page.
-- Range page: `src/screens/RangeScreen.tsx` (header/menu/tabs; Actions/Combos/Frequencies/Stats/Compare inline, Stats reuses `RangePerformance` until slice 8) + `src/screens/RangeEditTab.tsx` (ported legacy editor incl. metadata/source/per-hand notes; save keeps legacy merge semantics).
-- Shared file/share helpers: `src/app/rangeFiles.ts` (downloads, JSON/CSV/SVG export, share-link copy); id minting in `src/app/ids.ts`. Both used by the legacy page too.
+- Screens: `src/screens/` - `TodayScreen`, `LibraryScreen`, `RangeScreen` (+ `RangeEditTab`), `ProgressScreen`, `AccountScreen`. Each loads its own storage state on mount; practice replaces the shell entirely, so screens re-read fresh data when the overlay closes.
 - Practice module: `src/practice/` - `PracticeHost` (picker -> drill -> summary state machine, queue advance, recording), `RecognitionDrill` (standard/weakness/timed variants), `OverlayFrame`, `ModePicker`, `SessionSummary`, `PlayingCards`, `scenario.ts` (verbs/scenario/feedback copy).
-- `CoachApp` renders `PracticeHost` INSTEAD of the shell while practice runs, so screens remount (re-read storage) when it closes. `startReview(queue)` = recognition queue; `startPractice(range, handPool?)` = picker (or straight to recognition with a pool).
-- Behavior change from legacy: closing a drill with zero answers records NOTHING (legacy always advanced the review schedule). Closing with answers records the partial session and shows the summary.
+- Shared session recorder: `src/app/sessionRecording.ts` (stats + hand accuracy + history + review schedule).
+- File/share helpers: `src/app/rangeFiles.ts`; id minting in `src/app/ids.ts`; date/format helpers in `src/app/format.ts`.
+- Range grid thumbnail: `src/components/RangeThumbnail.tsx` (SVG, gold-on-well, decorative).
+- Domain additions for this UI: `weeklyStats.ts` (`summarizeWeek`, `dailyHandCounts`), `weakHands.ts` (`rankWeakHands`, `weakHandPools`).
 
-## Decisions
+## Behavior notes
 
-- Old `App.test.tsx` tests keep passing against the legacy default route; they are rewritten per slice as flows move into the new IA.
-- Share routes (`#/r/:id`, `#/p/:id`, `#range=` import) are handled before the shell router, unchanged.
+- Closing a drill with zero answers records NOTHING (the old page always advanced the review schedule, even for empty sessions). Closing with answers records the partial session and shows the peak-end summary.
+- The review queue (Today -> Start review) is recognition-mode straight through; the Range page's Practice button opens the mode picker; weak-hand drills skip the picker with a restricted pool.
+- Answer buttons use the range's action verb (from `metadata.actionType`) vs Fold, and never move between hands.
 
-## Feature inventory checklist (nothing may be lost; tick when reachable in the NEW IA)
+## Feature inventory checklist (verified reachable in the new IA)
 
-- [ ] Editor: grid, drag painting, shortcuts, live %/combos, notation, scenario metadata, source, per-hand notes
-- [ ] Library: search, position/action/stack/game filters, 4 sorts, duplicate, archive, favorite, per-range stats
-- [ ] Practice: recognition (+hand pool), build-from-memory, timed, weakness, action quiz, mixed quiz, combo drill, postflop drill, missing-hands review, swipe, session stats
-- [ ] Tracking: per-range stats, per-hand heatmap, per-action accuracy, session history, due queue + streak
-- [ ] Advanced: multi-action + notation, combo selections, mixed frequencies + notation, range diff, range-vs-board
-- [ ] Data: backup export/import, range JSON/CSV/SVG, share links, packs, cloud publish/unpublish + fork, `#/r/:id` + `#/p/:id`
-- [ ] Cloud: auth, push/pull sync, delete cloud data, local-only mode
-- [ ] Platform: PWA, responsive, code-split Supabase
+- [x] Editor: grid, drag painting, shortcuts, live %/combos, notation, scenario metadata, source, per-hand notes (Range page -> Edit)
+- [x] Library: search, position/action/stack/game filters, 4 sorts, duplicate, archive, favorite, per-range stats (Library + Range page menu)
+- [x] Practice: recognition (+hand pool), build-from-memory, timed, weakness, action quiz, mixed quiz, combo drill, postflop drill, missing-hands review (Stats tab -> Practice mistakes), swipe, session stats
+- [x] Tracking: per-range stats, per-hand heatmap (+legend), per-action accuracy, session history, due queue + streak with grace day
+- [x] Advanced: multi-action + notation, combo selections, mixed frequencies + notation, range diff (menu -> Compare), range-vs-board (mode picker)
+- [x] Data: backup export/import, range JSON/CSV/SVG, share links, packs, cloud publish/unpublish + fork, `#/r/:id` + `#/p/:id`
+- [x] Cloud: auth, push/pull sync, delete cloud data, local-only mode (Account)
+- [x] Platform: PWA (manifest/theme colors updated, SW cache v2), responsive (bottom tabs, 44px targets), code-split Supabase (lazy import intact)
