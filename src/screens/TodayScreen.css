@@ -1,0 +1,151 @@
+.today {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.today-date {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: 13.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.today-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.today-heading h1 {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.today-streak {
+  color: var(--accent-strong);
+  border-color: var(--line-2);
+  font-weight: 600;
+}
+
+.today-flame {
+  width: 14px;
+  height: 14px;
+  fill: var(--accent);
+}
+
+.today-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 20px;
+}
+
+.today-cta-copy h2 {
+  margin: 0 0 4px;
+  font-size: 20px;
+}
+
+.today-cta-copy p {
+  margin: 0;
+  color: var(--ink-2);
+}
+
+.today-due h3 {
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+
+.today-due-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.today-due-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+}
+
+.today-due-row + .today-due-row {
+  border-top: 1px solid var(--line);
+}
+
+.today-due-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.today-due-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.today-due-meta {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.today-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.today-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+}
+
+.today-tile-value {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 650;
+  line-height: 1.1;
+}
+
+.today-tile-name {
+  font-size: 17px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.today-tile-label {
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+
+@media (max-width: 640px) {
+  .today-tiles {
+    grid-template-columns: 1fr;
+  }
+
+  .today-cta .coach-btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .today-due-row .coach-btn {
+    min-height: 44px;
+  }
+}

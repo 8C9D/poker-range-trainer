@@ -63,6 +63,25 @@
   box-sizing: border-box;
 }
 
+.review-queue-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: 720px;
+  margin: 0 auto 8px;
+}
+
+.review-queue-position {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+.review-queue-bar .coach-btn {
+  margin-left: auto;
+}
+
 /* Under 640px the rail becomes a fixed bottom tab bar. */
 @media (max-width: 640px) {
   .coach-shell {

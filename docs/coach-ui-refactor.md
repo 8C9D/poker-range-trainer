@@ -6,7 +6,7 @@ Update this checklist in every slice's commit so a future session can resume.
 ## Milestones
 
 - [x] 1. Design tokens + fonts + app shell with hash routing; old page still reachable (default route).
-- [ ] 2. Today screen (streak chip, Start review CTA, due list, week tiles, empty states); becomes the default route.
+- [x] 2. Today screen (streak chip, Start review CTA, due list, week tiles, empty states); now the default route. Legacy page moved to `#/legacy`.
 - [ ] 3. Library screen (search, filters/sorts, favorites/archived, thumbnail rows, New range).
 - [ ] 4. Range page with tabs (Overview / Edit / Actions / Combos / Frequencies / Stats) + header menu actions.
 - [ ] 5. Practice flow (mode picker, full-screen drill overlay, feedback dwell, session-end ring + delta, review queue).
@@ -18,9 +18,14 @@ Update this checklist in every slice's commit so a future session can resume.
 
 - Tokens + shared component classes: `src/theme.css` (light default, dark via `prefers-color-scheme`).
 - Fonts: imported in `src/main.tsx` (`@fontsource-variable/bricolage-grotesque`, `@fontsource-variable/instrument-sans`).
-- Routing: `src/app/routes.ts` (`#/today`, `#/library`, `#/library/:id[/:tab]`, `#/progress`, `#/account`; empty/unknown hash = legacy page for now).
+- Routing: `src/app/routes.ts` (`#/today`, `#/library`, `#/library/:id[/:tab]`, `#/progress`, `#/account`, `#/legacy`; empty/unknown hash = Today).
 - Shell: `src/app/AppShell.tsx` (icon rail, bottom tabs under 640px).
-- `src/App.tsx`: share routes -> shared pages; otherwise `CoachApp` (shell + routed screens). The old page lives on as `LegacyPage` inside `App.tsx` until slice 8.
+- `src/App.tsx`: share routes -> shared pages; otherwise `CoachApp` (shell + routed screens + the review-queue runner). The old page lives on as `LegacyPage` inside `App.tsx` until slice 8.
+- Today screen: `src/screens/TodayScreen.tsx`; loads its own storage state on mount (practice unmounts the screen, so it always re-reads on return).
+- Shared session recorder: `src/app/sessionRecording.ts` (`recordFinishedPracticeSession` - stats + hand accuracy + history + review schedule); used by both the legacy page and the review queue. Note: it always advances the review schedule, even for a zero-answer session (pre-refactor behavior kept).
+- Review queue: `CoachApp` state (`reviewQueue`/`reviewIndex`) rendering `PracticeSession` per range with a "Range k of N" bar; slice 5 replaces the visuals with the drill overlay.
+- Range grid thumbnail: `src/components/RangeThumbnail.tsx` (SVG, gold-on-well, decorative).
+- Weekly stats: `src/domain/weeklyStats.ts` (`summarizeWeek`); date/greeting helpers in `src/app/format.ts`.
 
 ## Decisions
 

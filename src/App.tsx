@@ -47,21 +47,16 @@ import { assignedHands, summarizeActionAccuracy } from './domain/actionRange'
 import { setRangeArchived } from './domain/rangeArchive'
 import { duplicateRange } from './domain/rangeDuplication'
 import { setRangeFavorite } from './domain/rangeFavorite'
-import { handsWithMistakes, summarizeHandAccuracy, summarizePracticeAttempts } from './domain/practice'
-import {
-  currentStreak,
-  scheduleNextReview,
-  seedReviewState,
-  selectDueRanges,
-} from './domain/spacedRepetition'
+import { handsWithMistakes } from './domain/practice'
+import { currentStreak, selectDueRanges } from './domain/spacedRepetition'
 import { calculateRangePercentage, countSelectedCombos } from './domain/rangeMath'
 import { mergeShortcutHands } from './domain/rangeShortcuts'
 import type { PokerHand } from './domain/pokerHands'
 import { loadActionAccuracy, recordActionAccuracy } from './storage/actionAccuracyStorage'
-import { loadHandAccuracy, recordHandAccuracy } from './storage/handAccuracyStorage'
-import { loadPracticeStats, recordPracticeSession } from './storage/practiceStatsStorage'
-import { loadReviewStates, saveReviewState } from './storage/reviewStateStorage'
-import { loadSessionHistory, recordPracticeSessionHistory } from './storage/sessionHistoryStorage'
+import { loadHandAccuracy } from './storage/handAccuracyStorage'
+import { loadPracticeStats } from './storage/practiceStatsStorage'
+import { loadReviewStates } from './storage/reviewStateStorage'
+import { loadSessionHistory } from './storage/sessionHistoryStorage'
 import { deleteSavedRange, loadSavedRanges, saveSavedRange } from './storage/rangeStorage'
 import { deleteBackup, pullBackup, pushBackup } from './cloud/backupRepo'
 import { publishSharedRange, unpublishSharedRange } from './cloud/sharedRangesRepo'
@@ -82,6 +77,8 @@ import {
 } from './domain/rangeTransfer'
 import { AppShell } from './app/AppShell'
 import { useHashRoute } from './app/routes'
+import { recordFinishedPracticeSession } from './app/sessionRecording'
+import { TodayScreen } from './screens/TodayScreen'
 import type { ActionAttempt, PracticeAttempt } from './types/practice'
 import type {
   ActionType,
@@ -168,15 +165,74 @@ function App() {
 }
 
 /**
- * The Coach shell: rail/tab navigation around the routed screens. The legacy
- * single-page layout remains the default route while the new screens land.
+ * The Coach shell: rail/tab navigation around the routed screens, plus the
+ * review-queue runner that drills through due ranges one session at a time.
+ * The legacy single-page layout stays reachable at #/legacy until slice 8.
  */
 function CoachApp() {
   const route = useHashRoute()
+  // The queue of ranges being reviewed and the current position; null = not
+  // reviewing. Screens unmount while a review runs, so they reload fresh
+  // stats from storage when the queue finishes.
+  const [reviewQueue, setReviewQueue] = useState<SavedRange[] | null>(null)
+  const [reviewIndex, setReviewIndex] = useState(0)
+
+  function startReview(queue: SavedRange[]) {
+    if (queue.length === 0) return
+    setReviewQueue(queue)
+    setReviewIndex(0)
+  }
+
+  function endReviewSession(attempts: PracticeAttempt[]) {
+    const range = reviewQueue?.[reviewIndex]
+    if (range) {
+      recordFinishedPracticeSession(range.id, attempts)
+    }
+    if (reviewQueue && reviewIndex + 1 < reviewQueue.length) {
+      setReviewIndex(reviewIndex + 1)
+    } else {
+      setReviewQueue(null)
+      setReviewIndex(0)
+    }
+  }
+
+  const reviewRange = reviewQueue?.[reviewIndex]
+  if (reviewQueue && reviewRange) {
+    return (
+      <AppShell route={route}>
+        <section aria-label="Review queue">
+          <div className="review-queue-bar">
+            {reviewQueue.length > 1 && (
+              <p className="coach-tabular review-queue-position">
+                Range {reviewIndex + 1} of {reviewQueue.length}
+              </p>
+            )}
+            <button
+              type="button"
+              className="coach-btn quiet"
+              onClick={() => {
+                // Abandon the queue without recording the in-progress session.
+                setReviewQueue(null)
+                setReviewIndex(0)
+              }}
+            >
+              Exit review
+            </button>
+          </div>
+          <PracticeSession
+            key={`${reviewRange.id}-${reviewIndex}`}
+            range={reviewRange}
+            onExit={endReviewSession}
+          />
+        </section>
+      </AppShell>
+    )
+  }
+
   return (
     <AppShell route={route}>
       {route.screen === 'today' ? (
-        <ScreenPlaceholder title="Today" />
+        <TodayScreen onStartReview={startReview} />
       ) : route.screen === 'library' || route.screen === 'range' ? (
         <ScreenPlaceholder title="Library" />
       ) : route.screen === 'progress' ? (
@@ -196,7 +252,7 @@ function ScreenPlaceholder({ title }: { title: string }) {
       <h2>{title}</h2>
       <p>
         This screen is being rebuilt. Everything still works from the{' '}
-        <a href="#/">current page</a>.
+        <a href="#/legacy">current page</a>.
       </p>
     </section>
   )
@@ -513,15 +569,7 @@ function LegacyPage() {
     // nothing was answered, so ending immediately records nothing.
     // Build-from-memory exits through exitPractice without recording stats.
     if (practicingRange) {
-      const summary = summarizePracticeAttempts(attempts)
-      recordPracticeSession(practicingRange.id, summary)
-      recordHandAccuracy(practicingRange.id, summarizeHandAccuracy(attempts))
-      recordPracticeSessionHistory(practicingRange.id, summary)
-      // Advance the spaced-repetition schedule from this session's accuracy.
-      const reviewedAt = new Date().toISOString()
-      const prevReview =
-        loadReviewStates()[practicingRange.id] ?? seedReviewState(practicingRange.id)
-      saveReviewState(scheduleNextReview(prevReview, summary.accuracyPercentage, reviewedAt))
+      recordFinishedPracticeSession(practicingRange.id, attempts)
       // Refresh from storage so the library card and performance view reflect this
       // session, mirroring the setSavedRanges(loadSavedRanges()) refresh-after-write
       // pattern.

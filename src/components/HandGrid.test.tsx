@@ -1,10 +1,16 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { useState } from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { HandGrid } from './HandGrid'
 import App from '../App'
 import type { PokerHand } from '../domain/pokerHands'
+
+// The App-level cases exercise the legacy editor page, which lives at #/legacy
+// while the Coach screens land.
+beforeEach(() => {
+  window.location.hash = '#/legacy'
+})
 
 /**
  * Stateful wrapper so gestures are reflected back through `selected` and become

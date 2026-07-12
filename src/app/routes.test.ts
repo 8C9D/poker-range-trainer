@@ -35,10 +35,14 @@ describe('parseAppRoute', () => {
     expect(parseAppRoute('#/library/a%20b')).toEqual({ screen: 'range', id: 'a b', tab: 'overview' })
   })
 
-  it('falls back to the default screen for empty and unknown hashes', () => {
-    expect(parseAppRoute('')).toEqual({ screen: 'legacy' })
-    expect(parseAppRoute('#/')).toEqual({ screen: 'legacy' })
-    expect(parseAppRoute('#/nope')).toEqual({ screen: 'legacy' })
+  it('falls back to Today for empty and unknown hashes', () => {
+    expect(parseAppRoute('')).toEqual({ screen: 'today' })
+    expect(parseAppRoute('#/')).toEqual({ screen: 'today' })
+    expect(parseAppRoute('#/nope')).toEqual({ screen: 'today' })
+  })
+
+  it('keeps the legacy page reachable during the migration', () => {
+    expect(parseAppRoute('#/legacy')).toEqual({ screen: 'legacy' })
   })
 })
 

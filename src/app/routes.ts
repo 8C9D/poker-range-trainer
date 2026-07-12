@@ -34,9 +34,11 @@ export function parseAppRoute(hash: string): AppRoute {
       return { screen: 'progress' }
     case 'account':
       return { screen: 'account' }
-    default:
-      // Migration default: the legacy single-page layout until Today lands.
+    case 'legacy':
+      // Migration escape hatch: the old single-page layout until slice 8 removes it.
       return { screen: 'legacy' }
+    default:
+      return { screen: 'today' }
   }
 }
 
@@ -55,7 +57,7 @@ export function routeHash(route: AppRoute): string {
     case 'account':
       return '#/account'
     case 'legacy':
-      return '#/'
+      return '#/legacy'
   }
 }
 

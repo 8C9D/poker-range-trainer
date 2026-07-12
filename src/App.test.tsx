@@ -7,11 +7,15 @@ import { loadHandAccuracy } from './storage/handAccuracyStorage'
 import { loadPracticeStats } from './storage/practiceStatsStorage'
 import { loadReviewStates } from './storage/reviewStateStorage'
 import { loadSessionHistory } from './storage/sessionHistoryStorage'
-import { loadSavedRanges } from './storage/rangeStorage'
+import { loadSavedRanges, saveSavedRange } from './storage/rangeStorage'
 
-// Isolate persistence so each case starts from an empty library.
+// Isolate persistence so each case starts from an empty library. These suites
+// exercise the legacy single-page layout, which now lives at #/legacy while the
+// Coach screens land slice by slice; the hash is reset here so each test renders
+// it directly.
 beforeEach(() => {
   localStorage.clear()
+  window.location.hash = '#/legacy'
 })
 
 // A few timed-drill cases install fake timers; always restore real timers after
@@ -1866,5 +1870,76 @@ describe('Getting started onboarding', () => {
     await user.click(screen.getByRole('button', { name: 'Save Range' }))
 
     expect(screen.queryByRole('region', { name: 'Getting started' })).not.toBeInTheDocument()
+  })
+})
+
+describe('Coach shell and review queue', () => {
+  function seedRange(id: string, name: string) {
+    saveSavedRange({
+      id,
+      name,
+      hands: ['AA', 'KK'],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    })
+  }
+
+  it('opens the Today screen on the default route', () => {
+    window.location.hash = ''
+    render(<App />)
+    expect(screen.getByText(/Good (morning|afternoon|evening)/)).toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: 'Main navigation' })).toBeInTheDocument()
+  })
+
+  it('runs a queued review through every due range and records each session', async () => {
+    const user = userEvent.setup()
+    seedRange('a', 'UTG open')
+    seedRange('b', 'BTN open')
+    window.location.hash = '#/today'
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Start review' }))
+
+    // First session of the queue, with a visible position.
+    expect(screen.getByText('Range 1 of 2')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Practicing: UTG open' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'End Practice' }))
+    await user.click(screen.getByRole('button', { name: 'Back to library' }))
+
+    // Advances to the second range automatically.
+    expect(screen.getByText('Range 2 of 2')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Practicing: BTN open' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'End Practice' }))
+    await user.click(screen.getByRole('button', { name: 'Back to library' }))
+
+    // Both schedules advanced, so Today shows the caught-up state.
+    expect(screen.getByRole('region', { name: 'All caught up' })).toBeInTheDocument()
+    expect(Object.keys(loadReviewStates()).sort()).toEqual(['a', 'b'])
+  })
+
+  it('abandons the queue without recording when exiting review', async () => {
+    const user = userEvent.setup()
+    seedRange('a', 'UTG open')
+    window.location.hash = '#/today'
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Start review' }))
+    await user.click(screen.getByRole('button', { name: 'Exit review' }))
+
+    expect(loadReviewStates()).toEqual({})
+    expect(screen.getByRole('button', { name: 'Start review' })).toBeInTheDocument()
+  })
+
+  it('reviews a single due range from its row', async () => {
+    const user = userEvent.setup()
+    seedRange('a', 'UTG open')
+    seedRange('b', 'BTN open')
+    window.location.hash = '#/today'
+    render(<App />)
+
+    await user.click(screen.getAllByRole('button', { name: 'Review' })[1])
+    expect(screen.getByRole('heading', { name: 'Practicing: BTN open' })).toBeInTheDocument()
+    // A single-range queue shows no position line.
+    expect(screen.queryByText(/Range 1 of/)).not.toBeInTheDocument()
   })
 })
