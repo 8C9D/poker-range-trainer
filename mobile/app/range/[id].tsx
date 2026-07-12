@@ -27,6 +27,7 @@ import { ActionsEditor } from '../../components/ActionsEditor';
 import { ComboExplorer } from '../../components/ComboExplorer';
 import { FrequenciesEditor } from '../../components/FrequenciesEditor';
 import { RangeEditor } from '../../components/RangeEditor';
+import { RangeStats } from '../../components/RangeStats';
 import { RangeThumbnail } from '../../components/RangeThumbnail';
 import { Screen } from '../../components/Screen';
 import { Chip } from '../../components/ui';
@@ -234,14 +235,7 @@ export default function RangeScreen() {
           {tab === 'actions' ? <ActionsEditor id={range.id} /> : null}
           {tab === 'combos' ? <ComboExplorer /> : null}
           {tab === 'frequencies' ? <FrequenciesEditor id={range.id} /> : null}
-          {tab === 'stats' ? (
-            <LinkCard
-              label="Practice & stats"
-              hint="Accuracy heatmap, weak hands, and session history."
-              href={{ pathname: '/practice', params: { id: range.id } }}
-              styles={styles}
-            />
-          ) : null}
+          {tab === 'stats' ? <RangeStats id={range.id} /> : null}
         </View>
       </ScrollView>
     </Screen>
@@ -272,27 +266,6 @@ function MenuItem({
         {label}
       </Text>
     </Pressable>
-  );
-}
-
-function LinkCard({
-  label,
-  hint,
-  href,
-  styles,
-}: {
-  label: string;
-  hint: string;
-  href: React.ComponentProps<typeof Link>['href'];
-  styles: ReturnType<typeof makeStyles>;
-}) {
-  return (
-    <Link href={href} asChild>
-      <Pressable style={styles.linkCard}>
-        <Text style={styles.linkCardLabel}>{label} →</Text>
-        <Text style={styles.linkCardHint}>{hint}</Text>
-      </Pressable>
-    </Link>
   );
 }
 
@@ -420,16 +393,6 @@ function makeStyles(theme: ThemeColors) {
     tabText: { fontFamily: fonts.bodyMedium, fontSize: 13.5, color: theme.ink2 },
     tabTextActive: { color: theme.ink },
     tabContent: { marginTop: 2 },
-    linkCard: {
-      backgroundColor: theme.surface,
-      borderColor: theme.line,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderRadius: 14,
-      padding: 18,
-      gap: 6,
-    },
-    linkCardLabel: { fontFamily: fonts.bodySemibold, fontSize: 16, color: theme.accent },
-    linkCardHint: { fontFamily: fonts.body, fontSize: 14, color: theme.ink2 },
     overviewCard: {
       backgroundColor: theme.surface,
       borderColor: theme.line,

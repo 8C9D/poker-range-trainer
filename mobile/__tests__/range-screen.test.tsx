@@ -1,6 +1,7 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 
+import { recordHandAccuracy } from '@core/storage/handAccuracyStorage';
 import { recordPracticeSessionHistory } from '@core/storage/sessionHistoryStorage';
 import { loadSavedRanges, saveSavedRange } from '@core/storage/rangeStorage';
 import type { SavedRange } from '@core/types/range';
@@ -90,6 +91,19 @@ describe('RangeScreen', () => {
     fireEvent.press(getByTestId('range-tab-frequencies'));
 
     expect(await findByTestId('freq-hand-AA')).toBeTruthy();
+  });
+
+  it('shows the accuracy heatmap in the Stats tab when there is practice data', async () => {
+    seed({ id: 'r1', name: 'UTG Open' });
+    recordHandAccuracy('r1', [
+      { hand: 'AA', attempts: 4, correct: 1, falsePositives: 0, falseNegatives: 3 },
+    ]);
+
+    const { getByTestId, findByTestId, getByText } = await render(<RangeScreen />);
+    fireEvent.press(getByTestId('range-tab-stats'));
+
+    expect(await findByTestId('heat-cell-AA')).toBeTruthy();
+    expect(getByText('Weakest hands')).toBeTruthy();
   });
 
   it('opens the overflow menu and toggles favorite', async () => {
