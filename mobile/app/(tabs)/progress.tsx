@@ -1,28 +1,230 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Link, useFocusEffect } from 'expo-router';
+
+import { summarizeLibraryAnalytics } from '@core/domain/libraryAnalytics';
+import { currentStreak } from '@core/domain/spacedRepetition';
+import { rankWeakHands, weakHandPools } from '@core/domain/weakHands';
+import { dailyHandCounts, summarizeWeek } from '@core/domain/weeklyStats';
+import { loadHandAccuracy } from '@core/storage/handAccuracyStorage';
+import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
+import { loadSavedRanges } from '@core/storage/rangeStorage';
+import { loadSessionHistory } from '@core/storage/sessionHistoryStorage';
 
 import { Screen } from '../../components/Screen';
 import { fonts } from '../../theme/fonts';
 import { useTheme } from '../../theme/colors';
+import type { ThemeColors } from '../../theme/colors';
 
-// Progress tab — placeholder shell for the Coach routing skeleton. The full progress
-// screen (streak/accuracy/all-time tiles, 7-day chart, weakest hands) lands in a later
-// slice.
+const WEEKDAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+
+function loadProgressState() {
+  const ranges = loadSavedRanges();
+  const history = loadSessionHistory();
+  const practiceStats = loadPracticeStats();
+  const handAccuracy = loadHandAccuracy();
+  const nowIso = new Date().toISOString();
+  const playedAt = Object.values(history)
+    .flat()
+    .map((session) => session.playedAt);
+  const streak = currentStreak(playedAt, nowIso);
+  const month = summarizeWeek(history, nowIso, 30);
+  const analytics = summarizeLibraryAnalytics(Object.values(practiceStats));
+  const days = dailyHandCounts(history, nowIso);
+  const weakHands = rankWeakHands(handAccuracy).filter((entry) =>
+    ranges.some((range) => range.id === entry.rangeId),
+  );
+  return { ranges, streak, month, analytics, days, weakHands };
+}
+
+/** Long-term training overview: streak, accuracy, volume, and weak spots. */
 export default function ProgressScreen() {
   const theme = useTheme();
+  const styles = makeStyles(theme);
+  const [state, setState] = useState(loadProgressState);
+  useFocusEffect(
+    useCallback(() => {
+      setState(loadProgressState());
+    }, []),
+  );
+
+  const { ranges, streak, month, analytics, days, weakHands } = state;
+  const maxDay = Math.max(1, ...days.map((day) => day.handsAnswered));
+  const rangeName = (rangeId: string) =>
+    ranges.find((range) => range.id === rangeId)?.name ?? 'Deleted range';
+
+  const pools = weakHandPools(weakHands);
+  const drillQueue = ranges.filter((range) => pools[range.id]?.length);
+  const drillParams = {
+    queue: drillQueue.map((range) => range.id).join(','),
+    mode: 'recognize',
+    pools: JSON.stringify(
+      Object.fromEntries(drillQueue.map((range) => [range.id, pools[range.id]])),
+    ),
+  };
+
   return (
     <Screen>
-      <View style={styles.body}>
-        <Text style={[styles.title, { color: theme.ink }]}>Progress</Text>
-        <Text style={[styles.subtitle, { color: theme.ink2 }]}>
-          Your training trends will live here.
-        </Text>
-      </View>
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.title}>Progress</Text>
+
+        <View style={styles.tiles}>
+          <View style={styles.tile}>
+            <Text style={styles.tileValue}>
+              {streak} day{streak === 1 ? '' : 's'}
+            </Text>
+            <Text style={styles.tileLabel}>Streak — one rest day is forgiven</Text>
+          </View>
+          <View style={styles.tile}>
+            <Text style={styles.tileValue}>
+              {month.handsAnswered > 0 ? `${month.accuracy.toFixed(0)}%` : '—'}
+            </Text>
+            <Text style={styles.tileLabel}>30-day accuracy</Text>
+          </View>
+          <View style={styles.tile}>
+            <Text style={styles.tileValue}>{analytics.totalAttempts}</Text>
+            <Text style={styles.tileLabel}>Hands all-time</Text>
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Hands answered this week</Text>
+          <View style={styles.chart}>
+            {days.map((day, index) => {
+              const isToday = index === days.length - 1;
+              const weekday = WEEKDAYS_SHORT[new Date(day.dayStart).getUTCDay()];
+              const heightPct = Math.round((day.handsAnswered / maxDay) * 100);
+              return (
+                <View
+                  key={day.dayStart}
+                  style={styles.chartCol}
+                  accessibilityLabel={`${weekday}: ${day.handsAnswered} hands`}
+                >
+                  <View style={styles.chartBarTrack}>
+                    <View
+                      style={[
+                        styles.chartBar,
+                        {
+                          height: `${Math.max(2, heightPct)}%`,
+                          backgroundColor: isToday ? theme.goldFill : theme.line2,
+                        },
+                      ]}
+                    />
+                  </View>
+                  <Text style={[styles.chartLabel, isToday && { color: theme.ink }]}>{weekday}</Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Across your library</Text>
+          <Text style={styles.analytics}>
+            {analytics.rangesPracticed} range{analytics.rangesPracticed === 1 ? '' : 's'} practiced ·{' '}
+            {analytics.totalCorrect} of {analytics.totalAttempts} correct ·{' '}
+            {analytics.totalAttempts > 0 ? `${analytics.overallAccuracy.toFixed(0)}%` : '—'} overall
+          </Text>
+        </View>
+
+        <View style={styles.card}>
+          <View style={styles.weakHeader}>
+            <Text style={styles.sectionTitle}>Weakest hands</Text>
+            {weakHands.length > 0 && drillQueue.length > 0 ? (
+              <Link href={{ pathname: '/practice', params: drillParams }} asChild>
+                <Text testID="drill-weak-hands" style={styles.drillBtn}>
+                  Drill these
+                </Text>
+              </Link>
+            ) : null}
+          </View>
+          {weakHands.length === 0 ? (
+            <Text style={styles.empty}>No recorded misses yet — they will show up here.</Text>
+          ) : (
+            <View style={styles.weakList}>
+              <View style={styles.weakRowHead}>
+                <Text style={[styles.weakCell, styles.weakHand, styles.weakHeadText]}>Hand</Text>
+                <Text style={[styles.weakCell, styles.weakRange, styles.weakHeadText]}>Range</Text>
+                <Text style={[styles.weakCell, styles.weakRec, styles.weakHeadText]}>Record</Text>
+                <Text style={[styles.weakCell, styles.weakAcc, styles.weakHeadText]}>Acc</Text>
+              </View>
+              {weakHands.map((entry) => (
+                <View key={`${entry.rangeId}-${entry.hand}`} style={styles.weakRow}>
+                  <Text style={[styles.weakCell, styles.weakHand, styles.weakBody]}>{entry.hand}</Text>
+                  <Text style={[styles.weakCell, styles.weakRange, styles.weakBodyMuted]} numberOfLines={1}>
+                    {rangeName(entry.rangeId)}
+                  </Text>
+                  <Text style={[styles.weakCell, styles.weakRec, styles.weakBody]}>
+                    {entry.correct}/{entry.attempts}
+                  </Text>
+                  <Text style={[styles.weakCell, styles.weakAcc, styles.weakBody]}>
+                    {entry.accuracy.toFixed(0)}%
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      </ScrollView>
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  body: { flex: 1, padding: 24, gap: 12, justifyContent: 'center' },
-  title: { fontFamily: fonts.display, fontSize: 34 },
-  subtitle: { fontFamily: fonts.body, fontSize: 16 },
-});
+function makeStyles(theme: ThemeColors) {
+  const tabular = { fontVariant: ['tabular-nums' as const] };
+  return StyleSheet.create({
+    content: { padding: 16, gap: 14, paddingBottom: 32 },
+    title: { fontFamily: fonts.display, fontSize: 30, color: theme.ink, marginTop: 4 },
+    tiles: { flexDirection: 'row', gap: 10 },
+    tile: {
+      flex: 1,
+      backgroundColor: theme.surface,
+      borderColor: theme.line,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: 14,
+      padding: 12,
+      gap: 4,
+      minHeight: 92,
+    },
+    tileValue: { fontFamily: fonts.display, fontSize: 22, color: theme.ink, ...tabular },
+    tileLabel: { fontFamily: fonts.body, fontSize: 11.5, color: theme.ink3 },
+    card: {
+      backgroundColor: theme.surface,
+      borderColor: theme.line,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: 16,
+      padding: 16,
+      gap: 12,
+    },
+    sectionTitle: { fontFamily: fonts.bodySemibold, fontSize: 14, color: theme.ink },
+    chart: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, height: 130 },
+    chartCol: { flex: 1, alignItems: 'center', gap: 6 },
+    chartBarTrack: { flex: 1, width: '100%', justifyContent: 'flex-end', alignItems: 'center' },
+    chartBar: { width: '70%', borderRadius: 4, minHeight: 3 },
+    chartLabel: { fontFamily: fonts.body, fontSize: 11, color: theme.ink3 },
+    analytics: { fontFamily: fonts.body, fontSize: 14, color: theme.ink2, ...tabular },
+    weakHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    drillBtn: {
+      fontFamily: fonts.bodySemibold,
+      fontSize: 13,
+      color: theme.onAccent,
+      backgroundColor: theme.goldFill,
+      borderRadius: 10,
+      overflow: 'hidden',
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+    },
+    empty: { fontFamily: fonts.body, fontSize: 14, color: theme.ink2 },
+    weakList: { gap: 2 },
+    weakRowHead: { flexDirection: 'row', paddingBottom: 4, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.line },
+    weakRow: { flexDirection: 'row', paddingVertical: 5 },
+    weakCell: { fontSize: 13, ...tabular },
+    weakHeadText: { fontFamily: fonts.bodySemibold, color: theme.ink3, fontSize: 11.5 },
+    weakBody: { fontFamily: fonts.bodyMedium, color: theme.ink },
+    weakBodyMuted: { fontFamily: fonts.body, color: theme.ink2 },
+    weakHand: { width: 52 },
+    weakRange: { flex: 1, paddingRight: 8 },
+    weakRec: { width: 52, textAlign: 'right' },
+    weakAcc: { width: 44, textAlign: 'right' },
+  });
+}

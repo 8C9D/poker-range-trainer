@@ -31,6 +31,17 @@ function commaList(value: string | undefined): string[] {
   return value ? value.split(',').filter(Boolean) : [];
 }
 
+/** Parse the per-range weak-hand pools (`pools` = JSON of Record<rangeId, hand[]>). */
+function parsePools(value: string | undefined): Record<string, PokerHand[]> | undefined {
+  if (!value) return undefined;
+  try {
+    const parsed = JSON.parse(value) as Record<string, PokerHand[]>;
+    return parsed && typeof parsed === 'object' ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Practice overlay host route. Parses the request from the URL — `id` (one range) or
  * `queue` (comma-separated ids for the review queue), an optional preset `mode`, and an
@@ -40,7 +51,13 @@ function commaList(value: string | undefined): string[] {
 export default function PracticeScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const params = useLocalSearchParams<{ id?: string; queue?: string; mode?: string; pool?: string }>();
+  const params = useLocalSearchParams<{
+    id?: string;
+    queue?: string;
+    mode?: string;
+    pool?: string;
+    pools?: string;
+  }>();
 
   const ids = params.queue ? commaList(params.queue) : params.id ? [params.id] : [];
   const ranges = ids
@@ -71,6 +88,7 @@ export default function PracticeScreen() {
     ranges,
     mode: asMode(params.mode),
     handPool: handPool.length > 0 ? handPool : undefined,
+    handPools: parsePools(params.pools),
   };
 
   return (

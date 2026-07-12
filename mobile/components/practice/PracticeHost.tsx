@@ -25,8 +25,10 @@ export interface PracticeRequest {
   ranges: SavedRange[];
   /** The preset mode, or null to open the mode picker. */
   mode: PracticeMode | null;
-  /** Restrict recognition prompts to these hands (the weak-hands pool). */
+  /** Restrict recognition prompts to these hands (a single-range weak-hands pool). */
   handPool?: PokerHand[];
+  /** Per-range pools for multi-range weak-hand drills, keyed by range id. */
+  handPools?: Record<string, PokerHand[]>;
 }
 
 // Modes rendered inline in the overlay; postflop/board still route out to the flat drill
@@ -190,7 +192,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
       key={`${range.id}-${index}`}
       range={range}
       variant={variant}
-      handPool={phase.mode === 'recognize' ? request.handPool : undefined}
+      handPool={phase.mode === 'recognize' ? (request.handPool ?? request.handPools?.[range.id]) : undefined}
       durationSeconds={phase.durationSeconds}
       position={position}
       onFinish={finishRecognition}
