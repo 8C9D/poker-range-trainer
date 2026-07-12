@@ -31,6 +31,8 @@ export interface PracticeRequest {
   mode: PracticeMode | null
   /** Restrict recognition prompts to these hands (the weak-hands pool). */
   handPool?: PokerHand[]
+  /** Per-range pools for multi-range weak-hand drills, keyed by range id. */
+  handPools?: Record<string, PokerHand[]>
 }
 
 interface PracticeHostProps {
@@ -166,7 +168,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
           key={`${range.id}-${index}`}
           range={range}
           variant="standard"
-          handPool={request.handPool}
+          handPool={request.handPool ?? request.handPools?.[range.id]}
           position={position}
           onFinish={finishRecognition}
         />

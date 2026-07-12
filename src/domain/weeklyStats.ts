@@ -65,3 +65,37 @@ export function summarizeWeek(
     sharpestAccuracy,
   }
 }
+
+/** One day of the hands-per-day chart. */
+export interface DailyHandCount {
+  /** Start of the (UTC) day as an ISO timestamp. */
+  dayStart: string
+  handsAnswered: number
+}
+
+/**
+ * Hands answered per UTC day over the trailing `days` window, oldest first and
+ * ending with the day containing `now` (same day bucketing as the streak).
+ */
+export function dailyHandCounts(
+  history: Record<string, PracticeSessionRecord[]>,
+  now: string,
+  days = 7,
+): DailyHandCount[] {
+  const todayNum = Math.floor(new Date(now).getTime() / DAY_MS)
+  const firstNum = todayNum - (days - 1)
+  const counts = new Array<number>(days).fill(0)
+  for (const sessions of Object.values(history)) {
+    for (const session of sessions) {
+      const at = new Date(session.playedAt).getTime()
+      if (Number.isNaN(at)) continue
+      const dayNum = Math.floor(at / DAY_MS)
+      if (dayNum < firstNum || dayNum > todayNum) continue
+      counts[dayNum - firstNum] += session.totalQuestions
+    }
+  }
+  return counts.map((handsAnswered, index) => ({
+    dayStart: new Date((firstNum + index) * DAY_MS).toISOString(),
+    handsAnswered,
+  }))
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { summarizeWeek } from './weeklyStats'
+import { dailyHandCounts, summarizeWeek } from './weeklyStats'
 import type { PracticeSessionRecord } from '../types/practice'
 
 const NOW = '2026-07-11T12:00:00.000Z'
@@ -72,5 +72,45 @@ describe('summarizeWeek', () => {
     const summary = summarizeWeek(history, NOW)
     expect(summary.sharpestRangeId).toBe('b')
     expect(summary.sharpestAccuracy).toBe(80)
+  })
+})
+
+describe('dailyHandCounts', () => {
+  it('returns seven zeroed days for empty history, ending today', () => {
+    const days = dailyHandCounts({}, NOW)
+    expect(days).toHaveLength(7)
+    expect(days.every((day) => day.handsAnswered === 0)).toBe(true)
+    expect(days[6].dayStart).toBe('2026-07-11T00:00:00.000Z')
+    expect(days[0].dayStart).toBe('2026-07-05T00:00:00.000Z')
+  })
+
+  it('buckets sessions into their UTC day', () => {
+    const days = dailyHandCounts(
+      {
+        a: [
+          session('a', '2026-07-11T01:00:00.000Z', 10, 8),
+          session('a', '2026-07-11T23:00:00.000Z', 5, 5),
+          session('a', '2026-07-09T12:00:00.000Z', 7, 6),
+        ],
+        b: [session('b', '2026-07-09T13:00:00.000Z', 3, 1)],
+      },
+      NOW,
+    )
+    expect(days[6].handsAnswered).toBe(15)
+    expect(days[4].handsAnswered).toBe(10)
+    expect(days[5].handsAnswered).toBe(0)
+  })
+
+  it('ignores sessions outside the window', () => {
+    const days = dailyHandCounts(
+      {
+        a: [
+          session('a', '2026-07-04T12:00:00.000Z', 10, 8), // day before window
+          session('a', '2026-07-12T12:00:00.000Z', 10, 8), // tomorrow
+        ],
+      },
+      NOW,
+    )
+    expect(days.every((day) => day.handsAnswered === 0)).toBe(true)
   })
 })

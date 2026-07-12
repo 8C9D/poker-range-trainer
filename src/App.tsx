@@ -76,6 +76,7 @@ import { useHashRoute } from './app/routes'
 import { recordFinishedPracticeSession } from './app/sessionRecording'
 import { PracticeHost, type PracticeRequest } from './practice/PracticeHost'
 import { LibraryScreen } from './screens/LibraryScreen'
+import { ProgressScreen } from './screens/ProgressScreen'
 import { RangeScreen } from './screens/RangeScreen'
 import { TodayScreen } from './screens/TodayScreen'
 import { createRangeId } from './app/ids'
@@ -206,7 +207,11 @@ function CoachApp() {
       ) : route.screen === 'newRange' ? (
         <RangeScreen key="new" id={null} tab="edit" onPractice={startPractice} />
       ) : route.screen === 'progress' ? (
-        <ScreenPlaceholder title="Progress" />
+        <ProgressScreen
+          onDrillWeakHands={(queue, pools) =>
+            setPractice({ ranges: queue, mode: 'recognize', handPools: pools })
+          }
+        />
       ) : route.screen === 'account' ? (
         <ScreenPlaceholder title="Account" />
       ) : (
