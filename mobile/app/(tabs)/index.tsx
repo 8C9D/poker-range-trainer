@@ -112,7 +112,13 @@ export default function TodayScreen() {
                 <Text style={styles.cardBody}>
                   {due.length} range{due.length === 1 ? '' : 's'} due · ~{estimatedMinutes} min
                 </Text>
-                <Link href={{ pathname: '/practice', params: { id: due[0].id } }} asChild>
+                <Link
+                  href={{
+                    pathname: '/practice',
+                    params: { queue: due.map((range) => range.id).join(','), mode: 'recognize' },
+                  }}
+                  asChild
+                >
                   <Pressable testID="start-review" style={styles.primaryBtn}>
                     <Text style={styles.primaryBtnText}>Start review</Text>
                   </Pressable>
@@ -151,7 +157,10 @@ export default function TodayScreen() {
                               : 'New — never practiced'}
                           </Text>
                         </View>
-                        <Link href={{ pathname: '/practice', params: { id: range.id } }} asChild>
+                        <Link
+                          href={{ pathname: '/practice', params: { id: range.id, mode: 'recognize' } }}
+                          asChild
+                        >
                           <Pressable testID={`review-${range.id}`} style={styles.rowBtn}>
                             <Text style={styles.rowBtnText}>Review</Text>
                           </Pressable>

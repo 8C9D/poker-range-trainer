@@ -1,480 +1,89 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { Stack, useLocalSearchParams } from 'expo-router';
-import * as Haptics from 'expo-haptics';
+import { StyleSheet, Text, View } from 'react-native';
+import { Link, Stack, useLocalSearchParams, useRouter } from 'expo-router';
 
-import { accuracyPercentage } from '@core/domain/accuracy';
-import {
-  createPracticeAttempt,
-  getRandomHandFrom,
-  getRandomPracticeHand,
-  handAccuracyRate,
-  handsWithMistakes,
-  rankHandAccuracy,
-  reviewSessionMistakes,
-  summarizeHandAccuracy,
-  summarizePracticeAttempts,
-} from '@core/domain/practice';
-import { scheduleNextReview, seedReviewState } from '@core/domain/spacedRepetition';
-import { loadHandAccuracy, recordHandAccuracy } from '@core/storage/handAccuracyStorage';
-import { loadReviewStates, saveReviewState } from '@core/storage/reviewStateStorage';
-import { recordPracticeSession } from '@core/storage/practiceStatsStorage';
-import {
-  loadSessionHistory,
-  recordPracticeSessionHistory,
-} from '@core/storage/sessionHistoryStorage';
+import type { PokerHand } from '@core/domain/pokerHands';
 import { findSavedRangeById } from '@core/storage/rangeStorage';
-import type {
-  PracticeAttempt,
-  PracticeSessionRecord,
-  RangeHandAccuracy,
-} from '@core/types/practice';
+import type { SavedRange } from '@core/types/range';
 
-import { HandHeatmap } from '../components/HandHeatmap';
-import { resolveSwipeAnswer } from '../components/swipeAnswer';
-import { colors } from '../theme/colors';
+import { PracticeHost, type PracticeRequest } from '../components/practice/PracticeHost';
+import type { PracticeMode } from '../components/practice/ModePicker';
+import { Screen } from '../components/Screen';
+import { fonts } from '../theme/fonts';
+import { useTheme } from '../theme/colors';
+
+const MODES: PracticeMode[] = [
+  'recognize',
+  'build',
+  'timed',
+  'weakness',
+  'action',
+  'mixed',
+  'combo',
+  'postflop',
+  'board',
+];
+
+function asMode(value: string | undefined): PracticeMode | null {
+  return value && (MODES as string[]).includes(value) ? (value as PracticeMode) : null;
+}
+
+function commaList(value: string | undefined): string[] {
+  return value ? value.split(',').filter(Boolean) : [];
+}
 
 /**
- * Recognition practice for one saved range: a random starting hand is shown and
- * the user answers "in range" / "out of range" with immediate feedback. All
- * scoring and prompt selection reuse `@core/domain/practice`; session stats are
- * kept in component state.
+ * Practice overlay host route. Parses the request from the URL — `id` (one range) or
+ * `queue` (comma-separated ids for the review queue), an optional preset `mode`, and an
+ * optional `pool` of hands (weak-hand drills) — and hands it to `PracticeHost`, which runs
+ * the mode picker / drill / summary flow full-screen above the tabs.
  */
 export default function PracticeScreen() {
-  const params = useLocalSearchParams<{ id?: string }>();
-  const idParam = typeof params.id === 'string' ? params.id : undefined;
-  const [range] = useState(() => (idParam ? findSavedRangeById(idParam) : undefined));
+  const theme = useTheme();
+  const router = useRouter();
+  const params = useLocalSearchParams<{ id?: string; queue?: string; mode?: string; pool?: string }>();
 
-  const [hand, setHand] = useState(() => getRandomPracticeHand());
-  const [attempts, setAttempts] = useState<PracticeAttempt[]>([]);
-  const [lastAttempt, setLastAttempt] = useState<PracticeAttempt | null>(null);
-  // Cumulative per-hand accuracy for this range (across all sessions), refreshed from
-  // storage after each answer so the weakest-hands view stays current within the session.
-  const [handAccuracy, setHandAccuracy] = useState<RangeHandAccuracy>(() =>
-    range ? (loadHandAccuracy()[range.id] ?? {}) : {},
-  );
-  // When on, prompts are restricted to hands the user has gotten wrong (the mistakes
-  // pool) for a focused "practice mistakes only" drill.
-  const [mistakesOnly, setMistakesOnly] = useState(false);
-  // This range's past sessions (oldest-first), shown once any exist and refreshed when
-  // the current session is ended.
-  const [history, setHistory] = useState<PracticeSessionRecord[]>(() =>
-    range ? (loadSessionHistory()[range.id] ?? []) : [],
-  );
+  const ids = params.queue ? commaList(params.queue) : params.id ? [params.id] : [];
+  const ranges = ids
+    .map((id) => findSavedRangeById(id))
+    .filter((range): range is SavedRange => range !== undefined);
+  const handPool = commaList(params.pool) as PokerHand[];
 
-  const answer = useCallback(
-    (answeredInRange: boolean) => {
-      if (!range) return;
-      const attempt = createPracticeAttempt(hand, range.hands, answeredInRange);
-      setAttempts((prev) => [...prev, attempt]);
-      setLastAttempt(attempt);
-      // Fold this answer into the range's cumulative practice stats immediately, so
-      // the library's per-range stats and Practiced/Accuracy sorts reflect practice
-      // even mid-session — and survive the app being backgrounded or killed, which a
-      // mobile screen can't rely on an unmount/cleanup to handle. recordPracticeSession
-      // *adds* the given totals, so one-question increments accumulate to the same
-      // cumulative counts as recording the whole session once at the end.
-      recordPracticeSession(range.id, {
-        totalQuestions: 1,
-        correctAnswers: attempt.correct ? 1 : 0,
-      });
-      // Likewise fold this answer into cumulative per-hand accuracy, which powers the
-      // weakest-hands view, the editor-grid heatmap, and the mistakes-only drill in
-      // later slices. summarizeHandAccuracy([attempt]) is the one-hand increment.
-      recordHandAccuracy(range.id, summarizeHandAccuracy([attempt]));
-      // Storage is current (recorded above), so reload this range's cumulative per-hand
-      // accuracy to refresh the weakest-hands view, and draw the next prompt — from the
-      // mistakes pool when the drill is on (computed from the fresh stats, not a stale
-      // closure), otherwise from all 169 hands.
-      const updated = loadHandAccuracy()[range.id] ?? {};
-      setHandAccuracy(updated);
-      const pool = handsWithMistakes(updated);
-      setHand(
-        mistakesOnly && pool.length > 0 ? getRandomHandFrom(pool) : getRandomPracticeHand(),
-      );
-    },
-    [hand, range, mistakesOnly],
-  );
+  const close = () => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/');
+  };
 
-  // End the current session: log it to this range's session history (a per-session
-  // record, unlike the per-answer stats/accuracy already recorded above), then reset the
-  // session for a fresh start while keeping cumulative accuracy. Mobile uses this explicit
-  // trigger because effect cleanup does not run on unmount in this setup.
-  const endSession = useCallback(() => {
-    if (!range) return;
-    const summary = summarizePracticeAttempts(attempts);
-    recordPracticeSessionHistory(range.id, summary);
-    // Advance this range's spaced-repetition schedule from the session's accuracy
-    // (only when something was answered), mirroring the web's handleEndPractice. Drives
-    // the due-today / streak view on the library (a later slice).
-    if (summary.totalQuestions > 0) {
-      const reviewedAt = new Date().toISOString();
-      const prev = loadReviewStates()[range.id] ?? seedReviewState(range.id);
-      saveReviewState(scheduleNextReview(prev, summary.accuracyPercentage, reviewedAt));
-    }
-    setHistory(loadSessionHistory()[range.id] ?? []);
-    setAttempts([]);
-    setLastAttempt(null);
-    setHand(getRandomPracticeHand());
-  }, [range, attempts]);
-
-  // Keep the latest answer handler in a ref so the long-lived swipe gesture reads it
-  // without being rebuilt on every render (mirrors HandGrid's gesture ref pattern). The
-  // ref is synced in an effect, never during render.
-  const answerRef = useRef(answer);
-  useEffect(() => {
-    answerRef.current = answer;
-  });
-
-  /* eslint-disable react-hooks/refs -- the gesture callback runs at gesture time, never
-     during render; it reads answerRef for the latest handler. */
-  const swipeGesture = useMemo(
-    () =>
-      Gesture.Pan()
-        // Require real horizontal movement so a tap on the answer buttons is unaffected.
-        .activeOffsetX([-20, 20])
-        .onEnd((event) => {
-          const choice = resolveSwipeAnswer(event.translationX);
-          if (choice === null) return;
-          answerRef.current(choice === 'in');
-          // A light haptic confirms the swipe registered (no-op on devices without a
-          // haptic engine; not verifiable headlessly).
-          void Haptics.selectionAsync();
-        }),
-    [],
-  );
-  /* eslint-enable react-hooks/refs */
-
-  // Bucket the session's mistakes for the end-of-session review (recomputes when
-  // a new attempt is recorded). Kept above the early return to satisfy hook rules.
-  const review = useMemo(() => reviewSessionMistakes(attempts), [attempts]);
-  // The range's weakest hands (lowest cumulative accuracy first), capped for display.
-  const weakest = useMemo(() => rankHandAccuracy(handAccuracy).slice(0, 6), [handAccuracy]);
-  // Hands the user has gotten wrong — the prompt pool for the mistakes-only drill.
-  const mistakePool = useMemo(() => handsWithMistakes(handAccuracy), [handAccuracy]);
-
-  if (!range) {
+  if (ranges.length === 0) {
     return (
-      <View style={styles.screen}>
-        <Stack.Screen options={{ title: 'Practice' }} />
-        <Text style={styles.notFound}>Range not found</Text>
-      </View>
+      <Screen>
+        <Stack.Screen options={{ headerShown: false }} />
+        <View style={styles.notFound}>
+          <Text style={[styles.notFoundText, { color: theme.ink2 }]}>Range not found.</Text>
+          <Link href="/library" asChild>
+            <Text style={[styles.link, { color: theme.accent }]}>Back to Library</Text>
+          </Link>
+        </View>
+      </Screen>
     );
   }
 
-  const summary = summarizePracticeAttempts(attempts);
+  const request: PracticeRequest = {
+    ranges,
+    mode: asMode(params.mode),
+    handPool: handPool.length > 0 ? handPool : undefined,
+  };
 
   return (
-    <View style={styles.screen}>
-      <Stack.Screen options={{ title: 'Practice' }} />
-      <Text style={styles.rangeName}>{range.name || 'Untitled'}</Text>
-
-      <GestureDetector gesture={swipeGesture}>
-        <View style={styles.handCard}>
-          <Text testID="practice-hand" style={styles.hand}>
-            {hand}
-          </Text>
-        </View>
-      </GestureDetector>
-
-      <Text style={styles.swipeHint}>Swipe the card → in range · ← out of range</Text>
-
-      {lastAttempt ? (
-        <Text
-          testID="feedback"
-          style={[
-            styles.feedback,
-            lastAttempt.correct ? styles.feedbackCorrect : styles.feedbackWrong,
-          ]}
-        >
-          {lastAttempt.correct ? 'Correct' : 'Incorrect'} — {lastAttempt.hand} was{' '}
-          {lastAttempt.expectedInRange ? 'in range' : 'out of range'}
-        </Text>
-      ) : (
-        <Text style={styles.feedback}>Is this hand in the range?</Text>
-      )}
-
-      <View style={styles.answers}>
-        <Pressable
-          testID="answer-in"
-          style={[styles.answerButton, styles.answerIn]}
-          onPress={() => answer(true)}
-        >
-          <Text style={styles.answerText}>In range</Text>
-        </Pressable>
-        <Pressable
-          testID="answer-out"
-          style={[styles.answerButton, styles.answerOut]}
-          onPress={() => answer(false)}
-        >
-          <Text style={styles.answerText}>Out of range</Text>
-        </Pressable>
-      </View>
-
-      {mistakePool.length > 0 ? (
-        <Pressable
-          testID="toggle-mistakes-only"
-          accessibilityRole="button"
-          accessibilityState={{ selected: mistakesOnly }}
-          style={[styles.mistakesToggle, mistakesOnly && styles.mistakesToggleActive]}
-          onPress={() => {
-            const next = !mistakesOnly;
-            setMistakesOnly(next);
-            // Turning the drill on swaps the current prompt for a mistake right away.
-            if (next && mistakePool.length > 0) setHand(getRandomHandFrom(mistakePool));
-          }}
-        >
-          <Text
-            style={[styles.mistakesToggleText, mistakesOnly && styles.mistakesToggleTextActive]}
-          >
-            Mistakes only
-          </Text>
-        </Pressable>
-      ) : null}
-
-      <View style={styles.stats}>
-        <Text testID="stat-total" style={styles.stat}>
-          Total: {summary.totalQuestions}
-        </Text>
-        <Text testID="stat-correct" style={styles.stat}>
-          Correct: {summary.correctAnswers}
-        </Text>
-        <Text testID="stat-accuracy" style={styles.stat}>
-          Accuracy: {summary.accuracyPercentage.toFixed(0)}%
-        </Text>
-      </View>
-
-      {attempts.length > 0 ? (
-        <Pressable
-          testID="end-session"
-          accessibilityRole="button"
-          style={styles.endSession}
-          onPress={endSession}
-        >
-          <Text style={styles.endSessionText}>End session</Text>
-        </Pressable>
-      ) : null}
-
-      {history.length > 0 ? (
-        <View testID="session-history" style={styles.review}>
-          <Text style={styles.reviewTitle}>Session history</Text>
-          {[...history].reverse().map((record, index) => (
-            <Text key={`${record.playedAt}-${index}`} style={styles.historyRow}>
-              {record.correctAnswers}/{record.totalQuestions} ·{' '}
-              {accuracyPercentage(record.correctAnswers, record.totalQuestions).toFixed(0)}%
-            </Text>
-          ))}
-        </View>
-      ) : null}
-
-      {review.missed.length > 0 || review.wronglyIncluded.length > 0 ? (
-        <View style={styles.review}>
-          <Text style={styles.reviewTitle}>Session review</Text>
-          {review.missed.length > 0 ? (
-            <View style={styles.reviewRow}>
-              <Text style={[styles.reviewLabel, styles.reviewLabelMissed]}>
-                Missed (in range)
-              </Text>
-              <View testID="review-missed" style={styles.reviewChips}>
-                {review.missed.map((reviewHand) => (
-                  <Text key={reviewHand} style={styles.reviewChip}>
-                    {reviewHand}
-                  </Text>
-                ))}
-              </View>
-            </View>
-          ) : null}
-          {review.wronglyIncluded.length > 0 ? (
-            <View style={styles.reviewRow}>
-              <Text style={[styles.reviewLabel, styles.reviewLabelWrong]}>
-                Wrongly included (out of range)
-              </Text>
-              <View testID="review-wrong" style={styles.reviewChips}>
-                {review.wronglyIncluded.map((reviewHand) => (
-                  <Text key={reviewHand} style={styles.reviewChip}>
-                    {reviewHand}
-                  </Text>
-                ))}
-              </View>
-            </View>
-          ) : null}
-        </View>
-      ) : null}
-
-      {weakest.length > 0 ? (
-        <View style={styles.review}>
-          <Text style={styles.reviewTitle}>Weakest hands</Text>
-          <View testID="weakest-hands" style={styles.reviewChips}>
-            {weakest.map((stat) => (
-              <Text key={stat.hand} style={styles.reviewChip}>
-                {stat.hand} {handAccuracyRate(stat).toFixed(0)}%
-              </Text>
-            ))}
-          </View>
-        </View>
-      ) : null}
-
-      {Object.keys(handAccuracy).length > 0 ? (
-        <View testID="accuracy-heatmap" style={styles.review}>
-          <Text style={styles.reviewTitle}>Accuracy heatmap</Text>
-          <HandHeatmap accuracy={handAccuracy} />
-        </View>
-      ) : null}
+    <View style={styles.root}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <PracticeHost request={request} onClose={close} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.background,
-    padding: 24,
-    gap: 24,
-    alignItems: 'center',
-  },
-  notFound: {
-    color: colors.text,
-    fontSize: 16,
-    marginTop: 48,
-  },
-  rangeName: {
-    color: colors.text,
-    fontSize: 16,
-  },
-  handCard: {
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 16,
-    paddingVertical: 32,
-    paddingHorizontal: 48,
-  },
-  hand: {
-    color: colors.textStrong,
-    fontSize: 56,
-    fontWeight: '700',
-  },
-  swipeHint: {
-    fontSize: 12,
-    color: colors.text,
-    textAlign: 'center',
-  },
-  feedback: {
-    fontSize: 16,
-    color: colors.text,
-    textAlign: 'center',
-  },
-  feedbackCorrect: {
-    color: colors.accent,
-  },
-  feedbackWrong: {
-    color: colors.danger,
-  },
-  answers: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  answerButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderRadius: 12,
-  },
-  answerIn: {
-    backgroundColor: colors.accent,
-  },
-  answerOut: {
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
-  answerText: {
-    color: colors.onAccent,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  mistakesToggle: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  mistakesToggleActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  mistakesToggleText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  mistakesToggleTextActive: {
-    color: colors.onAccent,
-  },
-  stats: {
-    flexDirection: 'row',
-    gap: 20,
-    marginTop: 8,
-  },
-  stat: {
-    color: colors.text,
-    fontSize: 14,
-  },
-  endSession: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-  },
-  endSessionText: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  historyRow: {
-    color: colors.text,
-    fontSize: 13,
-  },
-  review: {
-    alignSelf: 'stretch',
-    gap: 12,
-    marginTop: 8,
-  },
-  reviewTitle: {
-    color: colors.textStrong,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  reviewRow: {
-    gap: 6,
-  },
-  reviewLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  reviewLabelMissed: {
-    color: colors.danger,
-  },
-  reviewLabelWrong: {
-    color: colors.accent,
-  },
-  reviewChips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  reviewChip: {
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    overflow: 'hidden',
-    color: colors.textStrong,
-    fontSize: 13,
-    fontWeight: '600',
-  },
+  root: { flex: 1 },
+  notFound: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
+  notFoundText: { fontFamily: fonts.body, fontSize: 16 },
+  link: { fontFamily: fonts.bodySemibold, fontSize: 15 },
 });

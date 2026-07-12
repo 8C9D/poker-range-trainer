@@ -1,24 +1,29 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import type { ReactNode } from 'react';
 
-import { generateHandMatrix, type PokerHand } from '@core/domain/pokerHands';
-import { loadHandAccuracy } from '@core/storage/handAccuracyStorage';
-import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
-import { loadReviewStates } from '@core/storage/reviewStateStorage';
+import { generateHandMatrix } from '@core/domain/pokerHands';
 import { loadSessionHistory } from '@core/storage/sessionHistoryStorage';
 import { saveSavedRange } from '@core/storage/rangeStorage';
 
 import PracticeScreen from '../app/practice';
 import { installLocalStorage, localStorageShim } from '../platform/localStorageShim';
 
-// In-memory MMKV + expo-router stub pointing at range "r1".
+// In-memory MMKV + expo-router stub. useLocalSearchParams is a jest.fn so each test can
+// set the practice request (single range / mode / missing range).
 jest.mock('react-native-mmkv');
+jest.mock('expo-crypto');
 jest.mock('expo-router', () => ({
-  useLocalSearchParams: () => ({ id: 'r1' }),
+  useLocalSearchParams: jest.fn(),
+  useRouter: () => ({ back: jest.fn(), replace: jest.fn(), canGoBack: () => true }),
+  Link: ({ children }: { children: ReactNode }) => children,
   Stack: { Screen: () => null },
 }));
 
-// Seed a range containing ALL 169 hands so every random prompt is in range — makes
-// the scoring deterministic without controlling getRandomPracticeHand's randomness.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const mockParams = require('expo-router').useLocalSearchParams as jest.Mock;
+
+// A range containing ALL 169 hands so every random prompt is in range — makes scoring
+// deterministic without controlling the RNG.
 function seedAllHandsRange(): void {
   saveSavedRange({
     id: 'r1',
@@ -29,190 +34,50 @@ function seedAllHandsRange(): void {
   });
 }
 
-describe('PracticeScreen', () => {
+describe('PracticeScreen (overlay host)', () => {
   beforeAll(() => {
     installLocalStorage();
   });
 
   beforeEach(() => {
     localStorageShim.clear();
+    mockParams.mockReturnValue({ id: 'r1', mode: 'recognize' });
   });
 
-  it('scores an in-range answer as correct and updates session stats', async () => {
+  it('runs the recognition drill and scores an in-range answer as correct', async () => {
+    seedAllHandsRange();
+    const { getByTestId, findByTestId } = await render(<PracticeScreen />);
+
+    expect(getByTestId('playing-cards')).toBeTruthy();
+    fireEvent.press(getByTestId('answer-yes'));
+
+    expect(await findByTestId('drill-feedback')).toHaveTextContent(/^Correct —/);
+  });
+
+  it('opens the mode picker when no preset mode is given', async () => {
+    seedAllHandsRange();
+    mockParams.mockReturnValue({ id: 'r1' });
+
+    const { getByTestId } = await render(<PracticeScreen />);
+
+    expect(getByTestId('mode-recognize')).toBeTruthy();
+    expect(getByTestId('mode-timed')).toBeTruthy();
+  });
+
+  it('records nothing when the drill is closed before any answer', async () => {
     seedAllHandsRange();
     const { getByTestId } = await render(<PracticeScreen />);
 
-    fireEvent.press(getByTestId('answer-in'));
+    fireEvent.press(getByTestId('overlay-close'));
 
-    await waitFor(() => {
-      expect(getByTestId('feedback')).toHaveTextContent(/^Correct —/);
-      expect(getByTestId('stat-total')).toHaveTextContent('Total: 1');
-      expect(getByTestId('stat-correct')).toHaveTextContent('Correct: 1');
-      expect(getByTestId('stat-accuracy')).toHaveTextContent('Accuracy: 100%');
-    });
+    await waitFor(() => expect(loadSessionHistory().r1).toBeUndefined());
   });
 
-  it('scores an out-of-range answer as incorrect when the hand is in range', async () => {
-    seedAllHandsRange();
-    const { getByTestId } = await render(<PracticeScreen />);
+  it('shows a not-found message when the range is missing', async () => {
+    mockParams.mockReturnValue({ id: 'missing' });
 
-    fireEvent.press(getByTestId('answer-out'));
+    const { getByText } = await render(<PracticeScreen />);
 
-    await waitFor(() => {
-      expect(getByTestId('feedback')).toHaveTextContent(/^Incorrect —/);
-      expect(getByTestId('stat-total')).toHaveTextContent('Total: 1');
-      expect(getByTestId('stat-correct')).toHaveTextContent('Correct: 0');
-    });
-  });
-
-  it('lists a forgotten hand in the session review after answering out of range', async () => {
-    seedAllHandsRange();
-    const { getByTestId, queryByTestId } = await render(<PracticeScreen />);
-
-    // No mistakes yet, so the review section is not rendered.
-    expect(queryByTestId('review-missed')).toBeNull();
-
-    // Every hand is in range, so answering "out" makes the shown hand a missed
-    // mistake. Read the hand before answering — answering re-randomizes it.
-    const shownHand = getByTestId('practice-hand').props.children as string;
-    fireEvent.press(getByTestId('answer-out'));
-
-    await waitFor(() => {
-      expect(getByTestId('review-missed')).toHaveTextContent(shownHand);
-    });
-  });
-
-  it('folds each answered hand into the range cumulative practice stats', async () => {
-    seedAllHandsRange();
-    const { getByTestId } = await render(<PracticeScreen />);
-
-    // Every hand is in range: "in" is correct, "out" is wrong. Await each press to
-    // settle before the next — back-to-back un-awaited presses overlap act() scopes
-    // and can corrupt React's scheduler for later tests in this file.
-    fireEvent.press(getByTestId('answer-in'));
-    await waitFor(() => expect(getByTestId('stat-total')).toHaveTextContent('Total: 1'));
-    fireEvent.press(getByTestId('answer-out'));
-    await waitFor(() => expect(getByTestId('stat-total')).toHaveTextContent('Total: 2'));
-
-    const stats = loadPracticeStats().r1;
-    expect(stats.totalAttempts).toBe(2);
-    expect(stats.correctAttempts).toBe(1);
-  });
-
-  it('records nothing before any question is answered', async () => {
-    seedAllHandsRange();
-    await render(<PracticeScreen />);
-
-    expect(loadPracticeStats().r1).toBeUndefined();
-  });
-
-  it('folds each answered hand into cumulative per-hand accuracy', async () => {
-    seedAllHandsRange();
-    const { getByTestId } = await render(<PracticeScreen />);
-
-    // Every hand is in range, so answering "out" is a false negative for that hand.
-    const shownHand = getByTestId('practice-hand').props.children as PokerHand;
-    fireEvent.press(getByTestId('answer-out'));
-    await waitFor(() => expect(getByTestId('stat-total')).toHaveTextContent('Total: 1'));
-
-    const stat = loadHandAccuracy().r1[shownHand];
-    expect(stat.attempts).toBe(1);
-    expect(stat.correct).toBe(0);
-    expect(stat.falseNegatives).toBe(1);
-  });
-
-  it('records no per-hand accuracy before any question is answered', async () => {
-    seedAllHandsRange();
-    await render(<PracticeScreen />);
-
-    expect(loadHandAccuracy().r1).toBeUndefined();
-  });
-
-  it('lists the range weakest hands after a wrong answer', async () => {
-    seedAllHandsRange();
-    const { getByTestId } = await render(<PracticeScreen />);
-
-    // Every hand is in range, so answering "out" gives the shown hand 0% accuracy.
-    const shownHand = getByTestId('practice-hand').props.children as PokerHand;
-    fireEvent.press(getByTestId('answer-out'));
-    await waitFor(() => expect(getByTestId('stat-total')).toHaveTextContent('Total: 1'));
-
-    // Only the one answered hand has attempts, so it is the sole weakest chip at 0%.
-    expect(getByTestId('weakest-hands')).toHaveTextContent(`${shownHand} 0%`);
-  });
-
-  it('shows no weakest-hands section before any question is answered', async () => {
-    seedAllHandsRange();
-    const { queryByTestId } = await render(<PracticeScreen />);
-
-    expect(queryByTestId('weakest-hands')).toBeNull();
-  });
-
-  it('restricts prompts to the mistakes pool when Mistakes only is enabled', async () => {
-    seedAllHandsRange();
-    const { getByTestId, queryByTestId } = await render(<PracticeScreen />);
-
-    // No mistakes yet → no toggle.
-    expect(queryByTestId('toggle-mistakes-only')).toBeNull();
-
-    // Answer the shown hand wrong so it becomes the sole mistake in the pool.
-    const missed = getByTestId('practice-hand').props.children as PokerHand;
-    fireEvent.press(getByTestId('answer-out'));
-    await waitFor(() => expect(getByTestId('toggle-mistakes-only')).toBeTruthy());
-
-    // Enabling the drill redraws from the single-hand pool, so that hand is prompted.
-    fireEvent.press(getByTestId('toggle-mistakes-only'));
-    await waitFor(() => expect(getByTestId('practice-hand')).toHaveTextContent(missed));
-  });
-
-  it('shows the accuracy heatmap once a hand has been answered', async () => {
-    seedAllHandsRange();
-    const { getByTestId, queryByTestId } = await render(<PracticeScreen />);
-
-    // No accuracy yet → no heatmap.
-    expect(queryByTestId('accuracy-heatmap')).toBeNull();
-
-    fireEvent.press(getByTestId('answer-out'));
-    await waitFor(() => expect(getByTestId('accuracy-heatmap')).toBeTruthy());
-  });
-
-  it('logs a session to history on End session and resets the session', async () => {
-    seedAllHandsRange();
-    const { getByTestId, queryByTestId } = await render(<PracticeScreen />);
-
-    // No End-session button or history before any answer.
-    expect(queryByTestId('end-session')).toBeNull();
-    expect(queryByTestId('session-history')).toBeNull();
-
-    // Answer one hand correctly (every hand is in range), then the button appears.
-    fireEvent.press(getByTestId('answer-in'));
-    await waitFor(() => expect(getByTestId('stat-total')).toHaveTextContent('Total: 1'));
-    expect(getByTestId('end-session')).toBeTruthy();
-
-    // Ending the session logs one record and resets the live session.
-    fireEvent.press(getByTestId('end-session'));
-    await waitFor(() => expect(getByTestId('session-history')).toBeTruthy());
-
-    const records = loadSessionHistory().r1;
-    expect(records).toHaveLength(1);
-    expect(records[0]).toMatchObject({ totalQuestions: 1, correctAnswers: 1 });
-    expect(getByTestId('stat-total')).toHaveTextContent('Total: 0');
-  });
-
-  it('advances the spaced-repetition schedule on End session', async () => {
-    seedAllHandsRange();
-    const { getByTestId } = await render(<PracticeScreen />);
-
-    // One correct answer (100% accuracy), then end the session.
-    fireEvent.press(getByTestId('answer-in'));
-    await waitFor(() => expect(getByTestId('stat-total')).toHaveTextContent('Total: 1'));
-    fireEvent.press(getByTestId('end-session'));
-
-    // A high-accuracy first review schedules the range ~1 day out.
-    await waitFor(() => expect(loadReviewStates().r1).toBeDefined());
-    const review = loadReviewStates().r1;
-    expect(review.dueAt).not.toBe('');
-    expect(review.lastReviewedAt).not.toBe('');
-    expect(review.intervalDays).toBeGreaterThanOrEqual(1);
+    expect(getByText('Range not found.')).toBeTruthy();
   });
 });

@@ -90,7 +90,13 @@ export function RangeStats({ id }: { id: string }) {
             ))}
           </View>
           {mistakePool.length > 0 ? (
-            <Link href={{ pathname: '/practice', params: { id } }} asChild>
+            <Link
+              href={{
+                pathname: '/practice',
+                params: { id, mode: 'recognize', pool: mistakePool.join(',') },
+              }}
+              asChild
+            >
               <Pressable testID="practice-weak-hands" style={styles.primaryBtn}>
                 <Text style={styles.primaryBtnText}>Practice weak hands</Text>
               </Pressable>

@@ -163,7 +163,7 @@ export default function RangeScreen() {
             </Pressable>
           </Link>
           <View style={styles.headerActions}>
-            <Link href={{ pathname: '/practice-modes', params: { id: range.id } }} asChild>
+            <Link href={{ pathname: '/practice', params: { id: range.id } }} asChild>
               <Pressable testID="range-practice" style={styles.primaryBtn}>
                 <Text style={styles.primaryBtnText}>Practice</Text>
               </Pressable>
