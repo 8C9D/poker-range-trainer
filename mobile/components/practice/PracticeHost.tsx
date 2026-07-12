@@ -10,6 +10,10 @@ import { loadSessionHistory } from '@core/storage/sessionHistoryStorage';
 import type { PracticeAttempt } from '@core/types/practice';
 import type { SavedRange } from '@core/types/range';
 
+import { ActionQuizDrill } from './ActionQuizDrill';
+import { BuildDrill } from './BuildDrill';
+import { ComboDrill } from './ComboDrill';
+import { MixedQuizDrill } from './MixedQuizDrill';
 import { ModePicker, type PracticeMode } from './ModePicker';
 import { OverlayFrame } from './OverlayFrame';
 import { RecognitionDrill } from './RecognitionDrill';
@@ -25,21 +29,26 @@ export interface PracticeRequest {
   handPool?: PokerHand[];
 }
 
-// Modes rendered inline in the overlay today; the rest route out to the flat drill
-// screens until they are folded into the overlay (M6b).
-const INLINE_MODES = new Set<PracticeMode>(['recognize', 'weakness', 'timed']);
-const FLAT_ROUTE: Record<Exclude<PracticeMode, 'recognize' | 'weakness' | 'timed'>, string> = {
-  build: '/build',
-  action: '/action-quiz',
-  mixed: '/mixed-quiz',
-  combo: '/blocker-drill',
+// Modes rendered inline in the overlay; postflop/board still route out to the flat drill
+// screens until they are folded into the overlay (deferred to M8 with re-theming).
+type InlineMode = 'recognize' | 'weakness' | 'timed' | 'build' | 'action' | 'mixed' | 'combo';
+const INLINE_MODES = new Set<PracticeMode>([
+  'recognize',
+  'weakness',
+  'timed',
+  'build',
+  'action',
+  'mixed',
+  'combo',
+]);
+const FLAT_ROUTE: Record<'postflop' | 'board', string> = {
   postflop: '/postflop',
   board: '/board',
 };
 
 type Phase =
   | { kind: 'picker' }
-  | { kind: 'drill'; mode: 'recognize' | 'weakness' | 'timed'; durationSeconds: number }
+  | { kind: 'drill'; mode: InlineMode; durationSeconds: number }
   | { kind: 'summary'; data: SessionSummaryData };
 
 /** Growth-framed comparison of this session against the range's previous one. */
@@ -69,7 +78,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>(() =>
     request.mode && INLINE_MODES.has(request.mode)
-      ? { kind: 'drill', mode: request.mode as 'recognize' | 'weakness' | 'timed', durationSeconds: DEFAULT_DRILL_SECONDS }
+      ? { kind: 'drill', mode: request.mode as InlineMode, durationSeconds: DEFAULT_DRILL_SECONDS }
       : { kind: 'picker' },
   );
 
@@ -82,7 +91,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     if (INLINE_MODES.has(mode)) {
       setPhase({
         kind: 'drill',
-        mode: mode as 'recognize' | 'weakness' | 'timed',
+        mode: mode as InlineMode,
         durationSeconds: opts?.durationSeconds ?? DEFAULT_DRILL_SECONDS,
       });
       return;
@@ -125,7 +134,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     setIndex(index + 1);
     setPhase({
       kind: 'drill',
-      mode: request.mode && INLINE_MODES.has(request.mode) ? (request.mode as 'recognize' | 'weakness' | 'timed') : 'recognize',
+      mode: request.mode && INLINE_MODES.has(request.mode) ? (request.mode as InlineMode) : 'recognize',
       durationSeconds: DEFAULT_DRILL_SECONDS,
     });
   };
@@ -142,6 +151,35 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     return (
       <OverlayFrame title={range.name || 'Untitled'} position={position} progress={1} onClose={onClose}>
         <SessionSummary data={phase.data} hasNext={hasNext} onNext={nextRange} onDone={onClose} />
+      </OverlayFrame>
+    );
+  }
+
+  if (phase.mode === 'build') {
+    return (
+      <OverlayFrame title={`${range.name || 'Untitled'} — build from memory`} onClose={onClose}>
+        <BuildDrill id={range.id} />
+      </OverlayFrame>
+    );
+  }
+  if (phase.mode === 'action') {
+    return (
+      <OverlayFrame title={`${range.name || 'Untitled'} — action quiz`} onClose={onClose}>
+        <ActionQuizDrill id={range.id} />
+      </OverlayFrame>
+    );
+  }
+  if (phase.mode === 'mixed') {
+    return (
+      <OverlayFrame title={`${range.name || 'Untitled'} — frequency quiz`} onClose={onClose}>
+        <MixedQuizDrill id={range.id} />
+      </OverlayFrame>
+    );
+  }
+  if (phase.mode === 'combo') {
+    return (
+      <OverlayFrame title={`${range.name || 'Untitled'} — combo drill`} onClose={onClose}>
+        <ComboDrill id={range.id} />
       </OverlayFrame>
     );
   }
