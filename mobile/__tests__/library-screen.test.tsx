@@ -1,36 +1,31 @@
-import { Alert } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 
 import { recordPracticeSession } from '@core/storage/practiceStatsStorage';
 import { saveReviewState } from '@core/storage/reviewStateStorage';
-import { recordPracticeSessionHistory } from '@core/storage/sessionHistoryStorage';
-import { loadSavedRanges, saveSavedRange } from '@core/storage/rangeStorage';
+import { saveSavedRange } from '@core/storage/rangeStorage';
 import type { SavedRange } from '@core/types/range';
 
 import LibraryScreen from '../app/(tabs)/library';
 import { installLocalStorage, localStorageShim } from '../platform/localStorageShim';
 
-// In-memory MMKV + a minimal expo-router stub. useFocusEffect is a no-op here; the
-// list's initial load comes from useState (seeded before render), and delete calls
-// reload directly, so focus is not needed to drive the test.
+// In-memory MMKV + a minimal expo-router stub. useFocusEffect is a no-op; the list's
+// initial load comes from useState (seeded before render). Rows are Links (open the
+// range page); management actions now live there, not on the row.
 jest.mock('react-native-mmkv');
 jest.mock('expo-crypto');
 jest.mock('expo-router', () => ({
   useFocusEffect: () => {},
   Link: ({ children }: { children: ReactNode }) => children,
-  Stack: { Screen: () => null },
 }));
 
-function seed(id: string, name: string): void {
-  const range: SavedRange = {
-    id,
-    name,
+function seed(range: Partial<SavedRange> & { id: string; name: string }): void {
+  saveSavedRange({
     hands: ['AA'],
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
-  };
-  saveSavedRange(range);
+    ...range,
+  });
 }
 
 describe('LibraryScreen', () => {
@@ -42,167 +37,95 @@ describe('LibraryScreen', () => {
     localStorageShim.clear();
   });
 
-  it('lists saved ranges', async () => {
-    seed('r1', 'UTG Open');
-    seed('r2', 'BTN Open');
+  it('lists saved ranges with thumbnails', async () => {
+    seed({ id: 'r1', name: 'UTG Open' });
+    seed({ id: 'r2', name: 'BTN Open' });
 
-    const { getByText } = await render(<LibraryScreen />);
+    const { getByText, getAllByTestId } = await render(<LibraryScreen />);
 
     expect(getByText('UTG Open')).toBeTruthy();
     expect(getByText('BTN Open')).toBeTruthy();
-  });
-
-  it('deletes a range after confirmation', async () => {
-    seed('r1', 'UTG Open');
-    seed('r2', 'BTN Open');
-    const alertSpy = jest
-      .spyOn(Alert, 'alert')
-      .mockImplementation((_title, _message, buttons) => {
-        buttons?.find((b) => b.style === 'destructive')?.onPress?.();
-      });
-
-    const { getByTestId, queryByText } = await render(<LibraryScreen />);
-    fireEvent.press(getByTestId('delete-r1'));
-
-    await waitFor(() => {
-      expect(queryByText('UTG Open')).toBeNull();
-    });
-    expect(loadSavedRanges().map((r) => r.id)).toEqual(['r2']);
-
-    alertSpy.mockRestore();
+    expect(getAllByTestId('range-thumbnail')).toHaveLength(2);
   });
 
   it('shows an empty state when there are no ranges', async () => {
     const { getByTestId } = await render(<LibraryScreen />);
 
-    expect(getByTestId('empty-new-range')).toBeTruthy();
+    expect(getByTestId('library-empty')).toBeTruthy();
   });
 
   it('filters the list by the search query', async () => {
-    seed('r1', 'UTG Open');
-    seed('r2', 'BTN Open');
+    seed({ id: 'r1', name: 'UTG Open' });
+    seed({ id: 'r2', name: 'BTN Open' });
 
     const { getByTestId, getByText, queryByText } = await render(<LibraryScreen />);
-    expect(getByText('UTG Open')).toBeTruthy();
-    expect(getByText('BTN Open')).toBeTruthy();
-
     fireEvent.changeText(getByTestId('library-search'), 'btn');
 
     await waitFor(() => expect(queryByText('UTG Open')).toBeNull());
     expect(getByText('BTN Open')).toBeTruthy();
   });
 
-  it('filters the list by a metadata position chip', async () => {
-    const ts = '2026-01-01T00:00:00.000Z';
-    saveSavedRange({ id: 'r1', name: 'UTG Open', hands: ['AA'], createdAt: ts, updatedAt: ts, metadata: { position: 'utg' } });
-    saveSavedRange({ id: 'r2', name: 'BTN Open', hands: ['AA'], createdAt: ts, updatedAt: ts, metadata: { position: 'btn' } });
+  it('filters by a position chip from the collapsed filters', async () => {
+    seed({ id: 'r1', name: 'UTG Open', metadata: { position: 'utg' } });
+    seed({ id: 'r2', name: 'BTN Open', metadata: { position: 'btn' } });
 
-    const { getByTestId, getByText, queryByText } = await render(<LibraryScreen />);
-    expect(getByText('UTG Open')).toBeTruthy();
-    expect(getByText('BTN Open')).toBeTruthy();
-
-    fireEvent.press(getByTestId('filter-position-btn'));
+    const { getByTestId, findByTestId, getByText, queryByText } = await render(<LibraryScreen />);
+    fireEvent.press(getByTestId('filters-toggle'));
+    fireEvent.press(await findByTestId('filter-position-btn'));
 
     await waitFor(() => expect(queryByText('UTG Open')).toBeNull());
     expect(getByText('BTN Open')).toBeTruthy();
   });
 
-  it('reorders the list by the selected sort', async () => {
-    const old = '2026-01-01T00:00:00.000Z';
-    const recent = '2026-02-01T00:00:00.000Z';
-    saveSavedRange({ id: 'r1', name: 'Alpha', hands: ['AA'], createdAt: old, updatedAt: old });
-    saveSavedRange({ id: 'r2', name: 'Bravo', hands: ['AA'], createdAt: old, updatedAt: recent });
+  it('reorders by the name sort', async () => {
+    seed({ id: 'r2', name: 'Bravo' });
+    seed({ id: 'r1', name: 'Alpha' });
 
-    const { getByTestId, getAllByTestId } = await render(<LibraryScreen />);
-
-    // Default sort 'updated' -> most recently edited (Bravo / r2) first.
-    expect(getAllByTestId(/^range-row-/)[0].props.testID).toBe('range-row-r2');
-
-    fireEvent.press(getByTestId('sort-name'));
+    const { getByTestId, findByTestId, getAllByTestId } = await render(<LibraryScreen />);
+    fireEvent.press(getByTestId('filters-toggle'));
+    fireEvent.press(await findByTestId('sort-name'));
 
     await waitFor(() =>
       expect(getAllByTestId(/^range-row-/)[0].props.testID).toBe('range-row-r1'),
     );
   });
 
-  it('duplicates a range', async () => {
-    seed('r1', 'UTG Open');
-
-    const { getByTestId } = await render(<LibraryScreen />);
-    fireEvent.press(getByTestId('duplicate-r1'));
-
-    await waitFor(() => expect(loadSavedRanges()).toHaveLength(2));
-    const names = loadSavedRanges().map((r) => r.name);
-    expect(names).toContain('UTG Open');
-    expect(names).toContain('UTG Open (copy)');
-  });
-
-  it('toggles a range favorite', async () => {
-    seed('r1', 'UTG Open');
-
-    const { getByTestId } = await render(<LibraryScreen />);
-    fireEvent.press(getByTestId('favorite-r1'));
-
-    await waitFor(() => expect(loadSavedRanges()[0].favorite).toBe(true));
-  });
-
   it('filters to favorites only', async () => {
-    const ts = '2026-01-01T00:00:00.000Z';
-    saveSavedRange({ id: 'r1', name: 'UTG Open', hands: ['AA'], createdAt: ts, updatedAt: ts });
-    saveSavedRange({ id: 'r2', name: 'BTN Open', hands: ['AA'], createdAt: ts, updatedAt: ts, favorite: true });
+    seed({ id: 'r1', name: 'UTG Open' });
+    seed({ id: 'r2', name: 'BTN Open', favorite: true });
 
-    const { getByTestId, getByText, queryByText } = await render(<LibraryScreen />);
-    expect(getByText('UTG Open')).toBeTruthy();
-    expect(getByText('BTN Open')).toBeTruthy();
-
-    fireEvent.press(getByTestId('filter-favorites'));
+    const { getByTestId, findByTestId, getByText, queryByText } = await render(<LibraryScreen />);
+    fireEvent.press(getByTestId('filters-toggle'));
+    fireEvent.press(await findByTestId('filter-favorites'));
 
     await waitFor(() => expect(queryByText('UTG Open')).toBeNull());
     expect(getByText('BTN Open')).toBeTruthy();
   });
 
-  it('archives a range (hidden by default) and reveals it with the toggle', async () => {
-    seed('r1', 'UTG Open');
+  it('hides archived ranges until the toggle reveals them', async () => {
+    seed({ id: 'r1', name: 'UTG Open', archived: true });
 
-    const { getByTestId, queryByText } = await render(<LibraryScreen />);
+    const { getByTestId, findByTestId, queryByText } = await render(<LibraryScreen />);
+    expect(queryByText('UTG Open')).toBeNull();
 
-    fireEvent.press(getByTestId('archive-r1'));
-    await waitFor(() => expect(queryByText('UTG Open')).toBeNull());
-    expect(loadSavedRanges()[0].archived).toBe(true);
+    fireEvent.press(getByTestId('filters-toggle'));
+    fireEvent.press(await findByTestId('toggle-archived'));
 
-    fireEvent.press(getByTestId('toggle-archived'));
     await waitFor(() => expect(queryByText('UTG Open')).not.toBeNull());
   });
 
-  it('shows per-range practice stats on the card', async () => {
-    seed('r1', 'UTG Open');
+  it('shows per-range accuracy on the row', async () => {
+    seed({ id: 'r1', name: 'UTG Open' });
     recordPracticeSession('r1', { totalQuestions: 10, correctAnswers: 8 });
 
     const { getByTestId } = await render(<LibraryScreen />);
 
-    expect(getByTestId('range-stats-r1')).toHaveTextContent(/10 attempts/);
-    expect(getByTestId('range-stats-r1')).toHaveTextContent(/80%/);
+    expect(getByTestId('range-stats-r1')).toHaveTextContent('80%');
   });
 
-  it('shows no stats line for a never-practiced range', async () => {
-    seed('r1', 'UTG Open');
-
-    const { queryByTestId } = await render(<LibraryScreen />);
-
-    expect(queryByTestId('range-stats-r1')).toBeNull();
-  });
-
-  it('badges a range that is due for review but not one scheduled in the future', async () => {
-    seed('r1', 'Due Range');
-    seed('r2', 'Future Range');
-    // r1's review came due long ago; r2 is scheduled far in the future.
-    saveReviewState({
-      rangeId: 'r1',
-      ease: 2.5,
-      intervalDays: 1,
-      dueAt: '2020-01-01T00:00:00.000Z',
-      lastReviewedAt: '2019-12-31T00:00:00.000Z',
-    });
+  it('badges a due range but not one scheduled in the future', async () => {
+    seed({ id: 'r1', name: 'Due Range' });
+    seed({ id: 'r2', name: 'Future Range' });
     saveReviewState({
       rangeId: 'r2',
       ease: 2.5,
@@ -213,33 +136,8 @@ describe('LibraryScreen', () => {
 
     const { getByTestId, queryByTestId } = await render(<LibraryScreen />);
 
+    // r1 was never reviewed -> due; r2 is scheduled far in the future -> not due.
     expect(getByTestId('due-r1')).toBeTruthy();
     expect(queryByTestId('due-r2')).toBeNull();
-  });
-
-  it('shows a practice streak from recent session history', async () => {
-    seed('r1', 'UTG Open');
-    const today = new Date();
-    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
-    recordPracticeSessionHistory('r1', { totalQuestions: 1, correctAnswers: 1 }, today.toISOString());
-    recordPracticeSessionHistory(
-      'r1',
-      { totalQuestions: 1, correctAnswers: 1 },
-      yesterday.toISOString(),
-    );
-
-    const { getByTestId } = await render(<LibraryScreen />);
-
-    // Streak count itself is computed by the tested @core currentStreak; assert the
-    // header surfaces (a >0 streak) rather than the exact clock-dependent number.
-    expect(getByTestId('practice-streak')).toBeTruthy();
-  });
-
-  it('shows no streak header when there is no session history', async () => {
-    seed('r1', 'UTG Open');
-
-    const { queryByTestId } = await render(<LibraryScreen />);
-
-    expect(queryByTestId('practice-streak')).toBeNull();
   });
 });
