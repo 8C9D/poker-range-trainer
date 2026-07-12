@@ -59,7 +59,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={styles.root}>
-      <StatusBar style="light" />
+      <StatusBar style="auto" />
       <ErrorBoundary>
         <Stack
           screenOptions={{
@@ -68,7 +68,10 @@ export default function RootLayout() {
             headerTitleStyle: { color: colors.textStrong },
             contentStyle: { backgroundColor: colors.background },
           }}
-        />
+        >
+          {/* The tab group owns its own chrome (bottom bar + in-content headers). */}
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        </Stack>
       </ErrorBoundary>
     </GestureHandlerRootView>
   );

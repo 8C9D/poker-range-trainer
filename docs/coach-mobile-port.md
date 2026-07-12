@@ -7,7 +7,7 @@ Update this every slice so a future session can resume.
 ## Milestones
 
 - [x] 1. Design system: light + dark Coach palettes, `useTheme()` (driven by `useColorScheme()`), `actionColors(theme)`, fonts (Bricolage Grotesque + Instrument Sans) loaded in `_layout`, `userInterfaceStyle: automatic`. Old screens still working.
-- [ ] 2. Tab shell + routing skeleton: `(tabs)` group (Today / Library / Progress / Account), stack routes for range page + practice modal, existing screens reachable during transition.
+- [x] 2. Tab shell + routing skeleton: `(tabs)` group (Today / Library / Progress / Account), stack routes for range page + practice modal, existing screens reachable during transition.
 - [ ] 3. Today screen (streak chip, Start review CTA, due list, week tiles, empty states).
 - [ ] 4. Library screen (search, filters/sorts, favorites/archived, thumbnail rows -> Range page, New range).
 - [ ] 5. Range page with tabs (Overview / Edit / Actions / Combos / Frequencies / Stats) + overflow menu.
@@ -33,3 +33,4 @@ Update this every slice so a future session can resume.
 
 - (init) Progress file created; repo mapped.
 - M1 done: `theme/colors.ts` (light/dark/`ThemeColors`/`useTheme`), `theme/actionColors.ts` (`actionColors(theme)` + legacy static kept), `theme/fonts.ts`, fonts loaded via `useFonts` in `_layout` (splash held via `expo-router`'s `SplashScreen`, no new dep), `app.json` `userInterfaceStyle: automatic` + `expo-font` plugin, `theme.test.ts` locks both palettes. Legacy `colors`/`ACTION_COLORS` kept for un-ported flat screens (removed at M8). lint+typecheck+test:run+bundle-check green.
+- M2 done: `app/(tabs)/_layout.tsx` (Tabs, `headerShown:false`, themed bar, View-drawn icons in `components/TabBarIcons.tsx`); `(tabs)/index` (Today), `progress`, `account` placeholders (themed, Account links to `/auth`+`/backup`); library relocated `app/index.tsx` -> `app/(tabs)/library.tsx` (in-content header, still legacy-dark, rewritten at M4); root `_layout` hides header for `(tabs)`, StatusBar `auto`; shared `components/Screen.tsx` (safe-area top inset); `jest.setup.js` mocks `react-native-safe-area-context` (`setupFilesAfterEnv`); eslint override for the setup file. All flat routes still reachable. Validation + bundle-check green.

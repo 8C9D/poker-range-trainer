@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Link, Stack, useFocusEffect } from 'expo-router';
+import { Link, useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   filterArchivedRanges,
@@ -35,9 +36,9 @@ import {
   type SavedRange,
 } from '@core/types/range';
 
-import { ChipRow } from '../components/ChipRow';
-import { createRangeId } from '../platform/createRangeId';
-import { colors } from '../theme/colors';
+import { ChipRow } from '../../components/ChipRow';
+import { createRangeId } from '../../platform/createRangeId';
+import { colors } from '../../theme/colors';
 
 type SortKey = 'name' | 'updated' | 'practiced' | 'accuracy';
 
@@ -65,6 +66,7 @@ export default function LibraryScreen() {
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [sort, setSort] = useState<SortKey>('updated');
+  const insets = useSafeAreaInsets();
 
   const reload = useCallback(() => {
     setRanges(loadSavedRanges());
@@ -161,31 +163,23 @@ export default function LibraryScreen() {
 
   return (
     <View style={styles.screen}>
-      <Stack.Screen
-        options={{
-          title: 'Ranges',
-          headerLeft: () => (
-            <View style={styles.headerLeft}>
-              <Link href="/board" style={styles.headerLink}>
-                Boards
-              </Link>
-              <Link href="/diff" style={styles.headerLink}>
-                Compare
-              </Link>
-            </View>
-          ),
-          headerRight: () => (
-            <View style={styles.headerRight}>
-              <Link href="/auth" style={styles.headerLink}>
-                Account
-              </Link>
-              <Link href="/editor" style={styles.headerLink}>
-                New
-              </Link>
-            </View>
-          ),
-        }}
-      />
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <Text style={styles.headerTitle}>Ranges</Text>
+        <View style={styles.headerLinksRow}>
+          <Link href="/board" asChild>
+            <Text style={styles.headerLink}>Boards</Text>
+          </Link>
+          <Link href="/diff" asChild>
+            <Text style={styles.headerLink}>Compare</Text>
+          </Link>
+          <Link href="/auth" asChild>
+            <Text style={styles.headerLink}>Account</Text>
+          </Link>
+          <Link href="/editor" asChild>
+            <Text style={styles.headerLink}>New</Text>
+          </Link>
+        </View>
+      </View>
       {streak > 0 ? (
         <Text testID="practice-streak" style={styles.streak}>
           🔥 {streak}-day streak
@@ -378,12 +372,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  headerLeft: {
-    flexDirection: 'row',
-    gap: 16,
+  header: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    gap: 10,
   },
-  headerRight: {
+  headerTitle: {
+    color: colors.textStrong,
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  headerLinksRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 16,
   },
   headerLink: {

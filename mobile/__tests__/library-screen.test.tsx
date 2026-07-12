@@ -8,7 +8,7 @@ import { recordPracticeSessionHistory } from '@core/storage/sessionHistoryStorag
 import { loadSavedRanges, saveSavedRange } from '@core/storage/rangeStorage';
 import type { SavedRange } from '@core/types/range';
 
-import LibraryScreen from '../app/index';
+import LibraryScreen from '../app/(tabs)/library';
 import { installLocalStorage, localStorageShim } from '../platform/localStorageShim';
 
 // In-memory MMKV + a minimal expo-router stub. useFocusEffect is a no-op here; the
