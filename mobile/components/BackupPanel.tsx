@@ -1,23 +1,25 @@
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
-import { Stack } from 'expo-router';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { documentDirectory, readAsStringAsync, writeAsStringAsync } from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 
 import { buildBackup, parseBackup, restoreBackup, serializeBackup } from '@core/storage/backup';
 
-import { colors } from '../theme/colors';
+import { fonts } from '../theme/fonts';
+import { useTheme } from '../theme/colors';
+import type { ThemeColors } from '../theme/colors';
 
 const BACKUP_FILE = 'poker-ranges-backup.json';
 
 /**
- * File backup (M7): export the whole local library to a JSON file (and share it out), or import
- * one back — fully offline, no account needed. Snapshot / serialize / parse / restore all reuse
- * `@core/storage/backup`; this screen only handles the device file I/O (write + share, pick + read)
- * via expo-file-system / expo-sharing / expo-document-picker.
+ * File-backup panel: export the whole local library to a JSON file (and share it out), or import
+ * one back — fully offline, no account needed. Snapshot / serialize / parse / restore reuse
+ * `@core/storage/backup`; this only handles device file I/O via expo-file-system / sharing / picker.
  */
-export default function BackupScreen() {
+export function BackupPanel() {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -64,33 +66,18 @@ export default function BackupScreen() {
   }, [run]);
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Stack.Screen options={{ title: 'File backup' }} />
+    <View style={styles.panel}>
+      <Text style={styles.sectionTitle}>File backup</Text>
       <Text style={styles.hint}>
-        Save your whole library to a JSON file you can store or move to another device, or restore one
-        you exported earlier. This works offline — no account needed.
+        Save your whole library to a JSON file you can store or move to another device, or restore
+        one you exported earlier. This works offline — no account needed.
       </Text>
-
-      <Pressable
-        testID="backup-export"
-        accessibilityRole="button"
-        disabled={busy}
-        style={[styles.button, busy && styles.buttonDisabled]}
-        onPress={handleExport}
-      >
+      <Pressable testID="backup-export" accessibilityRole="button" disabled={busy} style={[styles.button, busy && styles.buttonDisabled]} onPress={handleExport}>
         <Text style={styles.buttonText}>Back up to a file</Text>
       </Pressable>
-
-      <Pressable
-        testID="backup-import"
-        accessibilityRole="button"
-        disabled={busy}
-        style={[styles.button, styles.secondary, busy && styles.buttonDisabled]}
-        onPress={handleImport}
-      >
+      <Pressable testID="backup-import" accessibilityRole="button" disabled={busy} style={[styles.button, styles.secondary, busy && styles.buttonDisabled]} onPress={handleImport}>
         <Text style={styles.secondaryText}>Restore from a file</Text>
       </Pressable>
-
       {status ? (
         <Text testID="backup-status" style={styles.status}>
           {status}
@@ -101,55 +88,21 @@ export default function BackupScreen() {
           {error}
         </Text>
       ) : null}
-    </ScrollView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    padding: 24,
-    gap: 16,
-  },
-  hint: {
-    color: colors.text,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  button: {
-    backgroundColor: colors.accent,
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  secondary: {
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.accent,
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    color: colors.onAccent,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  secondaryText: {
-    color: colors.accent,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  status: {
-    color: colors.accent,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  error: {
-    color: colors.danger,
-    fontSize: 14,
-  },
-});
+function makeStyles(theme: ThemeColors) {
+  return StyleSheet.create({
+    panel: { gap: 12 },
+    sectionTitle: { fontFamily: fonts.displaySemibold, fontSize: 18, color: theme.ink },
+    hint: { fontFamily: fonts.body, fontSize: 14, lineHeight: 21, color: theme.ink2 },
+    button: { backgroundColor: theme.goldFill, borderRadius: 10, paddingVertical: 13, alignItems: 'center' },
+    secondary: { backgroundColor: theme.card, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.line2 },
+    buttonDisabled: { opacity: 0.5 },
+    buttonText: { fontFamily: fonts.bodySemibold, fontSize: 16, color: theme.onAccent },
+    secondaryText: { fontFamily: fonts.bodySemibold, fontSize: 16, color: theme.ink },
+    status: { fontFamily: fonts.bodySemibold, fontSize: 14, color: theme.accent },
+    error: { fontFamily: fonts.body, fontSize: 14, color: theme.bad },
+  });
+}

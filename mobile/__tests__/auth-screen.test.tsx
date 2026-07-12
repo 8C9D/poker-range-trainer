@@ -6,7 +6,7 @@ import { getCurrentSession, onAuthChange, signIn } from '@core/cloud/auth';
 import { deleteBackup, pullBackup, pushBackup } from '@core/cloud/backupRepo';
 import { buildBackup, restoreBackup } from '@core/storage/backup';
 
-import AuthScreen from '../app/auth';
+import { AuthPanel } from '../components/AuthPanel';
 import { getMobileSupabaseClient } from '../platform/supabaseClient';
 
 jest.mock('expo-router', () => ({
@@ -39,7 +39,7 @@ const mockDelete = deleteBackup as jest.Mock;
 const mockBuild = buildBackup as jest.Mock;
 const mockRestore = restoreBackup as jest.Mock;
 
-describe('AuthScreen', () => {
+describe('AuthPanel', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockOnAuthChange.mockResolvedValue(() => {});
@@ -52,7 +52,7 @@ describe('AuthScreen', () => {
   it('shows the offline message and no form when cloud is unconfigured', async () => {
     mockGetClient.mockResolvedValue(null);
 
-    const { getByTestId, queryByTestId } = await render(<AuthScreen />);
+    const { getByTestId, queryByTestId } = await render(<AuthPanel />);
 
     await waitFor(() => expect(getByTestId('auth-offline')).toBeTruthy());
     expect(queryByTestId('auth-email')).toBeNull();
@@ -64,7 +64,7 @@ describe('AuthScreen', () => {
     mockSignIn.mockResolvedValue({ user: { email: 'you@example.com' } });
 
     const user = userEvent.setup();
-    const { getByTestId } = await render(<AuthScreen />);
+    const { getByTestId } = await render(<AuthPanel />);
 
     // The signed-out form appears once the client resolves and there is no session.
     await waitFor(() => expect(getByTestId('auth-email')).toBeTruthy());
@@ -86,8 +86,13 @@ describe('AuthScreen', () => {
     mockBuild.mockReturnValue(backup);
     mockPull.mockResolvedValue(backup);
 
+    // Pull confirms before overwriting local — auto-accept the destructive confirm.
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
+      buttons?.find((b) => b.style === 'destructive')?.onPress?.();
+    });
+
     const user = userEvent.setup();
-    const { getByTestId } = await render(<AuthScreen />);
+    const { getByTestId } = await render(<AuthPanel />);
 
     // The signed-in view (with sync controls) appears once a session is present.
     await waitFor(() => expect(getByTestId('sync-push')).toBeTruthy());
@@ -100,6 +105,8 @@ describe('AuthScreen', () => {
       expect(mockPull).toHaveBeenCalledWith({ client: fakeClient });
       expect(mockRestore).toHaveBeenCalledWith(backup);
     });
+
+    alertSpy.mockRestore();
   });
 
   it('deletes cloud data after confirming', async () => {
@@ -113,7 +120,7 @@ describe('AuthScreen', () => {
     });
 
     const user = userEvent.setup();
-    const { getByTestId } = await render(<AuthScreen />);
+    const { getByTestId } = await render(<AuthPanel />);
     await waitFor(() => expect(getByTestId('sync-delete')).toBeTruthy());
 
     await user.press(getByTestId('sync-delete'));

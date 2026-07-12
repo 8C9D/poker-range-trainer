@@ -5,7 +5,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { readAsStringAsync, writeAsStringAsync } from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 
-import BackupScreen from '../app/backup';
+import { BackupPanel } from '../components/BackupPanel';
 
 jest.mock('expo-router', () => ({ Stack: { Screen: () => null } }));
 jest.mock('expo-file-system/legacy', () => ({
@@ -34,7 +34,7 @@ const mockSerialize = serializeBackup as jest.Mock;
 const mockParse = parseBackup as jest.Mock;
 const mockRestore = restoreBackup as jest.Mock;
 
-describe('BackupScreen', () => {
+describe('BackupPanel', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockBuild.mockReturnValue({ ranges: [] });
@@ -43,7 +43,7 @@ describe('BackupScreen', () => {
 
   it('exports the library to a file and shares it', async () => {
     const user = userEvent.setup();
-    const { getByTestId } = await render(<BackupScreen />);
+    const { getByTestId } = await render(<BackupPanel />);
 
     await user.press(getByTestId('backup-export'));
 
@@ -60,7 +60,7 @@ describe('BackupScreen', () => {
     mockParse.mockReturnValue(backup);
 
     const user = userEvent.setup();
-    const { getByTestId } = await render(<BackupScreen />);
+    const { getByTestId } = await render(<BackupPanel />);
 
     await user.press(getByTestId('backup-import'));
 
@@ -79,7 +79,7 @@ describe('BackupScreen', () => {
     });
 
     const user = userEvent.setup();
-    const { getByTestId } = await render(<BackupScreen />);
+    const { getByTestId } = await render(<BackupPanel />);
 
     await user.press(getByTestId('backup-import'));
 
