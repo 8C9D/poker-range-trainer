@@ -66,20 +66,25 @@ import { useAuthSession } from './cloud/useAuthSession'
 import {
   buildRangePack,
   decodeRangeFromHash,
-  encodeRangeToHash,
-  formatRangeCsv,
-  formatRangeSvg,
   parseRangeCsv,
   parseRangeExport,
   parseRangePack,
-  serializeRangeExport,
   serializeRangePack,
 } from './domain/rangeTransfer'
 import { AppShell } from './app/AppShell'
 import { useHashRoute } from './app/routes'
 import { recordFinishedPracticeSession } from './app/sessionRecording'
 import { LibraryScreen } from './screens/LibraryScreen'
+import { RangeScreen } from './screens/RangeScreen'
 import { TodayScreen } from './screens/TodayScreen'
+import { createRangeId } from './app/ids'
+import {
+  copyRangeShareLink,
+  downloadTextFile,
+  exportRangeCsvFile,
+  exportRangeJsonFile,
+  exportRangeSvgFile,
+} from './app/rangeFiles'
 import type { ActionAttempt, PracticeAttempt } from './types/practice'
 import type {
   ActionType,
@@ -93,14 +98,6 @@ import type {
   TableSize,
 } from './types/range'
 import './App.css'
-
-/** Best-effort unique id for a newly created range, with a fallback for older runtimes. */
-function createRangeId(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID()
-  }
-  return `range-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
-}
 
 /**
  * Import a range shared via a `#range=<hash>` link into local storage once, at
@@ -177,11 +174,21 @@ function CoachApp() {
   // stats from storage when the queue finishes.
   const [reviewQueue, setReviewQueue] = useState<SavedRange[] | null>(null)
   const [reviewIndex, setReviewIndex] = useState(0)
+  // When set, the running (single-range) session is restricted to these hands
+  // (the "practice weak hands" pool); null means the full 169-hand set.
+  const [practicePool, setPracticePool] = useState<PokerHand[] | null>(null)
 
   function startReview(queue: SavedRange[]) {
     if (queue.length === 0) return
     setReviewQueue(queue)
     setReviewIndex(0)
+    setPracticePool(null)
+  }
+
+  function startPractice(range: SavedRange, handPool?: PokerHand[]) {
+    setReviewQueue([range])
+    setReviewIndex(0)
+    setPracticePool(handPool ?? null)
   }
 
   function endReviewSession(attempts: PracticeAttempt[]) {
@@ -224,6 +231,7 @@ function CoachApp() {
             key={`${reviewRange.id}-${reviewIndex}`}
             range={reviewRange}
             onExit={endReviewSession}
+            handPool={practicePool ?? undefined}
           />
         </section>
       </AppShell>
@@ -236,8 +244,15 @@ function CoachApp() {
         <TodayScreen onStartReview={startReview} />
       ) : route.screen === 'library' ? (
         <LibraryScreen />
-      ) : route.screen === 'range' || route.screen === 'newRange' ? (
-        <ScreenPlaceholder title="Range" />
+      ) : route.screen === 'range' ? (
+        <RangeScreen
+          key={route.id}
+          id={route.id}
+          tab={route.tab}
+          onPractice={startPractice}
+        />
+      ) : route.screen === 'newRange' ? (
+        <RangeScreen key="new" id={null} tab="edit" onPractice={startPractice} />
       ) : route.screen === 'progress' ? (
         <ScreenPlaceholder title="Progress" />
       ) : route.screen === 'account' ? (
@@ -740,18 +755,6 @@ function LegacyPage() {
     setActionEditRange(null)
   }
 
-  function downloadTextFile(filename: string, text: string, mime = 'application/json') {
-    const blob = new Blob([text], { type: mime })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = filename
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-  }
-
   function handleExportBackup() {
     downloadTextFile(
       `poker-range-trainer-backup-${new Date().toISOString().slice(0, 10)}.json`,
@@ -786,32 +789,10 @@ function LegacyPage() {
     setSavedRanges(loadSavedRanges())
   }
 
-  function safeRangeFileName(range: SavedRange) {
-    return range.name.trim().replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '') || 'range'
-  }
-
-  function handleExportRange(range: SavedRange) {
-    downloadTextFile(`${safeRangeFileName(range)}.json`, serializeRangeExport(range))
-  }
-
-  function handleExportRangeCsv(range: SavedRange) {
-    downloadTextFile(`${safeRangeFileName(range)}.csv`, formatRangeCsv(range), 'text/csv')
-  }
-
-  function handleExportRangeImage(range: SavedRange) {
-    downloadTextFile(`${safeRangeFileName(range)}.svg`, formatRangeSvg(range), 'image/svg+xml')
-  }
-
-  async function handleShareRange(range: SavedRange) {
-    const link = `${window.location.origin}${window.location.pathname}#range=${encodeRangeToHash(range)}`
-    try {
-      await navigator.clipboard.writeText(link)
-      window.alert('Share link copied to clipboard.')
-    } catch {
-      // Clipboard may be unavailable (insecure context); show the link to copy manually.
-      window.prompt('Copy this share link:', link)
-    }
-  }
+  const handleExportRange = exportRangeJsonFile
+  const handleExportRangeCsv = exportRangeCsvFile
+  const handleExportRangeImage = exportRangeSvgFile
+  const handleShareRange = copyRangeShareLink
 
   async function handleImportRange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
