@@ -74,6 +74,7 @@ import {
 import { AppShell } from './app/AppShell'
 import { useHashRoute } from './app/routes'
 import { recordFinishedPracticeSession } from './app/sessionRecording'
+import { PracticeHost, type PracticeRequest } from './practice/PracticeHost'
 import { LibraryScreen } from './screens/LibraryScreen'
 import { RangeScreen } from './screens/RangeScreen'
 import { TodayScreen } from './screens/TodayScreen'
@@ -164,78 +165,29 @@ function App() {
 
 /**
  * The Coach shell: rail/tab navigation around the routed screens, plus the
- * review-queue runner that drills through due ranges one session at a time.
+ * full-screen practice overlay (mode picker, drills, review queue, summary).
  * The legacy single-page layout stays reachable at #/legacy until slice 8.
+ * Screens unmount while practice runs, so they reload fresh stats from
+ * storage when the overlay closes.
  */
 function CoachApp() {
   const route = useHashRoute()
-  // The queue of ranges being reviewed and the current position; null = not
-  // reviewing. Screens unmount while a review runs, so they reload fresh
-  // stats from storage when the queue finishes.
-  const [reviewQueue, setReviewQueue] = useState<SavedRange[] | null>(null)
-  const [reviewIndex, setReviewIndex] = useState(0)
-  // When set, the running (single-range) session is restricted to these hands
-  // (the "practice weak hands" pool); null means the full 169-hand set.
-  const [practicePool, setPracticePool] = useState<PokerHand[] | null>(null)
+  const [practice, setPractice] = useState<PracticeRequest | null>(null)
 
   function startReview(queue: SavedRange[]) {
     if (queue.length === 0) return
-    setReviewQueue(queue)
-    setReviewIndex(0)
-    setPracticePool(null)
+    // The review queue drills recognition straight through, no picker.
+    setPractice({ ranges: queue, mode: 'recognize' })
   }
 
   function startPractice(range: SavedRange, handPool?: PokerHand[]) {
-    setReviewQueue([range])
-    setReviewIndex(0)
-    setPracticePool(handPool ?? null)
+    // A restricted pool (weak hands) goes straight to recognition; otherwise
+    // open the mode picker.
+    setPractice({ ranges: [range], mode: handPool ? 'recognize' : null, handPool })
   }
 
-  function endReviewSession(attempts: PracticeAttempt[]) {
-    const range = reviewQueue?.[reviewIndex]
-    if (range) {
-      recordFinishedPracticeSession(range.id, attempts)
-    }
-    if (reviewQueue && reviewIndex + 1 < reviewQueue.length) {
-      setReviewIndex(reviewIndex + 1)
-    } else {
-      setReviewQueue(null)
-      setReviewIndex(0)
-    }
-  }
-
-  const reviewRange = reviewQueue?.[reviewIndex]
-  if (reviewQueue && reviewRange) {
-    return (
-      <AppShell route={route}>
-        <section aria-label="Review queue">
-          <div className="review-queue-bar">
-            {reviewQueue.length > 1 && (
-              <p className="coach-tabular review-queue-position">
-                Range {reviewIndex + 1} of {reviewQueue.length}
-              </p>
-            )}
-            <button
-              type="button"
-              className="coach-btn quiet"
-              onClick={() => {
-                // Abandon the queue without recording the in-progress session.
-                setReviewQueue(null)
-                setReviewIndex(0)
-              }}
-            >
-              Exit review
-            </button>
-          </div>
-          <PracticeSession
-            key={`${reviewRange.id}-${reviewIndex}`}
-            range={reviewRange}
-            onExit={endReviewSession}
-            handPool={practicePool ?? undefined}
-          />
-        </section>
-      </AppShell>
-    )
+  if (practice) {
+    return <PracticeHost request={practice} onClose={() => setPractice(null)} />
   }
 
   return (

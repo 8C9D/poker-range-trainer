@@ -9,7 +9,7 @@ Update this checklist in every slice's commit so a future session can resume.
 - [x] 2. Today screen (streak chip, Start review CTA, due list, week tiles, empty states); now the default route. Legacy page moved to `#/legacy`.
 - [x] 3. Library screen (search, filters/sorts, favorites/archived, thumbnail rows linking to `#/library/:id`, New range -> `#/library/new`). Range page itself is still a placeholder (slice 4).
 - [x] 4. Range page with tabs (Overview / Edit / Actions / Combos / Frequencies / Stats) + header menu (duplicate, favorite, archive, delete, exports, share, publish, compare). New-range mode at `#/library/new`. Practice button currently launches the recognition drill directly; the mode picker lands in slice 5.
-- [ ] 5. Practice flow (mode picker, full-screen drill overlay, feedback dwell, session-end ring + delta, review queue).
+- [x] 5. Practice flow: mode picker (conditional modes), full-screen recognition drill (cards, scenario line, action-verb buttons, swipe, 20-question sessions, hit/miss dwell), timed + weakness variants, session-end ring with growth delta + streak, review queue with Next range. Build/action/mixed/combo/postflop/board modes run inside the overlay frame (deep restyle deferred to slice 8 polish).
 - [ ] 6. Progress screen (tiles, weekly bar chart, library analytics, weakest hands + Drill these).
 - [ ] 7. Account & data screen (auth, sync, cloud data, backup/import/export).
 - [ ] 8. Shared-link pages restyle; delete legacy layout and dead CSS/components; final polish pass.
@@ -29,7 +29,9 @@ Update this checklist in every slice's commit so a future session can resume.
 - Library screen: `src/screens/LibraryScreen.tsx`; same filter/sort pipeline as the old `RangeLibrary` via `domain/rangeLibrary` helpers; per-range mutations move to the Range page.
 - Range page: `src/screens/RangeScreen.tsx` (header/menu/tabs; Actions/Combos/Frequencies/Stats/Compare inline, Stats reuses `RangePerformance` until slice 8) + `src/screens/RangeEditTab.tsx` (ported legacy editor incl. metadata/source/per-hand notes; save keeps legacy merge semantics).
 - Shared file/share helpers: `src/app/rangeFiles.ts` (downloads, JSON/CSV/SVG export, share-link copy); id minting in `src/app/ids.ts`. Both used by the legacy page too.
-- `startPractice(range, handPool?)` in `CoachApp` runs single-range sessions (used by Range page Practice + weak-hands drill).
+- Practice module: `src/practice/` - `PracticeHost` (picker -> drill -> summary state machine, queue advance, recording), `RecognitionDrill` (standard/weakness/timed variants), `OverlayFrame`, `ModePicker`, `SessionSummary`, `PlayingCards`, `scenario.ts` (verbs/scenario/feedback copy).
+- `CoachApp` renders `PracticeHost` INSTEAD of the shell while practice runs, so screens remount (re-read storage) when it closes. `startReview(queue)` = recognition queue; `startPractice(range, handPool?)` = picker (or straight to recognition with a pool).
+- Behavior change from legacy: closing a drill with zero answers records NOTHING (legacy always advanced the review schedule). Closing with answers records the partial session and shows the summary.
 
 ## Decisions
 

@@ -1873,7 +1873,7 @@ describe('Getting started onboarding', () => {
   })
 })
 
-describe('Coach shell and review queue', () => {
+describe('Coach shell and practice overlay', () => {
   function seedRange(id: string, name: string) {
     saveSavedRange({
       id,
@@ -1900,37 +1900,39 @@ describe('Coach shell and review queue', () => {
 
     await user.click(screen.getByRole('button', { name: 'Start review' }))
 
-    // First session of the queue, with a visible position.
-    expect(screen.getByText('Range 1 of 2')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Practicing: UTG open' })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'End Practice' }))
-    await user.click(screen.getByRole('button', { name: 'Back to library' }))
+    // First drill of the queue with a visible position and progress bar.
+    expect(screen.getByText('UTG open · 1/2')).toBeInTheDocument()
+    expect(screen.getByRole('progressbar')).toBeInTheDocument()
+    // Answer one hand, close early -> peak-end summary, then advance the queue.
+    await user.click(screen.getByRole('button', { name: 'In range' }))
+    await user.click(screen.getByRole('button', { name: 'Close practice' }))
+    expect(screen.getByLabelText('Session summary')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Next range' }))
 
-    // Advances to the second range automatically.
-    expect(screen.getByText('Range 2 of 2')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Practicing: BTN open' })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'End Practice' }))
-    await user.click(screen.getByRole('button', { name: 'Back to library' }))
+    expect(screen.getByText('BTN open · 2/2')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'In range' }))
+    await user.click(screen.getByRole('button', { name: 'Close practice' }))
+    await user.click(screen.getByRole('button', { name: 'Done' }))
 
     // Both schedules advanced, so Today shows the caught-up state.
     expect(screen.getByRole('region', { name: 'All caught up' })).toBeInTheDocument()
     expect(Object.keys(loadReviewStates()).sort()).toEqual(['a', 'b'])
   })
 
-  it('abandons the queue without recording when exiting review', async () => {
+  it('abandons the overlay without recording when closed before any answer', async () => {
     const user = userEvent.setup()
     seedRange('a', 'UTG open')
     window.location.hash = '#/today'
     render(<App />)
 
     await user.click(screen.getByRole('button', { name: 'Start review' }))
-    await user.click(screen.getByRole('button', { name: 'Exit review' }))
+    await user.click(screen.getByRole('button', { name: 'Close practice' }))
 
     expect(loadReviewStates()).toEqual({})
     expect(screen.getByRole('button', { name: 'Start review' })).toBeInTheDocument()
   })
 
-  it('reviews a single due range from its row', async () => {
+  it('reviews a single due range from its row without a queue position', async () => {
     const user = userEvent.setup()
     seedRange('a', 'UTG open')
     seedRange('b', 'BTN open')
@@ -1938,8 +1940,19 @@ describe('Coach shell and review queue', () => {
     render(<App />)
 
     await user.click(screen.getAllByRole('button', { name: 'Review' })[1])
-    expect(screen.getByRole('heading', { name: 'Practicing: BTN open' })).toBeInTheDocument()
-    // A single-range queue shows no position line.
-    expect(screen.queryByText(/Range 1 of/)).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'BTN open' })).toBeInTheDocument()
+    expect(screen.queryByText(/1\/2/)).not.toBeInTheDocument()
+  })
+
+  it('opens the mode picker from the range page Practice button', async () => {
+    const user = userEvent.setup()
+    seedRange('a', 'UTG open')
+    window.location.hash = '#/library/a'
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Practice' }))
+    expect(screen.getByText('How do you want to train?')).toBeInTheDocument()
+    await user.click(screen.getByText('Recognize hands'))
+    expect(screen.getByRole('button', { name: 'In range' })).toBeInTheDocument()
   })
 })

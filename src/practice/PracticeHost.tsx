@@ -1,0 +1,240 @@
+import { useState } from 'react'
+import { recordFinishedPracticeSession } from '../app/sessionRecording'
+import { ActionQuiz } from '../components/ActionQuiz'
+import { BuildFromMemoryPractice } from '../components/BuildFromMemoryPractice'
+import { ComboBlockerDrill } from '../components/ComboBlockerDrill'
+import { MixedActionQuiz } from '../components/MixedActionQuiz'
+import { PostflopDrillSetup } from '../components/PostflopDrillSetup'
+import { PostflopPractice } from '../components/PostflopPractice'
+import { RangeVsBoard } from '../components/RangeVsBoard'
+import { accuracyPercentage } from '../domain/accuracy'
+import { summarizeActionAccuracy } from '../domain/actionRange'
+import { selectionForRange } from '../domain/comboSelection'
+import type { PokerHand } from '../domain/pokerHands'
+import type { PostflopScenario } from '../domain/postflopScenario'
+import { summarizePracticeAttempts } from '../domain/practice'
+import { currentStreak } from '../domain/spacedRepetition'
+import { DEFAULT_DRILL_SECONDS } from '../domain/timedDrill'
+import { recordActionAccuracy } from '../storage/actionAccuracyStorage'
+import { loadSessionHistory } from '../storage/sessionHistoryStorage'
+import type { ActionAttempt, PracticeAttempt } from '../types/practice'
+import type { SavedRange } from '../types/range'
+import { ModePicker, type PracticeMode } from './ModePicker'
+import { OverlayFrame } from './OverlayFrame'
+import { RecognitionDrill } from './RecognitionDrill'
+import { SessionSummary, type SessionSummaryData } from './SessionSummary'
+
+export interface PracticeRequest {
+  /** The queue of ranges to drill (usually one; the review queue passes many). */
+  ranges: SavedRange[]
+  /** The preset mode, or null to open the mode picker. */
+  mode: PracticeMode | null
+  /** Restrict recognition prompts to these hands (the weak-hands pool). */
+  handPool?: PokerHand[]
+}
+
+interface PracticeHostProps {
+  request: PracticeRequest
+  onClose: () => void
+}
+
+type Phase =
+  | { kind: 'picker' }
+  | { kind: 'drill'; mode: PracticeMode; durationSeconds: number }
+  | { kind: 'summary'; data: SessionSummaryData }
+
+/** Growth-framed comparison of this session against the range's previous one. */
+function deltaLineFor(accuracy: number, prevAccuracy: number | null, misses: number): string {
+  if (prevAccuracy === null) return 'First session logged — that’s your baseline.'
+  const delta = Math.round(accuracy - prevAccuracy)
+  if (delta > 0) return `Up ${delta} point${delta === 1 ? '' : 's'} from your last session.`
+  if (delta === 0) return `Held steady at ${accuracy.toFixed(0)}%.`
+  return misses > 0
+    ? `${misses} miss${misses === 1 ? '' : 'es'} queued for review — they’ll show up more until they stick.`
+    : 'A touch below your usual — it happens.'
+}
+
+/**
+ * Orchestrates a practice run: mode picker -> full-screen drill -> peak-end
+ * summary, advancing through the queued ranges one session at a time. Results
+ * are persisted through the shared session recorder the moment a drill ends.
+ */
+export function PracticeHost({ request, onClose }: PracticeHostProps) {
+  const [index, setIndex] = useState(0)
+  const [phase, setPhase] = useState<Phase>(() =>
+    request.mode
+      ? { kind: 'drill', mode: request.mode, durationSeconds: DEFAULT_DRILL_SECONDS }
+      : { kind: 'picker' },
+  )
+  // Postflop drill sub-state: building the scenario, then practicing it.
+  const [postflopScenario, setPostflopScenario] = useState<PostflopScenario | null>(null)
+
+  const range = request.ranges[index]
+  if (!range) return null
+  const hasNext = index + 1 < request.ranges.length
+  const position = request.ranges.length > 1 ? `${index + 1}/${request.ranges.length}` : null
+
+  const finishRecognition = (attempts: PracticeAttempt[]) => {
+    // Closing before answering anything abandons the run without recording.
+    if (attempts.length === 0) {
+      onClose()
+      return
+    }
+    const prevSessions = loadSessionHistory()[range.id] ?? []
+    const last = prevSessions[prevSessions.length - 1]
+    const prevAccuracy = last
+      ? accuracyPercentage(last.correctAnswers, last.totalQuestions)
+      : null
+    recordFinishedPracticeSession(range.id, attempts)
+    const summary = summarizePracticeAttempts(attempts)
+    const misses = attempts.filter((attempt) => !attempt.correct).length
+    const playedAt = Object.values(loadSessionHistory())
+      .flat()
+      .map((session) => session.playedAt)
+    const streak = currentStreak(playedAt, new Date().toISOString())
+    setPhase({
+      kind: 'summary',
+      data: {
+        totalQuestions: summary.totalQuestions,
+        correctAnswers: summary.correctAnswers,
+        accuracy: summary.accuracyPercentage,
+        deltaLine: deltaLineFor(summary.accuracyPercentage, prevAccuracy, misses),
+        streakLine:
+          streak > 0 ? `${streak}-day streak — see you tomorrow to keep it going.` : null,
+      },
+    })
+  }
+
+  const finishActionQuiz = (attempts: ActionAttempt[]) => {
+    if (attempts.length === 0) {
+      onClose()
+      return
+    }
+    recordActionAccuracy(range.id, summarizeActionAccuracy(attempts))
+    const correct = attempts.filter((attempt) => attempt.correct).length
+    setPhase({
+      kind: 'summary',
+      data: {
+        totalQuestions: attempts.length,
+        correctAnswers: correct,
+        accuracy: accuracyPercentage(correct, attempts.length),
+        deltaLine: null,
+        streakLine: null,
+      },
+    })
+  }
+
+  const nextRange = () => {
+    setIndex(index + 1)
+    setPostflopScenario(null)
+    setPhase({
+      kind: 'drill',
+      mode: request.mode ?? 'recognize',
+      durationSeconds: DEFAULT_DRILL_SECONDS,
+    })
+  }
+
+  if (phase.kind === 'picker') {
+    return (
+      <OverlayFrame title={range.name} onClose={onClose}>
+        <ModePicker
+          range={range}
+          onPick={(mode, opts) =>
+            setPhase({
+              kind: 'drill',
+              mode,
+              durationSeconds: opts?.durationSeconds ?? DEFAULT_DRILL_SECONDS,
+            })
+          }
+        />
+      </OverlayFrame>
+    )
+  }
+
+  if (phase.kind === 'summary') {
+    return (
+      <OverlayFrame title={range.name} position={position} progress={1} onClose={onClose}>
+        <SessionSummary data={phase.data} hasNext={hasNext} onNext={nextRange} onDone={onClose} />
+      </OverlayFrame>
+    )
+  }
+
+  switch (phase.mode) {
+    case 'recognize':
+      return (
+        <RecognitionDrill
+          key={`${range.id}-${index}`}
+          range={range}
+          variant="standard"
+          handPool={request.handPool}
+          position={position}
+          onFinish={finishRecognition}
+        />
+      )
+    case 'weakness':
+      return (
+        <RecognitionDrill
+          key={`${range.id}-${index}`}
+          range={range}
+          variant="weakness"
+          position={position}
+          onFinish={finishRecognition}
+        />
+      )
+    case 'timed':
+      return (
+        <RecognitionDrill
+          key={`${range.id}-${index}`}
+          range={range}
+          variant="timed"
+          durationSeconds={phase.durationSeconds}
+          position={position}
+          onFinish={finishRecognition}
+        />
+      )
+    case 'build':
+      return (
+        <OverlayFrame title={`${range.name} — build from memory`} onClose={onClose}>
+          <BuildFromMemoryPractice range={range} onExit={onClose} />
+        </OverlayFrame>
+      )
+    case 'action':
+      return (
+        <OverlayFrame title={`${range.name} — action quiz`} onClose={onClose}>
+          <ActionQuiz range={range} onExit={finishActionQuiz} />
+        </OverlayFrame>
+      )
+    case 'mixed':
+      return (
+        <OverlayFrame title={`${range.name} — frequency quiz`} onClose={onClose}>
+          <MixedActionQuiz range={range} onExit={onClose} />
+        </OverlayFrame>
+      )
+    case 'combo':
+      return (
+        <OverlayFrame title={`${range.name} — combo drill`} onClose={onClose}>
+          <ComboBlockerDrill
+            hands={range.hands}
+            selection={selectionForRange(range.hands, range.comboSelections)}
+            onExit={onClose}
+          />
+        </OverlayFrame>
+      )
+    case 'postflop':
+      return (
+        <OverlayFrame title="Postflop drill" onClose={onClose}>
+          {postflopScenario ? (
+            <PostflopPractice scenario={postflopScenario} onExit={onClose} />
+          ) : (
+            <PostflopDrillSetup onStart={setPostflopScenario} onExit={onClose} />
+          )}
+        </OverlayFrame>
+      )
+    case 'board':
+      return (
+        <OverlayFrame title={`${range.name} — range vs board`} onClose={onClose}>
+          <RangeVsBoard hands={range.hands} />
+        </OverlayFrame>
+      )
+  }
+}
