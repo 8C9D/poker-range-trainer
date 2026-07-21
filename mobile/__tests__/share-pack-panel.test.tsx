@@ -9,9 +9,10 @@ import { SharePackPanel } from '../components/SharePackPanel';
 import { installLocalStorage, localStorageShim } from '../platform/localStorageShim';
 
 // The session mock is a mutable module-scoped value so a single test can flip to signed-out.
-let mockSessionState: { client: unknown; session: unknown } = {
+let mockSessionState: { client: unknown; session: unknown; resolveUserId: () => Promise<string | null> } = {
   client: {},
   session: { user: { id: 'u1' } },
+  resolveUserId: async () => 'u1',
 };
 
 jest.mock('react-native-mmkv');
@@ -45,7 +46,7 @@ describe('SharePackPanel', () => {
   beforeEach(() => {
     localStorageShim.clear();
     jest.clearAllMocks();
-    mockSessionState = { client: {}, session: { user: { id: 'u1' } } };
+    mockSessionState = { client: {}, session: { user: { id: 'u1' } }, resolveUserId: async () => 'u1' };
     saveSavedRange({
       id: 'r1',
       name: 'UTG Open',
@@ -106,7 +107,7 @@ describe('SharePackPanel', () => {
   });
 
   it('renders nothing when signed out', async () => {
-    mockSessionState = { client: null, session: null };
+    mockSessionState = { client: null, session: null, resolveUserId: async () => null };
     const { queryByTestId } = await render(<SharePackPanel />);
     expect(queryByTestId('pack-publish')).toBeNull();
   });

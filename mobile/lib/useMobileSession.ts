@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
 
 import { getCurrentSession, onAuthChange } from '@core/cloud/auth';
@@ -10,6 +10,13 @@ export interface MobileSessionState {
   client: SupabaseClient | null | undefined;
   /** The current auth session, or `null` when signed out / unconfigured. */
   session: Session | null;
+  /**
+   * Resolve the signed-in user's id via the native client. The cloud repos'
+   * default resolver calls `getCurrentSession()` with no client, which falls back
+   * to the web Vite env (undefined on Hermes) — pass this to publish/unpublish so
+   * the id resolves on device.
+   */
+  resolveUserId: () => Promise<string | null>;
 }
 
 /**
@@ -44,5 +51,10 @@ export function useMobileSession(): MobileSessionState {
     };
   }, []);
 
-  return { client, session };
+  const resolveUserId = useCallback(
+    async () => (client ? (await getCurrentSession(client))?.user?.id ?? null : null),
+    [client],
+  );
+
+  return { client, session, resolveUserId };
 }

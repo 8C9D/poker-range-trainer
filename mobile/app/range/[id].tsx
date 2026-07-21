@@ -4,7 +4,6 @@ import { Link, Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'ex
 import * as Clipboard from 'expo-clipboard';
 import * as Linking from 'expo-linking';
 
-import { getCurrentSession } from '@core/cloud/auth';
 import { publishSharedRange, unpublishSharedRange } from '@core/cloud/sharedRangesRepo';
 import { accuracyPercentage } from '@core/domain/accuracy';
 import { formatRangeNotation } from '@core/domain/rangeNotation';
@@ -90,7 +89,7 @@ export default function RangeScreen() {
   const [range, setRange] = useState<SavedRange | null>(() => findSavedRangeById(id) ?? null);
   const [tab, setTab] = useState<RangeTab>('overview');
   const [menuOpen, setMenuOpen] = useState(false);
-  const { client, session } = useMobileSession();
+  const { client, session, resolveUserId } = useMobileSession();
   const [publishedShareId, setPublishedShareId] = useState<string | null>(null);
   const [shareStatus, setShareStatus] = useState('');
 
@@ -159,10 +158,6 @@ export default function RangeScreen() {
       },
     ]);
   };
-
-  // The repo's default resolveUserId calls getCurrentSession() with no client, which falls back to
-  // the core's Vite env (undefined on Hermes) — inject both the client and a client-bound resolver.
-  const resolveUserId = async () => (client ? (await getCurrentSession(client))?.user?.id ?? null : null);
 
   const publish = async (isPublic: boolean) => {
     if (!client) return;

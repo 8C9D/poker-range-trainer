@@ -28,7 +28,11 @@ jest.mock('expo-linking', () => ({
   },
 }));
 jest.mock('../lib/useMobileSession', () => ({
-  useMobileSession: () => ({ client: {}, session: { user: { id: 'u1' } } }),
+  useMobileSession: () => ({
+    client: {},
+    session: { user: { id: 'u1' } },
+    resolveUserId: async () => 'u1',
+  }),
 }));
 jest.mock('@core/cloud/sharedRangesRepo', () => ({
   publishSharedRange: jest.fn(),

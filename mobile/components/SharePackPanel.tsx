@@ -3,7 +3,6 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import * as Linking from 'expo-linking';
 
-import { getCurrentSession } from '@core/cloud/auth';
 import { publishSharedPack, unpublishSharedPack } from '@core/cloud/sharedPacksRepo';
 import { buildRangePack } from '@core/domain/rangeTransfer';
 import { loadSavedRanges } from '@core/storage/rangeStorage';
@@ -24,14 +23,9 @@ import type { ThemeColors } from '../theme/colors';
 export function SharePackPanel() {
   const theme = useTheme();
   const styles = makeStyles(theme);
-  const { client, session } = useMobileSession();
+  const { client, session, resolveUserId } = useMobileSession();
   const [publishedPackId, setPublishedPackId] = useState<string | null>(null);
   const [status, setStatus] = useState('');
-
-  const resolveUserId = useCallback(
-    async () => (client ? (await getCurrentSession(client))?.user?.id ?? null : null),
-    [client],
-  );
 
   const publish = useCallback(
     async (isPublic: boolean) => {
