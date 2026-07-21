@@ -32,13 +32,33 @@ For day-to-day manual testing, use `npm run dev` and open the printed URL in a
 browser. Use `npm run preview` when you specifically want to test the production
 build.
 
+### App layout
+
+The UI is organized as routed screens, navigated from the left icon rail (bottom
+tabs under 640px):
+
+- **Today** (default) — a review queue and streak; **Start review** drills the due
+  ranges straight through.
+- **Library** — searchable, filterable rows; **New range** opens a blank editor;
+  clicking a row opens that range's page.
+- **Range page** — a per-range page with a header **Practice** button and a **⋯**
+  overflow menu, plus tabs **Overview / Edit / Actions / Combos / Frequencies /
+  Stats**.
+- **Progress** — streak / 30-day / all-time tiles, a 7-day chart, library analytics,
+  and weakest hands.
+- **Account** — sign-in, cloud sync, and data tools (backup / pack / range
+  import-export).
+
+Practice runs as a full-screen overlay: a mode picker, then the drill, then a session
+summary.
+
 ### Automated checks (run these first)
 
 Before manual testing, confirm the automated suite is green — it covers the domain
 and storage logic so manual testing can focus on the UI and wiring:
 
 - `npm run lint`
-- `npm run test:run` (1007 tests across 80 files at time of writing)
+- `npm run test:run` (943 tests across 88 files at time of writing)
 - `npm run build`
 
 If any fail, fix the root cause before manual testing — a red build means the UI
@@ -90,7 +110,7 @@ is the easiest fully-clean environment.
   and drag to remove. The first cell sets the paint mode for the whole drag.
 - **Keyboard toggle** — Tab to a cell, press Enter/Space to toggle.
 - **Clear Selection** — empties the grid (keeps name + metadata).
-- **New Range** — resets the whole editor (name, hands, metadata).
+- **New range** — the Library header's "New range" button opens a blank editor screen (`#/library/new`) for composing a fresh range.
 - **Range shortcuts** — Add all pairs, Add 77+, Add suited broadways, Add offsuit
   broadways, Add all broadways (additive to the current selection).
 - **Range notation import/export** — paste notation (`22+`, `A2s+`, `ATo+`, `KTs+`,
@@ -100,15 +120,16 @@ is the easiest fully-clean environment.
 - **Live range summary** — hands selected, combo count, % of all hands.
 - **Scenario metadata** (all optional) — game type, table size, stack depth (bb),
   hero position, versus position, action type, free-form notes.
-- **Save / Save Changes** — save a new named range or update the one being edited in
+- **Save Range / Save Changes** — save a new named range or update the one being edited in
   place; save is blocked (with a hint) until there's a name and ≥1 hand, and a bad
   stack-depth value blocks save.
 
 ### Range library (v1.4)
 
-- **List of saved ranges** as cards: name, hand/combo/percentage summary, scenario
-  line, notes preview, and a practice-stats line (attempts · accuracy · last
-  practiced) once practiced.
+- **List of saved ranges** as rows: a range thumbnail, name (★ when favorited),
+  metadata chips (position, action, % of hands, plus **Due** / **Archived** when
+  they apply), and a practice line (accuracy · last practiced, or "Not practiced").
+  Clicking a row opens that range's page.
 - **Search** by name.
 - **Filter** by position, action type, stack depth, game type.
 - **Sort** by name, recently edited, recently practiced, accuracy (default = storage
@@ -116,19 +137,23 @@ is the easiest fully-clean environment.
 - **Favorite / Unfavorite** (badge + "Favorites only" toggle).
 - **Archive / Unarchive** (hidden by default behind a "Show archived" toggle).
 - **Duplicate** a range into an independent copy.
-- **Load**, **Delete**, **Practice**, **Stats**, **Actions** per-card actions.
+- Opening a row leads to the **range page**, whose header **Practice** button, **⋯**
+  overflow menu (Duplicate, Favorite, Archive, Compare…, Export JSON/CSV/SVG, Copy
+  share link, Publish/Unpublish link, Delete), and tabs (Overview / Edit / Actions /
+  Combos / Frequencies / Stats) hold every per-range action.
 
 ### Practice modes (v2, v2.1, v2.3, v4.2)
 
-Clicking **Practice** on a card opens a **mode picker**:
+Clicking **Practice** on a range's page opens a **mode picker** (Today's "Start review" and the weak-hand drills skip it and go straight into recognition):
 
-1. **Recognize hands (in/out)** — random hand, you answer "in range"/"out of range",
-   immediate feedback + expected answer. Ending opens a **missing-hands review**
-   (hands missed vs. wrongly included) before returning.
+1. **Recognize hands (in/out)** — random hand shown as concrete cards; you answer with
+   the range's action verb (default "In range") or "Fold", with immediate feedback +
+   the expected answer. The drill runs a fixed set of hands (or until you close it),
+   then ends on a **session summary** (accuracy ring, score, and streak).
 2. **Build from memory** — rebuild the whole range on a blank grid, then "Check my
    range" reports correct / missed / added-by-mistake.
-3. **Timed drill** — pick 30/60/120s, answer as many as possible against a countdown,
-   no per-answer pause; summary at the end.
+3. **Timed drill** — choose 30/60/120s from the picker's "Timed drill duration" select
+   (default 60s), then answer as many as possible against a countdown; summary at the end.
 4. **Weakness drill** — recognition loop that resurfaces hands you've missed this
    session more often.
 5. **Pick the correct action** — *only shown when the range has a saved action chart.*
@@ -137,15 +162,21 @@ Clicking **Practice** on a card opens a **mode picker**:
 6. **Frequency quiz** — *only shown when the range has a saved mixed-frequency chart.*
    Prompts a hand, you choose its **primary** action, scored against the
    highest-frequency action. Records nothing (like build-from-memory).
+7. **Combo drill** — blocker-aware self-graded drill dealing concrete combos from the
+   range (records nothing). Detailed under *Combo-level precision*.
+8. **Postflop drill** — set up a flop spot and self-grade the decision (records nothing).
+   Detailed under *Postflop & board-aware views*.
+9. **Range vs board** — explore how the range hits a flop texture. Detailed under
+   *Postflop & board-aware views*.
 
 Plus:
 
-- **Practice mistakes only** — from the performance view, a recognition session
-  restricted to hands you've previously gotten wrong.
+- **Practice mistakes only** — the range page's **Stats** tab has a "Practice mistakes"
+  button that starts a recognition session restricted to hands you've gotten wrong.
 
 ### Performance & tracking (v2.1, v2.3)
 
-Open via **Stats** on a card:
+Open via the range page's **Stats** tab:
 
 - **Accuracy heatmap** — 13×13 grid colored by per-hand accuracy (low/medium/high).
 - **Per-hand accuracy table** — weakest-first: hand, accuracy %, attempts, missed,
@@ -158,15 +189,16 @@ Open via **Stats** on a card:
 
 ### Spaced repetition (v2.2)
 
-- **Review due ranges** button (below the editor) opens the **Due for review** queue:
-  ranges due now, each with a Practice action, plus an all-caught-up empty state.
+- The **Today** screen surfaces due ranges: a "Today's review" card with a **Start
+  review** button and a "Due now" list (each row has its own **Review** button), plus
+  an "All caught up" state when nothing is due.
 - **Review streak** — consecutive days with at least one finished session.
 - Each finished recognition/timed/weakness session advances that range's schedule by
   accuracy (low → due tomorrow, medium → hold, high → interval grows).
 
 ### Multi-action ranges (v2.3)
 
-Open via **Actions** on a card:
+Open via the range page's **Actions** tab:
 
 - **Action palette** — pick the active action (Fold/Call/Raise/3-bet/4-bet/Jam/Mixed).
 - **Multi-color action grid** — click a hand to assign the active action.
@@ -178,32 +210,32 @@ Open via **Actions** on a card:
 
 ### Import / export & backup (v3, v3.2)
 
-In the editor-controls row (below the grid) and on each library card:
+Split between the **Account** screen's **Data** section and the range page's **⋯** menu:
 
 - **Export backup / Import backup** — "Export backup" downloads one dated JSON file
   holding every persisted slice (ranges, practice stats, per-hand & per-action
   accuracy, session history, review state). "Import backup" reads such a file and —
   behind a confirm — **replaces all local data** with it.
-- **Per-range JSON** — each card has **Export JSON** (a versioned single-range
-  envelope); the editor row has **Import range** (adds the file as a **new** range,
-  never overwriting an existing one).
-- **CSV** — each card has **Export CSV** (summary + hand list); the editor row has
-  **Import CSV** (adds a new range from a CSV hand list).
-- **SVG image** — each card has **Export image** (a standalone 13×13 SVG, cells
-  colored by in-range / assigned action).
-- **Range packs** — the editor row has **Export pack** / **Import pack** to move the
-  whole library in/out as one JSON bundle.
+- **Per-range JSON** — the range page **⋯** menu has **Export JSON** (a versioned
+  single-range envelope); the Account **Data** section has **Import range** (adds the
+  file as a **new** range, never overwriting an existing one).
+- **CSV** — the range page **⋯** menu has **Export CSV** (summary + hand list); the
+  Account **Data** section has **Import CSV** (adds a new range from a CSV hand list).
+- **SVG image** — the range page **⋯** menu has **Export SVG** (a standalone 13×13 SVG,
+  cells colored by in-range / assigned action).
+- **Range packs** — the Account **Data** section has **Export pack** / **Import pack**
+  to move the whole library in/out as one JSON bundle.
 
 ### Sharing (v3.2, v5.1)
 
-- **Copy share link** (per card) — encodes the range into a `#range=…` URL fragment
-  (no backend). Opening that link imports the range as a new local range.
-- **Publish / unpublish a shared range link** (per card, **requires sign-in**) —
+- **Copy share link** (range page **⋯** menu) — encodes the range into a `#range=…` URL
+  fragment (no backend). Opening that link imports the range as a new local range.
+- **Publish / unpublish link** (range page **⋯** menu, **requires sign-in**) —
   publishes the range to Supabase and returns a `#/r/:id` link; that link renders a
   read-only shared-range page with a **save to my library** fork.
-- **Publish / unpublish a shared pack link** (header, **requires sign-in**) —
-  publishes the whole library as a `#/p/:id` pack link whose read-only page forks the
-  entire pack.
+- **Publish pack link / unpublish** (**Account** screen cloud-sync row, **requires
+  sign-in**) — publishes the whole library as a `#/p/:id` pack link whose read-only
+  page forks the entire pack.
 
 ### Optional accounts & cloud sync (v3) — only when configured
 
@@ -230,43 +262,46 @@ In the editor-controls row (below the grid) and on each library card:
 
 ### Postflop & board-aware views (v4)
 
-- **Postflop drill** (editor row) — pick a scenario, then self-grade a
+- **Postflop drill** (practice mode picker) — pick a scenario, then self-grade a
   bet/check/call/raise/fold decision against a heuristic.
-- **Range vs board** (per card) — enter a flop and see the range's made-hand / draw
-  breakdown, with flop-texture tags.
+- **Range vs board** (practice mode picker) — enter a flop and see the range's
+  made-hand / draw breakdown, with flop-texture tags.
 
 ### Combo-level precision (v4.1)
 
-- **Edit combos** (per card) — expand a hand class into its exact combos and toggle
-  which are in the range (persisted per range; absence of a selection = all combos).
-- **Combo drill** (per card) — a self-graded drill that deals blocker-aware,
+- **Edit combos** (range page **Combos** tab) — expand a hand class into its exact
+  combos and toggle which are in the range (persisted per range; absence of a
+  selection = all combos).
+- **Combo drill** (practice mode picker) — a self-graded drill that deals blocker-aware,
   un-blocked combos against a board, honoring the range's saved combo selections.
 - Blocker-aware combo counts vs a board are shown where relevant (a board card
   removes the combos it blocks).
 
 ### Mixed-frequency strategies (v4.2)
 
-- **Edit frequencies** (per card) — assign per-hand action frequencies with sliders;
-  a read-only primary-action grid reflects them; import/export frequency notation.
+- **Edit frequencies** (range page **Frequencies** tab) — assign per-hand action
+  frequencies with sliders; a read-only primary-action grid reflects them;
+  import/export frequency notation.
 - Practice via the **Frequency quiz** mode (see Practice modes) — offered only when
   the range has a mixed-frequency chart.
 
 ### Range comparison & provenance (v5)
 
-- **Compare** (per card) — pick a second range and see a diff grid (in A only / in B
-  only / in both).
-- **Source / reference** — the editor records where a range came from (coach /
+- **Compare** (range page **⋯** menu → "Compare…") — pick a second range and see a
+  diff grid (in A only / in B only / in both).
+- **Source / reference** — the **Edit** tab records where a range came from (coach /
   course / solver sim / book / personal study) plus an optional citation; it shows on
-  the card.
-- **Edit notes** (per card) — attach free-text notes to individual hands; the card
-  shows a hand-notes count.
+  the range's **Overview** tab.
+- **Edit notes** (range page **Edit** tab) — attach free-text notes to individual
+  hands; the **Overview** tab shows a hand-notes count.
 
 ### Onboarding & analytics (v6)
 
-- A **getting-started panel** appears when the library is empty and disappears once a
-  range is saved.
-- A **library-wide practice analytics** summary panel sits above the library,
-  aggregating practice stats across ranges.
+- Empty-state prompts appear when there are no ranges: **Today** shows a "Welcome"
+  card and the **Library** shows a "No ranges yet" card; both disappear once a range
+  is saved.
+- The **Progress** screen aggregates practice stats across ranges: streak / 30-day /
+  all-time tiles, a 7-day bar chart, and an "Across your library" summary.
 
 ### What records what (subtle but important)
 
@@ -285,7 +320,7 @@ Different practice modes persist different things. Use this when verifying track
 All recorders are **no-ops when zero questions were answered**, so ending a mode
 immediately records nothing. Build-from-memory and the frequency quiz deliberately
 record nothing (their score shape is different), and the self-graded **postflop
-drill** and **combo drill** (separate library views, not picker modes) also record
+drill** and **combo drill** (also practice mode picker options) also record
 nothing. The streak counts days with any recorded recognition/timed/weakness session.
 
 ---
@@ -332,7 +367,7 @@ from a known state (see §2).
 
 - [ ] `npm run dev` starts and the app loads with no console errors.
 - [ ] `npm run lint`, `npm run test:run`, and `npm run build` all pass.
-- [ ] On a clean profile, the library shows "No saved ranges yet."
+- [ ] On a clean profile, Today shows the "Welcome" card and the Library shows "No ranges yet."
 
 ### 5.2 Range editor — selection (v1, v1.1)
 
@@ -377,19 +412,21 @@ from a known state (see §2).
 - [ ] Stack depth: blank is allowed; a positive number is accepted; 0/negative shows a
       validation message and keeps Save disabled; correcting it re-enables Save.
 - [ ] Changing metadata never changes the selected hands or the notation.
-- [ ] Saved metadata shows on the library card (game/table/stack/seats/action/notes,
-      notes truncated when long); a metadata-less range shows no empty labels.
+- [ ] Saved metadata shows as chips on the range's **Overview** tab (game / table /
+      stack / position vs / action, plus notes); the Library row shows a subset
+      (position / action / %); a metadata-less range shows no empty labels.
 - [ ] Loading a range restores every metadata field.
 
 ### 5.6 Save / load / edit / delete (v1)
 
 - [ ] Save is disabled with a hint until there's a name **and** ≥1 hand.
-- [ ] Saving creates a card; the editor stays attached (button reads "Save Changes",
-      an "Editing saved range" indicator shows the name).
-- [ ] Editing a loaded range and saving updates it **in place** (no duplicate); a
+- [ ] Saving a new range opens its range page on the **Edit** tab; editing an existing
+      range keeps you there (button reads "Save Changes"), and a "Saved …" status line
+      confirms the name.
+- [ ] Editing a range on its **Edit** tab and saving updates it **in place** (no duplicate); a
       metadata-only edit also updates in place and advances "recently edited".
-- [ ] New Range clears the whole editor; the active-card highlight clears.
-- [ ] Delete removes the card; deleting the range being edited resets the editor.
+- [ ] The Library's "New range" button opens a blank editor (`#/library/new`) for a fresh range.
+- [ ] Delete (range page **⋯** menu) removes the range and returns to the Library.
 - [ ] Reload the page — saved ranges persist.
 
 ### 5.7 Library: search / filter / sort (v1.4)
@@ -404,23 +441,26 @@ from a known state (see §2).
 
 ### 5.8 Library: favorite / archive / duplicate (v1.4)
 
-- [ ] Favorite toggles a "Favorite" badge; "Favorites only" narrows to favorites.
-- [ ] Archive hides the range by default; "Show archived" reveals it with an
-      "Archived" badge and an Unarchive button.
-- [ ] Duplicate creates an independent copy (editing one doesn't change the other).
+- [ ] Favorite (range page **⋯** menu) adds a ★ star to the Library row; the "Favorites only" filter narrows to favorites.
+- [ ] Archive (range page **⋯** menu) hides the range by default; the "Show archived"
+      filter reveals it with an "Archived" chip; Unarchive (**⋯** menu) restores it.
+- [ ] Duplicate (range page **⋯** menu) creates an independent copy (editing one doesn't change the other).
 - [ ] All four flags survive a page reload.
 
-### 5.9 Practice — recognition + missing-hands review (v1, v2 mode 4)
+### 5.9 Practice — recognition + session summary (v1, v2 mode 4)
 
-- [ ] Practice opens the mode picker; choosing "Recognize hands" starts the session.
-- [ ] A random hand is shown; "In range" / "Out of range" give immediate
-      correct/incorrect feedback with the expected answer.
-- [ ] The same hand can't be answered twice; "Next hand" advances and re-enables.
-- [ ] Total / Correct / Accuracy update.
-- [ ] "End Practice" shows the review (missed vs. wrongly-included hands, or "No
-      mistakes — nice!"), then "Back to library" returns.
-- [ ] After returning, the card shows the updated practice-stats line (and Stats
-      reflects the session).
+- [ ] The range page's **Practice** button opens the mode picker; choosing "Recognize
+      hands" starts the session.
+- [ ] A random hand is shown as cards; the two answer buttons read the range's action
+      verb (default "In range") and "Fold", and give immediate correct/incorrect
+      feedback with the expected answer.
+- [ ] Answering locks the buttons; after a brief feedback pause it auto-advances to the
+      next hand (no "Next hand" button).
+- [ ] A progress bar advances as you answer.
+- [ ] Completing the set (or closing with **×** "Close practice") shows the **session
+      summary** — accuracy ring, "N of M correct", and streak — then **Done** returns.
+- [ ] After returning, the Library row and the range's **Overview** / **Stats** tab
+      show the updated practice stats.
 
 ### 5.10 Practice — build from memory (v2 mode 3)
 
@@ -432,17 +472,17 @@ from a known state (see §2).
 
 ### 5.11 Practice — timed drill (v2 mode 5)
 
-- [ ] Offers 30s / 60s / 120s.
-- [ ] Countdown ticks down; answering advances immediately with no feedback pause.
-- [ ] At 0 the summary appears (total / correct / accuracy); answers after time stop
-      counting.
-- [ ] "New drill" returns to duration choice; "Back to library" records the session.
+- [ ] The mode picker's "Timed drill duration" select offers 30s / 60s / 120s (default 60s).
+- [ ] Countdown ticks down; answering flashes brief feedback and advances.
+- [ ] At 0 the session is recorded and the **session summary** appears (accuracy ring +
+      score); answers after time stop counting.
+- [ ] **Done** returns (or **Next range** when a queue follows).
 
 ### 5.12 Practice — weakness drill (v2 mode 6)
 
 - [ ] Recognition-style loop; hands you answer incorrectly recur noticeably more often
       as the session goes on.
-- [ ] "End practice" records the session like recognition.
+- [ ] Closing with **×** (or completing the set) records the session like recognition, ending on the summary.
 
 ### 5.13 Practice — action quiz (v2.3 mode 2)
 
@@ -455,34 +495,35 @@ from a known state (see §2).
 
 ### 5.14 Practice mistakes only (v2.1)
 
-- [ ] After making mistakes in a recognition session, open Stats → "Practice
-      mistakes" launches a recognition session restricted to missed hands.
+- [ ] After making mistakes in a recognition session, open the range's **Stats** tab →
+      "Practice mistakes" launches a recognition session restricted to missed hands.
 - [ ] The button is absent when the range has no recorded mistakes.
 
 ### 5.15 Performance view (v2.1, v2.3)
 
-- [ ] Stats on an unpracticed range shows the empty "No practice data yet" message.
+- [ ] The **Stats** tab on an unpracticed range shows the empty "No practice data yet" message.
 - [ ] After recognition/timed/weakness sessions: the heatmap and weakest-first
       per-hand table appear (accuracy %, attempts, missed, wrongly included).
 - [ ] Session history lists finished sessions newest-first (date, score, accuracy).
 - [ ] After an action quiz: the per-action accuracy table appears.
-- [ ] "Back to library" returns.
+- [ ] "Close" returns to the Overview tab.
 
 ### 5.16 Multi-action editor + action notation (v2.3)
 
-- [ ] Actions on a card opens the editor with the palette + grid + per-action %.
+- [ ] The range page's **Actions** tab shows the palette + grid + per-action %.
 - [ ] Selecting an action and clicking hands colors them; the per-action % updates.
 - [ ] "Current actions" mirrors the chart as notation; applying action notation
       (`Raise: 77+` / `3-bet: AA, KK`) sets the grid; invalid input shows an error and
       leaves the chart unchanged.
-- [ ] "Save actions" persists; reopening Actions shows the saved chart and the
-      Practice picker now offers "Pick the correct action".
+- [ ] "Save actions" persists; reopening the **Actions** tab shows the saved chart and
+      the Practice picker now offers "Pick the correct action".
 
 ### 5.17 Spaced repetition: due today + streak (v2.2)
 
-- [ ] "Review due ranges" lists never-practiced (and overdue) non-archived ranges;
-      archived ranges never appear.
-- [ ] Practicing a due range from the queue works and returns to the library.
+- [ ] The **Today** screen's "Today's review" / "Due now" list shows never-practiced
+      (and overdue) non-archived ranges; archived ranges never appear.
+- [ ] "Start review" (or a "Due now" row's **Review** button) drills a due range and
+      returns to Today.
 - [ ] After a recorded session, the range leaves the due list (next due ≥1 day out).
 - [ ] The review streak reflects consecutive days with finished sessions. (To re-test
       "due" same-day, edit `review-state.v1` per §2.)
@@ -498,29 +539,30 @@ from a known state (see §2).
 
 ### 5.19 Import / export files (v3, v3.2)
 
-- [ ] The editor-controls row shows: Export backup, Import backup, Import range,
-      Import CSV, Export pack, Import pack.
+- [ ] The **Account** screen's **Data** section shows: Export backup, Import backup,
+      Import range, Import CSV, Export pack, Import pack.
 - [ ] "Export backup" downloads a dated JSON; "Import backup" confirms, then
       **replaces** all local data with the file's contents.
-- [ ] Per card, Export JSON / Export CSV / Export image each download a file;
-      "Import range" adds the JSON as a **new** range (no overwrite); "Import CSV"
-      adds a new range from a hand list.
+- [ ] The range page **⋯** menu's Export JSON / Export CSV / Export SVG each download a
+      file; the Account **Data** section's "Import range" adds the JSON as a **new**
+      range (no overwrite), and "Import CSV" adds a new range from a hand list.
 - [ ] "Export pack" downloads the whole library; "Import pack" adds the pack's ranges.
 - [ ] A malformed import file shows an alert and changes nothing.
 
 ### 5.20 Share links & published links (v3.2, v5.1)
 
-- [ ] Per-card "Copy share link" copies a `#range=…` URL; opening it in a clean
-      profile imports that range as a new local range.
-- [ ] (Cloud configured + signed in) Publishing a range yields a `#/r/:id` link that
-      renders a read-only page with "save to my library"; unpublish removes it.
-- [ ] (Cloud) "Publish pack link" yields a `#/p/:id` page that forks the whole pack;
-      unpublish removes it.
+- [ ] The range page **⋯** menu's "Copy share link" copies a `#range=…` URL; opening it
+      in a clean profile imports that range as a new local range.
+- [ ] (Cloud configured + signed in) The **⋯** menu's "Publish link" yields a `#/r/:id`
+      link that renders a read-only page with "save to my library"; "Unpublish link"
+      removes it.
+- [ ] (Cloud) The **Account** screen's "Publish pack link" yields a `#/p/:id` page that
+      forks the whole pack; "Unpublish pack" removes it.
 
 ### 5.21 Optional cloud accounts & sync (v3)
 
-- [ ] With **no** Supabase env vars: the auth panel shows only the "local-only mode"
-      note, and no Push / Pull / Delete / Publish controls appear.
+- [ ] With **no** Supabase env vars: the **Account** screen's Cloud section shows only
+      the local-only note, and no Push / Pull / Delete / Publish controls appear.
 - [ ] With env vars set (and a real Supabase project): sign up / in / out work, and
       the cloud-sync row appears when signed in.
 - [ ] "Push to cloud" uploads; "Pull from cloud" confirms then **replaces** local
@@ -537,43 +579,43 @@ from a known state (see §2).
 
 ### 5.23 Postflop & range-vs-board (v4)
 
-- [ ] "Postflop drill" (editor row) runs a self-graded bet/check/call/raise/fold
+- [ ] "Postflop drill" (practice mode picker) runs a self-graded bet/check/call/raise/fold
       decision against a scenario and records nothing.
-- [ ] Per-card range-vs-board: entering a flop shows the made-hand / draw breakdown
-      and flop-texture tags.
+- [ ] "Range vs board" (practice mode picker): entering a flop shows the made-hand /
+      draw breakdown and flop-texture tags.
 
 ### 5.24 Combo-level precision (v4.1)
 
-- [ ] The per-card combo editor expands hand classes into combos; toggling persists
-      per range and survives reload (absence = all combos).
-- [ ] The per-card combo drill deals un-blocked, blocker-aware combos vs a board
+- [ ] The **Combos** tab expands hand classes into combos; toggling persists per range
+      and survives reload (absence = all combos).
+- [ ] The "Combo drill" practice mode deals un-blocked, blocker-aware combos vs a board
       (self-graded; records nothing) and honors the range's saved combo selections.
 - [ ] Blocker-aware combo counts vs a board look right (a board card removes the
       combos it blocks).
 
 ### 5.25 Mixed-frequency editor (v4.2)
 
-- [ ] Per-card "Edit frequencies": sliders assign per-hand action frequencies; the
-      read-only primary-action grid reflects them.
+- [ ] The **Frequencies** tab: sliders assign per-hand action frequencies; the
+      read-only primary-action grid reflects them. ("Save frequencies" persists.)
 - [ ] Frequency notation import/export round-trips; invalid input shows an error and
       changes nothing.
 - [ ] Saving unlocks the Frequency quiz in the practice picker (§5.18).
 
 ### 5.26 Range compare, source & per-hand notes (v5)
 
-- [ ] Per-card "Compare": picking a second range shows a diff grid (in A only / in B
-      only / in both).
-- [ ] The editor's source/reference (coach / course / solver / book / personal +
-      citation) saves and shows on the card.
-- [ ] Per-card "Edit notes": notes attach to individual hands, persist, and the card
-      shows a hand-notes count.
+- [ ] The range page **⋯** menu's "Compare…": picking a second range shows a diff grid
+      (in A only / in B only / in both).
+- [ ] The **Edit** tab's source/reference (coach / course / solver / book / personal +
+      citation) saves and shows on the range's **Overview** tab.
+- [ ] The **Edit** tab's per-hand notes attach to individual hands, persist, and the
+      **Overview** tab shows a hand-notes count.
 
 ### 5.27 Onboarding & library analytics (v6)
 
-- [ ] On an empty library a getting-started panel appears; it disappears once a range
-      is saved.
-- [ ] A library-wide practice analytics summary sits above the library and reflects
-      aggregate practice stats.
+- [ ] With no ranges, Today shows a "Welcome" card and the Library shows a "No ranges
+      yet" card; both disappear once a range is saved.
+- [ ] The **Progress** screen reflects aggregate practice stats — streak / 30-day /
+      all-time tiles, a 7-day bar chart, and an "Across your library" summary.
 
 ### 5.28 Persistence / data integrity
 
@@ -591,8 +633,8 @@ from a known state (see §2).
 - **Local-first:** clearing browser data or switching devices loses local data
   **unless** you've exported a backup (or pushed to the cloud, when configured).
   Use "Export backup" or cloud "Push to cloud" to move data safely (see §3).
-- **No same-day re-due:** by design a practiced range won't reappear in "Due for
-  review" until its next scheduled date; edit `review-state.v1` to force it.
+- **No same-day re-due:** by design a practiced range won't reappear in Today's "Due
+  now" list until its next scheduled date; edit `review-state.v1` to force it.
 - **Mode-specific recording:** if a session "didn't show up" in stats, check the
   records table in §3 — build-from-memory and action quizzes intentionally don't feed
   the per-range stats line.

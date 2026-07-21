@@ -102,8 +102,11 @@ After code changes, the project convention is to run `npm run lint`,
 
 ```text
 src/
-  App.tsx        Top-level app: wires the editor, library, practice, and views together.
-  components/    React UI (hand grid, range library, practice modes, editors, notation, performance views).
+  App.tsx        Top-level: renders the shared-link viewers, then the routed app shell.
+  app/           App shell, hash routing, id minting, and file/share + session-recording helpers.
+  screens/       The routed screens (Today, Library, the per-range page, Progress, Account).
+  practice/      Full-screen practice overlay (mode picker, drills, session summary).
+  components/    Shared UI (hand grid, editors, notation, performance views, range thumbnail).
   domain/        Pure poker logic (hand generation, range math, notation, practice scoring, spaced repetition, ...).
   storage/       localStorage persistence (ranges, practice stats, hand/action accuracy, session history, review state, backup).
   cloud/         Optional, env-gated Supabase integration (auth, client, and range/backup/shared-range/shared-pack repos).
