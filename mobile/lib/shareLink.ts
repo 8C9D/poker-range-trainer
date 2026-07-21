@@ -1,8 +1,9 @@
 /**
- * Build the deep link that opens a published shared range in the app. The web app builds a
- * `${origin}#/r/:id` URL from `window.location`; native has no origin, so we mint a scheme URL
- * (`pokerrangetrainer://r/:id`) via expo-linking's `createURL`, which the app's `r/[id]` route
- * already handles. A private share carries its secret as the `token` query param the route reads.
+ * Build the deep link that opens a published share in the app. The web app builds a
+ * `${origin}#/r/:id` (or `#/p/:id`) URL from `window.location`; native has no origin, so we mint a
+ * scheme URL (`pokerrangetrainer://r/:id`) via expo-linking's `createURL`, which the app's `r/[id]`
+ * / `p/[id]` routes already handle. A private share carries its secret as the `token` query param
+ * the route reads.
  *
  * `createURL` is passed in so the pure link-shaping logic is testable without the native module.
  */
@@ -11,10 +12,24 @@ export type CreateURL = (
   options?: { queryParams?: Record<string, string> },
 ) => string;
 
+function buildShareLink(createURL: CreateURL, path: string, token: string | null): string {
+  return createURL(path, token ? { queryParams: { token } } : undefined);
+}
+
+/** Link to a single published range (`r/:id`). */
 export function buildRangeShareLink(
   createURL: CreateURL,
   shareId: string,
   token: string | null,
 ): string {
-  return createURL(`/r/${shareId}`, token ? { queryParams: { token } } : undefined);
+  return buildShareLink(createURL, `/r/${shareId}`, token);
+}
+
+/** Link to a published library pack (`p/:id`). */
+export function buildPackShareLink(
+  createURL: CreateURL,
+  shareId: string,
+  token: string | null,
+): string {
+  return buildShareLink(createURL, `/p/${shareId}`, token);
 }

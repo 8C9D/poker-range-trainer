@@ -2,6 +2,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AuthPanel } from '../../components/AuthPanel';
 import { BackupPanel } from '../../components/BackupPanel';
+import { SharePackPanel } from '../../components/SharePackPanel';
 import { Screen } from '../../components/Screen';
 import { fonts } from '../../theme/fonts';
 import { useTheme } from '../../theme/colors';
@@ -18,6 +19,7 @@ export default function AccountScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={[styles.title, { color: theme.ink }]}>Account</Text>
         <AuthPanel />
+        <SharePackPanel />
         <View style={[styles.divider, { backgroundColor: theme.line }]} />
         <BackupPanel />
       </ScrollView>
