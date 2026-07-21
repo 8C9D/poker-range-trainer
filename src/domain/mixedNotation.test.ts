@@ -48,4 +48,10 @@ describe('parseMixedNotation', () => {
   it('throws on a non-numeric frequency', () => {
     expect(() => parseMixedNotation('AA: fold lots')).toThrow(/Invalid frequency/)
   })
+
+  it('throws when an action/frequency part is not exactly two tokens', () => {
+    // One token (missing frequency) and three tokens (stray extra) both fail the split.
+    expect(() => parseMixedNotation('AA: fold')).toThrow(/Invalid action\/frequency/)
+    expect(() => parseMixedNotation('AA: fold 40 50')).toThrow(/Invalid action\/frequency/)
+  })
 })

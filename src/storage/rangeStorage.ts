@@ -264,13 +264,12 @@ export function findSavedRangeById(id: string): SavedRange | undefined {
 }
 
 /**
- * Insert or update a range by id, preserving stable ordering.
- *
- * An existing id is replaced in place (its position is kept); a new id is
- * appended. Hands are normalized and validated first, so an invalid hand throws
- * before any write and leaves existing storage untouched.
+ * Normalize + validate a range for storage: metadata/source/hand-actions/combo/
+ * mixed/notes are normalized and the hands are validated, so an invalid hand
+ * throws HERE (before any write). Shared by {@link saveSavedRange} and
+ * {@link replaceSavedRanges}.
  */
-export function saveSavedRange(range: SavedRange): void {
+function normalizeSavedRange(range: SavedRange): SavedRange {
   const {
     metadata,
     source,
@@ -288,7 +287,7 @@ export function saveSavedRange(range: SavedRange): void {
   const normalizedComboSelections = normalizeComboSelections(comboSelections)
   const normalizedMixedStrategies = normalizeMixedStrategies(mixedStrategies)
   const normalizedHandNotes = normalizeHandNotes(handNotes)
-  const normalized: SavedRange = {
+  return {
     ...rest,
     hands: normalizeRangeHands(range.hands),
     ...(normalizedMetadata ? { metadata: normalizedMetadata } : {}),
@@ -302,7 +301,17 @@ export function saveSavedRange(range: SavedRange): void {
     // Same rule as archived: only a strict `true` is stored for favorite.
     ...(favorite === true ? { favorite: true } : {}),
   }
+}
 
+/**
+ * Insert or update a range by id, preserving stable ordering.
+ *
+ * An existing id is replaced in place (its position is kept); a new id is
+ * appended. Hands are normalized and validated first, so an invalid hand throws
+ * before any write and leaves existing storage untouched.
+ */
+export function saveSavedRange(range: SavedRange): void {
+  const normalized = normalizeSavedRange(range)
   const ranges = loadSavedRanges()
   const index = ranges.findIndex((existing) => existing.id === normalized.id)
   if (index === -1) {
@@ -325,11 +334,23 @@ export function deleteSavedRange(id: string): void {
 /**
  * Replace the entire local library with the given ranges (used by cloud pull).
  * Each range is normalized/validated like {@link saveSavedRange}; order is
- * preserved. Existing local ranges not present in the new list are discarded.
+ * preserved (duplicate ids collapse to the last value in the first position) and
+ * existing local ranges not present in the new list are discarded.
+ *
+ * The replace is ATOMIC: every range is normalized/validated before any write, so
+ * a single malformed record throws and leaves the existing library intact instead
+ * of wiping it and writing a partial result.
  */
 export function replaceSavedRanges(ranges: SavedRange[]): void {
-  writeSavedRanges([])
+  const next: SavedRange[] = []
   for (const range of ranges) {
-    saveSavedRange(range)
+    const normalized = normalizeSavedRange(range)
+    const index = next.findIndex((existing) => existing.id === normalized.id)
+    if (index === -1) {
+      next.push(normalized)
+    } else {
+      next[index] = normalized
+    }
   }
+  writeSavedRanges(next)
 }

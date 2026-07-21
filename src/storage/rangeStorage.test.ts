@@ -642,4 +642,28 @@ describe('replaceSavedRanges', () => {
     replaceSavedRanges([])
     expect(loadSavedRanges()).toEqual([])
   })
+
+  it('leaves the existing library intact when a range is malformed (atomic)', () => {
+    saveSavedRange(makeRange({ id: 'keep', name: 'Keeper' }))
+    expect(() =>
+      replaceSavedRanges([
+        makeRange({ id: 'new-a' }),
+        makeRange({ id: 'bad', hands: ['AA', 'ZZ'] }),
+        makeRange({ id: 'new-c' }),
+      ]),
+    ).toThrow()
+    // The pre-existing library must survive: no partial wipe from the bad record.
+    expect(loadSavedRanges().map((r) => r.id)).toEqual(['keep'])
+  })
+
+  it('collapses duplicate ids to the last value in the first position', () => {
+    replaceSavedRanges([
+      makeRange({ id: 'dup', name: 'First' }),
+      makeRange({ id: 'other' }),
+      makeRange({ id: 'dup', name: 'Second' }),
+    ])
+    const ranges = loadSavedRanges()
+    expect(ranges.map((r) => r.id)).toEqual(['dup', 'other'])
+    expect(ranges[0].name).toBe('Second')
+  })
 })

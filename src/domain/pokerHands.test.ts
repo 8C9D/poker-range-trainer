@@ -5,6 +5,7 @@ import {
   ALL_HANDS,
   classifyHand,
   comboCount,
+  isValidHand,
 } from './pokerHands'
 
 describe('RANKS', () => {
@@ -89,5 +90,28 @@ describe('comboCount', () => {
   it('totals 1326 combos across the full matrix', () => {
     const total = ALL_HANDS.reduce((sum, hand) => sum + comboCount(hand), 0)
     expect(total).toBe(1326)
+  })
+})
+
+describe('isValidHand', () => {
+  it('accepts every one of the 169 canonical hands', () => {
+    for (const hand of ALL_HANDS) {
+      expect(isValidHand(hand)).toBe(true)
+    }
+    expect(ALL_HANDS).toHaveLength(169)
+  })
+
+  it('accepts canonical pair, suited, and offsuit notation', () => {
+    expect(isValidHand('AA')).toBe(true)
+    expect(isValidHand('AKs')).toBe(true)
+    expect(isValidHand('72o')).toBe(true)
+  })
+
+  it('rejects malformed or non-canonical hands', () => {
+    // Unknown ranks, non-canonical rank order, lowercase, wrong/absent suffix,
+    // stray whitespace, and empty string are all invalid.
+    for (const hand of ['ZZ', 'KAs', 'aa', 'aks', 'AAs', 'AK', 'AKo ', '']) {
+      expect(isValidHand(hand)).toBe(false)
+    }
   })
 })

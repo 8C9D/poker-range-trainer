@@ -52,6 +52,25 @@ describe('isFacingAggression', () => {
       isFacingAggression(buildPostflopScenario({ ...base, facing: 'checked to you' })),
     ).toBe(false)
   })
+
+  it('detects raise/jam/shove/all-in phrasings', () => {
+    for (const facing of [
+      'villain raises',
+      'hero jams',
+      'villain shoves',
+      'villain is all-in',
+      'villain all in',
+      'villain allin',
+    ]) {
+      expect(isFacingAggression(buildPostflopScenario({ ...base, facing }))).toBe(true)
+    }
+  })
+
+  it('does not flag passive or check lines as aggression', () => {
+    for (const facing of ['checks to you', 'villain checks', 'first to act']) {
+      expect(isFacingAggression(buildPostflopScenario({ ...base, facing }))).toBe(false)
+    }
+  })
 })
 
 describe('suggestDecision', () => {
