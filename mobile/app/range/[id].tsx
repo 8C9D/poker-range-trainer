@@ -2,7 +2,10 @@ import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Link, Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
+import * as Linking from 'expo-linking';
 
+import { getCurrentSession } from '@core/cloud/auth';
+import { publishSharedRange, unpublishSharedRange } from '@core/cloud/sharedRangesRepo';
 import { accuracyPercentage } from '@core/domain/accuracy';
 import { formatRangeNotation } from '@core/domain/rangeNotation';
 import { formatRangeCsv } from '@core/domain/rangeTransfer';
@@ -35,6 +38,8 @@ import { RangeThumbnail } from '../../components/RangeThumbnail';
 import { Screen } from '../../components/Screen';
 import { Chip } from '../../components/ui';
 import { createRangeId } from '../../platform/createRangeId';
+import { buildRangeShareLink } from '../../lib/shareLink';
+import { useMobileSession } from '../../lib/useMobileSession';
 import { formatDayDistance } from '../../lib/format';
 import { fonts } from '../../theme/fonts';
 import { useTheme } from '../../theme/colors';
@@ -85,6 +90,9 @@ export default function RangeScreen() {
   const [range, setRange] = useState<SavedRange | null>(() => findSavedRangeById(id) ?? null);
   const [tab, setTab] = useState<RangeTab>('overview');
   const [menuOpen, setMenuOpen] = useState(false);
+  const { client, session } = useMobileSession();
+  const [publishedShareId, setPublishedShareId] = useState<string | null>(null);
+  const [shareStatus, setShareStatus] = useState('');
 
   const refresh = useCallback(() => {
     setRange(findSavedRangeById(id) ?? null);
@@ -152,6 +160,53 @@ export default function RangeScreen() {
     ]);
   };
 
+  // The repo's default resolveUserId calls getCurrentSession() with no client, which falls back to
+  // the core's Vite env (undefined on Hermes) — inject both the client and a client-bound resolver.
+  const resolveUserId = async () => (client ? (await getCurrentSession(client))?.user?.id ?? null : null);
+
+  const publish = async (isPublic: boolean) => {
+    if (!client) return;
+    setShareStatus('Publishing…');
+    try {
+      const { id: shareId, token } = await publishSharedRange(range, isPublic, { client, resolveUserId });
+      setPublishedShareId(shareId);
+      const link = buildRangeShareLink(Linking.createURL, shareId, token);
+      try {
+        await Clipboard.setStringAsync(link);
+        setShareStatus('Share link copied to clipboard.');
+      } catch {
+        setShareStatus(`Share link ready: ${link}`);
+      }
+    } catch (error) {
+      setShareStatus(error instanceof Error ? error.message : 'Publish failed.');
+    }
+  };
+  const doPublish = () => {
+    setMenuOpen(false);
+    if (!client) return;
+    Alert.alert(
+      'Publish share link',
+      `Share "${range.name || 'Untitled'}" as a link?\n\nPublic links open for anyone; private links carry a secret token.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Private', onPress: () => void publish(false) },
+        { text: 'Public', onPress: () => void publish(true) },
+      ],
+    );
+  };
+  const doUnpublish = async () => {
+    setMenuOpen(false);
+    if (!client || !publishedShareId) return;
+    setShareStatus('Unpublishing…');
+    try {
+      await unpublishSharedRange(publishedShareId, { client, resolveUserId });
+      setPublishedShareId(null);
+      setShareStatus('Shared link unpublished.');
+    } catch (error) {
+      setShareStatus(error instanceof Error ? error.message : 'Unpublish failed.');
+    }
+  };
+
   return (
     <Screen>
       <Stack.Screen options={{ headerShown: false }} />
@@ -213,8 +268,27 @@ export default function RangeScreen() {
               onPress={() => copyText(formatRangeCsv(range), 'Range CSV')}
               theme={theme}
             />
+            {session ? (
+              <>
+                <MenuItem testID="menu-publish" label="Publish link" onPress={doPublish} theme={theme} />
+                {publishedShareId ? (
+                  <MenuItem
+                    testID="menu-unpublish"
+                    label="Unpublish link"
+                    onPress={doUnpublish}
+                    theme={theme}
+                  />
+                ) : null}
+              </>
+            ) : null}
             <MenuItem testID="menu-delete" label="Delete" onPress={doDelete} theme={theme} danger />
           </View>
+        ) : null}
+
+        {shareStatus ? (
+          <Text testID="range-share-status" style={styles.shareStatus}>
+            {shareStatus}
+          </Text>
         ) : null}
 
         <Text style={styles.title}>{range.name || 'Untitled'}</Text>
@@ -399,6 +473,7 @@ function makeStyles(theme: ThemeColors) {
     },
     menuItem: { paddingHorizontal: 16, paddingVertical: 12 },
     menuItemText: { fontFamily: fonts.bodyMedium, fontSize: 15, color: theme.ink },
+    shareStatus: { fontFamily: fonts.bodySemibold, fontSize: 13, color: theme.accent },
     title: { fontFamily: fonts.display, fontSize: 28, color: theme.ink },
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
     tabBar: {

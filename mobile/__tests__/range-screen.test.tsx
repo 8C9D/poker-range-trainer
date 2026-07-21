@@ -109,11 +109,13 @@ describe('RangeScreen', () => {
   it('opens the overflow menu and toggles favorite', async () => {
     seed({ id: 'r1', name: 'UTG Open' });
 
-    const { getByTestId, findByTestId } = await render(<RangeScreen />);
+    const { getByTestId, findByTestId, queryByTestId } = await render(<RangeScreen />);
     fireEvent.press(getByTestId('range-menu-button'));
     // Export items are present in the menu.
     expect(await findByTestId('menu-copy-notation')).toBeTruthy();
     expect(getByTestId('menu-copy-csv')).toBeTruthy();
+    // Cloud is unconfigured in tests (no session), so the publish item is gated out.
+    expect(queryByTestId('menu-publish')).toBeNull();
     fireEvent.press(getByTestId('menu-favorite'));
 
     await waitFor(() => expect(loadSavedRanges()[0].favorite).toBe(true));
