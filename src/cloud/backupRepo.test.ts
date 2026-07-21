@@ -44,6 +44,13 @@ describe('pushBackup', () => {
       updated_at: '2026-06-08T00:00:00.000Z',
     })
   })
+
+  it('throws the Supabase error when the upsert fails', async () => {
+    const error = new Error('db down')
+    const upsert = vi.fn().mockResolvedValue({ error })
+    const client = { from: vi.fn(() => ({ upsert })) } as unknown as SupabaseClient
+    await expect(pushBackup(makeBackup(), { client, ...signedIn })).rejects.toBe(error)
+  })
 })
 
 describe('pullBackup', () => {

@@ -61,6 +61,14 @@ describe('signUp', () => {
     } as never)
     await expect(signUp('a@b.c', 'pw', client)).resolves.toBeNull()
   })
+
+  it('throws the Supabase error on failure', async () => {
+    const error = new Error('email already registered')
+    const client = clientWithAuth({
+      signUp: vi.fn().mockResolvedValue({ data: {}, error }),
+    } as never)
+    await expect(signUp('a@b.c', 'pw', client)).rejects.toBe(error)
+  })
 })
 
 describe('signOut', () => {
@@ -68,6 +76,25 @@ describe('signOut', () => {
     const signOutFn = vi.fn().mockResolvedValue({ error: null })
     await expect(signOut(clientWithAuth({ signOut: signOutFn } as never))).resolves.toBeUndefined()
     expect(signOutFn).toHaveBeenCalled()
+  })
+
+  it('throws the Supabase error on failure', async () => {
+    const error = new Error('sign-out failed')
+    const client = clientWithAuth({ signOut: vi.fn().mockResolvedValue({ error }) } as never)
+    await expect(signOut(client)).rejects.toBe(error)
+  })
+})
+
+describe('getCurrentSession', () => {
+  it('returns the active session on success', async () => {
+    const getSession = vi.fn().mockResolvedValue({ data: { session: fakeSession }, error: null })
+    await expect(getCurrentSession(clientWithAuth({ getSession } as never))).resolves.toBe(fakeSession)
+  })
+
+  it('throws the Supabase error on failure', async () => {
+    const error = new Error('session read failed')
+    const client = clientWithAuth({ getSession: vi.fn().mockResolvedValue({ data: {}, error }) } as never)
+    await expect(getCurrentSession(client)).rejects.toBe(error)
   })
 })
 

@@ -55,6 +55,15 @@ describe('publishSharedRange', () => {
     const result = await publishSharedRange(makeRange(), false, { client, ...signedIn, ...ids })
     expect(result).toEqual({ id: 'shareid', isPublic: false, token: 'shareid' })
   })
+
+  it('throws the Supabase error when the insert fails', async () => {
+    const error = new Error('conflict')
+    const insert = vi.fn().mockResolvedValue({ error })
+    const client = { from: vi.fn(() => ({ insert })) } as unknown as SupabaseClient
+    await expect(
+      publishSharedRange(makeRange(), true, { client, ...signedIn, ...ids }),
+    ).rejects.toBe(error)
+  })
 })
 
 describe('getSharedRange', () => {
@@ -99,5 +108,20 @@ describe('unpublishSharedRange', () => {
     await expect(
       unpublishSharedRange('x', { client: {} as SupabaseClient, resolveUserId: async () => null }),
     ).rejects.toBeInstanceOf(NotSignedInError)
+  })
+
+  it('throws when cloud is unconfigured', async () => {
+    await expect(unpublishSharedRange('x', { client: null })).rejects.toBeInstanceOf(
+      CloudNotConfiguredError,
+    )
+  })
+
+  it('throws the Supabase error when the delete fails', async () => {
+    const error = new Error('db down')
+    const eqOwner = vi.fn().mockResolvedValue({ error })
+    const eqId = vi.fn(() => ({ eq: eqOwner }))
+    const deleteFn = vi.fn(() => ({ eq: eqId }))
+    const client = { from: vi.fn(() => ({ delete: deleteFn })) } as unknown as SupabaseClient
+    await expect(unpublishSharedRange('shareid', { client, ...signedIn })).rejects.toBe(error)
   })
 })

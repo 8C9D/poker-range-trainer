@@ -60,6 +60,15 @@ describe('publishSharedPack', () => {
     const result = await publishSharedPack(makePack(), false, { client, ...signedIn, ...ids })
     expect(result).toEqual({ id: 'packid', isPublic: false, token: 'packid' })
   })
+
+  it('throws the Supabase error when the insert fails', async () => {
+    const error = new Error('conflict')
+    const insert = vi.fn().mockResolvedValue({ error })
+    const client = { from: vi.fn(() => ({ insert })) } as unknown as SupabaseClient
+    await expect(
+      publishSharedPack(makePack(), true, { client, ...signedIn, ...ids }),
+    ).rejects.toBe(error)
+  })
 })
 
 describe('getSharedPack', () => {
@@ -104,5 +113,20 @@ describe('unpublishSharedPack', () => {
     await expect(
       unpublishSharedPack('x', { client: {} as SupabaseClient, resolveUserId: async () => null }),
     ).rejects.toBeInstanceOf(NotSignedInError)
+  })
+
+  it('throws when cloud is unconfigured', async () => {
+    await expect(unpublishSharedPack('x', { client: null })).rejects.toBeInstanceOf(
+      CloudNotConfiguredError,
+    )
+  })
+
+  it('throws the Supabase error when the delete fails', async () => {
+    const error = new Error('db down')
+    const eqOwner = vi.fn().mockResolvedValue({ error })
+    const eqId = vi.fn(() => ({ eq: eqOwner }))
+    const deleteFn = vi.fn(() => ({ eq: eqId }))
+    const client = { from: vi.fn(() => ({ delete: deleteFn })) } as unknown as SupabaseClient
+    await expect(unpublishSharedPack('packid', { client, ...signedIn })).rejects.toBe(error)
   })
 })
