@@ -1,5 +1,8 @@
-import type { ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import './practice.css'
+
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
 interface OverlayFrameProps {
   /** The range (or drill) name shown in the top bar. */
@@ -26,8 +29,68 @@ export function OverlayFrame({
   closeLabel = 'Close practice',
   children,
 }: OverlayFrameProps) {
+  const dialogRef = useRef<HTMLDivElement>(null)
+  // Latest onClose via a ref so the dialog effect can stay mount-only (it must
+  // capture the pre-open focus once and restore it exactly once on close).
+  const onCloseRef = useRef(onClose)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
+
+  useEffect(() => {
+    const dialog = dialogRef.current
+    const previouslyFocused = document.activeElement as HTMLElement | null
+    const focusables = () =>
+      dialog ? Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)) : []
+
+    // Move focus into the dialog so keyboard/AT users start inside the modal.
+    ;(focusables()[0] ?? dialog)?.focus()
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onCloseRef.current()
+        return
+      }
+      if (event.key !== 'Tab' || !dialog) return
+      const items = focusables()
+      if (items.length === 0) {
+        event.preventDefault()
+        dialog.focus()
+        return
+      }
+      const first = items[0]
+      const last = items[items.length - 1]
+      const active = document.activeElement
+      // Trap Tab so focus can't wander into the inert background behind the modal.
+      if (event.shiftKey && (active === first || active === dialog)) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault()
+        first.focus()
+      } else if (active && !dialog.contains(active)) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', onKeyDown, true)
+    return () => {
+      document.removeEventListener('keydown', onKeyDown, true)
+      previouslyFocused?.focus?.()
+    }
+  }, [])
+
   return (
-    <div className="practice-overlay" role="dialog" aria-label={title}>
+    <div
+      ref={dialogRef}
+      className="practice-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      tabIndex={-1}
+    >
       <div className="practice-overlay-bar">
         <button type="button" className="practice-overlay-close" aria-label={closeLabel} onClick={onClose}>
           ×
