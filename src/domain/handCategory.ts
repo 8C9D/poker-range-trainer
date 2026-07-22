@@ -9,6 +9,7 @@ import { rankValue } from './cards'
  * `categorizeHand` returns the applicable tags in `HAND_CATEGORIES` order.
  */
 export const HAND_CATEGORIES = [
+  'straight',
   'set',
   'trips',
   'twoPair',
@@ -38,8 +39,13 @@ export function categorizeHand(hand: Card[], flop: Card[]): HandCategory[] {
   const made = madeTag(holeValues, boardValues, maxBoard, distinctBoardDesc, flopCount)
   if (made) tags.add(made)
 
+  // A completed straight fills a whole five-rank window; four of a window is a
+  // draw. Take the best fill so a made straight is never also tagged as a draw.
+  const straightFill = bestStraightFill(holeValues, boardValues)
+  if (straightFill >= 5) tags.add('straight')
+
   if (hasFlushDraw(hand, flop)) tags.add('flushDraw')
-  if (hasStraightDraw(holeValues, boardValues)) tags.add('straightDraw')
+  if (straightFill === 4) tags.add('straightDraw')
 
   if (tags.size === 0) tags.add('air')
 
@@ -82,18 +88,23 @@ function hasFlushDraw(hand: Card[], flop: Card[]): boolean {
   return [...counts.values()].some((n) => n === 4)
 }
 
-/** Four to a straight (open-ended or gutshot), counting the ace high and low. */
-function hasStraightDraw(holeValues: number[], boardValues: number[]): boolean {
+/**
+ * Best "N to a straight" across any five-rank window (0-5), counting the ace
+ * high and low. Five means a completed straight; four is a draw (open-ended or
+ * gutshot). Returning the maximum fill keeps a made straight from also reading
+ * as a draw, since a completed straight always leaves an adjacent four-window.
+ */
+function bestStraightFill(holeValues: number[], boardValues: number[]): number {
   const present = new Set([...holeValues, ...boardValues])
-  // Ace also plays low for wheel draws.
+  // Ace also plays low for wheel straights.
   if (present.has(14)) present.add(1)
+  let best = 0
   for (let start = 1; start <= 10; start++) {
     let count = 0
     for (let r = start; r < start + 5; r++) {
       if (present.has(r)) count++
     }
-    // Exactly four of a five-rank window = a draw (five would be a made straight).
-    if (count === 4) return true
+    if (count > best) best = count
   }
-  return false
+  return best
 }

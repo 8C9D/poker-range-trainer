@@ -52,6 +52,16 @@ describe('categorizeHand', () => {
     expect(categorize('Ah2d', '3c4s9h')).toContain('straightDraw')
   })
 
+  it('tags a made straight as a straight, never as a draw', () => {
+    // 9s8d on 7c6h5s completes the 5-6-7-8-9 straight.
+    expect(categorize('9s8d', '7c6h5s')).toEqual(['straight'])
+  })
+
+  it('tags a made wheel straight using the low ace', () => {
+    // Ah2d on 3c4s5h completes A-2-3-4-5.
+    expect(categorize('Ah2d', '3c4s5h')).toEqual(['straight'])
+  })
+
   it('tags air when nothing connects', () => {
     expect(categorize('Js4d', 'Kd7c2h')).toEqual(['air'])
   })

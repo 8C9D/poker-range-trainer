@@ -38,4 +38,12 @@ describe('bucketRangeOnBoard', () => {
     const tally = bucketRangeOnBoard(['AKs'], flop)
     expect(tally.flushDraw).toBeGreaterThan(0)
   })
+
+  it('buckets a completed straight as a straight, not a straight draw', () => {
+    const flop = parseBoard('7c6h5s')
+    // Every 98s combo makes the 5-6-7-8-9 straight on this board.
+    const tally = bucketRangeOnBoard(['98s'], flop)
+    expect(tally.straight).toBe(4)
+    expect(tally.straightDraw).toBe(0)
+  })
 })

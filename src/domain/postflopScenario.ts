@@ -75,7 +75,7 @@ export function describeHeroHand(scenario: PostflopScenario): HandCategory[] {
 }
 
 /** Strong made hands worth betting/raising for value. */
-const STRONG_MADE: HandCategory[] = ['set', 'trips', 'twoPair', 'overpair', 'topPair']
+const STRONG_MADE: HandCategory[] = ['straight', 'set', 'trips', 'twoPair', 'overpair', 'topPair']
 /** Drawing hands that want to continue (call vs a bet, semi-bluff when checked to). */
 const DRAWS: HandCategory[] = ['flushDraw', 'straightDraw']
 /** Medium-strength made hands that prefer a cheap showdown. */

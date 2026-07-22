@@ -84,6 +84,12 @@ describe('suggestDecision', () => {
     expect(decide({ facing: 'checked to you' })).toBe('bet')
   })
 
+  it('plays a made straight for value, not as a draw', () => {
+    // 9s8d on 7c6h5s is a completed straight — value, not a semi-bluff.
+    expect(decide({ heroHand: '9s8d', flop: '7c6h5s', facing: 'villain bets' })).toBe('raise')
+    expect(decide({ heroHand: '9s8d', flop: '7c6h5s', facing: 'checked to you' })).toBe('bet')
+  })
+
   it('calls draws versus a bet and semi-bluffs when checked to', () => {
     // AhKh on Qh7h2c = flush draw, no pair.
     expect(decide({ heroHand: 'AhKh', flop: 'Qh7h2c', facing: 'villain bets' })).toBe('call')
