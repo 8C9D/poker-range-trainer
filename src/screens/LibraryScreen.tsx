@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { RangeThumbnail } from '../components/RangeThumbnail'
 import { formatDayDistance } from '../app/format'
 import { routeHash } from '../app/routes'
@@ -58,13 +58,19 @@ export function LibraryScreen() {
   const [showArchived, setShowArchived] = useState(false)
   const [favoritesOnly, setFavoritesOnly] = useState(false)
 
-  const stackDepths = distinctStackDepths(ranges)
-  const dueIds = new Set(
-    selectDueRanges(
-      ranges.filter((range) => !range.archived),
-      reviewStates,
-      nowIso,
-    ).map((range) => range.id),
+  // Both depend only on the mount-once library data, so memoize them instead of
+  // recomputing due dates across the whole library on every search keystroke.
+  const stackDepths = useMemo(() => distinctStackDepths(ranges), [ranges])
+  const dueIds = useMemo(
+    () =>
+      new Set(
+        selectDueRanges(
+          ranges.filter((range) => !range.archived),
+          reviewStates,
+          nowIso,
+        ).map((range) => range.id),
+      ),
+    [ranges, reviewStates, nowIso],
   )
 
   // Same pipeline as the pre-refactor library: archived drop out first (unless
