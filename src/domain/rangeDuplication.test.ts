@@ -59,6 +59,7 @@ describe('duplicateRange', () => {
       mixedStrategies: { A5s: [{ action: 'fourBet', frequency: 50 }, { action: 'fold', frequency: 50 }] },
       handNotes: { AKs: '4-bet vs UTG' },
       source: { kind: 'coach', reference: 'Jane' },
+      tags: ['MTT', 'Cash'],
     })
     const copy = duplicateRange(source, NEW_ID, TIMESTAMP)
     expect(copy.handActions).toEqual(source.handActions)
@@ -66,6 +67,8 @@ describe('duplicateRange', () => {
     expect(copy.mixedStrategies).toEqual(source.mixedStrategies)
     expect(copy.handNotes).toEqual(source.handNotes)
     expect(copy.source).toEqual(source.source)
+    expect(copy.tags).toEqual(['MTT', 'Cash'])
+    expect(copy.tags).not.toBe(source.tags)
   })
 
   it('deep-copies array-valued overlays so the copy is independent', () => {
@@ -86,7 +89,7 @@ describe('duplicateRange', () => {
 
   it('omits overlays the source lacks', () => {
     const copy = duplicateRange(makeRange(), NEW_ID, TIMESTAMP)
-    for (const key of ['handActions', 'comboSelections', 'mixedStrategies', 'handNotes', 'source']) {
+    for (const key of ['handActions', 'comboSelections', 'mixedStrategies', 'handNotes', 'source', 'tags']) {
       expect(key in copy).toBe(false)
     }
   })

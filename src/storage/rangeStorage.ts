@@ -1,5 +1,6 @@
 import { isValidHand, type PokerHand } from '../domain/pokerHands'
 import { normalizeRangeHands } from '../domain/rangeMath'
+import { normalizeTags } from '../domain/rangeLibrary'
 import { normalizeMixedStrategy, type HandMixedStrategy } from '../domain/mixedStrategy'
 import {
   ACTION_TYPES,
@@ -187,6 +188,7 @@ function parseSavedRange(value: unknown): SavedRange | null {
     updatedAt,
     metadata,
     source,
+    tags,
     archived,
     favorite,
     handActions,
@@ -215,6 +217,7 @@ function parseSavedRange(value: unknown): SavedRange | null {
   const normalizedComboSelections = normalizeComboSelections(comboSelections)
   const normalizedMixedStrategies = normalizeMixedStrategies(mixedStrategies)
   const normalizedHandNotes = normalizeHandNotes(handNotes)
+  const normalizedTags = normalizeTags(tags)
   return {
     id,
     name,
@@ -227,6 +230,7 @@ function parseSavedRange(value: unknown): SavedRange | null {
     ...(normalizedComboSelections ? { comboSelections: normalizedComboSelections } : {}),
     ...(normalizedMixedStrategies ? { mixedStrategies: normalizedMixedStrategies } : {}),
     ...(normalizedHandNotes ? { handNotes: normalizedHandNotes } : {}),
+    ...(normalizedTags.length > 0 ? { tags: normalizedTags } : {}),
     // Only a strict `true` persists; absent/false stays unarchived with no key.
     ...(archived === true ? { archived: true } : {}),
     // Same rule as archived: only a strict `true` persists the favorite flag.
@@ -273,6 +277,7 @@ function normalizeSavedRange(range: SavedRange): SavedRange {
   const {
     metadata,
     source,
+    tags,
     archived,
     favorite,
     handActions,
@@ -287,6 +292,7 @@ function normalizeSavedRange(range: SavedRange): SavedRange {
   const normalizedComboSelections = normalizeComboSelections(comboSelections)
   const normalizedMixedStrategies = normalizeMixedStrategies(mixedStrategies)
   const normalizedHandNotes = normalizeHandNotes(handNotes)
+  const normalizedTags = normalizeTags(tags)
   return {
     ...rest,
     hands: normalizeRangeHands(range.hands),
@@ -296,6 +302,7 @@ function normalizeSavedRange(range: SavedRange): SavedRange {
     ...(normalizedComboSelections ? { comboSelections: normalizedComboSelections } : {}),
     ...(normalizedMixedStrategies ? { mixedStrategies: normalizedMixedStrategies } : {}),
     ...(normalizedHandNotes ? { handNotes: normalizedHandNotes } : {}),
+    ...(normalizedTags.length > 0 ? { tags: normalizedTags } : {}),
     // Mirror parse: only a strict `true` is stored, so `false`/undefined drops the key.
     ...(archived === true ? { archived: true } : {}),
     // Same rule as archived: only a strict `true` is stored for favorite.

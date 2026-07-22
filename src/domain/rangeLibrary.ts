@@ -156,6 +156,68 @@ export function distinctStackDepths<T extends { metadata?: { stackDepthBb?: numb
 }
 
 /**
+ * Normalize a raw tags value into a clean list of tag labels.
+ *
+ * Non-array input yields `[]`. Each entry must be a string; it is trimmed, and
+ * blank/whitespace-only tags are dropped. Tags are de-duplicated
+ * case-insensitively (the first spelling of a tag wins), and the input order is
+ * otherwise preserved. Used by both the storage layer (on read and write) and
+ * the editor so a tag is stored and compared consistently.
+ */
+export function normalizeTags(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const raw of value) {
+    if (typeof raw !== 'string') continue
+    const trimmed = raw.trim()
+    if (trimmed.length === 0) continue
+    const key = trimmed.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    result.push(trimmed)
+  }
+  return result
+}
+
+/**
+ * Return the ranges carrying `tag`, preserving the input order.
+ *
+ * A `null` or empty `tag` means "all tags" and matches every range. A specific
+ * tag matches case-insensitively any range whose `tags` include it; ranges with
+ * no tags are excluded. The input array is never mutated; a fresh array is
+ * always returned.
+ */
+export function filterRangesByTag<T extends { tags?: string[] }>(
+  ranges: T[],
+  tag: string | null,
+): T[] {
+  if (!tag) return ranges.slice()
+  const needle = tag.toLowerCase()
+  return ranges.filter((range) => range.tags?.some((t) => t.toLowerCase() === needle))
+}
+
+/**
+ * Return the distinct tags present across `ranges`, sorted case-insensitively.
+ *
+ * Tags that differ only in case collapse to a single entry (the first spelling
+ * seen wins), and ranges with no tags contribute nothing; an empty array is
+ * returned when no range carries a tag. Deriving the selectable tags from the
+ * saved ranges keeps the tag filter in step with the user's actual data. The
+ * input array is never mutated.
+ */
+export function collectRangeTags<T extends { tags?: string[] }>(ranges: T[]): string[] {
+  const seen = new Map<string, string>()
+  for (const range of ranges) {
+    for (const tag of range.tags ?? []) {
+      const key = tag.toLowerCase()
+      if (!seen.has(key)) seen.set(key, tag)
+    }
+  }
+  return [...seen.values()].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+}
+
+/**
  * Return a copy of `ranges` sorted by `name` ascending, case-insensitively.
  *
  * Ordering uses `localeCompare` with `sensitivity: 'base'`, so case and accents

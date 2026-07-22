@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  collectRangeTags,
   distinctStackDepths,
   filterArchivedRanges,
   filterFavoriteRanges,
@@ -8,6 +9,8 @@ import {
   filterRangesByName,
   filterRangesByPosition,
   filterRangesByStackDepth,
+  filterRangesByTag,
+  normalizeTags,
   sortRangesByAccuracy,
   sortRangesByLastPracticed,
   sortRangesByName,
@@ -724,5 +727,62 @@ describe('sortRangesByAccuracy', () => {
   it('returns a fresh array rather than the original reference', () => {
     const input = [{ id: 'r1', name: 'Button' }]
     expect(sortRangesByAccuracy(input, {})).not.toBe(input)
+  })
+})
+
+describe('normalizeTags', () => {
+  it('trims, drops blanks and non-strings, and de-dupes case-insensitively', () => {
+    expect(normalizeTags(['  MTT ', 'mtt', '', '  ', 'Cash', 42 as unknown as string])).toEqual([
+      'MTT',
+      'Cash',
+    ])
+  })
+
+  it('returns an empty array for non-array or empty input', () => {
+    expect(normalizeTags(undefined)).toEqual([])
+    expect(normalizeTags('MTT')).toEqual([])
+    expect(normalizeTags([])).toEqual([])
+  })
+
+  it('keeps the first spelling of a case-insensitive duplicate', () => {
+    expect(normalizeTags(['Cash', 'CASH', 'cash'])).toEqual(['Cash'])
+  })
+})
+
+describe('filterRangesByTag', () => {
+  const tagged = [
+    { name: 'a', tags: ['MTT', 'Cash'] },
+    { name: 'b', tags: ['cash'] },
+    { name: 'c' },
+    { name: 'd', tags: ['Heads-up'] },
+  ]
+
+  it('returns every range for a null or empty tag', () => {
+    expect(filterRangesByTag(tagged, null)).toHaveLength(4)
+    expect(filterRangesByTag(tagged, '')).toHaveLength(4)
+  })
+
+  it('matches the tag case-insensitively and excludes untagged ranges', () => {
+    expect(filterRangesByTag(tagged, 'cash').map((r) => r.name)).toEqual(['a', 'b'])
+    expect(filterRangesByTag(tagged, 'MTT').map((r) => r.name)).toEqual(['a'])
+  })
+
+  it('returns a fresh array rather than the original reference', () => {
+    expect(filterRangesByTag(tagged, null)).not.toBe(tagged)
+  })
+})
+
+describe('collectRangeTags', () => {
+  it('returns the distinct tags across ranges, sorted case-insensitively', () => {
+    const input = [
+      { name: 'a', tags: ['MTT', 'cash'] },
+      { name: 'b', tags: ['Cash', 'aggro'] },
+      { name: 'c' },
+    ]
+    expect(collectRangeTags(input)).toEqual(['aggro', 'cash', 'MTT'])
+  })
+
+  it('returns an empty array when no range carries a tag', () => {
+    expect(collectRangeTags([{ name: 'a' }, { name: 'b', tags: [] }])).toEqual([])
   })
 })

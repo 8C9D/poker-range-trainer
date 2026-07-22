@@ -207,6 +207,14 @@ export interface SavedRange {
    */
   source?: RangeSource
   /**
+   * Optional user-defined organization tags (e.g. `['MTT', '3-bet pots']`).
+   * Free-form labels for grouping/filtering the library, kept in the order the
+   * user added them and de-duplicated case-insensitively. Absence, or an empty
+   * list, means no tags, so ranges saved before tags existed are unaffected and
+   * need no migration.
+   */
+  tags?: string[]
+  /**
    * Library archive state; absent/false = active. Hidden-by-default filtering
    * comes in a later slice.
    */

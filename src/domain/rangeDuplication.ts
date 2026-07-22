@@ -5,7 +5,7 @@ import type { SavedRange } from '../types/range'
  *
  * Returns a brand-new {@link SavedRange} that shares no mutable state with
  * `source`: every content-bearing field is copied by value into fresh
- * structures. `hands` is a fresh array; `metadata` and `source` are
+ * structures. `hands` and `tags` are fresh arrays; `metadata` and `source` are
  * shallow-copied (flat scalars, so a shallow copy fully detaches them);
  * `handActions` and `handNotes` are shallow-copied records; `comboSelections`
  * and `mixedStrategies` are deep-copied (their values are arrays). The copy
@@ -35,6 +35,7 @@ export function duplicateRange(
   }
   if (source.metadata) copy.metadata = { ...source.metadata }
   if (source.source) copy.source = { ...source.source }
+  if (source.tags) copy.tags = [...source.tags]
   if (source.handActions) copy.handActions = { ...source.handActions }
   if (source.handNotes) copy.handNotes = { ...source.handNotes }
   if (source.comboSelections) {

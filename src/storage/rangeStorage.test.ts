@@ -667,3 +667,25 @@ describe('replaceSavedRanges', () => {
     expect(ranges[0].name).toBe('Second')
   })
 })
+
+describe('range tags', () => {
+  it('preserves tags across a save/load round trip', () => {
+    saveSavedRange(makeRange({ id: 'r1', tags: ['MTT', '3-bet pots'] }))
+    expect(loadSavedRanges()[0].tags).toEqual(['MTT', '3-bet pots'])
+  })
+
+  it('trims, drops blanks, and de-dupes tags on save', () => {
+    saveSavedRange(makeRange({ id: 'r1', tags: ['  MTT ', 'mtt', '', 'Cash'] }))
+    expect(loadSavedRanges()[0].tags).toEqual(['MTT', 'Cash'])
+  })
+
+  it('stores no tags key when the list is empty or all-blank', () => {
+    saveSavedRange(makeRange({ id: 'r1', tags: ['   ', ''] }))
+    expect(loadSavedRanges()[0]).not.toHaveProperty('tags')
+  })
+
+  it('adds no tags field when a saved range has none', () => {
+    saveSavedRange(makeRange({ id: 'r1' }))
+    expect(loadSavedRanges()[0]).not.toHaveProperty('tags')
+  })
+})
