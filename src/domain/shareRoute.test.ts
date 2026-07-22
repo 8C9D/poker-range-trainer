@@ -25,6 +25,13 @@ describe('parseShareRoute', () => {
     expect(parseShareRoute('#/other')).toBeNull()
   })
 
+  it('returns null (never throws) for a malformed percent-encoding', () => {
+    expect(() => parseShareRoute('#/r/%')).not.toThrow()
+    expect(parseShareRoute('#/r/%')).toBeNull()
+    expect(parseShareRoute('#/r/%E0%A4%A')).toBeNull()
+    expect(parseShareRoute('#/r/abc?t=%E0')).toBeNull()
+  })
+
   it('returns null for a pack route', () => {
     expect(parseShareRoute('#/p/abc')).toBeNull()
   })
@@ -48,5 +55,11 @@ describe('parsePackShareRoute', () => {
     expect(parsePackShareRoute('#/p/')).toBeNull()
     expect(parsePackShareRoute('#/r/abc')).toBeNull()
     expect(parsePackShareRoute('#range=abc')).toBeNull()
+  })
+
+  it('returns null (never throws) for a malformed percent-encoding', () => {
+    expect(() => parsePackShareRoute('#/p/%')).not.toThrow()
+    expect(parsePackShareRoute('#/p/%')).toBeNull()
+    expect(parsePackShareRoute('#/p/pack?t=%E0')).toBeNull()
   })
 })
