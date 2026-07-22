@@ -116,6 +116,30 @@ describe('LibraryScreen', () => {
     expect(screen.getByRole('button', { name: 'Filters (1)' })).toBeInTheDocument()
   })
 
+  it('shows tag chips on rows and filters by tag', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange('a', 'MTT open', { tags: ['MTT'] }))
+    saveSavedRange(makeRange('b', 'Cash open', { tags: ['Cash'] }))
+    saveSavedRange(makeRange('c', 'No tags'))
+    render(<LibraryScreen />)
+
+    // The tag chip renders on its row (before the filter panel is opened).
+    expect(screen.getByText('MTT')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Filters' }))
+    await user.selectOptions(screen.getByLabelText('Filter ranges by tag'), 'Cash')
+    expect(rowNames()).toEqual(['Cash open'])
+    expect(screen.getByRole('button', { name: 'Filters (1)' })).toBeInTheDocument()
+  })
+
+  it('offers no tag filter when no range is tagged', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange('a', 'UTG open'))
+    render(<LibraryScreen />)
+    await user.click(screen.getByRole('button', { name: 'Filters' }))
+    expect(screen.queryByLabelText('Filter ranges by tag')).not.toBeInTheDocument()
+  })
+
   it('filters by stack depth, action, and game type', async () => {
     const user = userEvent.setup()
     saveSavedRange(

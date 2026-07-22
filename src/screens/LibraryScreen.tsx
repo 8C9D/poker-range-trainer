@@ -3,6 +3,7 @@ import { RangeThumbnail } from '../components/RangeThumbnail'
 import { formatDayDistance } from '../app/format'
 import { routeHash } from '../app/routes'
 import {
+  collectRangeTags,
   distinctStackDepths,
   filterArchivedRanges,
   filterFavoriteRanges,
@@ -11,6 +12,7 @@ import {
   filterRangesByName,
   filterRangesByPosition,
   filterRangesByStackDepth,
+  filterRangesByTag,
   sortRangesByAccuracy,
   sortRangesByLastPracticed,
   sortRangesByName,
@@ -54,6 +56,7 @@ export function LibraryScreen() {
   const [actionType, setActionType] = useState<ActionType | ''>('')
   const [stackDepth, setStackDepth] = useState<number | ''>('')
   const [gameType, setGameType] = useState<GameType | ''>('')
+  const [tag, setTag] = useState('')
   const [sort, setSort] = useState<SortOrder>('')
   const [showArchived, setShowArchived] = useState(false)
   const [favoritesOnly, setFavoritesOnly] = useState(false)
@@ -61,6 +64,7 @@ export function LibraryScreen() {
   // Both depend only on the mount-once library data, so memoize them instead of
   // recomputing due dates across the whole library on every search keystroke.
   const stackDepths = useMemo(() => distinctStackDepths(ranges), [ranges])
+  const tagOptions = useMemo(() => collectRangeTags(ranges), [ranges])
   const dueIds = useMemo(
     () =>
       new Set(
@@ -91,22 +95,24 @@ export function LibraryScreen() {
     ),
     gameType,
   )
+  const tagged = filterRangesByTag(filtered, tag === '' ? null : tag)
   const visibleRanges =
     sort === 'name'
-      ? sortRangesByName(filtered)
+      ? sortRangesByName(tagged)
       : sort === 'recent'
-        ? sortRangesByUpdatedAt(filtered)
+        ? sortRangesByUpdatedAt(tagged)
         : sort === 'practiced'
-          ? sortRangesByLastPracticed(filtered, practiceStats)
+          ? sortRangesByLastPracticed(tagged, practiceStats)
           : sort === 'accuracy'
-            ? sortRangesByAccuracy(filtered, practiceStats)
-            : filtered
+            ? sortRangesByAccuracy(tagged, practiceStats)
+            : tagged
 
   const activeFilterCount =
     (position ? 1 : 0) +
     (actionType ? 1 : 0) +
     (stackDepth !== '' ? 1 : 0) +
     (gameType ? 1 : 0) +
+    (tag ? 1 : 0) +
     (favoritesOnly ? 1 : 0) +
     (showArchived ? 1 : 0)
 
@@ -213,6 +219,21 @@ export function LibraryScreen() {
                   </option>
                 ))}
               </select>
+              {tagOptions.length > 0 && (
+                <select
+                  className="coach-input"
+                  value={tag}
+                  onChange={(event) => setTag(event.target.value)}
+                  aria-label="Filter ranges by tag"
+                >
+                  <option value="">All tags</option>
+                  {tagOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              )}
               <button
                 type="button"
                 className="coach-btn"
@@ -282,6 +303,11 @@ export function LibraryScreen() {
                             <span className="coach-chip library-chip-due">Due</span>
                           )}
                           {range.archived && <span className="coach-chip">Archived</span>}
+                          {range.tags?.map((rangeTag) => (
+                            <span key={rangeTag} className="coach-chip library-chip-tag">
+                              {rangeTag}
+                            </span>
+                          ))}
                         </span>
                       </div>
                       <div className="library-row-stats coach-tabular">

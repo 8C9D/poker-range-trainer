@@ -118,6 +118,11 @@
   font-weight: 600;
 }
 
+.library-chip-tag {
+  color: var(--ink-2);
+  border-style: dashed;
+}
+
 .library-row-stats {
   display: flex;
   flex-direction: column;
