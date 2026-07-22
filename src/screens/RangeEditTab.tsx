@@ -152,8 +152,15 @@ export function RangeEditTab({ range, onSaved }: RangeEditTabProps) {
       if (hasMetadata) saved.metadata = metadata
       if (source) saved.source = source
     }
-    // Storage drops blank per-hand notes and collapses an empty map.
-    saved.handNotes = notesDraft
+    // Keep only notes for hands still in the range so deselecting a hand does
+    // not leave an orphaned, unreachable note behind. Storage then drops blank
+    // per-hand notes and collapses an empty map.
+    const prunedNotes: Record<PokerHand, string> = {}
+    for (const hand of selectedHands) {
+      const note = notesDraft[hand]
+      if (note && note.trim().length > 0) prunedNotes[hand] = note
+    }
+    saved.handNotes = prunedNotes
     saveSavedRange(saved)
     setSavedName(saved.name)
     onSaved(saved)
