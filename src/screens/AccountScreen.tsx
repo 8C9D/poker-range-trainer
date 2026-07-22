@@ -3,7 +3,12 @@ import { createRangeId } from '../app/ids'
 import { downloadTextFile } from '../app/rangeFiles'
 import { AuthPanel } from '../components/AuthPanel'
 import { deleteBackup, pullBackup, pushBackup } from '../cloud/backupRepo'
-import { publishSharedPack, unpublishSharedPack } from '../cloud/sharedPacksRepo'
+import {
+  publishSharedPack,
+  unpublishAllSharedPacks,
+  unpublishSharedPack,
+} from '../cloud/sharedPacksRepo'
+import { unpublishAllSharedRanges } from '../cloud/sharedRangesRepo'
 import { useAuthSession } from '../cloud/useAuthSession'
 import {
   buildRangePack,
@@ -65,18 +70,26 @@ export function AccountScreen() {
   async function handleDeleteCloudData() {
     if (
       !window.confirm(
-        'This permanently deletes your cloud backup. Your local data is kept. Continue?',
+        'This permanently deletes your cloud backup AND revokes every share link you have published. Your local data is kept. Continue?',
       )
     ) {
       return
     }
     setSyncStatus('Deleting cloud data…')
-    try {
-      await deleteBackup()
-      setSyncStatus('Deleted your cloud backup.')
-    } catch (error) {
-      setSyncStatus(error instanceof Error ? error.message : 'Delete failed.')
+    // Best-effort: attempt all three so a failure in one still clears the rest.
+    const results = await Promise.allSettled([
+      deleteBackup(),
+      unpublishAllSharedPacks(),
+      unpublishAllSharedRanges(),
+    ])
+    const failure = results.find((result) => result.status === 'rejected')
+    if (failure?.status === 'rejected') {
+      const { reason } = failure
+      setSyncStatus(reason instanceof Error ? reason.message : 'Delete failed.')
+      return
     }
+    setPublishedPackId(null)
+    setSyncStatus('Deleted your cloud backup and revoked your published share links.')
   }
 
   async function handlePublishPack() {

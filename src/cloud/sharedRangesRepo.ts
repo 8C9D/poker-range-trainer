@@ -114,3 +114,14 @@ export async function unpublishSharedRange(
     .eq('owner_id', userId)
   if (error) throw error
 }
+
+/**
+ * Unpublish (delete) EVERY shared range the signed-in user owns. Used by the
+ * "delete cloud data" flow so previously-published range links are revoked even
+ * after a page reload, when no single publish id is held in memory.
+ */
+export async function unpublishAllSharedRanges(deps: SharedRangesRepoDeps = {}): Promise<void> {
+  const { client, userId } = await requireContext(deps)
+  const { error } = await client.from(SHARED_RANGES_TABLE).delete().eq('owner_id', userId)
+  if (error) throw error
+}

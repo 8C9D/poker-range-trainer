@@ -115,3 +115,14 @@ export async function unpublishSharedPack(
     .eq('owner_id', userId)
   if (error) throw error
 }
+
+/**
+ * Unpublish (delete) EVERY shared pack the signed-in user owns. Used by the
+ * "delete cloud data" flow so previously-published pack links are revoked even
+ * after a page reload, when no single publish id is held in memory.
+ */
+export async function unpublishAllSharedPacks(deps: SharedPacksRepoDeps = {}): Promise<void> {
+  const { client, userId } = await requireContext(deps)
+  const { error } = await client.from(SHARED_PACKS_TABLE).delete().eq('owner_id', userId)
+  if (error) throw error
+}

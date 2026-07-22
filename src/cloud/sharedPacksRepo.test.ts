@@ -4,7 +4,12 @@ import type { SavedRange } from '../types/range'
 import { buildRangePack, type RangePack } from '../domain/rangeTransfer'
 import { CloudNotConfiguredError } from './auth'
 import { NotSignedInError } from './rangesRepo'
-import { getSharedPack, publishSharedPack, unpublishSharedPack } from './sharedPacksRepo'
+import {
+  getSharedPack,
+  publishSharedPack,
+  unpublishAllSharedPacks,
+  unpublishSharedPack,
+} from './sharedPacksRepo'
 
 function makeRange(): SavedRange {
   return {
@@ -128,5 +133,35 @@ describe('unpublishSharedPack', () => {
     const deleteFn = vi.fn(() => ({ eq: eqId }))
     const client = { from: vi.fn(() => ({ delete: deleteFn })) } as unknown as SupabaseClient
     await expect(unpublishSharedPack('packid', { client, ...signedIn })).rejects.toBe(error)
+  })
+})
+
+describe('unpublishAllSharedPacks', () => {
+  it('deletes every row scoped to the owner', async () => {
+    const eqOwner = vi.fn().mockResolvedValue({ error: null })
+    const deleteFn = vi.fn(() => ({ eq: eqOwner }))
+    const client = { from: vi.fn(() => ({ delete: deleteFn })) } as unknown as SupabaseClient
+    await expect(unpublishAllSharedPacks({ client, ...signedIn })).resolves.toBeUndefined()
+    expect(eqOwner).toHaveBeenCalledWith('owner_id', 'user-1')
+  })
+
+  it('throws when signed out', async () => {
+    await expect(
+      unpublishAllSharedPacks({ client: {} as SupabaseClient, resolveUserId: async () => null }),
+    ).rejects.toBeInstanceOf(NotSignedInError)
+  })
+
+  it('throws when cloud is unconfigured', async () => {
+    await expect(unpublishAllSharedPacks({ client: null })).rejects.toBeInstanceOf(
+      CloudNotConfiguredError,
+    )
+  })
+
+  it('throws the Supabase error when the delete fails', async () => {
+    const error = new Error('rls denied')
+    const eqOwner = vi.fn().mockResolvedValue({ error })
+    const deleteFn = vi.fn(() => ({ eq: eqOwner }))
+    const client = { from: vi.fn(() => ({ delete: deleteFn })) } as unknown as SupabaseClient
+    await expect(unpublishAllSharedPacks({ client, ...signedIn })).rejects.toBe(error)
   })
 })

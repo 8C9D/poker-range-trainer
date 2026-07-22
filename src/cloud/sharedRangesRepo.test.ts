@@ -3,7 +3,12 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { SavedRange } from '../types/range'
 import { CloudNotConfiguredError } from './auth'
 import { NotSignedInError } from './rangesRepo'
-import { getSharedRange, publishSharedRange, unpublishSharedRange } from './sharedRangesRepo'
+import {
+  getSharedRange,
+  publishSharedRange,
+  unpublishAllSharedRanges,
+  unpublishSharedRange,
+} from './sharedRangesRepo'
 
 function makeRange(): SavedRange {
   return {
@@ -123,5 +128,35 @@ describe('unpublishSharedRange', () => {
     const deleteFn = vi.fn(() => ({ eq: eqId }))
     const client = { from: vi.fn(() => ({ delete: deleteFn })) } as unknown as SupabaseClient
     await expect(unpublishSharedRange('shareid', { client, ...signedIn })).rejects.toBe(error)
+  })
+})
+
+describe('unpublishAllSharedRanges', () => {
+  it('deletes every row scoped to the owner', async () => {
+    const eqOwner = vi.fn().mockResolvedValue({ error: null })
+    const deleteFn = vi.fn(() => ({ eq: eqOwner }))
+    const client = { from: vi.fn(() => ({ delete: deleteFn })) } as unknown as SupabaseClient
+    await expect(unpublishAllSharedRanges({ client, ...signedIn })).resolves.toBeUndefined()
+    expect(eqOwner).toHaveBeenCalledWith('owner_id', 'user-1')
+  })
+
+  it('throws when signed out', async () => {
+    await expect(
+      unpublishAllSharedRanges({ client: {} as SupabaseClient, resolveUserId: async () => null }),
+    ).rejects.toBeInstanceOf(NotSignedInError)
+  })
+
+  it('throws when cloud is unconfigured', async () => {
+    await expect(unpublishAllSharedRanges({ client: null })).rejects.toBeInstanceOf(
+      CloudNotConfiguredError,
+    )
+  })
+
+  it('throws the Supabase error when the delete fails', async () => {
+    const error = new Error('rls denied')
+    const eqOwner = vi.fn().mockResolvedValue({ error })
+    const deleteFn = vi.fn(() => ({ eq: eqOwner }))
+    const client = { from: vi.fn(() => ({ delete: deleteFn })) } as unknown as SupabaseClient
+    await expect(unpublishAllSharedRanges({ client, ...signedIn })).rejects.toBe(error)
   })
 })
