@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Link, Stack } from 'expo-router';
+import { Stack } from 'expo-router';
 
 import {
   formatCard,
@@ -25,6 +25,7 @@ import type { ThemeColors } from '../theme/colors';
 
 /** Display labels for the made-hand / draw categories (UI only). */
 const CATEGORY_LABELS: Record<HandCategory, string> = {
+  straight: 'Straight',
   set: 'Set',
   trips: 'Trips',
   twoPair: 'Two pair',
@@ -135,16 +136,7 @@ export default function BoardScreen() {
 
   return (
     <View style={styles.screen}>
-      <Stack.Screen
-        options={{
-          title: 'Board explorer',
-          headerRight: () => (
-            <Link href="/combos" style={styles.headerLink}>
-              Combos
-            </Link>
-          ),
-        }}
-      />
+      <Stack.Screen options={{ title: 'Board explorer' }} />
       <Text style={styles.hint}>Tap a rank and a suit to fill each card.</Text>
 
       <View style={styles.slots}>
@@ -264,11 +256,6 @@ function makeStyles(theme: ThemeColors) {
       backgroundColor: theme.bg,
       padding: 24,
       gap: 20,
-    },
-    headerLink: {
-      color: theme.accent,
-      fontSize: 16,
-      fontWeight: '600',
     },
     hint: {
       color: theme.ink2,
