@@ -1,0 +1,54 @@
+.range-tags {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.range-tags-title {
+  margin: 0;
+}
+
+.range-tags-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.range-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 12px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.range-tag-remove {
+  border: none;
+  background: none;
+  color: var(--ink-2);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 4px;
+  border-radius: 999px;
+}
+
+.range-tag-remove:hover {
+  color: var(--bad);
+}
+
+.range-tags-add {
+  display: flex;
+  gap: 8px;
+}
+
+.range-tags-add .coach-input {
+  flex: 1;
+}

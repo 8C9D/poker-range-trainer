@@ -5,7 +5,9 @@ import { HandNotesEditor } from '../components/HandNotesEditor'
 import { RangeMetadataEditor } from '../components/RangeMetadataEditor'
 import { RangeNotation } from '../components/RangeNotation'
 import { RangeShortcuts } from '../components/RangeShortcuts'
+import { RangeTagEditor } from '../components/RangeTagEditor'
 import type { PokerHand } from '../domain/pokerHands'
+import { normalizeTags } from '../domain/rangeLibrary'
 import {
   calculateRangePercentage,
   countSelectedCombos,
@@ -58,6 +60,7 @@ export function RangeEditTab({ range, onSaved }: RangeEditTabProps) {
   const [notesDraft, setNotesDraft] = useState<Record<PokerHand, string>>({
     ...(range?.handNotes ?? {}),
   })
+  const [tagsDraft, setTagsDraft] = useState<string[]>(() => range?.tags ?? [])
   // Status line confirming the last save, cleared on the next change.
   const [savedName, setSavedName] = useState<string | null>(null)
 
@@ -165,6 +168,10 @@ export function RangeEditTab({ range, onSaved }: RangeEditTabProps) {
       if (note && note.trim().length > 0) prunedNotes[hand] = note
     }
     saved.handNotes = prunedNotes
+    // Persist cleaned tags, or drop the field entirely when none remain.
+    const savedTags = normalizeTags(tagsDraft)
+    if (savedTags.length > 0) saved.tags = savedTags
+    else delete saved.tags
     saveSavedRange(saved)
     setSavedName(saved.name)
     onSaved(saved)
@@ -259,6 +266,14 @@ export function RangeEditTab({ range, onSaved }: RangeEditTabProps) {
         onNotesChange={setNotes}
         onSourceKindChange={setSourceKind}
         onSourceReferenceChange={setSourceReference}
+      />
+
+      <RangeTagEditor
+        tags={tagsDraft}
+        onChange={(next) => {
+          setSavedName(null)
+          setTagsDraft(next)
+        }}
       />
 
       {selectedHands.length > 0 && (

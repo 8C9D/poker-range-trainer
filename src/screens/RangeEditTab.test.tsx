@@ -41,6 +41,18 @@ describe('RangeEditTab per-hand notes', () => {
     expect(saved.handNotes).not.toHaveProperty('AA')
   })
 
+  it('saves tags added in the editor', async () => {
+    const user = userEvent.setup()
+    const onSaved = vi.fn()
+    render(<RangeEditTab range={makeRange()} onSaved={onSaved} />)
+
+    await user.type(screen.getByLabelText('Add a tag'), 'MTT{Enter}')
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    const saved = onSaved.mock.calls[0][0] as SavedRange
+    expect(saved.tags).toEqual(['MTT'])
+  })
+
   it('keeps notes for hands that remain selected', () => {
     const onSaved = vi.fn()
     render(
