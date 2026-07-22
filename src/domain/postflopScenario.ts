@@ -81,9 +81,14 @@ const DRAWS: HandCategory[] = ['flushDraw', 'straightDraw']
 /** Medium-strength made hands that prefer a cheap showdown. */
 const MEDIUM_MADE: HandCategory[] = ['middlePair', 'bottomPair', 'pair']
 
-/** True when the action the hero faces involves aggression (a bet or raise). */
+/**
+ * True when the action the hero faces involves aggression (a bet or raise).
+ *
+ * The `(?<!-)` guard keeps a pot-type descriptor like "3-bet pot" from counting
+ * as a bet the hero currently faces, while still matching "bets"/"bet" as verbs.
+ */
 export function isFacingAggression(scenario: PostflopScenario): boolean {
-  return /\b(bet|raise|jam|shove|all[- ]?in)/i.test(scenario.facing)
+  return /\b((?<!-)bet|raise|jam|shove|all[- ]?in)/i.test(scenario.facing)
 }
 
 export interface DecisionSuggestion {

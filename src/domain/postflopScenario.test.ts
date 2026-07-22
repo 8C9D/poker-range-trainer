@@ -71,6 +71,12 @@ describe('isFacingAggression', () => {
       expect(isFacingAggression(buildPostflopScenario({ ...base, facing }))).toBe(false)
     }
   })
+
+  it('does not treat an "N-bet pot" descriptor as facing a bet', () => {
+    for (const facing of ['3-bet pot, checked to hero', '4-bet pot', 'checked to hero in a 3-bet pot']) {
+      expect(isFacingAggression(buildPostflopScenario({ ...base, facing }))).toBe(false)
+    }
+  })
 })
 
 describe('suggestDecision', () => {
