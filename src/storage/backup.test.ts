@@ -1,9 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import type { SavedRange } from '../types/range'
 import { saveSavedRange } from './rangeStorage'
 import { loadSavedRanges } from './rangeStorage'
+import { ACTION_ACCURACY_STORAGE_KEY } from './actionAccuracyStorage'
 import {
   BACKUP_VERSION,
+  type Backup,
   buildBackup,
   parseBackup,
   restoreBackup,
@@ -109,6 +111,44 @@ describe('restoreBackup', () => {
     expect(loadSavedRanges()).toHaveLength(2)
 
     restoreBackup(parseBackup(serializeBackup(snapshot)))
+    const restored = loadSavedRanges()
+    expect(restored).toHaveLength(1)
+    expect(restored[0].id).toBe('original')
+  })
+
+  it('rolls back every slice when a write fails partway through', () => {
+    const original: Backup = {
+      version: BACKUP_VERSION,
+      exportedAt: '2026-06-08T00:00:00.000Z',
+      ranges: [makeRange({ id: 'original' })],
+      practiceStats: {},
+      handAccuracy: {},
+      actionAccuracy: {},
+      sessionHistory: {},
+      reviewStates: {},
+    }
+    restoreBackup(original)
+
+    const replacement: Backup = { ...original, ranges: [makeRange({ id: 'replacement' })] }
+
+    // Fail the fourth write (action accuracy) once; the earlier ranges/stats
+    // writes have already landed, so a non-atomic restore would leave them
+    // holding the replacement data. Later rollback writes must still succeed.
+    const realSetItem = Storage.prototype.setItem
+    let failed = false
+    const spy = vi
+      .spyOn(Storage.prototype, 'setItem')
+      .mockImplementation(function (this: Storage, key: string, value: string) {
+        if (key === ACTION_ACCURACY_STORAGE_KEY && !failed) {
+          failed = true
+          throw new Error('QuotaExceededError')
+        }
+        realSetItem.call(this, key, value)
+      })
+
+    expect(() => restoreBackup(replacement)).toThrow(/QuotaExceededError/)
+    spy.mockRestore()
+
     const restored = loadSavedRanges()
     expect(restored).toHaveLength(1)
     expect(restored[0].id).toBe('original')

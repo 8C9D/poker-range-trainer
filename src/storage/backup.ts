@@ -98,12 +98,32 @@ export function parseBackup(json: string): Backup {
  * Restore a backup into localStorage, REPLACING all existing local data. Each
  * slice is written under its existing storage key; the per-slice loaders apply
  * their usual defensive validation when the app next reads them.
+ *
+ * The write is atomic: every slice is serialized up front, the current values
+ * are snapshotted, and if any `setItem` throws mid-way (e.g. a
+ * `QuotaExceededError`) the snapshot is restored so the library is never left
+ * half-replaced. Restoring the snapshot always fits, since those values were
+ * already present. The original error is rethrown for the caller to surface.
  */
 export function restoreBackup(backup: Backup): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(backup.ranges))
-  localStorage.setItem(PRACTICE_STATS_STORAGE_KEY, JSON.stringify(backup.practiceStats))
-  localStorage.setItem(HAND_ACCURACY_STORAGE_KEY, JSON.stringify(backup.handAccuracy))
-  localStorage.setItem(ACTION_ACCURACY_STORAGE_KEY, JSON.stringify(backup.actionAccuracy))
-  localStorage.setItem(SESSION_HISTORY_STORAGE_KEY, JSON.stringify(backup.sessionHistory))
-  localStorage.setItem(REVIEW_STATE_STORAGE_KEY, JSON.stringify(backup.reviewStates))
+  const entries: [string, string][] = [
+    [STORAGE_KEY, JSON.stringify(backup.ranges)],
+    [PRACTICE_STATS_STORAGE_KEY, JSON.stringify(backup.practiceStats)],
+    [HAND_ACCURACY_STORAGE_KEY, JSON.stringify(backup.handAccuracy)],
+    [ACTION_ACCURACY_STORAGE_KEY, JSON.stringify(backup.actionAccuracy)],
+    [SESSION_HISTORY_STORAGE_KEY, JSON.stringify(backup.sessionHistory)],
+    [REVIEW_STATE_STORAGE_KEY, JSON.stringify(backup.reviewStates)],
+  ]
+  const previous = entries.map(([key]) => [key, localStorage.getItem(key)] as const)
+  try {
+    for (const [key, value] of entries) {
+      localStorage.setItem(key, value)
+    }
+  } catch (error) {
+    for (const [key, value] of previous) {
+      if (value === null) localStorage.removeItem(key)
+      else localStorage.setItem(key, value)
+    }
+    throw error
+  }
 }
