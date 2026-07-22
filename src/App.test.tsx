@@ -101,8 +101,9 @@ describe('Practice overlay', () => {
 
     await user.click(screen.getByRole('button', { name: 'Start review' }))
 
-    // First drill of the queue with a visible position and progress bar.
-    expect(screen.getByText('UTG open · 1/2')).toBeInTheDocument()
+    // First drill of the queue with a visible position and progress bar (the
+    // practice subtree loads lazily, so wait for it to mount).
+    expect(await screen.findByText('UTG open · 1/2')).toBeInTheDocument()
     expect(screen.getByRole('progressbar')).toBeInTheDocument()
     // Answer one hand, close early -> peak-end summary, then advance the queue.
     await user.click(screen.getByRole('button', { name: 'In range' }))
@@ -127,7 +128,7 @@ describe('Practice overlay', () => {
     render(<App />)
 
     await user.click(screen.getByRole('button', { name: 'Start review' }))
-    await user.click(screen.getByRole('button', { name: 'Close practice' }))
+    await user.click(await screen.findByRole('button', { name: 'Close practice' }))
 
     expect(loadReviewStates()).toEqual({})
     expect(screen.getByRole('button', { name: 'Start review' })).toBeInTheDocument()
@@ -141,7 +142,7 @@ describe('Practice overlay', () => {
     render(<App />)
 
     await user.click(screen.getAllByRole('button', { name: 'Review' })[1])
-    expect(screen.getByRole('dialog', { name: 'BTN open' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'BTN open' })).toBeInTheDocument()
     expect(screen.queryByText(/1\/2/)).not.toBeInTheDocument()
   })
 
@@ -152,7 +153,7 @@ describe('Practice overlay', () => {
     render(<App />)
 
     await user.click(screen.getByRole('button', { name: 'Practice' }))
-    expect(screen.getByText('How do you want to train?')).toBeInTheDocument()
+    expect(await screen.findByText('How do you want to train?')).toBeInTheDocument()
     await user.click(screen.getByText('Recognize hands'))
     expect(screen.getByRole('button', { name: 'In range' })).toBeInTheDocument()
   })

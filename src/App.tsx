@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { SharedRangePage } from './components/SharedRangePage'
 import { SharedPackPage } from './components/SharedPackPage'
 import { parsePackShareRoute, parseShareRoute } from './domain/shareRoute'
@@ -7,7 +7,13 @@ import { saveSavedRange } from './storage/rangeStorage'
 import { AppShell } from './app/AppShell'
 import { createRangeId } from './app/ids'
 import { useHashRoute } from './app/routes'
-import { PracticeHost, type PracticeRequest } from './practice/PracticeHost'
+import type { PracticeRequest } from './practice/PracticeHost'
+
+// The practice/drill/postflop subtree is large and only rendered once a user
+// starts a session, so load it lazily to keep it out of the initial bundle.
+const PracticeHost = lazy(() =>
+  import('./practice/PracticeHost').then((module) => ({ default: module.PracticeHost })),
+)
 import { AccountScreen } from './screens/AccountScreen'
 import { LibraryScreen } from './screens/LibraryScreen'
 import { ProgressScreen } from './screens/ProgressScreen'
@@ -102,7 +108,13 @@ function CoachApp() {
   }
 
   if (practice) {
-    return <PracticeHost request={practice} onClose={() => setPractice(null)} />
+    return (
+      <Suspense
+        fallback={<div style={{ position: 'fixed', inset: 0, background: 'var(--bg)' }} aria-busy="true" />}
+      >
+        <PracticeHost request={practice} onClose={() => setPractice(null)} />
+      </Suspense>
+    )
   }
 
   return (
