@@ -72,6 +72,32 @@ describe('RangeScreen header and menu', () => {
     expect(screen.getByText('Archived')).toBeInTheDocument()
   })
 
+  it('closes the overflow menu on Escape and restores focus to the trigger', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange())
+    render(<RangeScreen id="r1" tab="overview" onPractice={vi.fn()} />)
+
+    const trigger = screen.getByRole('button', { name: 'More actions' })
+    await user.click(trigger)
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(trigger).toHaveFocus()
+  })
+
+  it('closes the overflow menu when clicking outside it', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange())
+    render(<RangeScreen id="r1" tab="overview" onPractice={vi.fn()} />)
+
+    await user.click(screen.getByRole('button', { name: 'More actions' }))
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('heading', { name: 'UTG open' }))
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
   it('duplicates the range and navigates to the copy', async () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange())

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   copyRangeShareLink,
   exportRangeCsvFile,
@@ -85,6 +85,32 @@ export function RangeScreen({ id, tab, onPractice }: RangeScreenProps) {
   // Cloud share status line + ids published this session (enables Unpublish).
   const [shareStatus, setShareStatus] = useState('')
   const [publishedShareId, setPublishedShareId] = useState<string | null>(null)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  // While the overflow menu is open, let Escape close it (returning focus to the
+  // trigger) and dismiss it on any click outside the menu or its button.
+  useEffect(() => {
+    if (!menuOpen) return
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setMenuOpen(false)
+        menuButtonRef.current?.focus()
+      }
+    }
+    function onPointerDown(event: PointerEvent) {
+      const target = event.target as Node
+      if (!menuRef.current?.contains(target) && !menuButtonRef.current?.contains(target)) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    document.addEventListener('pointerdown', onPointerDown, true)
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      document.removeEventListener('pointerdown', onPointerDown, true)
+    }
+  }, [menuOpen])
 
   function refresh() {
     if (id) setRange(findSavedRangeById(id) ?? null)
@@ -197,6 +223,7 @@ export function RangeScreen({ id, tab, onPractice }: RangeScreenProps) {
             Practice
           </button>
           <button
+            ref={menuButtonRef}
             type="button"
             className="coach-btn range-screen-menu-button"
             aria-label="More actions"
@@ -210,7 +237,7 @@ export function RangeScreen({ id, tab, onPractice }: RangeScreenProps) {
       </header>
 
       {menuOpen && (
-        <div className="coach-card range-screen-menu" role="menu" aria-label="Range actions">
+        <div ref={menuRef} className="coach-card range-screen-menu" role="menu" aria-label="Range actions">
           <button
             type="button"
             role="menuitem"
