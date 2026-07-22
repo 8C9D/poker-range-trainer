@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { createRangeId } from '../app/ids'
 import { HandGrid } from '../components/HandGrid'
 import { HandNotesEditor } from '../components/HandNotesEditor'
@@ -61,9 +61,11 @@ export function RangeEditTab({ range, onSaved }: RangeEditTabProps) {
   // Status line confirming the last save, cleared on the next change.
   const [savedName, setSavedName] = useState<string | null>(null)
 
-  const selectedHands = normalizeRangeHands(Array.from(selected))
-  const combos = countSelectedCombos(selectedHands)
-  const percentage = calculateRangePercentage(selectedHands)
+  // Derived from `selected` only, so memoize to skip the hand-set math on every
+  // unrelated re-render (e.g. each keystroke in the name field).
+  const selectedHands = useMemo(() => normalizeRangeHands(Array.from(selected)), [selected])
+  const combos = useMemo(() => countSelectedCombos(selectedHands), [selectedHands])
+  const percentage = useMemo(() => calculateRangePercentage(selectedHands), [selectedHands])
 
   function setHandSelected(hand: PokerHand, shouldSelect: boolean) {
     setSavedName(null)
@@ -102,6 +104,8 @@ export function RangeEditTab({ range, onSaved }: RangeEditTabProps) {
     saveHint = 'Enter a range name to save.'
   } else if (selected.size === 0) {
     saveHint = 'Select at least one hand to save.'
+  } else if (stackDepthError) {
+    saveHint = 'Fix the stack depth to save.'
   }
 
   function handleSave() {
@@ -180,7 +184,13 @@ export function RangeEditTab({ range, onSaved }: RangeEditTabProps) {
             setName(event.target.value)
           }}
         />
-        <button type="button" className="coach-btn" onClick={handleSave} disabled={!canSave}>
+        <button
+          type="button"
+          className="coach-btn"
+          onClick={handleSave}
+          disabled={!canSave}
+          aria-describedby={saveHint ? 'range-edit-save-hint' : undefined}
+        >
           {range ? 'Save Changes' : 'Save Range'}
         </button>
         <button
@@ -194,7 +204,11 @@ export function RangeEditTab({ range, onSaved }: RangeEditTabProps) {
         >
           Clear Selection
         </button>
-        {saveHint && <p className="range-edit-hint">{saveHint}</p>}
+        {saveHint && (
+          <p id="range-edit-save-hint" className="range-edit-hint">
+            {saveHint}
+          </p>
+        )}
         {savedName && (
           <p className="range-edit-hint" role="status">
             Saved “{savedName}”.

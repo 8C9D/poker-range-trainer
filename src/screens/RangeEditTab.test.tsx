@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import type { SavedRange } from '../types/range'
 import { RangeEditTab } from './RangeEditTab'
 
@@ -53,5 +54,28 @@ describe('RangeEditTab per-hand notes', () => {
 
     const saved = onSaved.mock.calls[0][0] as SavedRange
     expect(saved.handNotes).toEqual({ AA: 'note on aces', KK: 'note on kings' })
+  })
+})
+
+describe('RangeEditTab save accessibility', () => {
+  it('associates the disabled save button with the reason it is blocked', () => {
+    render(<RangeEditTab range={null} onSaved={vi.fn()} />)
+    const save = screen.getByRole('button', { name: 'Save Range' })
+    expect(save).toBeDisabled()
+    expect(save).toHaveAttribute('aria-describedby', 'range-edit-save-hint')
+    expect(document.getElementById('range-edit-save-hint')).toHaveTextContent(
+      /select at least one hand/i,
+    )
+  })
+
+  it('explains an invalid stack depth next to the save button', async () => {
+    const user = userEvent.setup()
+    render(<RangeEditTab range={makeRange()} onSaved={vi.fn()} />)
+    // A filled name and selected hands, but an invalid stack depth blocks saving.
+    await user.type(screen.getByLabelText('Stack depth'), '-5')
+    expect(screen.getByRole('button', { name: 'Save Changes' })).toBeDisabled()
+    expect(document.getElementById('range-edit-save-hint')).toHaveTextContent(
+      /fix the stack depth/i,
+    )
   })
 })
