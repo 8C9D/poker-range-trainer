@@ -52,8 +52,58 @@ describe('duplicateRange', () => {
     expect('metadata' in copy).toBe(false)
   })
 
+  it('carries every content-bearing overlay by value', () => {
+    const source = makeRange({
+      handActions: { AA: 'raise', AKs: 'call' },
+      comboSelections: { AA: ['AsAh', 'AsAd'] },
+      mixedStrategies: { A5s: [{ action: 'fourBet', frequency: 50 }, { action: 'fold', frequency: 50 }] },
+      handNotes: { AKs: '4-bet vs UTG' },
+      source: { kind: 'coach', reference: 'Jane' },
+    })
+    const copy = duplicateRange(source, NEW_ID, TIMESTAMP)
+    expect(copy.handActions).toEqual(source.handActions)
+    expect(copy.comboSelections).toEqual(source.comboSelections)
+    expect(copy.mixedStrategies).toEqual(source.mixedStrategies)
+    expect(copy.handNotes).toEqual(source.handNotes)
+    expect(copy.source).toEqual(source.source)
+  })
+
+  it('deep-copies array-valued overlays so the copy is independent', () => {
+    const source = makeRange({
+      comboSelections: { AA: ['AsAh'] },
+      mixedStrategies: { A5s: [{ action: 'fourBet', frequency: 100 }] },
+    })
+    const copy = duplicateRange(source, NEW_ID, TIMESTAMP)
+    expect(copy.comboSelections!.AA).not.toBe(source.comboSelections!.AA)
+    expect(copy.mixedStrategies!.A5s).not.toBe(source.mixedStrategies!.A5s)
+    expect(copy.mixedStrategies!.A5s[0]).not.toBe(source.mixedStrategies!.A5s[0])
+    // Mutating the copy must not reach back into the source.
+    copy.comboSelections!.AA.push('AsAd')
+    copy.mixedStrategies!.A5s[0].frequency = 25
+    expect(source.comboSelections!.AA).toEqual(['AsAh'])
+    expect(source.mixedStrategies!.A5s[0].frequency).toBe(100)
+  })
+
+  it('omits overlays the source lacks', () => {
+    const copy = duplicateRange(makeRange(), NEW_ID, TIMESTAMP)
+    for (const key of ['handActions', 'comboSelections', 'mixedStrategies', 'handNotes', 'source']) {
+      expect(key in copy).toBe(false)
+    }
+  })
+
+  it('does not inherit library state (archived/favorite)', () => {
+    const copy = duplicateRange(makeRange({ archived: true, favorite: true }), NEW_ID, TIMESTAMP)
+    expect(copy.archived).toBeUndefined()
+    expect(copy.favorite).toBeUndefined()
+  })
+
   it('does not mutate the source', () => {
-    const source = makeRange({ metadata: { position: 'btn' } })
+    const source = makeRange({
+      metadata: { position: 'btn' },
+      handActions: { AA: 'raise' },
+      comboSelections: { AA: ['AsAh'] },
+      mixedStrategies: { A5s: [{ action: 'fourBet', frequency: 100 }] },
+    })
     const snapshot = structuredClone(source)
     duplicateRange(source, NEW_ID, TIMESTAMP)
     expect(source).toEqual(snapshot)
