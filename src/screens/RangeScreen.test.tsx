@@ -217,7 +217,7 @@ describe('RangeScreen tabs', () => {
     render(<RangeScreen id="r1" tab="actions" onPractice={vi.fn()} />)
     // Pick the "Raise" action from the palette, assign AA, save.
     await user.click(screen.getByRole('button', { name: 'Raise' }))
-    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'AA: unassigned' }))
     await user.click(screen.getByRole('button', { name: 'Save actions' }))
     expect(findSavedRangeById('r1')?.handActions?.['AA']).toBe('raise')
   })

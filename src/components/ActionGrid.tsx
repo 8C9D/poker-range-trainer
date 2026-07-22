@@ -1,5 +1,5 @@
 import { generateHandMatrix, type PokerHand } from '../domain/pokerHands'
-import type { RangeAction } from '../types/range'
+import { RANGE_ACTION_LABELS, type RangeAction } from '../types/range'
 import './ActionPalette.css'
 import './ActionGrid.css'
 
@@ -31,6 +31,7 @@ export function ActionGrid({ handActions, onAssign }: ActionGridProps) {
             type="button"
             className={action ? `action-cell action-${action}` : 'action-cell'}
             data-action={action ?? 'none'}
+            aria-label={action ? `${hand}: ${RANGE_ACTION_LABELS[action]}` : `${hand}: unassigned`}
             onClick={() => onAssign(hand)}
           >
             {hand}

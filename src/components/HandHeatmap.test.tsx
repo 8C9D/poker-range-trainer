@@ -29,4 +29,11 @@ describe('HandHeatmap', () => {
     // A hand with no recorded stats reads as untested.
     expect(screen.getByText('72o').getAttribute('data-heat')).toBe('untested')
   })
+
+  it('announces each cell\'s accuracy to assistive tech via an accessible name', () => {
+    const accuracy: RangeHandAccuracy = { AA: stat('AA', { attempts: 5, correct: 4 }) }
+    render(<HandHeatmap accuracy={accuracy} />)
+    expect(screen.getByRole('img', { name: 'AA: 80% (5 attempts)' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: '72o: untested' })).toBeInTheDocument()
+  })
 })

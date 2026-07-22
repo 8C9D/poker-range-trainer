@@ -27,8 +27,14 @@ describe('ActionGrid', () => {
     const onAssign = vi.fn()
     render(<ActionGrid handActions={{}} onAssign={onAssign} />)
 
-    await user.click(screen.getByRole('button', { name: 'AKs' }))
+    await user.click(screen.getByText('AKs'))
 
     expect(onAssign).toHaveBeenCalledExactlyOnceWith('AKs')
+  })
+
+  it('names each cell with its hand and action for assistive tech', () => {
+    render(<ActionGrid handActions={{ AA: 'raise' }} onAssign={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'AA: Raise' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'AKs: unassigned' })).toBeInTheDocument()
   })
 })

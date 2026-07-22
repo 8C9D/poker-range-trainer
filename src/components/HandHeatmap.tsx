@@ -44,7 +44,14 @@ export function HandHeatmap({ accuracy }: HandHeatmapProps) {
             ? `${hand}: ${handAccuracyRate(stat).toFixed(0)}% (${stat.attempts} attempts)`
             : `${hand}: untested`
           return (
-            <div key={hand} className={`heat-cell heat-${level}`} data-heat={level} title={title}>
+            <div
+              key={hand}
+              className={`heat-cell heat-${level}`}
+              data-heat={level}
+              role="img"
+              aria-label={title}
+              title={title}
+            >
               {hand}
             </div>
           )
