@@ -64,6 +64,20 @@ describe('SharedRangePage', () => {
     await waitFor(() => expect(screen.getByText(/was not found/i)).toBeInTheDocument())
   })
 
+  it('treats a payload with non-canonical hands as not-found instead of crashing', async () => {
+    const malicious = makeRange({ hands: ['ZZ', 'AA'] as unknown as SavedRange['hands'] })
+    render(
+      <SharedRangePage
+        id="abc"
+        fetchSharedRange={vi.fn().mockResolvedValue(malicious)}
+        cloudConfigured={configured}
+        onForkRange={vi.fn()}
+      />,
+    )
+    await waitFor(() => expect(screen.getByText(/was not found/i)).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: 'Save to my library' })).not.toBeInTheDocument()
+  })
+
   it('shows an error message when the fetch rejects', async () => {
     render(
       <SharedRangePage

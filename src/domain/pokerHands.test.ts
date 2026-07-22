@@ -6,6 +6,7 @@ import {
   classifyHand,
   comboCount,
   isValidHand,
+  areValidHands,
 } from './pokerHands'
 
 describe('RANKS', () => {
@@ -113,5 +114,25 @@ describe('isValidHand', () => {
     for (const hand of ['ZZ', 'KAs', 'aa', 'aks', 'AAs', 'AK', 'AKo ', '']) {
       expect(isValidHand(hand)).toBe(false)
     }
+  })
+})
+
+describe('areValidHands', () => {
+  it('accepts an array of canonical hands (including empty)', () => {
+    expect(areValidHands([])).toBe(true)
+    expect(areValidHands(['AA', 'AKs', '72o'])).toBe(true)
+  })
+
+  it('rejects arrays with any non-canonical or non-string entry', () => {
+    expect(areValidHands(['AA', 'ZZ'])).toBe(false)
+    expect(areValidHands(['AA', 42])).toBe(false)
+    expect(areValidHands(['AA', null])).toBe(false)
+  })
+
+  it('rejects non-array payloads', () => {
+    expect(areValidHands(undefined)).toBe(false)
+    expect(areValidHands(null)).toBe(false)
+    expect(areValidHands('AA')).toBe(false)
+    expect(areValidHands({ 0: 'AA' })).toBe(false)
   })
 })

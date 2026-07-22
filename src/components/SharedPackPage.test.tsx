@@ -31,6 +31,23 @@ describe('SharedPackPage', () => {
     expect(screen.getByText(/local-only mode/i)).toBeInTheDocument()
   })
 
+  it('treats a pack with any non-canonical hands as not-found instead of crashing', async () => {
+    const bad = buildRangePack('Bad pack', [
+      makeRange({ id: 'r1' }),
+      makeRange({ id: 'r2', hands: ['ZZ'] as unknown as SavedRange['hands'] }),
+    ])
+    render(
+      <SharedPackPage
+        id="abc"
+        fetchSharedPack={vi.fn().mockResolvedValue(bad)}
+        cloudConfigured={configured}
+        onForkPack={vi.fn()}
+      />,
+    )
+    await waitFor(() => expect(screen.getByText(/was not found/i)).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: /Save all to my library/i })).not.toBeInTheDocument()
+  })
+
   it('renders the pack name and each range once loaded', async () => {
     render(
       <SharedPackPage

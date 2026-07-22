@@ -50,3 +50,12 @@ const HAND_SET = new Set<PokerHand>(ALL_HANDS)
 export function isValidHand(hand: PokerHand): boolean {
   return HAND_SET.has(hand)
 }
+
+/**
+ * True when `hands` is an array whose every entry is a canonical starting hand.
+ * A runtime guard for untrusted payloads (e.g. cloud-fetched shared ranges)
+ * before they reach combo/percentage math that throws on an invalid hand.
+ */
+export function areValidHands(hands: unknown): hands is PokerHand[] {
+  return Array.isArray(hands) && hands.every((hand) => typeof hand === 'string' && isValidHand(hand))
+}

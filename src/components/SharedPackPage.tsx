@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getSharedPack } from '../cloud/sharedPacksRepo'
 import { calculateRangePercentage, countSelectedCombos } from '../domain/rangeMath'
-import type { PokerHand } from '../domain/pokerHands'
+import { areValidHands, type PokerHand } from '../domain/pokerHands'
 import type { RangePack } from '../domain/rangeTransfer'
 import { isCloudConfigured } from '../cloud/cloudConfig'
 import { ActionGrid } from './ActionGrid'
@@ -58,7 +58,11 @@ export function SharedPackPage({
     fetchSharedPack(id, token)
       .then((pack) => {
         if (!active) return
-        setState(pack ? { status: 'ready', pack } : { status: 'not-found' })
+        // A shared pack's data is publisher-controlled; reject it when any range
+        // carries non-canonical hands so combo/percentage math can't throw.
+        const renderable =
+          pack != null && Array.isArray(pack.ranges) && pack.ranges.every((r) => areValidHands(r.hands))
+        setState(renderable ? { status: 'ready', pack } : { status: 'not-found' })
       })
       .catch((error: unknown) => {
         if (!active) return

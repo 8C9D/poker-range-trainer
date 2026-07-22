@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getSharedRange } from '../cloud/sharedRangesRepo'
 import { calculateRangePercentage, countSelectedCombos } from '../domain/rangeMath'
-import type { PokerHand } from '../domain/pokerHands'
+import { areValidHands, type PokerHand } from '../domain/pokerHands'
 import { isCloudConfigured } from '../cloud/cloudConfig'
 import type { SavedRange } from '../types/range'
 import { ActionGrid } from './ActionGrid'
@@ -58,7 +58,13 @@ export function SharedRangePage({
     fetchSharedRange(id, token)
       .then((range) => {
         if (!active) return
-        setState(range ? { status: 'ready', range } : { status: 'not-found' })
+        // A shared range's data is publisher-controlled; reject a payload with
+        // non-canonical hands so combo/percentage math can't throw during render.
+        setState(
+          range && areValidHands(range.hands)
+            ? { status: 'ready', range }
+            : { status: 'not-found' },
+        )
       })
       .catch((error: unknown) => {
         if (!active) return
