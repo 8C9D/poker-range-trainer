@@ -368,9 +368,19 @@ function OverviewTab({
   theme: ThemeColors;
   styles: ReturnType<typeof makeStyles>;
 }) {
-  const [history] = useState(() => loadSessionHistory()[range.id] ?? []);
-  const [reviewState] = useState(() => loadReviewStates()[range.id]);
-  const [nowIso] = useState(() => new Date().toISOString());
+  const [history, setHistory] = useState(() => loadSessionHistory()[range.id] ?? []);
+  const [reviewState, setReviewState] = useState(() => loadReviewStates()[range.id]);
+  const [nowIso, setNowIso] = useState(() => new Date().toISOString());
+
+  // The tab stays mounted while the user leaves to practice and returns, so
+  // re-read the session/review snapshot on focus instead of only at mount.
+  useFocusEffect(
+    useCallback(() => {
+      setHistory(loadSessionHistory()[range.id] ?? []);
+      setReviewState(loadReviewStates()[range.id]);
+      setNowIso(new Date().toISOString());
+    }, [range.id]),
+  );
 
   const combos = countSelectedCombos(range.hands);
   const percentage = calculateRangePercentage(range.hands);
