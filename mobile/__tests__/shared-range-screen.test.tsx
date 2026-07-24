@@ -67,4 +67,14 @@ describe('SharedRangeScreen', () => {
 
     await waitFor(() => expect(getByTestId('shared-not-found')).toBeTruthy());
   });
+
+  it('rejects a shared range with non-canonical hands instead of crashing', async () => {
+    mockGetClient.mockResolvedValue({ id: 'client' });
+    // Publisher-controlled payload: an invalid hand would make the percentage math throw.
+    mockGetShared.mockResolvedValue({ ...SHARED, hands: ['AA', 'XX'] });
+
+    const { getByTestId } = await render(<SharedRangeScreen />);
+
+    await waitFor(() => expect(getByTestId('shared-not-found')).toBeTruthy());
+  });
 });

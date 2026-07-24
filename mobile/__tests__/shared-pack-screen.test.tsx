@@ -79,4 +79,17 @@ describe('SharedPackScreen', () => {
 
     await waitFor(() => expect(getByTestId('shared-not-found')).toBeTruthy());
   });
+
+  it('rejects a pack containing a range with non-canonical hands', async () => {
+    mockGetClient.mockResolvedValue({ id: 'client' });
+    // Publisher-controlled payload: adding an invalid hand to the library would throw.
+    mockGetPack.mockResolvedValue({
+      ...PACK,
+      ranges: [PACK.ranges[0], { ...PACK.ranges[1], hands: ['KK', 'XX'] }],
+    });
+
+    const { getByTestId } = await render(<SharedPackScreen />);
+
+    await waitFor(() => expect(getByTestId('shared-not-found')).toBeTruthy());
+  });
 });

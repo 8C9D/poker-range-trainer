@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 
 import { getSharedRange } from '@core/cloud/sharedRangesRepo';
+import { areValidHands } from '@core/domain/pokerHands';
 import { calculateRangePercentage } from '@core/domain/rangeMath';
 import { saveSavedRange } from '@core/storage/rangeStorage';
 import type { SavedRange } from '@core/types/range';
@@ -47,7 +48,9 @@ export default function SharedRangeScreen() {
         }
         const fetched = id ? await getSharedRange(id, token, { client }) : null;
         if (!active) return;
-        setRange(fetched);
+        // A shared range's data is publisher-controlled; reject a payload with
+        // non-canonical hands so the percentage math can't throw during render.
+        setRange(fetched && areValidHands(fetched.hands) ? fetched : null);
         setState('done');
       } catch (err) {
         if (!active) return;
