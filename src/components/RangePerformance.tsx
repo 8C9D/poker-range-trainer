@@ -1,3 +1,4 @@
+import { accuracyPercentage } from '../domain/accuracy'
 import { actionAccuracyRate, type RangeActionAccuracy } from '../domain/actionRange'
 import { handAccuracyRate, handsWithMistakes, rankHandAccuracy } from '../domain/practice'
 import type { PracticeSessionRecord, RangeHandAccuracy } from '../types/practice'
@@ -135,7 +136,7 @@ export function RangePerformance({
                   <td>
                     {record.correctAnswers}/{record.totalQuestions}
                   </td>
-                  <td>{Math.round((record.correctAnswers / record.totalQuestions) * 100)}%</td>
+                  <td>{Math.round(accuracyPercentage(record.correctAnswers, record.totalQuestions))}%</td>
                 </tr>
               ))}
             </tbody>
