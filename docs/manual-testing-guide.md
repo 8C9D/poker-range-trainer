@@ -6,7 +6,7 @@ feature-by-feature checklist of what to test.
 
 This guide reflects the app through the **full v1–v6 roadmap** — every roadmap
 version is implemented (the only intentionally deferred items are the heavy v5.1
-community features; see §4). The older, narrower [`manual-testing-checklist.md`](./manual-testing-checklist.md)
+community features; see §4) — plus post-roadmap additions (range tags). The older, narrower [`manual-testing-checklist.md`](./manual-testing-checklist.md)
 only covers v1–v1.3 and is superseded by this document.
 
 ---
@@ -72,7 +72,7 @@ All data lives in `localStorage` under these keys (origin = the dev/preview URL)
 
 | Key | Holds |
 |-----|-------|
-| `poker-range-trainer.saved-ranges.v1` | Saved ranges — hands, scenario metadata, per-hand actions, combo selections, mixed-frequency strategies, per-hand notes, source/reference, and favorite/archived flags |
+| `poker-range-trainer.saved-ranges.v1` | Saved ranges — hands, scenario metadata, per-hand actions, combo selections, mixed-frequency strategies, per-hand notes, source/reference, tags, and favorite/archived flags |
 | `poker-range-trainer.practice-stats.v1` | Per-range cumulative stats (attempts, accuracy, last practiced) |
 | `poker-range-trainer.hand-accuracy.v1` | Per-hand accuracy (for the heatmap / weakest-hands table) |
 | `poker-range-trainer.action-accuracy.v1` | Per-action accuracy (from action quizzes) |
@@ -120,6 +120,9 @@ is the easiest fully-clean environment.
 - **Live range summary** — hands selected, combo count, % of all hands.
 - **Scenario metadata** (all optional) — game type, table size, stack depth (bb),
   hero position, versus position, action type, free-form notes.
+- **Tags** (optional) — free-form organization tags (e.g. "MTT") added via a text
+  input and removed from their chips; blanks and case-insensitive duplicates are
+  rejected.
 - **Save Range / Save Changes** — save a new named range or update the one being edited in
   place; save is blocked (with a hint) until there's a name and ≥1 hand, and a bad
   stack-depth value blocks save.
@@ -127,11 +130,12 @@ is the easiest fully-clean environment.
 ### Range library (v1.4)
 
 - **List of saved ranges** as rows: a range thumbnail, name (★ when favorited),
-  metadata chips (position, action, % of hands, plus **Due** / **Archived** when
-  they apply), and a practice line (accuracy · last practiced, or "Not practiced").
-  Clicking a row opens that range's page.
+  metadata chips (position, action, % of hands, plus **Due** / **Archived** and any
+  tags when they apply), and a practice line (accuracy · last practiced, or "Not
+  practiced"). Clicking a row opens that range's page.
 - **Search** by name.
-- **Filter** by position, action type, stack depth, game type.
+- **Filter** by position, action type, stack depth, game type, tag (the tag filter
+  appears only when at least one range carries a tag).
 - **Sort** by name, recently edited, recently practiced, accuracy (default = storage
   order).
 - **Favorite / Unfavorite** (badge + "Favorites only" toggle).
@@ -432,9 +436,11 @@ from a known state (see §2).
 ### 5.7 Library: search / filter / sort (v1.4)
 
 - [ ] Search narrows by name; a no-match shows the "No ranges match …" message.
-- [ ] Each filter (position, action, stack depth, game type) narrows correctly and
+- [ ] Each filter (position, action, stack depth, game type, tag) narrows correctly and
       they compose together.
 - [ ] Stack-depth options reflect the depths actually saved.
+- [ ] Tags added on a range's **Edit** tab show as chips on its Library row; the tag
+      filter lists only tags actually saved and is absent when no range has tags.
 - [ ] Sort by Name / Recently edited / Recently practiced / Accuracy reorders as
       expected; "Default order" restores storage order; never-practiced ranges sort
       last for practiced/accuracy.

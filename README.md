@@ -17,9 +17,9 @@ The app implements the full roadmap (**v1–v6**). At a glance:
   selection, range shortcut buttons, live combo count and percentage, range
   notation import/export (e.g. `22+, A2s+, ATo+`), optional scenario metadata
   (game type, table size, stack depth, position, action type, notes), an optional
-  source/reference, and per-hand notes.
+  source/reference, organization tags, and per-hand notes.
 - **Range library** — saved ranges as cards with search, filtering
-  (position / action / stack depth / game type), sorting, favorite, archive, and
+  (position / action / stack depth / game type / tag), sorting, favorite, archive, and
   duplicate; each card summarizes combos, scenario, source, hand-notes, and
   practice accuracy.
 - **Practice modes** — recognize-hands (in/out) with a missing-hands review,
