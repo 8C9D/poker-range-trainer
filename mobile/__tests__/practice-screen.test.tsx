@@ -1,7 +1,11 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { AccessibilityInfo } from 'react-native';
 import type { ReactNode } from 'react';
 
 import { generateHandMatrix } from '@core/domain/pokerHands';
+import { loadHandAccuracy } from '@core/storage/handAccuracyStorage';
+import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
+import { loadReviewStates } from '@core/storage/reviewStateStorage';
 import { loadSessionHistory } from '@core/storage/sessionHistoryStorage';
 import { saveSavedRange } from '@core/storage/rangeStorage';
 
@@ -24,14 +28,24 @@ const mockParams = require('expo-router').useLocalSearchParams as jest.Mock;
 
 // A range containing ALL 169 hands so every random prompt is in range — makes scoring
 // deterministic without controlling the RNG.
-function seedAllHandsRange(): void {
+function seedAllHandsRange(id = 'r1', name = 'Everything'): void {
   saveSavedRange({
-    id: 'r1',
-    name: 'Everything',
+    id,
+    name,
     hands: generateHandMatrix().flat(),
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
   });
+}
+
+/** Seed a previous recognition session so the summary has something to compare against. */
+function seedPriorSession(totalQuestions: number, correctAnswers: number): void {
+  localStorage.setItem(
+    'poker-range-trainer.session-history.v1',
+    JSON.stringify({
+      r1: [{ rangeId: 'r1', playedAt: '2026-07-10T10:00:00.000Z', totalQuestions, correctAnswers }],
+    }),
+  );
 }
 
 describe('PracticeScreen (overlay host)', () => {
@@ -42,6 +56,9 @@ describe('PracticeScreen (overlay host)', () => {
   beforeEach(() => {
     localStorageShim.clear();
     mockParams.mockReturnValue({ id: 'r1', mode: 'recognize' });
+    // Snap the summary ring to its final value instead of animating so no
+    // Animated timers outlive the test.
+    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
   });
 
   it('runs the recognition drill and scores an in-range answer as correct', async () => {
@@ -58,10 +75,117 @@ describe('PracticeScreen (overlay host)', () => {
     seedAllHandsRange();
     mockParams.mockReturnValue({ id: 'r1' });
 
-    const { getByTestId } = await render(<PracticeScreen />);
+    const { getByTestId, queryByTestId } = await render(<PracticeScreen />);
 
     expect(getByTestId('mode-recognize')).toBeTruthy();
     expect(getByTestId('mode-timed')).toBeTruthy();
+    // A plain range has no action chart or mixed strategies, so those quizzes stay hidden.
+    expect(queryByTestId('mode-action')).toBeNull();
+    expect(queryByTestId('mode-mixed')).toBeNull();
+  });
+
+  it('offers the action and frequency quizzes when the range has the data', async () => {
+    saveSavedRange({
+      id: 'r1',
+      name: 'Charted',
+      hands: ['AA', 'KK'],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      handActions: { AA: 'raise' },
+      mixedStrategies: { KK: [{ action: 'raise', frequency: 100 }] },
+    });
+    mockParams.mockReturnValue({ id: 'r1' });
+
+    const { getByTestId } = await render(<PracticeScreen />);
+
+    expect(getByTestId('mode-action')).toBeTruthy();
+    expect(getByTestId('mode-mixed')).toBeTruthy();
+  });
+
+  it('finishes a session into the summary and records every store', async () => {
+    seedAllHandsRange();
+    const { getByTestId, getByText, findByTestId } = await render(<PracticeScreen />);
+
+    fireEvent.press(getByTestId('answer-yes'));
+    await findByTestId('drill-feedback');
+    fireEvent.press(getByTestId('overlay-close'));
+
+    await findByTestId('summary-done');
+    expect(getByText('1 of 1 correct')).toBeTruthy();
+    expect(getByText('First session logged — that’s your baseline.')).toBeTruthy();
+
+    // The shared recorder persisted all four stores plus the review schedule.
+    expect(loadPracticeStats().r1).toMatchObject({ totalAttempts: 1, correctAttempts: 1 });
+    expect(Object.keys(loadHandAccuracy().r1 ?? {})).toHaveLength(1);
+    expect(loadSessionHistory().r1).toHaveLength(1);
+    expect(loadReviewStates().r1).toBeDefined();
+  });
+
+  it('frames an improved session as points up from the last one', async () => {
+    seedAllHandsRange();
+    seedPriorSession(10, 5);
+    const { getByTestId, findByTestId, findByText } = await render(<PracticeScreen />);
+
+    fireEvent.press(getByTestId('answer-yes'));
+    await findByTestId('drill-feedback');
+    fireEvent.press(getByTestId('overlay-close'));
+
+    expect(await findByText('Up 50 points from your last session.')).toBeTruthy();
+  });
+
+  it('reports holding steady when accuracy matches the previous session', async () => {
+    seedAllHandsRange();
+    seedPriorSession(10, 10);
+    const { getByTestId, findByTestId, findByText } = await render(<PracticeScreen />);
+
+    fireEvent.press(getByTestId('answer-yes'));
+    await findByTestId('drill-feedback');
+    fireEvent.press(getByTestId('overlay-close'));
+
+    expect(await findByText('Held steady at 100%.')).toBeTruthy();
+  });
+
+  it('frames a weaker session around the queued misses', async () => {
+    seedAllHandsRange();
+    seedPriorSession(10, 10);
+    const { getByTestId, findByTestId, findByText } = await render(<PracticeScreen />);
+
+    // Every hand is in range, so answering Fold is a miss.
+    fireEvent.press(getByTestId('answer-no'));
+    await findByTestId('drill-feedback');
+    fireEvent.press(getByTestId('overlay-close'));
+
+    expect(
+      await findByText('1 miss queued for review — they’ll show up more until they stick.'),
+    ).toBeTruthy();
+  });
+
+  it('advances the review queue and records each range', async () => {
+    seedAllHandsRange('r1', 'First range');
+    seedAllHandsRange('r2', 'Second range');
+    mockParams.mockReturnValue({ queue: 'r1,r2', mode: 'recognize' });
+
+    const { getByTestId, getByText, findByTestId, queryByTestId } = await render(
+      <PracticeScreen />,
+    );
+
+    expect(getByText(/1\/2/)).toBeTruthy();
+    fireEvent.press(getByTestId('answer-yes'));
+    await findByTestId('drill-feedback');
+    fireEvent.press(getByTestId('overlay-close'));
+    fireEvent.press(await findByTestId('summary-next'));
+
+    expect(await findByTestId('playing-cards')).toBeTruthy();
+    expect(getByText(/2\/2/)).toBeTruthy();
+    fireEvent.press(getByTestId('answer-yes'));
+    await findByTestId('drill-feedback');
+    fireEvent.press(getByTestId('overlay-close'));
+
+    // Last range in the queue: only Done remains, and both sessions were recorded.
+    await findByTestId('summary-done');
+    expect(queryByTestId('summary-next')).toBeNull();
+    expect(loadSessionHistory().r1).toHaveLength(1);
+    expect(loadSessionHistory().r2).toHaveLength(1);
   });
 
   it('records nothing when the drill is closed before any answer', async () => {

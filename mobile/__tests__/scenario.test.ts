@@ -26,6 +26,16 @@ describe('scenarioLine', () => {
     );
   });
 
+  it('describes stack depth alone', () => {
+    expect(scenarioLine(range({ stackDepthBb: 40 }))).toBe('40bb effective.');
+  });
+
+  it('mentions the opponent seat when set', () => {
+    expect(scenarioLine(range({ position: 'bb', versusPosition: 'btn', actionType: 'defend' }))).toBe(
+      'You are BB. Defending against BTN.',
+    );
+  });
+
   it('returns null with no metadata', () => {
     expect(scenarioLine(range())).toBeNull();
   });
