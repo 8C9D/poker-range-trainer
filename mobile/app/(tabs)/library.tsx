@@ -3,6 +3,7 @@ import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-na
 import { Link, useFocusEffect } from 'expo-router';
 
 import {
+  collectRangeTags,
   distinctStackDepths,
   filterArchivedRanges,
   filterFavoriteRanges,
@@ -11,6 +12,7 @@ import {
   filterRangesByName,
   filterRangesByPosition,
   filterRangesByStackDepth,
+  filterRangesByTag,
   sortRangesByAccuracy,
   sortRangesByLastPracticed,
   sortRangesByName,
@@ -89,12 +91,18 @@ export default function LibraryScreen() {
   const [actionType, setActionType] = useState<ActionType | undefined>(undefined);
   const [stackDepth, setStackDepth] = useState<number | undefined>(undefined);
   const [gameType, setGameType] = useState<GameType | undefined>(undefined);
+  const [tag, setTag] = useState<string | undefined>(undefined);
   const [sort, setSort] = useState<SortOrder | undefined>(undefined);
   const [showArchived, setShowArchived] = useState(false);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
 
   const stackOptions = useMemo<SegmentedOption<number>[]>(
     () => distinctStackDepths(ranges).map((d) => ({ key: d, label: `${d}bb` })),
+    [ranges],
+  );
+
+  const tagOptions = useMemo<SegmentedOption<string>[]>(
+    () => collectRangeTags(ranges).map((t) => ({ key: t, label: t })),
     [ranges],
   );
 
@@ -113,21 +121,24 @@ export default function LibraryScreen() {
   const visibleRanges = useMemo(() => {
     // Same pipeline as the web library: archived drop out first (unless revealed),
     // then favorites-only, then the name/metadata filters narrow.
-    const filtered = filterRangesByGameType(
-      filterRangesByStackDepth(
-        filterRangesByActionType(
-          filterRangesByPosition(
-            filterRangesByName(
-              filterFavoriteRanges(filterArchivedRanges(ranges, showArchived), favoritesOnly),
-              query,
+    const filtered = filterRangesByTag(
+      filterRangesByGameType(
+        filterRangesByStackDepth(
+          filterRangesByActionType(
+            filterRangesByPosition(
+              filterRangesByName(
+                filterFavoriteRanges(filterArchivedRanges(ranges, showArchived), favoritesOnly),
+                query,
+              ),
+              position ?? null,
             ),
-            position ?? null,
+            actionType ?? null,
           ),
-          actionType ?? null,
+          stackDepth ?? null,
         ),
-        stackDepth ?? null,
+        gameType ?? null,
       ),
-      gameType ?? null,
+      tag ?? null,
     );
     switch (sort) {
       case 'name':
@@ -150,6 +161,7 @@ export default function LibraryScreen() {
     actionType,
     stackDepth,
     gameType,
+    tag,
     sort,
     practiceStats,
   ]);
@@ -159,6 +171,7 @@ export default function LibraryScreen() {
     (actionType ? 1 : 0) +
     (stackDepth !== undefined ? 1 : 0) +
     (gameType ? 1 : 0) +
+    (tag ? 1 : 0) +
     (favoritesOnly ? 1 : 0) +
     (showArchived ? 1 : 0);
 
@@ -237,6 +250,16 @@ export default function LibraryScreen() {
                   testIdPrefix="filter-game"
                 />
               </FilterGroup>
+              {tagOptions.length > 0 ? (
+                <FilterGroup label="Tag" theme={theme}>
+                  <Segmented
+                    options={tagOptions}
+                    value={tag}
+                    onSelect={setTag}
+                    testIdPrefix="filter-tag"
+                  />
+                </FilterGroup>
+              ) : null}
               <View style={styles.toggles}>
                 <Toggle
                   testID="filter-favorites"
@@ -397,6 +420,7 @@ function RangeRow({
             <Chip label={`${percentage.toFixed(1)}%`} />
             {due ? <Chip label="Due" tone="due" testID={`due-${range.id}`} /> : null}
             {range.archived ? <Chip label="Archived" /> : null}
+            {range.tags?.map((rangeTag) => <Chip key={rangeTag} label={rangeTag} />)}
           </View>
         </View>
         <View style={styles.rowStats}>

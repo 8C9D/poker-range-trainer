@@ -114,6 +114,36 @@ describe('LibraryScreen', () => {
     await waitFor(() => expect(queryByText('UTG Open')).not.toBeNull());
   });
 
+  it('filters by a tag chip and shows tag chips on rows', async () => {
+    seed({ id: 'r1', name: 'UTG Open', tags: ['MTT'] });
+    seed({ id: 'r2', name: 'BTN Open', tags: ['Cash'] });
+    seed({ id: 'r3', name: 'SB Open' });
+
+    const { getByTestId, findByTestId, getByText, queryByText } = await render(<LibraryScreen />);
+
+    // Each row shows its tag chips.
+    expect(getByText('MTT')).toBeTruthy();
+    expect(getByText('Cash')).toBeTruthy();
+
+    fireEvent.press(getByTestId('filters-toggle'));
+    fireEvent.press(await findByTestId('filter-tag-MTT'));
+
+    await waitFor(() => expect(queryByText('BTN Open')).toBeNull());
+    expect(queryByText('SB Open')).toBeNull();
+    expect(getByText('UTG Open')).toBeTruthy();
+  });
+
+  it('offers no tag filter when no range carries a tag', async () => {
+    seed({ id: 'r1', name: 'UTG Open' });
+
+    const { getByTestId, findByTestId, queryByTestId } = await render(<LibraryScreen />);
+    fireEvent.press(getByTestId('filters-toggle'));
+
+    // The other filter groups appear, but no tag group.
+    await findByTestId('filter-position-btn');
+    expect(queryByTestId('filter-tag-MTT')).toBeNull();
+  });
+
   it('shows per-range accuracy on the row', async () => {
     seed({ id: 'r1', name: 'UTG Open' });
     recordPracticeSession('r1', { totalQuestions: 10, correctAnswers: 8 });
