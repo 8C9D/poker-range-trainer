@@ -22,6 +22,7 @@ import { RangeMetadataEditor } from './RangeMetadataEditor';
 import { RangeNotation } from './RangeNotation';
 import { RangeShortcuts } from './RangeShortcuts';
 import { RangeStatsBar } from './RangeStatsBar';
+import { RangeTagEditor } from './RangeTagEditor';
 import { createRangeId } from '../platform/createRangeId';
 import { useTheme } from '../theme/colors';
 import type { ThemeColors } from '../theme/colors';
@@ -55,6 +56,7 @@ export function RangeEditor({ id: idParam, showNotesLink = true }: RangeEditorPr
         hands: existing.hands,
         metadata: existing.metadata ?? {},
         comboSelections: existing.comboSelections,
+        tags: existing.tags ?? [],
       };
     }
     const now = new Date().toISOString();
@@ -65,12 +67,14 @@ export function RangeEditor({ id: idParam, showNotesLink = true }: RangeEditorPr
       hands: [] as PokerHand[],
       metadata: {} as RangeMetadata,
       comboSelections: undefined as Record<PokerHand, string[]> | undefined,
+      tags: [] as string[],
     };
   });
 
   const [name, setName] = useState(draft.name);
   const [selected, setSelected] = useState<Set<PokerHand>>(() => new Set(draft.hands));
   const [metadata, setMetadata] = useState<RangeMetadata>(draft.metadata);
+  const [tags, setTags] = useState<string[]>(draft.tags);
   const [comboDraft, setComboDraft] = useState<Record<PokerHand, ComboSelection>>(() => {
     const seed: Record<PokerHand, ComboSelection> = {};
     for (const hand of draft.hands) {
@@ -109,8 +113,10 @@ export function RangeEditor({ id: idParam, showNotesLink = true }: RangeEditorPr
       updatedAt: new Date().toISOString(),
       metadata,
       comboSelections: Object.keys(comboSelections).length > 0 ? comboSelections : undefined,
+      // Overrides the spread's stored tags; storage drops the field when empty.
+      tags,
     });
-  }, [name, selected, metadata, comboDraft, draft]);
+  }, [name, selected, metadata, comboDraft, tags, draft]);
 
   const handleSetSelected = useCallback((hand: PokerHand, isSelected: boolean) => {
     setSelected((prev) => {
@@ -202,6 +208,7 @@ export function RangeEditor({ id: idParam, showNotesLink = true }: RangeEditorPr
       <RangeNotation selectedHands={[...selected]} onReplaceHands={onReplaceHands} />
       <RangeCsv name={name} hands={[...selected]} onImport={onImportCsv} />
       <RangeMetadataEditor value={metadata} onChange={setMetadata} />
+      <RangeTagEditor tags={tags} onChange={setTags} />
       {showNotesLink ? (
         <Link href={{ pathname: '/notes-editor', params: { id: draft.id } }} asChild>
           <Pressable testID="edit-notes" accessibilityRole="button" style={styles.actionsLink}>
