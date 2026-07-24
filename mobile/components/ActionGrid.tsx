@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { generateHandMatrix, type PokerHand } from '@core/domain/pokerHands';
-import type { RangeAction } from '@core/types/range';
+import { RANGE_ACTION_LABELS, type RangeAction } from '@core/types/range';
 
 import { actionColors } from '../theme/actionColors';
 import { useTheme } from '../theme/colors';
@@ -42,7 +42,9 @@ export function ActionGrid({ handActions, activeAction, onAssign }: ActionGridPr
                 key={hand}
                 testID={`action-cell-${hand}`}
                 accessibilityRole="button"
-                accessibilityLabel={hand}
+                accessibilityLabel={
+                  assigned ? `${hand}: ${RANGE_ACTION_LABELS[assigned]}` : `${hand}: unassigned`
+                }
                 accessibilityState={{ selected: assigned !== undefined }}
                 onPress={() => onAssign(hand, isActive ? null : activeAction)}
                 style={[

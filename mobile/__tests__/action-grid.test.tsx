@@ -28,4 +28,14 @@ describe('ActionGrid', () => {
     fireEvent.press(getByTestId('action-cell-AA'));
     expect(onAssign).toHaveBeenCalledWith('AA', null);
   });
+
+  it('announces the assigned action (or unassigned) in each cell label', async () => {
+    const handActions = { AA: 'raise' } as Record<PokerHand, RangeAction>;
+    const { getByLabelText } = await render(
+      <ActionGrid handActions={handActions} activeAction="raise" onAssign={jest.fn()} />,
+    );
+
+    expect(getByLabelText('AA: Raise')).toBeTruthy();
+    expect(getByLabelText('KK: unassigned')).toBeTruthy();
+  });
 });
