@@ -88,6 +88,9 @@ export function RangeEditor({ id: idParam, showNotesLink = true }: RangeEditorPr
   // Skip the first effect run so merely opening an existing range does not rewrite its
   // updatedAt; every later change live-saves.
   const hydratedRef = useRef(false);
+  // Notes pruned for deselected hands this session, so a transient deselect (e.g. a
+  // drag-paint slip) restores the note when the hand is re-selected instead of losing it.
+  const prunedNotesRef = useRef<Record<PokerHand, string>>({});
   useEffect(() => {
     if (!hydratedRef.current) {
       hydratedRef.current = true;
@@ -95,7 +98,7 @@ export function RangeEditor({ id: idParam, showNotesLink = true }: RangeEditorPr
     }
     // Merge the edited fields onto the *current stored* range (read fresh each save) so
     // overlay fields this screen doesn't edit — handActions, favorite, archived, source,
-    // mixedStrategies, handNotes — are preserved.
+    // mixedStrategies — are preserved.
     const existing = findSavedRangeById(draft.id);
     const comboSelections: Record<PokerHand, string[]> = {};
     for (const hand of selected) {
@@ -103,6 +106,17 @@ export function RangeEditor({ id: idParam, showNotesLink = true }: RangeEditorPr
       if (selection.size < allCombosForHand(hand).size) {
         comboSelections[hand] = serializeComboSelection(selection);
       }
+    }
+    // Keep only notes for hands still in the range so deselecting a hand does not
+    // leave an orphaned, unreachable note behind (mirrors the web editor's prune).
+    const existingNotes = existing?.handNotes ?? ({} as Record<PokerHand, string>);
+    const handNotes: Record<PokerHand, string> = {};
+    for (const hand of selected) {
+      const note = existingNotes[hand] ?? prunedNotesRef.current[hand];
+      if (note && note.trim().length > 0) handNotes[hand] = note;
+    }
+    for (const [hand, note] of Object.entries(existingNotes)) {
+      if (!selected.has(hand as PokerHand)) prunedNotesRef.current[hand as PokerHand] = note;
     }
     saveSavedRange({
       ...(existing ?? {}),
@@ -113,6 +127,7 @@ export function RangeEditor({ id: idParam, showNotesLink = true }: RangeEditorPr
       updatedAt: new Date().toISOString(),
       metadata,
       comboSelections: Object.keys(comboSelections).length > 0 ? comboSelections : undefined,
+      handNotes: Object.keys(handNotes).length > 0 ? handNotes : undefined,
       // Overrides the spread's stored tags; storage drops the field when empty.
       tags,
     });

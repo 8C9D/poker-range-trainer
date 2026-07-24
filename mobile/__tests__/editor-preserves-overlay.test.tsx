@@ -29,6 +29,37 @@ describe('EditorScreen overlay preservation', () => {
     localStorageShim.clear();
   });
 
+  it('prunes notes for deselected hands but restores them on re-select in the session', async () => {
+    saveSavedRange({
+      id: 'r1',
+      name: 'UTG Open',
+      hands: ['AA', 'KK'],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      handNotes: { AA: 'premium', KK: 'careful vs 3-bets' },
+    });
+
+    const user = userEvent.setup();
+    const { getByTestId } = await render(<RangeEditor id="r1" />);
+
+    // Deselecting KK drops its now-orphaned note but keeps AA's.
+    await user.press(getByTestId('hand-cell-KK'));
+    await waitFor(() => {
+      const saved = findSavedRangeById('r1');
+      expect(saved?.hands).toEqual(['AA']);
+      expect(saved?.handNotes).toEqual({ AA: 'premium' });
+    });
+
+    // Re-selecting KK in the same session restores the note instead of losing it.
+    await user.press(getByTestId('hand-cell-KK'));
+    await waitFor(() => {
+      expect(findSavedRangeById('r1')?.handNotes).toEqual({
+        AA: 'premium',
+        KK: 'careful vs 3-bets',
+      });
+    });
+  });
+
   it('keeps favorite and handActions when the binary grid is edited', async () => {
     // A range with overlay fields the binary editor does not edit.
     saveSavedRange({
