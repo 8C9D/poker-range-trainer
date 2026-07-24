@@ -31,8 +31,8 @@ export interface PracticeRequest {
   handPools?: Record<string, PokerHand[]>;
 }
 
-// Modes rendered inline in the overlay; postflop/board still route out to the flat drill
-// screens until they are folded into the overlay (deferred to M8 with re-theming).
+// Modes rendered inline in the overlay; postflop/board route out to their own drill
+// screens by design (overlay-inlining was considered and deferred at the Coach port).
 type InlineMode = 'recognize' | 'weakness' | 'timed' | 'build' | 'action' | 'mixed' | 'combo';
 const INLINE_MODES = new Set<PracticeMode>([
   'recognize',
@@ -72,8 +72,8 @@ interface PracticeHostProps {
 /**
  * Orchestrates a practice run: mode picker -> full-screen drill -> peak-end summary,
  * advancing through the queued ranges one session at a time. Results persist through the
- * shared session recorder the moment a recognition drill ends. Non-recognition modes route
- * out to the flat drill screens for now (folded into the overlay at M6b).
+ * shared session recorder the moment a recognition drill ends. Only postflop/board route
+ * out to their own drill screens; every other mode renders inline in the overlay.
  */
 export function PracticeHost({ request, onClose }: PracticeHostProps) {
   const router = useRouter();
