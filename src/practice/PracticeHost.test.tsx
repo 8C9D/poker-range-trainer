@@ -167,6 +167,83 @@ describe('PracticeHost recognition flow', () => {
     expect(Object.keys(loadReviewStates()).sort()).toEqual(['a', 'b'])
   })
 
+  it('celebrates an improved session with the points delta', () => {
+    // Prior session at 50% -> a perfect 1/1 session is +50 points.
+    localStorage.setItem(
+      'poker-range-trainer.session-history.v1',
+      JSON.stringify({
+        a: [
+          {
+            rangeId: 'a',
+            playedAt: '2026-07-10T10:00:00.000Z',
+            totalQuestions: 10,
+            correctAnswers: 5,
+          },
+        ],
+      }),
+    )
+    render(
+      <PracticeHost
+        request={{ ranges: [makeRange('a', 'UTG open')], mode: 'recognize', handPool: ['AA'] }}
+        onClose={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'In range' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close practice' }))
+    expect(screen.getByText('Up 50 points from your last session.')).toBeInTheDocument()
+  })
+
+  it('uses the singular for a one-point improvement', () => {
+    // Prior session at 99% -> a perfect session is exactly +1 point.
+    localStorage.setItem(
+      'poker-range-trainer.session-history.v1',
+      JSON.stringify({
+        a: [
+          {
+            rangeId: 'a',
+            playedAt: '2026-07-10T10:00:00.000Z',
+            totalQuestions: 100,
+            correctAnswers: 99,
+          },
+        ],
+      }),
+    )
+    render(
+      <PracticeHost
+        request={{ ranges: [makeRange('a', 'UTG open')], mode: 'recognize', handPool: ['AA'] }}
+        onClose={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'In range' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close practice' }))
+    expect(screen.getByText('Up 1 point from your last session.')).toBeInTheDocument()
+  })
+
+  it('reports holding steady when accuracy matches the previous session', () => {
+    localStorage.setItem(
+      'poker-range-trainer.session-history.v1',
+      JSON.stringify({
+        a: [
+          {
+            rangeId: 'a',
+            playedAt: '2026-07-10T10:00:00.000Z',
+            totalQuestions: 10,
+            correctAnswers: 10,
+          },
+        ],
+      }),
+    )
+    render(
+      <PracticeHost
+        request={{ ranges: [makeRange('a', 'UTG open')], mode: 'recognize', handPool: ['AA'] }}
+        onClose={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'In range' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close practice' }))
+    expect(screen.getByText('Held steady at 100%.')).toBeInTheDocument()
+  })
+
   it('frames a weaker session around the queued misses', () => {
     // Seed a strong previous session, then miss every hand this session.
     localStorage.setItem(

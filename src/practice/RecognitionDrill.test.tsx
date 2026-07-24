@@ -43,6 +43,17 @@ describe('RecognitionDrill', () => {
     expect(currentHand()).toBe('AA')
   })
 
+  it('runs the weakness variant from an empty history and scores an answer', () => {
+    render(
+      <RecognitionDrill range={RANGE} variant="weakness" onFinish={vi.fn()} random={() => 0.5} />,
+    )
+    // With no prior attempts the weighted draw still deals a real hand.
+    expect(currentHand()).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }))
+    // The answer scored: buttons lock for the feedback dwell.
+    expect(screen.getByRole('button', { name: 'Open' })).toBeDisabled()
+  })
+
   it('scores instantly with explanatory feedback and a longer dwell on misses', () => {
     render(
       <RecognitionDrill range={RANGE} variant="standard" handPool={['AA']} onFinish={vi.fn()} />,
