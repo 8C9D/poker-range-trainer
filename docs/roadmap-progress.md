@@ -1282,3 +1282,30 @@ so share links work on Hermes, account-free share links + a paste/deep-link impo
 mobile, pack/range/CSV file import + range file export on mobile, calendar-day
 `formatDayDistance`, pruning of orphaned mixed strategies/combo selections when a hand leaves
 a range, and a raised Vitest timeout to stop the grid screens flaking.
+
+---
+
+## v8: Play the spot (added 2026-07-25)
+
+The roadmap was extended past v7 on 2026-07-25 with a **v8: Play the spot** section
+(see `docs/roadmap.md`), chosen by the user over two alternatives (fluency/speed
+training and an adaptive study coach). The theme inverts the training loop: instead
+of picking a range and drilling it, the app deals a table spot and the user has to
+recall which range applies. It builds on the v1.3 scenario metadata already stored on
+every range, stays local-first, and ships web + mobile together.
+
+Slice status:
+
+- **v8.0 — spot model and library matching.** DONE. `src/domain/spot.ts` defines a
+  `Spot` (table size, hero seat, the situation in front of hero, the opponent, stack
+  depth), the five `SPOT_SITUATIONS` and the range `actionType`s that can answer each,
+  seat order per table size, the opponents who could have created each situation,
+  `standardSpots` (the fixed vocabulary to deal from and measure coverage against),
+  `spotKey`, `describeSpot`, and `scoreRangeForSpot` / `matchRangeToSpot`. Matching
+  treats seat + action type as required and everything else as optional detail that
+  must not contradict, so a generic chart still answers (60) and a fully pinned one
+  wins (100). Archived ranges are excluded.
+- **v8.1 — spot coverage map.** Pending.
+- **v8.2 — the spot drill.** Pending.
+- **v8.3 — chained spots.** Pending.
+- **v8.4 — accuracy by seat and situation.** Pending.
