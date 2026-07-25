@@ -31,6 +31,12 @@ import type { ThemeColors } from '../theme/colors';
 interface RangeEditorProps {
   /** Existing range id to edit, or undefined to start a fresh draft. */
   id?: string;
+  /**
+   * Scenario metadata to start a NEW draft from (the v8.1 coverage map opens the
+   * editor already describing the missing spot). Ignored once the id resolves to a
+   * saved range, whose own metadata always wins.
+   */
+  prefill?: RangeMetadata;
   /** Show the per-hand notes link (hidden when notes live in a sibling tab). */
   showNotesLink?: boolean;
 }
@@ -42,7 +48,7 @@ interface RangeEditorProps {
  * (no explicit save step). Extracted from the old editor route so both the flat editor
  * screen and the Range page's Edit tab share one implementation.
  */
-export function RangeEditor({ id: idParam, showNotesLink = true }: RangeEditorProps) {
+export function RangeEditor({ id: idParam, prefill, showNotesLink = true }: RangeEditorProps) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   // Resolve the range (or a new draft) exactly once; id + createdAt stay stable across
@@ -66,7 +72,7 @@ export function RangeEditor({ id: idParam, showNotesLink = true }: RangeEditorPr
       createdAt: now,
       name: '',
       hands: [] as PokerHand[],
-      metadata: {} as RangeMetadata,
+      metadata: (prefill ?? {}) as RangeMetadata,
       comboSelections: undefined as Record<PokerHand, string[]> | undefined,
       tags: [] as string[],
     };

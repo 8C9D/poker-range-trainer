@@ -1317,7 +1317,11 @@ Slice status:
   new-range route (`#/library/new?position=…&action=…&vs=…&table=…&stack=…`, validated against
   the vocabularies on parse) into a `prefill` prop on `RangeEditTab`, and
   `defaultActionTypeForSpot` picks the likeliest action for the situation (the big blind
-  defends, everyone else 3-bets).
+  defends, everyone else 3-bets). Mirrored on mobile: a `SpotCoverage` card in the Library
+  tab's list footer (horizontally scrolling grid, `Segmented` format controls), with
+  `/range/new` reading the same parameters through `parseScenarioParams` into a `prefill`
+  prop on `RangeEditor`. The parameter encode/validate pair is shared at
+  `src/domain/scenarioParams.ts` so both platforms check one vocabulary.
 - **v8.2 — the spot drill.** Pending.
 - **v8.3 — chained spots.** Pending.
 - **v8.4 — accuracy by seat and situation.** Pending.

@@ -39,6 +39,7 @@ import {
 
 import { RangeThumbnail } from '../../components/RangeThumbnail';
 import { Screen } from '../../components/Screen';
+import { SpotCoverage } from '../../components/SpotCoverage';
 import { Chip, Segmented } from '../../components/ui';
 import type { SegmentedOption } from '../../components/ui';
 import { formatDayDistance } from '../../lib/format';
@@ -296,6 +297,13 @@ export default function LibraryScreen() {
         data={visibleRanges}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={header}
+        ListFooterComponent={
+          ranges.length === 0 ? null : (
+            <View style={styles.footer}>
+              <SpotCoverage ranges={ranges} />
+            </View>
+          )
+        }
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
           <RangeRow
@@ -451,6 +459,7 @@ function makeStyles(theme: ThemeColors) {
   return StyleSheet.create({
     listContent: { padding: 16, gap: 12, paddingBottom: 32 },
     header: { gap: 12, marginBottom: 4 },
+    footer: { marginTop: 4 },
     titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     titleActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     title: { fontFamily: fonts.display, fontSize: 30, color: theme.ink },
