@@ -750,6 +750,49 @@ Every slice below builds on data the app already stores (per-hand accuracy, acti
 
 ---
 
+## v8: Play the spot
+
+Goal: train the preflop *game* rather than one range at a time.
+Chosen on 2026-07-25 over two alternatives (fluency/speed training and an adaptive study coach).
+
+Every drill so far starts by picking a range.
+At the table nobody hands you a range: you get a seat, an action in front of you, a stack, and a hand.
+v8 inverts the loop - the app deals a spot, finds the range in your library that covers it, and grades your decision.
+
+It builds entirely on the v1.3 scenario metadata already stored on each range (`tableSize`, `position`, `actionType`, `versusPosition`, `stackDepthBb`, `gameType`), stays local-first, and ships on web and mobile together.
+
+### v8.0: Spot model and library matching
+
+- Define a `Spot`: table size, hero position, the situation in front of hero (folded to you, facing an open, facing a 3-bet, facing a 4-bet, facing a jam), the villain position where one applies, and a stack depth.
+- Enumerate the standard spots for a table size, so the app has a fixed vocabulary of situations to deal from.
+- Match a spot against the saved library by scoring metadata alignment, returning the best-matching range and how confident the match is, or nothing when the library does not cover the spot.
+- Pure domain (`src/domain/spot.ts`) plus tests. No UI in this slice.
+
+### v8.1: Spot coverage map
+
+- Show which standard spots the library covers and which it is missing, as a position-by-situation grid.
+- A missing cell links into range creation with that spot's metadata pre-filled.
+- Surfaces the real gap in a study library ("you have no BB defend vs CO") without the user having to audit it by hand.
+
+### v8.2: The spot drill
+
+- A practice mode that deals a random covered spot and a random hand, states the situation in plain words ("6-max, 100bb. Folded to you on the button."), and asks for the decision.
+- Answers come from the matched range: its per-hand action when it has one, otherwise raise/fold membership.
+- Attempts fold into the matched range's existing stats, so the spot drill feeds the same per-hand accuracy, leak report, and scheduling as every other mode.
+
+### v8.3: Chained spots
+
+- A spot can have a second decision: hero opens, villain 3-bets, and the same hand now faces the 3-bet.
+- Continue the hand into the follow-up spot when the library covers it, and stop when it does not.
+- Pure domain: given a spot and hero's action, what spot comes next.
+
+### v8.4: Accuracy by seat and situation
+
+- Break the spot drill's results down by position and by situation, not only by range.
+- Rank the weakest spots so the user learns "you leak from the small blind", which no per-range number shows.
+
+---
+
 # Suggested implementation sequence
 
 ## Phase 1: Foundation
