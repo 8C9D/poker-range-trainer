@@ -4,6 +4,7 @@ import {
   TABLE_SIZE_LABELS,
   type ActionType,
   type Position,
+  type RangeMetadata,
   type SavedRange,
   type TableSize,
 } from '../types/range'
@@ -178,6 +179,21 @@ export function describeSpot(spot: Spot): string {
 export function defaultActionTypeForSpot(spot: Spot): ActionType {
   if (spot.situation === 'facingOpen' && spot.position === 'bb') return 'defend'
   return SITUATION_ACTION_TYPES[spot.situation][0]
+}
+
+/**
+ * The scenario metadata a range written for this spot would carry.
+ *
+ * What the coverage map hands to the range editor when the user fills a gap.
+ */
+export function spotPrefillMetadata(spot: Spot): RangeMetadata {
+  return {
+    tableSize: spot.tableSize,
+    position: spot.position,
+    versusPosition: spot.versusPosition,
+    stackDepthBb: spot.stackDepthBb,
+    actionType: defaultActionTypeForSpot(spot),
+  }
 }
 
 /** A saved range put forward as the answer to a spot, with how well it fits. */

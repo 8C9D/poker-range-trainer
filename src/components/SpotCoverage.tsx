@@ -2,12 +2,12 @@ import { useMemo, useState } from 'react'
 import { routeHash } from '../app/routes'
 import { distinctStackDepths } from '../domain/rangeLibrary'
 import {
-  defaultActionTypeForSpot,
   describeSpot,
   SPOT_SITUATION_LABELS,
   SPOT_SITUATIONS,
   seatsForTableSize,
   spotKey,
+  spotPrefillMetadata,
   type Spot,
   type SpotSituation,
 } from '../domain/spot'
@@ -27,16 +27,7 @@ const COMMON_DEPTHS = [20, 40, 100, 200]
 
 /** The new-range link for a spot the library does not cover yet. */
 function createRangeHref(spot: Spot): string {
-  return routeHash({
-    screen: 'newRange',
-    prefill: {
-      tableSize: spot.tableSize,
-      position: spot.position,
-      versusPosition: spot.versusPosition,
-      stackDepthBb: spot.stackDepthBb,
-      actionType: defaultActionTypeForSpot(spot),
-    },
-  })
+  return routeHash({ screen: 'newRange', prefill: spotPrefillMetadata(spot) })
 }
 
 interface SpotCoverageProps {
