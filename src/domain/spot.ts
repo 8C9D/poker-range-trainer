@@ -2,6 +2,7 @@ import {
   POSITION_LABELS,
   POSITIONS,
   TABLE_SIZE_LABELS,
+  TABLE_SIZES,
   type ActionType,
   type Position,
   type RangeMetadata,
@@ -151,6 +152,29 @@ export function spotKey(spot: Spot): string {
     spot.versusPosition ?? '-',
     spot.stackDepthBb,
   ].join('|')
+}
+
+/**
+ * Read a {@link spotKey} back into a spot, or `null` when it is not one.
+ *
+ * The key is what gets persisted (per-spot accuracy is stored under it), so this
+ * validates every field against its vocabulary rather than trusting the string.
+ */
+export function parseSpotKey(key: string): Spot | null {
+  const [tableSize, position, situation, versus, depth] = key.split('|')
+  if (!(TABLE_SIZES as readonly string[]).includes(tableSize)) return null
+  if (!(POSITIONS as readonly string[]).includes(position)) return null
+  if (!(SPOT_SITUATIONS as readonly string[]).includes(situation)) return null
+  if (versus !== '-' && !(POSITIONS as readonly string[]).includes(versus)) return null
+  const stackDepthBb = Number(depth)
+  if (!Number.isFinite(stackDepthBb) || stackDepthBb <= 0) return null
+  return {
+    tableSize: tableSize as TableSize,
+    position: position as Position,
+    situation: situation as SpotSituation,
+    ...(versus === '-' ? {} : { versusPosition: versus as Position }),
+    stackDepthBb,
+  }
 }
 
 /** The spot in plain words, as it would be described at the table. */

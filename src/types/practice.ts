@@ -123,3 +123,18 @@ export interface RangeReviewState {
   /** ISO-8601 timestamp of the most recent review ('' = never reviewed). */
   lastReviewedAt: string
 }
+
+/**
+ * Cumulative accuracy for one preflop spot (v8.6), keyed by its `spotKey`.
+ *
+ * Per-range stats say how well a chart is known; this says how well a *seat and
+ * situation* is played, which is the unit the spot drill actually deals.
+ */
+export interface SpotAccuracyStat {
+  /** `spotKey(spot)` — parse it back with `parseSpotKey`. */
+  spotKey: string
+  /** Times a hand was answered in this spot. */
+  attempts: number
+  /** Of those, how many were answered correctly. */
+  correct: number
+}

@@ -4,6 +4,7 @@ import {
   followUpSpots,
   describeSpot,
   matchRangeToSpot,
+  parseSpotKey,
   scoreRangeForSpot,
   seatsForTableSize,
   spotKey,
@@ -97,6 +98,29 @@ describe('spotKey', () => {
 
   it('is stable for the same spot', () => {
     expect(spotKey(btnOpen)).toEqual(spotKey({ ...btnOpen }))
+  })
+})
+
+describe('parseSpotKey', () => {
+  it('round-trips every standard spot', () => {
+    for (const spot of standardSpots('sixMax', 100)) {
+      expect(parseSpotKey(spotKey(spot))).toEqual(spot)
+    }
+    expect(parseSpotKey(spotKey(btnOpen))).toEqual(btnOpen)
+  })
+
+  it('rejects a key with a value outside its vocabulary', () => {
+    expect(parseSpotKey('tenMax|btn|foldedToYou|-|100')).toBeNull()
+    expect(parseSpotKey('sixMax|lojack|foldedToYou|-|100')).toBeNull()
+    expect(parseSpotKey('sixMax|btn|limped|-|100')).toBeNull()
+    expect(parseSpotKey('sixMax|btn|facingOpen|nobody|100')).toBeNull()
+  })
+
+  it('rejects a missing or non-positive stack depth', () => {
+    expect(parseSpotKey('sixMax|btn|foldedToYou|-')).toBeNull()
+    expect(parseSpotKey('sixMax|btn|foldedToYou|-|0')).toBeNull()
+    expect(parseSpotKey('sixMax|btn|foldedToYou|-|deep')).toBeNull()
+    expect(parseSpotKey('')).toBeNull()
   })
 })
 
