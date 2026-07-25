@@ -61,4 +61,26 @@ describe('ProgressScreen', () => {
     expect(getByText('AA')).toBeTruthy();
     expect(getByTestId('drill-weak-hands')).toBeTruthy();
   });
+
+  it('groups misses into hand-type leaks, each drillable', async () => {
+    seed('r1', 'UTG Open');
+    recordHandAccuracy('r1', [
+      { hand: '98s', attempts: 4, correct: 1, falsePositives: 0, falseNegatives: 3 },
+      { hand: '76s', attempts: 2, correct: 0, falsePositives: 0, falseNegatives: 2 },
+    ]);
+
+    const { getByTestId, getByText } = await render(<ProgressScreen />);
+
+    expect(getByText('Suited connectors')).toBeTruthy();
+    expect(getByTestId('leak-suitedConnector')).toHaveTextContent(/1\/6 · 17% · 98s, 76s/);
+    expect(getByTestId('drill-suitedConnector')).toBeTruthy();
+  });
+
+  it('shows the leak empty state before there is enough data', async () => {
+    seed('r1', 'UTG Open');
+
+    const { getByText } = await render(<ProgressScreen />);
+
+    expect(getByText(/hand types you miss most/)).toBeTruthy();
+  });
 });

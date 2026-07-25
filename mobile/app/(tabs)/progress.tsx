@@ -2,6 +2,8 @@ import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Link, useFocusEffect } from 'expo-router';
 
+import { HAND_CLASS_LABELS } from '@core/domain/handClass';
+import { rankHandClassLeaks } from '@core/domain/leakReport';
 import { summarizeLibraryAnalytics } from '@core/domain/libraryAnalytics';
 import { currentStreak } from '@core/domain/spacedRepetition';
 import { rankWeakHands, weakHandPools } from '@core/domain/weakHands';
@@ -34,7 +36,12 @@ function loadProgressState() {
   const weakHands = rankWeakHands(handAccuracy).filter((entry) =>
     ranges.some((range) => range.id === entry.rangeId),
   );
-  return { ranges, streak, month, analytics, days, weakHands };
+  // Stats for deleted ranges would name leaks the user can no longer drill.
+  const liveAccuracy = Object.fromEntries(
+    Object.entries(handAccuracy).filter(([rangeId]) => ranges.some((range) => range.id === rangeId)),
+  );
+  const leaks = rankHandClassLeaks(liveAccuracy);
+  return { ranges, streak, month, analytics, days, weakHands, leaks };
 }
 
 /** Long-term training overview: streak, accuracy, volume, and weak spots. */
@@ -48,7 +55,7 @@ export default function ProgressScreen() {
     }, []),
   );
 
-  const { ranges, streak, month, analytics, days, weakHands } = state;
+  const { ranges, streak, month, analytics, days, weakHands, leaks } = state;
   const maxDay = Math.max(1, ...days.map((day) => day.handsAnswered));
   const rangeName = (rangeId: string) =>
     ranges.find((range) => range.id === rangeId)?.name ?? 'Deleted range';
@@ -128,6 +135,47 @@ export default function ProgressScreen() {
         </View>
 
         <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Leaks by hand type</Text>
+          {leaks.length === 0 ? (
+            <Text style={styles.empty}>
+              Practice a little more and the hand types you miss most will show up here.
+            </Text>
+          ) : (
+            <View style={styles.leakList}>
+              {leaks.map((leak) => {
+                const queue = ranges.filter((range) => leak.pools[range.id]?.length);
+                const params = {
+                  queue: queue.map((range) => range.id).join(','),
+                  mode: 'recognize',
+                  pools: JSON.stringify(
+                    Object.fromEntries(queue.map((range) => [range.id, leak.pools[range.id]])),
+                  ),
+                };
+                return (
+                  <View key={leak.handClass} testID={`leak-${leak.handClass}`} style={styles.leakRow}>
+                    <View style={styles.leakInfo}>
+                      <Text style={styles.leakName}>{HAND_CLASS_LABELS[leak.handClass]}</Text>
+                      <Text style={styles.leakMeta} numberOfLines={1}>
+                        {leak.correct}/{leak.attempts} · {leak.accuracy.toFixed(0)}% ·{' '}
+                        {leak.missedHands.slice(0, 4).join(', ')}
+                        {leak.missedHands.length > 4 ? '…' : ''}
+                      </Text>
+                    </View>
+                    {queue.length > 0 ? (
+                      <Link href={{ pathname: '/practice', params }} asChild>
+                        <Text testID={`drill-${leak.handClass}`} style={styles.drillBtn}>
+                          Drill
+                        </Text>
+                      </Link>
+                    ) : null}
+                  </View>
+                );
+              })}
+            </View>
+          )}
+        </View>
+
+        <View style={styles.card}>
           <View style={styles.weakHeader}>
             <Text style={styles.sectionTitle}>Weakest hands</Text>
             {weakHands.length > 0 && drillQueue.length > 0 ? (
@@ -204,6 +252,11 @@ function makeStyles(theme: ThemeColors) {
     chartLabel: { fontFamily: fonts.body, fontSize: 11, color: theme.ink3 },
     analytics: { fontFamily: fonts.body, fontSize: 14, color: theme.ink2, ...tabular },
     weakHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    leakList: { gap: 12, marginTop: 6 },
+    leakRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+    leakInfo: { flex: 1, gap: 2 },
+    leakName: { fontFamily: fonts.bodySemibold, fontSize: 14.5, color: theme.ink },
+    leakMeta: { fontFamily: fonts.body, fontSize: 12.5, color: theme.ink2, ...tabular },
     drillBtn: {
       fontFamily: fonts.bodySemibold,
       fontSize: 13,
