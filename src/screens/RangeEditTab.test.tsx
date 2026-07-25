@@ -156,3 +156,40 @@ describe('RangeEditTab save accessibility', () => {
     )
   })
 })
+
+describe('RangeEditTab scenario pre-fill', () => {
+  it('starts a new range from the supplied scenario metadata', () => {
+    render(
+      <RangeEditTab
+        range={null}
+        prefill={{
+          position: 'bb',
+          actionType: 'defend',
+          versusPosition: 'co',
+          tableSize: 'sixMax',
+          stackDepthBb: 40,
+        }}
+        onSaved={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByLabelText('Position')).toHaveValue('bb')
+    expect(screen.getByLabelText('Action type')).toHaveValue('defend')
+    expect(screen.getByLabelText('Versus position')).toHaveValue('co')
+    expect(screen.getByLabelText('Table size')).toHaveValue('sixMax')
+    expect(screen.getByLabelText('Stack depth')).toHaveValue(40)
+  })
+
+  it('ignores a pre-fill when an existing range is being edited', () => {
+    render(
+      <RangeEditTab
+        range={makeRange({ metadata: { position: 'btn', actionType: 'open' } })}
+        prefill={{ position: 'bb', actionType: 'defend' }}
+        onSaved={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByLabelText('Position')).toHaveValue('btn')
+    expect(screen.getByLabelText('Action type')).toHaveValue('open')
+  })
+})

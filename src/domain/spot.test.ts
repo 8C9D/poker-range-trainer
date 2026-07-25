@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  defaultActionTypeForSpot,
   describeSpot,
   matchRangeToSpot,
   scoreRangeForSpot,
@@ -105,6 +106,18 @@ describe('describeSpot', () => {
 
   it('names the opponent and the action faced', () => {
     expect(describeSpot(bbVsCo)).toBe('6-max, 100bb. You are in the BB facing an open from the CO.')
+  })
+})
+
+describe('defaultActionTypeForSpot', () => {
+  it('defends from the big blind and 3-bets from everywhere else', () => {
+    expect(defaultActionTypeForSpot(bbVsCo)).toBe('defend')
+    expect(defaultActionTypeForSpot({ ...bbVsCo, position: 'btn' })).toBe('threeBet')
+  })
+
+  it('takes the first allowed action type for the other situations', () => {
+    expect(defaultActionTypeForSpot(btnOpen)).toBe('open')
+    expect(defaultActionTypeForSpot({ ...btnOpen, situation: 'facingJam' })).toBe('callJam')
   })
 })
 

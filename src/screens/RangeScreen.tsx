@@ -47,6 +47,7 @@ import {
   RANGE_SOURCE_KIND_LABELS,
   TABLE_SIZE_LABELS,
   type RangeAction,
+  type RangeMetadata,
   type SavedRange,
 } from '../types/range'
 import { RangeEditTab } from './RangeEditTab'
@@ -65,6 +66,8 @@ interface RangeScreenProps {
   /** The saved range id, or null when composing a new range. */
   id: string | null
   tab: RangeTab
+  /** Scenario metadata to start a new range from; only used when `id` is null. */
+  prefill?: RangeMetadata
   /** Launch practice for the range, optionally restricted to a hand pool. */
   onPractice: (range: SavedRange, handPool?: PokerHand[]) => void
 }
@@ -74,7 +77,7 @@ interface RangeScreenProps {
  * the Overview / Edit / Actions / Combos / Frequencies / Stats tabs. All
  * mutations persist immediately and refresh the local copy from storage.
  */
-export function RangeScreen({ id, tab, onPractice }: RangeScreenProps) {
+export function RangeScreen({ id, tab, prefill, onPractice }: RangeScreenProps) {
   const auth = useAuthSession()
   const [range, setRange] = useState<SavedRange | null>(() =>
     id ? (findSavedRangeById(id) ?? null) : null,
@@ -128,6 +131,7 @@ export function RangeScreen({ id, tab, onPractice }: RangeScreenProps) {
         <h1 className="range-screen-title">New range</h1>
         <RangeEditTab
           range={null}
+          prefill={prefill}
           onSaved={(saved) => navigate({ screen: 'range', id: saved.id, tab: 'edit' })}
         />
       </div>

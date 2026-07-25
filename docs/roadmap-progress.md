@@ -1310,8 +1310,14 @@ Slice status:
   with per-cell covered/total counts and the matching range on each entry; cells holding no
   standard spot are dropped rather than shown as gaps. `inferLibraryContext` picks the table
   size and stack depth the library is mostly written for (most common declared value among
-  active ranges, defaulting to 6-max 100bb) so the map can open on a useful format. UI
-  pending.
+  active ranges, defaulting to 6-max 100bb) so the map can open on a useful format. The
+  `SpotCoverage` card sits at the foot of the Library screen: a seat-by-situation grid with
+  table-size and stack-depth selectors, where each cell opens a list of its spots naming the
+  covering range or offering a **Create** link. That link carries the spot's metadata on the
+  new-range route (`#/library/new?position=…&action=…&vs=…&table=…&stack=…`, validated against
+  the vocabularies on parse) into a `prefill` prop on `RangeEditTab`, and
+  `defaultActionTypeForSpot` picks the likeliest action for the situation (the big blind
+  defends, everyone else 3-bets).
 - **v8.2 — the spot drill.** Pending.
 - **v8.3 — chained spots.** Pending.
 - **v8.4 — accuracy by seat and situation.** Pending.

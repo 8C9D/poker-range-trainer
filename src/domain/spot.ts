@@ -167,6 +167,19 @@ export function describeSpot(spot: Spot): string {
   return `${table} You are in the ${seat} facing ${facing[spot.situation]}${villain}.`
 }
 
+/**
+ * The action type a range for this spot most likely records.
+ *
+ * A situation allows several (facing an open can be answered with a 3-bet, a
+ * call, or a defend), so this picks the one a player would normally write down
+ * first: the big blind already has money in and defends, everyone else 3-bets.
+ * Only a starting point — the editor's dropdown still decides.
+ */
+export function defaultActionTypeForSpot(spot: Spot): ActionType {
+  if (spot.situation === 'facingOpen' && spot.position === 'bb') return 'defend'
+  return SITUATION_ACTION_TYPES[spot.situation][0]
+}
+
 /** A saved range put forward as the answer to a spot, with how well it fits. */
 export interface SpotMatch {
   range: SavedRange

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { RangeThumbnail } from '../components/RangeThumbnail'
+import { SpotCoverage } from '../components/SpotCoverage'
 import { formatDayDistance } from '../app/format'
 import { routeHash } from '../app/routes'
 import {
@@ -330,6 +331,8 @@ export function LibraryScreen() {
               })}
             </ul>
           )}
+
+          <SpotCoverage ranges={ranges} />
         </>
       )}
     </div>

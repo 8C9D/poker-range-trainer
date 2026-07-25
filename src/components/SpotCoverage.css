@@ -1,0 +1,132 @@
+.spot-coverage-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.spot-coverage h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.spot-coverage-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.spot-coverage-controls .coach-input {
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
+.spot-coverage-summary {
+  margin: 8px 0 12px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+/* The five situations do not fit a narrow phone; scroll the grid, not the page. */
+.spot-coverage-scroll {
+  overflow-x: auto;
+}
+
+.spot-coverage-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.spot-coverage-table th {
+  font-weight: 550;
+  color: var(--ink-2);
+  text-align: center;
+  padding: 4px 6px;
+  white-space: nowrap;
+}
+
+.spot-coverage-table th[scope='row'] {
+  text-align: left;
+}
+
+.spot-coverage-table td {
+  padding: 2px;
+  text-align: center;
+}
+
+.spot-coverage-cell-none {
+  color: var(--ink-3);
+}
+
+.spot-coverage-cell {
+  width: 100%;
+  min-width: 46px;
+  padding: 6px 4px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--cellbg);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.spot-coverage-cell:hover {
+  border-color: var(--line-2);
+}
+
+.spot-coverage-cell[aria-pressed='true'] {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Fill strength carries coverage; the palette stays token-based so both themes
+   keep readable contrast (the heat colors invert between light and dark). */
+.spot-coverage-full {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+.spot-coverage-partial {
+  background: var(--well);
+  border-color: var(--line-2);
+}
+
+.spot-coverage-none {
+  border-style: dashed;
+  color: var(--ink-3);
+}
+
+.spot-coverage-detail {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.spot-coverage-detail li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+
+.spot-coverage-detail-text {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.spot-coverage-detail .coach-chip {
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.spot-coverage-detail .coach-btn {
+  padding: 4px 10px;
+  font-size: 12.5px;
+}

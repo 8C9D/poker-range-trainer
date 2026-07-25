@@ -30,6 +30,17 @@ function rowNames() {
 }
 
 describe('LibraryScreen', () => {
+  it('shows spot coverage for a non-empty library, and not for an empty one', () => {
+    const { unmount } = render(<LibraryScreen />)
+    expect(screen.queryByRole('region', { name: 'Spot coverage' })).toBeNull()
+    unmount()
+
+    saveSavedRange(makeRange('a', 'BTN open', { metadata: { position: 'btn', actionType: 'open' } }))
+    render(<LibraryScreen />)
+    const coverage = screen.getByRole('region', { name: 'Spot coverage' })
+    expect(within(coverage).getByRole('button', { name: /BTN folded to you: 1 of 1/ })).toBeVisible()
+  })
+
   it('shows the empty state and the New range button', () => {
     render(<LibraryScreen />)
     expect(screen.getByRole('region', { name: 'Empty library' })).toBeInTheDocument()

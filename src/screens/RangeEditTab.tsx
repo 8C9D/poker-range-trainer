@@ -30,6 +30,12 @@ import type {
 interface RangeEditTabProps {
   /** The saved range being edited, or null when composing a new range. */
   range: SavedRange | null
+  /**
+   * Scenario metadata to start a new range from (the v8.1 coverage map opens the
+   * editor already describing the missing spot). Ignored when editing a saved
+   * range, whose own metadata always wins.
+   */
+  prefill?: RangeMetadata
   /** Called with the persisted range after every successful save. */
   onSaved: (range: SavedRange) => void
 }
@@ -40,22 +46,19 @@ interface RangeEditTabProps {
  * blank metadata fields are dropped on save, unknown future fields survive via
  * the spread, and editing keeps the range's id and createdAt.
  */
-export function RangeEditTab({ range, onSaved }: RangeEditTabProps) {
+export function RangeEditTab({ range, prefill, onSaved }: RangeEditTabProps) {
+  const initial = range?.metadata ?? (range ? undefined : prefill)
   const [name, setName] = useState(range?.name ?? '')
   const [selected, setSelected] = useState<Set<PokerHand>>(() => new Set(range?.hands ?? []))
-  const [gameType, setGameType] = useState<GameType | ''>(range?.metadata?.gameType ?? '')
-  const [tableSize, setTableSize] = useState<TableSize | ''>(range?.metadata?.tableSize ?? '')
+  const [gameType, setGameType] = useState<GameType | ''>(initial?.gameType ?? '')
+  const [tableSize, setTableSize] = useState<TableSize | ''>(initial?.tableSize ?? '')
   const [stackDepth, setStackDepth] = useState(
-    range?.metadata?.stackDepthBb !== undefined ? String(range.metadata.stackDepthBb) : '',
+    initial?.stackDepthBb !== undefined ? String(initial.stackDepthBb) : '',
   )
-  const [position, setPosition] = useState<Position | ''>(range?.metadata?.position ?? '')
-  const [versusPosition, setVersusPosition] = useState<Position | ''>(
-    range?.metadata?.versusPosition ?? '',
-  )
-  const [actionType, setActionType] = useState<ActionType | ''>(
-    range?.metadata?.actionType ?? '',
-  )
-  const [notes, setNotes] = useState(range?.metadata?.notes ?? '')
+  const [position, setPosition] = useState<Position | ''>(initial?.position ?? '')
+  const [versusPosition, setVersusPosition] = useState<Position | ''>(initial?.versusPosition ?? '')
+  const [actionType, setActionType] = useState<ActionType | ''>(initial?.actionType ?? '')
+  const [notes, setNotes] = useState(initial?.notes ?? '')
   const [sourceKind, setSourceKind] = useState<RangeSourceKind | ''>(range?.source?.kind ?? '')
   const [sourceReference, setSourceReference] = useState(range?.source?.reference ?? '')
   const [notesDraft, setNotesDraft] = useState<Record<PokerHand, string>>({

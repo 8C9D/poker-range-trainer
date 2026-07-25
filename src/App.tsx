@@ -6,7 +6,7 @@ import { decodeRangeFromHash } from './domain/rangeTransfer'
 import { saveSavedRange } from './storage/rangeStorage'
 import { AppShell } from './app/AppShell'
 import { createRangeId } from './app/ids'
-import { useHashRoute } from './app/routes'
+import { routeHash, useHashRoute } from './app/routes'
 import type { PracticeRequest } from './practice/PracticeHost'
 
 // The practice/drill/postflop subtree is large and only rendered once a user
@@ -126,7 +126,13 @@ function CoachApp() {
       ) : route.screen === 'range' ? (
         <RangeScreen key={route.id} id={route.id} tab={route.tab} onPractice={startPractice} />
       ) : route.screen === 'newRange' ? (
-        <RangeScreen key="new" id={null} tab="edit" onPractice={startPractice} />
+        <RangeScreen
+          key={routeHash(route)}
+          id={null}
+          tab="edit"
+          prefill={route.prefill}
+          onPractice={startPractice}
+        />
       ) : route.screen === 'progress' ? (
         <ProgressScreen
           onDrillWeakHands={(queue, pools) =>

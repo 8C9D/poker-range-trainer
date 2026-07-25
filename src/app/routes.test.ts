@@ -13,6 +13,31 @@ describe('parseAppRoute', () => {
     expect(parseAppRoute('#/library/new')).toEqual({ screen: 'newRange' })
   })
 
+  it('parses scenario metadata pre-filled on the new-range route', () => {
+    expect(parseAppRoute('#/library/new?position=bb&action=defend&vs=co&table=sixMax&stack=40')).toEqual(
+      {
+        screen: 'newRange',
+        prefill: {
+          position: 'bb',
+          actionType: 'defend',
+          versusPosition: 'co',
+          tableSize: 'sixMax',
+          stackDepthBb: 40,
+        },
+      },
+    )
+  })
+
+  it('drops pre-fill values outside their vocabulary', () => {
+    expect(parseAppRoute('#/library/new?position=lojack&action=snap&table=tenMax&stack=-5')).toEqual(
+      { screen: 'newRange' },
+    )
+    expect(parseAppRoute('#/library/new?position=sb&action=nope')).toEqual({
+      screen: 'newRange',
+      prefill: { position: 'sb' },
+    })
+  })
+
   it('parses a range page with a default overview tab', () => {
     expect(parseAppRoute('#/library/abc-123')).toEqual({
       screen: 'range',
@@ -60,5 +85,14 @@ describe('routeHash', () => {
     for (const route of routes) {
       expect(parseAppRoute(routeHash(route))).toEqual(route)
     }
+  })
+
+  it('round-trips a pre-filled new-range route', () => {
+    const route = {
+      screen: 'newRange',
+      prefill: { position: 'btn', actionType: 'open', tableSize: 'headsUp', stackDepthBb: 20 },
+    } as const
+
+    expect(parseAppRoute(routeHash(route))).toEqual(route)
   })
 })
