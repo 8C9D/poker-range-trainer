@@ -15,6 +15,8 @@ import type { SavedRange } from '@core/types/range';
 import { resolveSwipeAnswer } from '../swipeAnswer';
 import { OverlayFrame } from './OverlayFrame';
 import { PlayingCards } from './PlayingCards';
+import { explainHand } from '@core/domain/missExplanation';
+
 import { answerVerbs, feedbackLine, scenarioLine } from '../../lib/scenario';
 import { fonts } from '../../theme/fonts';
 import { useTheme } from '../../theme/colors';
@@ -193,12 +195,20 @@ export function RecognitionDrill({
             </Text>
             <View style={styles.feedbackSlot}>
               {feedback ? (
-                <Text
-                  testID="drill-feedback"
-                  style={[styles.feedback, { color: feedback.correct ? theme.good : theme.bad }]}
-                >
-                  {feedbackLine(feedback.hand, feedback.expectedInRange, feedback.correct, verbs)}
-                </Text>
+                <>
+                  <Text
+                    testID="drill-feedback"
+                    style={[styles.feedback, { color: feedback.correct ? theme.good : theme.bad }]}
+                  >
+                    {feedbackLine(feedback.hand, feedback.expectedInRange, feedback.correct, verbs)}
+                  </Text>
+                  {/* A miss is the teachable moment: say where the hand sits in the chart. */}
+                  {!feedback.correct ? (
+                    <Text testID="drill-why" style={styles.why}>
+                      {explainHand(feedback.hand, range.hands).line}
+                    </Text>
+                  ) : null}
+                </>
               ) : (
                 <Text style={styles.swipeHint}>
                   Swipe right to {verbs.yes.toLowerCase()}, left to fold
@@ -243,7 +253,22 @@ function makeStyles(theme: ThemeColors) {
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 20 },
     scenario: { fontFamily: fonts.body, fontSize: 15, color: theme.ink2, textAlign: 'center' },
     srOnly: { width: 1, height: 1, opacity: 0, position: 'absolute' },
-    feedbackSlot: { minHeight: 52, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
+    // Tall enough for the miss explanation's extra line, so scoring an answer never
+    // shifts the cards or the answer buttons.
+    feedbackSlot: {
+      minHeight: 76,
+      gap: 4,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 12,
+    },
+    why: {
+      fontFamily: fonts.body,
+      fontSize: 13,
+      lineHeight: 18,
+      color: theme.ink2,
+      textAlign: 'center',
+    },
     feedback: { fontFamily: fonts.bodySemibold, fontSize: 17, textAlign: 'center' },
     swipeHint: { fontFamily: fonts.body, fontSize: 12.5, color: theme.ink3, textAlign: 'center' },
     answers: { flexDirection: 'row', gap: 12, paddingTop: 8 },

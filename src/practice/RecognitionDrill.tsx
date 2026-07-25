@@ -7,6 +7,7 @@ import {
   getRandomHandFrom,
   getRandomPracticeHand,
 } from '../domain/practice'
+import { explainHand } from '../domain/missExplanation'
 import type { PokerHand } from '../domain/pokerHands'
 import { DEFAULT_DRILL_SECONDS, getRemainingSeconds, isDrillOver } from '../domain/timedDrill'
 import { getWeaknessFocusedHand } from '../domain/weaknessDrill'
@@ -175,9 +176,15 @@ export function RecognitionDrill({
         </p>
         <div className="drill-feedback" role="status">
           {feedback && (
-            <p className={feedback.correct ? 'good' : 'bad'}>
-              {feedbackLine(feedback.hand, feedback.expectedInRange, feedback.correct, verbs)}
-            </p>
+            <>
+              <p className={feedback.correct ? 'good' : 'bad'}>
+                {feedbackLine(feedback.hand, feedback.expectedInRange, feedback.correct, verbs)}
+              </p>
+              {/* A miss is the teachable moment: say where the hand sits in the chart. */}
+              {!feedback.correct && (
+                <p className="drill-why">{explainHand(feedback.hand, range.hands).line}</p>
+              )}
+            </>
           )}
         </div>
         {!feedback && (

@@ -72,6 +72,21 @@ describe('RecognitionDrill', () => {
     expect(screen.getByRole('button', { name: 'Open' })).toBeEnabled()
   })
 
+  it('explains where a missed hand sits in the range, but not after a hit', () => {
+    render(
+      <RecognitionDrill range={RANGE} variant="standard" handPool={['AA']} onFinish={vi.fn()} />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fold' }))
+    expect(
+      screen.getByText(/AA is in: this range plays 2 of 4 premium pairs/),
+    ).toBeInTheDocument()
+
+    act(() => vi.advanceTimersByTime(MISS_DWELL_MS))
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }))
+    expect(screen.queryByText(/premium pairs/)).not.toBeInTheDocument()
+  })
+
   it('advances the progress bar and finishes after the question count', () => {
     const onFinish = vi.fn()
     render(

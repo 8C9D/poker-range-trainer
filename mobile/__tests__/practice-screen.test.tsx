@@ -71,6 +71,26 @@ describe('PracticeScreen (overlay host)', () => {
     expect(await findByTestId('drill-feedback')).toHaveTextContent(/^Correct —/);
   });
 
+  it('explains a missed hand and stays quiet after a hit', async () => {
+    // Every hand is in range, so answering "fold" is always a miss.
+    seedAllHandsRange();
+    const { getByTestId, findByTestId } = await render(<PracticeScreen />);
+
+    fireEvent.press(getByTestId('answer-no'));
+
+    expect(await findByTestId('drill-why')).toHaveTextContent(/this range plays \d+ of \d+/);
+  });
+
+  it('does not explain a hand the user got right', async () => {
+    seedAllHandsRange();
+    const { getByTestId, findByTestId, queryByTestId } = await render(<PracticeScreen />);
+
+    fireEvent.press(getByTestId('answer-yes'));
+
+    expect(await findByTestId('drill-feedback')).toHaveTextContent(/^Correct —/);
+    expect(queryByTestId('drill-why')).toBeNull();
+  });
+
   it('opens the mode picker when no preset mode is given', async () => {
     seedAllHandsRange();
     mockParams.mockReturnValue({ id: 'r1' });

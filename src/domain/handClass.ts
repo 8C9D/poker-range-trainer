@@ -41,6 +41,22 @@ export const HAND_CLASS_LABELS: Record<HandClass, string> = {
   offsuitOther: 'Other offsuit',
 }
 
+/** Plural nouns for use mid-sentence, e.g. "plays 4 of 13 suited aces". */
+export const HAND_CLASS_NOUNS: Record<HandClass, string> = {
+  premiumPair: 'premium pairs',
+  mediumPair: 'medium pairs',
+  smallPair: 'small pairs',
+  suitedAce: 'suited aces',
+  suitedBroadway: 'suited broadway hands',
+  suitedConnector: 'suited connectors',
+  suitedGapper: 'suited gappers',
+  suitedOther: 'other suited hands',
+  offsuitAce: 'offsuit aces',
+  offsuitBroadway: 'offsuit broadway hands',
+  offsuitConnector: 'offsuit connectors',
+  offsuitOther: 'other offsuit hands',
+}
+
 /** Index of a rank in `RANKS` (0 = ace), i.e. its distance from the top. */
 function rankIndex(rank: string): number {
   return (RANKS as readonly string[]).indexOf(rank)

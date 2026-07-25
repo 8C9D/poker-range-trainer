@@ -125,9 +125,13 @@
   line-height: 1;
 }
 
+/* Tall enough for the miss explanation's second line, so scoring an answer
+   never shifts the cards or the answer buttons. */
 .drill-feedback {
-  min-height: 52px;
+  min-height: 76px;
   display: flex;
+  flex-direction: column;
+  gap: 4px;
   align-items: center;
   justify-content: center;
   text-align: center;
@@ -145,6 +149,13 @@
 
 .drill-feedback .bad {
   color: var(--bad);
+}
+
+.drill-why {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+  max-width: 34ch;
 }
 
 .drill-swipe-hint {
