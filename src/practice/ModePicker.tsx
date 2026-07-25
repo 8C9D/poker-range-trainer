@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { assignedHands } from '../domain/actionRange'
+import { rangeEdgeHands } from '../domain/edgeHands'
 import { handsWithMixedStrategy } from '../domain/mixedStrategy'
 import { DEFAULT_DRILL_SECONDS, DRILL_DURATION_OPTIONS } from '../domain/timedDrill'
 import type { SavedRange } from '../types/range'
@@ -10,6 +11,7 @@ export type PracticeMode =
   | 'build'
   | 'timed'
   | 'weakness'
+  | 'edges'
   | 'action'
   | 'mixed'
   | 'combo'
@@ -32,6 +34,8 @@ export function ModePicker({ range, onPick }: ModePickerProps) {
   const hasActions = !!range.handActions && assignedHands(range.handActions).length > 0
   const hasMixed =
     !!range.mixedStrategies && handsWithMixedStrategy(range.mixedStrategies).length > 0
+  // An empty range (or one holding every hand) has no boundary to drill.
+  const hasEdge = rangeEdgeHands(range.hands).length > 0
 
   return (
     <div className="mode-picker" aria-label="Choose practice mode">
@@ -72,6 +76,12 @@ export function ModePicker({ range, onPick }: ModePickerProps) {
         <strong>Weakness drill</strong>
         <span>The hands you miss show up more often until they stick.</span>
       </button>
+      {hasEdge && (
+        <button type="button" className="mode-picker-option" onClick={() => onPick('edges')}>
+          <strong>Edge drill</strong>
+          <span>Only the hands on the range boundary — where the real decisions are.</span>
+        </button>
+      )}
       {hasActions && (
         <button type="button" className="mode-picker-option" onClick={() => onPick('action')}>
           <strong>Pick the correct action</strong>

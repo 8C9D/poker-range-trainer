@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useRouter } from 'expo-router';
 
 import { accuracyPercentage } from '@core/domain/accuracy';
+import { rangeEdgeHands } from '@core/domain/edgeHands';
 import type { PokerHand } from '@core/domain/pokerHands';
 import { summarizePracticeAttempts } from '@core/domain/practice';
 import { currentStreak } from '@core/domain/spacedRepetition';
@@ -33,10 +34,19 @@ export interface PracticeRequest {
 
 // Modes rendered inline in the overlay; postflop/board route out to their own drill
 // screens by design (overlay-inlining was considered and deferred at the Coach port).
-type InlineMode = 'recognize' | 'weakness' | 'timed' | 'build' | 'action' | 'mixed' | 'combo';
+type InlineMode =
+  | 'recognize'
+  | 'weakness'
+  | 'edges'
+  | 'timed'
+  | 'build'
+  | 'action'
+  | 'mixed'
+  | 'combo';
 const INLINE_MODES = new Set<PracticeMode>([
   'recognize',
   'weakness',
+  'edges',
   'timed',
   'build',
   'action',
@@ -192,7 +202,13 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
       key={`${range.id}-${index}`}
       range={range}
       variant={variant}
-      handPool={phase.mode === 'recognize' ? (request.handPool ?? request.handPools?.[range.id]) : undefined}
+      handPool={
+        phase.mode === 'edges'
+          ? rangeEdgeHands(range.hands)
+          : phase.mode === 'recognize'
+            ? (request.handPool ?? request.handPools?.[range.id])
+            : undefined
+      }
       durationSeconds={phase.durationSeconds}
       position={position}
       onFinish={finishRecognition}

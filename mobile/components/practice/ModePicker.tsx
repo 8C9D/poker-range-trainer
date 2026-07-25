@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { assignedHands } from '@core/domain/actionRange';
+import { rangeEdgeHands } from '@core/domain/edgeHands';
 import { handsWithMixedStrategy } from '@core/domain/mixedStrategy';
 import { DEFAULT_DRILL_SECONDS, DRILL_DURATION_OPTIONS } from '@core/domain/timedDrill';
 import type { SavedRange } from '@core/types/range';
@@ -16,6 +17,7 @@ export type PracticeMode =
   | 'build'
   | 'timed'
   | 'weakness'
+  | 'edges'
   | 'action'
   | 'mixed'
   | 'combo'
@@ -38,6 +40,8 @@ export function ModePicker({ range, onPick }: ModePickerProps) {
   const [durationSeconds, setDurationSeconds] = useState(DEFAULT_DRILL_SECONDS);
   const verbs = answerVerbs(range);
   const hasActions = !!range.handActions && assignedHands(range.handActions).length > 0;
+  // An empty range (or one holding every hand) has no boundary to drill.
+  const hasEdge = rangeEdgeHands(range.hands).length > 0;
   const hasMixed =
     !!range.mixedStrategies && handsWithMixedStrategy(range.mixedStrategies).length > 0;
 
@@ -98,6 +102,14 @@ export function ModePicker({ range, onPick }: ModePickerProps) {
         'The hands you miss show up more often until they stick.',
         () => onPick('weakness'),
       )}
+      {hasEdge
+        ? option(
+            'edges',
+            'Edge drill',
+            'Only the hands on the range boundary — where the real decisions are.',
+            () => onPick('edges'),
+          )
+        : null}
       {hasActions
         ? option(
             'action',

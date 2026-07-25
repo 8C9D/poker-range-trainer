@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { PracticeHost } from './PracticeHost'
+import { ALL_HANDS } from '../domain/pokerHands'
 import { loadPracticeStats } from '../storage/practiceStatsStorage'
 import { loadReviewStates } from '../storage/reviewStateStorage'
 import { loadActionAccuracy } from '../storage/actionAccuracyStorage'
@@ -38,6 +40,33 @@ describe('PracticeHost mode picker', () => {
     expect(screen.getByText('Range vs board')).toBeInTheDocument()
     expect(screen.queryByText('Pick the correct action')).not.toBeInTheDocument()
     expect(screen.queryByText('Frequency quiz')).not.toBeInTheDocument()
+  })
+
+  it('offers the edge drill and prompts only from the range boundary', async () => {
+    const user = userEvent.setup()
+    render(
+      <PracticeHost
+        request={{ ranges: [makeRange('a', 'UTG open')], mode: null }}
+        onClose={vi.fn()}
+      />,
+    )
+
+    await user.click(screen.getByText('Edge drill'))
+
+    // The AA/KK range's boundary: the two hands themselves plus what touches them.
+    const edge = ['AA', 'AKs', 'AKo', 'KK', 'KQs', 'AQo', 'KQo']
+    expect(edge).toContain(screen.getByTestId('drill-hand').textContent)
+  })
+
+  it('hides the edge drill for a range with no boundary', () => {
+    render(
+      <PracticeHost
+        request={{ ranges: [makeRange('a', 'Everything', { hands: ALL_HANDS })], mode: null }}
+        onClose={vi.fn()}
+      />,
+    )
+
+    expect(screen.queryByText('Edge drill')).not.toBeInTheDocument()
   })
 
   it('offers the action and frequency quizzes when the range has the data', () => {

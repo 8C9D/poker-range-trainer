@@ -104,6 +104,33 @@ describe('PracticeScreen (overlay host)', () => {
     expect(queryByTestId('mode-mixed')).toBeNull();
   });
 
+  it('offers an edge drill that prompts only from the range boundary', async () => {
+    saveSavedRange({
+      id: 'r1',
+      name: 'Tight',
+      hands: ['AA', 'KK'],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    mockParams.mockReturnValue({ id: 'r1' });
+
+    const { getByTestId, findByTestId } = await render(<PracticeScreen />);
+    fireEvent.press(getByTestId('mode-edges'));
+
+    const edge = ['AA', 'AKs', 'AKo', 'KK', 'KQs', 'AQo', 'KQo'];
+    expect(edge).toContain((await findByTestId('drill-hand')).props.children);
+  });
+
+  it('hides the edge drill for a range with no boundary', async () => {
+    // Every hand is in range, so there is no boundary at all.
+    seedAllHandsRange();
+    mockParams.mockReturnValue({ id: 'r1' });
+
+    const { queryByTestId } = await render(<PracticeScreen />);
+
+    expect(queryByTestId('mode-edges')).toBeNull();
+  });
+
   it('offers the action and frequency quizzes when the range has the data', async () => {
     saveSavedRange({
       id: 'r1',

@@ -19,6 +19,7 @@ import { recordActionAccuracy } from '../storage/actionAccuracyStorage'
 import { loadSessionHistory } from '../storage/sessionHistoryStorage'
 import type { ActionAttempt, PracticeAttempt } from '../types/practice'
 import type { SavedRange } from '../types/range'
+import { rangeEdgeHands } from '../domain/edgeHands'
 import { ModePicker, type PracticeMode } from './ModePicker'
 import { OverlayFrame } from './OverlayFrame'
 import { RecognitionDrill } from './RecognitionDrill'
@@ -169,6 +170,17 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
           range={range}
           variant="standard"
           handPool={request.handPool ?? request.handPools?.[range.id]}
+          position={position}
+          onFinish={finishRecognition}
+        />
+      )
+    case 'edges':
+      return (
+        <RecognitionDrill
+          key={`${range.id}-${index}`}
+          range={range}
+          variant="standard"
+          handPool={rangeEdgeHands(range.hands)}
           position={position}
           onFinish={finishRecognition}
         />
