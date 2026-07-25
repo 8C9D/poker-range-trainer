@@ -11,7 +11,7 @@ the UI (see [Project structure](#project-structure)).
 
 ## Features
 
-The app implements the full roadmap (**v1–v6**). At a glance:
+The app implements the full roadmap (**v1–v8**). At a glance:
 
 - **Range editor** — 13×13 grid with click-to-toggle and drag-to-paint
   selection, range shortcut buttons, live combo count and percentage, range
@@ -29,9 +29,17 @@ The app implements the full roadmap (**v1–v6**). At a glance:
   swipe-to-answer on touch devices. A miss is explained: where the hand sits in
   the chart, how much of its hand type the range plays, and whether it is on the
   range edge.
+- **Play the spot** — train the preflop game rather than one range at a time: the
+  app deals a table situation (seat, action in front of you, stack depth), finds
+  the range in your library that covers it, and grades your decision — naming the
+  chart afterwards. A correctly played hand continues into the follow-up spot (you
+  open, someone 3-bets) when your library covers it. A spot-coverage map on the
+  Library shows which standard spots you have a range for, and turns a gap into a
+  new range with the situation pre-filled.
 - **Mistake tracking & analytics** — per-hand accuracy, an accuracy heatmap, a
   weakest-hands performance view, a leak report grouping misses by hand type
-  (suited connectors, offsuit broadway, …) with a one-tap drill, "practice
+  (suited connectors, offsuit broadway, …) with a one-tap drill, an accuracy
+  breakdown by seat and by action ("you leak from the big blind"), "practice
   mistakes only", session history, and a library-wide practice summary.
 - **Spaced repetition & goals** — a "due for review" queue, a review streak, and an
   optional daily hands goal with progress on Today. Each session advances the

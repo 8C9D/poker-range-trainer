@@ -786,10 +786,11 @@ It builds entirely on the v1.3 scenario metadata already stored on each range (`
 - Continue the hand into the follow-up spot when the library covers it, and stop when it does not.
 - Pure domain: given a spot and hero's action, what spot comes next.
 
-### v8.4: Accuracy by seat and situation
+### v8.4: Accuracy by seat and action
 
-- Break the spot drill's results down by position and by situation, not only by range.
-- Rank the weakest spots so the user learns "you leak from the small blind", which no per-range number shows.
+- Break practice results down by position and by action type, not only by range.
+- Rank the weakest of each so the user learns "you leak from the small blind", which no per-range number shows.
+- Cut from the per-range stats already stored (every range declares its seat and action), so the breakdown covers every drill rather than only spot sessions.
 
 ---
 

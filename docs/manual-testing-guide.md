@@ -78,12 +78,13 @@ All data lives in `localStorage` under these keys (origin = the dev/preview URL)
 | `poker-range-trainer.action-accuracy.v1` | Per-action accuracy (from action quizzes) |
 | `poker-range-trainer.session-history.v1` | Finished-session log (per range) + streak source |
 | `poker-range-trainer.review-state.v1` | Spaced-repetition schedule per range |
+| `poker-range-trainer.training-goal.v1` | Daily hands goal (target, or off) |
 
 **To reset to a clean slate:** open DevTools → Application → Local Storage and
 delete those keys (or "Clear site data"), then reload. An incognito/private window
 is the easiest fully-clean environment.
 
-> **Cloud note:** the six keys above are the whole story for local-only testing.
+> **Cloud note:** the seven keys above are the whole story for local-only testing.
 > When cloud sync is configured **and** you are signed in, a copy of your library
 > also lives server-side (Supabase) and is **not** removed by clearing
 > `localStorage` — use the "Delete cloud data" control for that (see §3).
@@ -623,10 +624,78 @@ from a known state (see §2).
 - [ ] The **Progress** screen reflects aggregate practice stats — streak / 30-day /
       all-time tiles, a 7-day bar chart, and an "Across your library" summary.
 
-### 5.28 Persistence / data integrity
+### 5.28 Leak report by hand type (v7.0)
+
+- [ ] **Progress** shows a "Leaks by hand type" card ranking the hand classes you miss
+      most (suited connectors, offsuit broadway, …), weakest first.
+- [ ] A class needs at least 3 recorded answers and at least one miss to appear;
+      otherwise the card explains that instead.
+- [ ] **Drill** on a row starts a recognition session restricted to the missed hands of
+      that class, across every range that has them.
+
+### 5.29 Miss explanations (v7.1)
+
+- [ ] A wrong answer in the recognition drill adds one explanatory line under the
+      feedback — the hand's class, how much of that class the range plays, and whether
+      it sits on the range edge.
+- [ ] A correct answer does not add the line, and the cards do not shift either way.
+
+### 5.30 Edge drill (v7.2)
+
+- [ ] The mode picker offers **Edge drill**, which prompts only from the range boundary
+      (in-range hands with an out-of-range neighbour, and vice versa).
+- [ ] The option is hidden for a range with no boundary (empty, or all 169 hands).
+
+### 5.31 Daily hands goal (v7.3)
+
+- [ ] Today shows a goal card with a progress bar; the target (10 / 20 / 40 / 80, or
+      off) persists across a reload.
+- [ ] Answering hands advances the bar, and the card reports the goal as met.
+
+### 5.32 Confidence-weighted scheduling (v7.4)
+
+- [ ] Two ranges finished at the same session accuracy come back at different times
+      when one still has stubbornly-wrong hands in its per-hand record — the shakier
+      range is due sooner.
+
+### 5.33 Spot coverage map (v8.1)
+
+- [ ] The **Library** shows a "Spot coverage" card below the range list (hidden while
+      the library is empty), opening on the table size and stack depth your ranges
+      mostly declare.
+- [ ] Each cell reads `covered/total` for one seat and situation; seats with no such
+      spot (the big blind with the pot folded to it) show a dash.
+- [ ] Tapping a cell lists its spots — covered ones link to the range that answers
+      them, uncovered ones offer **Create**.
+- [ ] **Create** opens the range editor with position, versus, action, table size, and
+      stack depth already filled in.
+- [ ] Changing the table size or stack depth redraws the map.
+
+### 5.34 Play the spot (v8.2, v8.3)
+
+- [ ] **Play these spots** on the coverage card starts a drill that states a situation
+      in words ("6-max, 100bb. Folded to you in the BTN.") instead of naming a range.
+- [ ] The answer buttons use the matched range's action verb (Open / Defend / 4-bet …).
+- [ ] Every answer names the chart that graded it; a miss also explains the hand.
+- [ ] Playing a hand correctly can continue it into the follow-up spot — the same two
+      cards, marked "Same hand — the action continues." Folding, missing, or having no
+      range for the next spot deals a fresh one instead.
+- [ ] Closing the drill records the run: the summary sums it and says how many ranges
+      it spanned, and each range's own stats/schedule advance.
+- [ ] With no range covering the chosen format, the drill explains that instead of
+      dealing.
+
+### 5.35 Accuracy by seat and action (v8.4)
+
+- [ ] **Progress** shows a "Where you leak" card with two ranked columns — by seat and
+      by action — weakest first.
+- [ ] A seat/action needs at least 5 answered questions to appear; below that the card
+      explains what to do instead.
+
+### 5.36 Persistence / data integrity
 
 - [ ] Everything survives a page reload (ranges, stats, history, actions, schedule).
-- [ ] Clearing the six localStorage keys returns the app to a clean slate with no
+- [ ] Clearing the seven localStorage keys returns the app to a clean slate with no
       crash.
 - [ ] Manually corrupting a key (e.g. set `saved-ranges.v1` to `not json`) doesn't
       crash the app — it should fall back to empty/defaults. (Storage validates and
