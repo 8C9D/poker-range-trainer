@@ -1360,3 +1360,11 @@ Slice status:
   drill. The second axis is the range's declared **action type** rather than the spot
   *situation*, because a range saved as e.g. "call" answers several situations — attributing it
   to one would be a guess and to all would double-count.
+
+### v8.5: Today entry point (added after the five roadmap slices)
+
+Not a roadmap slice — the flagship v8 drill was reachable only from the Library's
+coverage card, which is the wrong place for a daily training action. Today now shows a
+"Play the spot" card (web and mobile) whenever the library covers at least one standard
+spot, stating the coverage and starting the drill at the format `inferLibraryContext`
+picks. Hidden entirely while no range describes a situation.

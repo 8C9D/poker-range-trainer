@@ -3,6 +3,7 @@ import { RangeThumbnail } from '../components/RangeThumbnail'
 import { formatDateLine, formatDayDistance, greetingFor } from '../app/format'
 import { practiceAccuracyPercentage } from '../domain/practiceStats'
 import { currentStreak, selectDueRanges } from '../domain/spacedRepetition'
+import { buildSpotCoverage, inferLibraryContext } from '../domain/spotCoverage'
 import { GOAL_OPTIONS, evaluateDailyGoal, goalLine } from '../domain/trainingGoal'
 import { summarizeWeek } from '../domain/weeklyStats'
 import { loadPracticeStats } from '../storage/practiceStatsStorage'
@@ -10,7 +11,7 @@ import { loadReviewStates } from '../storage/reviewStateStorage'
 import { loadSavedRanges } from '../storage/rangeStorage'
 import { loadSessionHistory } from '../storage/sessionHistoryStorage'
 import { loadTrainingGoal, saveTrainingGoal } from '../storage/trainingGoalStorage'
-import type { SavedRange } from '../types/range'
+import type { SavedRange, TableSize } from '../types/range'
 import './TodayScreen.css'
 
 /** Rough drill length used for the "~X min" estimate on the review CTA. */
@@ -19,6 +20,8 @@ const MINUTES_PER_RANGE = 1.5
 interface TodayScreenProps {
   /** Start a queued review drill through the given ranges (one at a time). */
   onStartReview: (queue: SavedRange[]) => void
+  /** Start the spot drill over the whole library at the given format. */
+  onPlaySpots: (format: { tableSize: TableSize; stackDepthBb: number }) => void
 }
 
 /**
@@ -26,7 +29,7 @@ interface TodayScreenProps {
  * once on mount (practice unmounts this screen, so returning always re-reads
  * fresh stats).
  */
-export function TodayScreen({ onStartReview }: TodayScreenProps) {
+export function TodayScreen({ onStartReview, onPlaySpots }: TodayScreenProps) {
   const [now] = useState(() => new Date())
   const [ranges] = useState(() => loadSavedRanges())
   const [reviewStates] = useState(() => loadReviewStates())
@@ -50,6 +53,9 @@ export function TodayScreen({ onStartReview }: TodayScreenProps) {
     : null
   const estimatedMinutes = Math.max(1, Math.ceil(due.length * MINUTES_PER_RANGE))
   const goalProgress = evaluateDailyGoal(history, nowIso, goal)
+  // The spot drill only has something to deal once a range describes a situation.
+  const spotFormat = inferLibraryContext(ranges)
+  const spotCoverage = buildSpotCoverage(ranges, spotFormat.tableSize, spotFormat.stackDepthBb)
 
   return (
     <div className="today">
@@ -106,6 +112,25 @@ export function TodayScreen({ onStartReview }: TodayScreenProps) {
               <a className="coach-btn" href="#/library">
                 Free practice
               </a>
+            </section>
+          )}
+
+          {spotCoverage.covered > 0 && (
+            <section className="coach-card today-cta" aria-label="Play the spot">
+              <div className="today-cta-copy">
+                <h2>Play the spot</h2>
+                <p className="coach-tabular">
+                  The table deals the situation &middot; {spotCoverage.covered} of{' '}
+                  {spotCoverage.total} spots covered
+                </p>
+              </div>
+              <button
+                type="button"
+                className="coach-btn"
+                onClick={() => onPlaySpots(spotFormat)}
+              >
+                Play
+              </button>
             </section>
           )}
 

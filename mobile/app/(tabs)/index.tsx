@@ -4,6 +4,7 @@ import { Link, useFocusEffect } from 'expo-router';
 
 import { practiceAccuracyPercentage } from '@core/domain/practiceStats';
 import { currentStreak, selectDueRanges } from '@core/domain/spacedRepetition';
+import { buildSpotCoverage, inferLibraryContext } from '@core/domain/spotCoverage';
 import {
   GOAL_OPTIONS,
   evaluateDailyGoal,
@@ -47,7 +48,23 @@ function loadTodayState() {
     ? (ranges.find((range) => range.id === week.sharpestRangeId)?.name ?? null)
     : null;
   const goal = loadTrainingGoal();
-  return { now, nowIso, ranges, practiceStats, due, streak, week, sharpestName, history, goal };
+  // The spot drill only has something to deal once a range describes a situation.
+  const spotFormat = inferLibraryContext(ranges);
+  const spotCoverage = buildSpotCoverage(ranges, spotFormat.tableSize, spotFormat.stackDepthBb);
+  return {
+    now,
+    nowIso,
+    ranges,
+    practiceStats,
+    due,
+    streak,
+    week,
+    sharpestName,
+    history,
+    goal,
+    spotFormat,
+    spotCoverage,
+  };
 }
 
 /**
@@ -65,8 +82,20 @@ export default function TodayScreen() {
     }, []),
   );
 
-  const { now, nowIso, ranges, practiceStats, due, streak, week, sharpestName, history, goal } =
-    state;
+  const {
+    now,
+    nowIso,
+    ranges,
+    practiceStats,
+    due,
+    streak,
+    week,
+    sharpestName,
+    history,
+    goal,
+    spotFormat,
+    spotCoverage,
+  } = state;
   const estimatedMinutes = Math.max(1, Math.ceil(due.length * MINUTES_PER_RANGE));
   const goalProgress = evaluateDailyGoal(history, nowIso, goal);
 
@@ -151,6 +180,31 @@ export default function TodayScreen() {
                 </Link>
               </View>
             )}
+
+            {spotCoverage.covered > 0 ? (
+              <View testID="today-spots" style={styles.card}>
+                <Text style={styles.cardTitle}>Play the spot</Text>
+                <Text style={styles.cardBody}>
+                  The table deals the situation · {spotCoverage.covered} of {spotCoverage.total}{' '}
+                  spots covered
+                </Text>
+                <Link
+                  href={{
+                    pathname: '/practice',
+                    params: {
+                      mode: 'spots',
+                      table: spotFormat.tableSize,
+                      stack: String(spotFormat.stackDepthBb),
+                    },
+                  }}
+                  asChild
+                >
+                  <Pressable testID="play-spots" style={styles.ghostBtn}>
+                    <Text style={styles.ghostBtnText}>Play</Text>
+                  </Pressable>
+                </Link>
+              </View>
+            ) : null}
 
             {due.length > 0 ? (
               <View style={styles.card}>

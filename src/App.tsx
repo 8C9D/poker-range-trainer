@@ -120,7 +120,12 @@ function CoachApp() {
   return (
     <AppShell route={route}>
       {route.screen === 'today' ? (
-        <TodayScreen onStartReview={startReview} />
+        <TodayScreen
+          onStartReview={startReview}
+          onPlaySpots={(spotFormat) =>
+            setPractice({ ranges: loadSavedRanges(), mode: 'spots', spotFormat })
+          }
+        />
       ) : route.screen === 'library' ? (
         <LibraryScreen
           onPlaySpots={(spotFormat) =>

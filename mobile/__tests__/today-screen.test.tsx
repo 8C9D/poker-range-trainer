@@ -126,3 +126,35 @@ describe('TodayScreen', () => {
     expect(loadTrainingGoal()).toBe(0);
   });
 });
+
+describe('TodayScreen spot drill entry', () => {
+  beforeAll(() => {
+    installLocalStorage();
+  });
+
+  beforeEach(() => {
+    localStorageShim.clear();
+  });
+
+  it('is hidden while no range describes a situation', async () => {
+    seed('r1', 'Unlabelled');
+    const { queryByTestId } = await render(<TodayScreen />);
+
+    expect(queryByTestId('today-spots')).toBeNull();
+  });
+
+  it('offers the drill once a range covers a spot', async () => {
+    saveSavedRange({
+      id: 'btn',
+      name: 'BTN open',
+      hands: ['AA', 'KK'],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      metadata: { position: 'btn', actionType: 'open' },
+    });
+    const { getByTestId } = await render(<TodayScreen />);
+
+    expect(getByTestId('today-spots')).toHaveTextContent(/1 of 65 spots covered/);
+    expect(getByTestId('play-spots')).toBeTruthy();
+  });
+});
