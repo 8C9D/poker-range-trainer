@@ -7,12 +7,15 @@ import { drawPracticeCombo } from '@core/domain/blockerPractice';
 import type { Card } from '@core/domain/cards';
 import { explainHand } from '@core/domain/missExplanation';
 import { createPracticeAttempt } from '@core/domain/practice';
-import { describeSpot } from '@core/domain/spot';
+import { describeSpot, spotKey } from '@core/domain/spot';
 import {
   coveredSpots,
   drawSpotPrompt,
   nextChainedSpot,
+  summarizeSpotSession,
+  type AnsweredSpot,
   type SpotPrompt,
+  type SpotSessionResult,
 } from '@core/domain/spotDrill';
 import type { PracticeAttempt } from '@core/types/practice';
 import type { SavedRange, TableSize } from '@core/types/range';
@@ -29,20 +32,14 @@ import type { ThemeColors } from '../../theme/colors';
 /** One dealt question: the spot, its cards, and whether it continues a previous hand. */
 type Question = SpotPrompt & { cards: Card[]; chained: boolean };
 
-/** One answered question, tagged with the range that graded it. */
-interface SpotAttempt {
-  rangeId: string;
-  attempt: PracticeAttempt;
-}
-
 interface SpotDrillProps {
   /** The whole library; the drill picks the range each spot needs. */
   ranges: SavedRange[];
   tableSize: TableSize;
   stackDepthBb: number;
   questionCount?: number;
-  /** Called with the attempts grouped by the range that graded them. */
-  onFinish: (attemptsByRange: Record<string, PracticeAttempt[]>) => void;
+  /** Called with the finished session, cut by range and by spot. */
+  onFinish: (result: SpotSessionResult) => void;
   random?: () => number;
 }
 
@@ -89,7 +86,7 @@ export function SpotDrill({
   }
 
   const [prompt, setPrompt] = useState(draw);
-  const [answered, setAnswered] = useState<SpotAttempt[]>([]);
+  const [answered, setAnswered] = useState<AnsweredSpot[]>([]);
   const [feedback, setFeedback] = useState<PracticeAttempt | null>(null);
   const answeredRef = useRef(answered);
   const finishedRef = useRef(false);
@@ -102,19 +99,20 @@ export function SpotDrill({
     [],
   );
 
-  function finish(final: SpotAttempt[]) {
+  function finish(final: AnsweredSpot[]) {
     if (finishedRef.current) return;
     finishedRef.current = true;
     if (dwellTimeoutRef.current !== null) clearTimeout(dwellTimeoutRef.current);
-    const grouped: Record<string, PracticeAttempt[]> = {};
-    for (const { rangeId, attempt } of final) (grouped[rangeId] ??= []).push(attempt);
-    onFinish(grouped);
+    onFinish(summarizeSpotSession(final));
   }
 
   function answer(userAnsweredInRange: boolean) {
     if (!prompt || feedback !== null || finishedRef.current) return;
     const attempt = createPracticeAttempt(prompt.hand, prompt.range.hands, userAnsweredInRange);
-    const next = [...answered, { rangeId: prompt.range.id, attempt }];
+    const next = [
+      ...answered,
+      { rangeId: prompt.range.id, spotKey: spotKey(prompt.spot), attempt },
+    ];
     setAnswered(next);
     answeredRef.current = next;
     setFeedback(attempt);

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { coveredSpots, drawSpotPrompt, nextChainedSpot } from './spotDrill'
+import {
+  coveredSpots,
+  drawSpotPrompt,
+  nextChainedSpot,
+  summarizeSpotSession,
+} from './spotDrill'
 import { spotKey, type Spot } from './spot'
 import { ALL_HANDS } from './pokerHands'
 import type { RangeMetadata, SavedRange } from '../types/range'
@@ -116,5 +121,44 @@ describe('nextChainedSpot', () => {
     const jam: Spot = { ...btnOpenSpot, situation: 'facingJam', versusPosition: 'bb' }
 
     expect(nextChainedSpot(jam, covered, () => 0)).toBeNull()
+  })
+})
+
+describe('summarizeSpotSession', () => {
+  const attempt = (hand: string, correct: boolean) => ({
+    hand,
+    expectedInRange: true,
+    userAnsweredInRange: correct,
+    correct,
+    timestamp: '2026-07-25T00:00:00.000Z',
+  })
+
+  it('is empty for a session with no answers', () => {
+    expect(summarizeSpotSession([])).toEqual({ byRange: {}, bySpot: [] })
+  })
+
+  it('groups attempts by range and tallies them by spot', () => {
+    const result = summarizeSpotSession([
+      { rangeId: 'r1', spotKey: 's1', attempt: attempt('AA', true) },
+      { rangeId: 'r1', spotKey: 's1', attempt: attempt('KK', false) },
+      { rangeId: 'r2', spotKey: 's2', attempt: attempt('QQ', true) },
+    ])
+
+    expect(Object.keys(result.byRange)).toEqual(['r1', 'r2'])
+    expect(result.byRange.r1).toHaveLength(2)
+    expect(result.bySpot).toEqual([
+      { spotKey: 's1', attempts: 2, correct: 1 },
+      { spotKey: 's2', attempts: 1, correct: 1 },
+    ])
+  })
+
+  it('keeps one range’s answers together across different spots', () => {
+    const result = summarizeSpotSession([
+      { rangeId: 'r1', spotKey: 's1', attempt: attempt('AA', true) },
+      { rangeId: 'r1', spotKey: 's2', attempt: attempt('KK', true) },
+    ])
+
+    expect(result.byRange.r1).toHaveLength(2)
+    expect(result.bySpot).toHaveLength(2)
   })
 })

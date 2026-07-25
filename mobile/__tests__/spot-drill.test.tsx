@@ -97,9 +97,11 @@ describe('SpotDrill', () => {
     fireEvent.press(getByTestId('answer-yes'));
 
     await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1), { timeout: 3000 });
-    expect(Object.keys(onFinish.mock.calls[0][0]).sort()).toEqual([
-      'BB defend vs CO',
-      'BTN open',
+    const { byRange, bySpot } = onFinish.mock.calls[0][0];
+    expect(Object.keys(byRange).sort()).toEqual(['BB defend vs CO', 'BTN open']);
+    expect(bySpot.map((stat: { spotKey: string }) => stat.spotKey)).toEqual([
+      'sixMax|btn|foldedToYou|-|100',
+      'sixMax|bb|facingOpen|co|100',
     ]);
   });
 
@@ -111,7 +113,8 @@ describe('SpotDrill', () => {
     fireEvent.press(getByTestId('overlay-close'));
 
     expect(onFinish).toHaveBeenCalledWith({
-      'BTN open': [expect.objectContaining({ hand: 'AA' })],
+      byRange: { 'BTN open': [expect.objectContaining({ hand: 'AA' })] },
+      bySpot: [{ spotKey: 'sixMax|btn|foldedToYou|-|100', attempts: 1, correct: 1 }],
     });
   });
 
@@ -120,7 +123,7 @@ describe('SpotDrill', () => {
 
     fireEvent.press(getByTestId('overlay-close'));
 
-    expect(onFinish).toHaveBeenCalledWith({});
+    expect(onFinish).toHaveBeenCalledWith({ byRange: {}, bySpot: [] });
   });
 });
 

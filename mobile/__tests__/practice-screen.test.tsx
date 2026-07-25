@@ -7,6 +7,7 @@ import { loadHandAccuracy } from '@core/storage/handAccuracyStorage';
 import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
 import { loadReviewStates } from '@core/storage/reviewStateStorage';
 import { loadSessionHistory } from '@core/storage/sessionHistoryStorage';
+import { loadSpotAccuracy } from '@core/storage/spotAccuracyStorage';
 import { saveSavedRange } from '@core/storage/rangeStorage';
 
 import PracticeScreen from '../app/practice';
@@ -285,6 +286,8 @@ describe('PracticeScreen spot drill', () => {
     await findByTestId('summary-done');
     expect(getByText('Across 1 range of your library.')).toBeTruthy();
     expect(loadPracticeStats().btn.totalAttempts).toBe(1);
+    // The spot itself is recorded too, for the weakest-spots report.
+    expect(loadSpotAccuracy()['sixMax|btn|foldedToYou|-|100']).toMatchObject({ attempts: 1 });
   });
 
   it('explains an uncovered format instead of dealing', async () => {

@@ -6,6 +6,7 @@ import { ALL_HANDS } from '../domain/pokerHands'
 import { loadPracticeStats } from '../storage/practiceStatsStorage'
 import { loadReviewStates } from '../storage/reviewStateStorage'
 import { loadActionAccuracy } from '../storage/actionAccuracyStorage'
+import { loadSpotAccuracy } from '../storage/spotAccuracyStorage'
 import type { SavedRange } from '../types/range'
 
 beforeEach(() => {
@@ -350,6 +351,8 @@ describe('PracticeHost spot drill', () => {
     expect(screen.getByText('Across 1 range of your library.')).toBeInTheDocument()
     expect(loadPracticeStats().a.totalAttempts).toBe(1)
     expect(Object.keys(loadReviewStates())).toEqual(['a'])
+    // The spot itself is recorded too, for the weakest-spots report.
+    expect(loadSpotAccuracy()['sixMax|btn|foldedToYou|-|100']).toMatchObject({ attempts: 1 })
     // A library-wide session is never titled after one range, and never queues a next.
     expect(screen.queryByRole('button', { name: 'Next range' })).not.toBeInTheDocument()
   })
@@ -371,5 +374,6 @@ describe('PracticeHost spot drill', () => {
 
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(loadPracticeStats()).toEqual({})
+    expect(loadSpotAccuracy()).toEqual({})
   })
 })

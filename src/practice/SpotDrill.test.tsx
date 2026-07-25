@@ -97,9 +97,15 @@ describe('SpotDrill', () => {
     act(() => vi.runAllTimers())
 
     expect(onFinish).toHaveBeenCalledTimes(1)
-    const grouped = onFinish.mock.calls[0][0]
-    expect(Object.keys(grouped).sort()).toEqual(['BB defend vs CO', 'BTN open'])
-    expect(grouped['BTN open']).toHaveLength(1)
+    const { byRange, bySpot } = onFinish.mock.calls[0][0]
+    expect(Object.keys(byRange).sort()).toEqual(['BB defend vs CO', 'BTN open'])
+    expect(byRange['BTN open']).toHaveLength(1)
+    // Both hands were drawn from the far end of the grid, so neither is in range
+    // and both "play" answers are misses — one attempt recorded per spot.
+    expect(bySpot).toEqual([
+      { spotKey: 'sixMax|btn|foldedToYou|-|100', attempts: 1, correct: 0 },
+      { spotKey: 'sixMax|bb|facingOpen|co|100', attempts: 1, correct: 0 },
+    ])
     vi.useRealTimers()
   })
 
@@ -109,7 +115,10 @@ describe('SpotDrill', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open' }))
     fireEvent.click(screen.getByRole('button', { name: 'Close practice' }))
 
-    expect(onFinish).toHaveBeenCalledWith({ 'BTN open': [expect.objectContaining({ hand: 'AA' })] })
+    expect(onFinish).toHaveBeenCalledWith({
+      byRange: { 'BTN open': [expect.objectContaining({ hand: 'AA' })] },
+      bySpot: [{ spotKey: 'sixMax|btn|foldedToYou|-|100', attempts: 1, correct: 1 }],
+    })
   })
 
   it('records nothing when closed before answering', () => {
@@ -117,7 +126,7 @@ describe('SpotDrill', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Close practice' }))
 
-    expect(onFinish).toHaveBeenCalledWith({})
+    expect(onFinish).toHaveBeenCalledWith({ byRange: {}, bySpot: [] })
   })
 })
 

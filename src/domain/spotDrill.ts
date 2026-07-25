@@ -2,6 +2,7 @@ import { getRandomPracticeHand } from './practice'
 import type { PokerHand } from './pokerHands'
 import { followUpSpots, spotKey, type Spot } from './spot'
 import { buildSpotCoverage } from './spotCoverage'
+import type { PracticeAttempt, SpotAccuracyStat } from '../types/practice'
 import type { SavedRange, TableSize } from '../types/range'
 
 /**
@@ -81,4 +82,39 @@ function pick<T>(items: T[], random: () => number): T | null {
   if (items.length === 0) return null
   // `random()` can return exactly 1 in theory; clamp so the index stays in range.
   return items[Math.min(Math.floor(random() * items.length), items.length - 1)]
+}
+
+/** One answered spot question, tagged with the range and the spot it came from. */
+export interface AnsweredSpot {
+  rangeId: string
+  spotKey: string
+  attempt: PracticeAttempt
+}
+
+/** What a finished spot session reports back. */
+export interface SpotSessionResult {
+  /** Attempts grouped by the range that graded them (one session each). */
+  byRange: Record<string, PracticeAttempt[]>
+  /** Per-spot tallies, for the weakest-spots record. */
+  bySpot: SpotAccuracyStat[]
+}
+
+/**
+ * Fold answered questions into the two cuts a spot session is recorded under.
+ *
+ * A spot session spans several ranges, so it cannot be recorded as one session:
+ * each range gets its own, while the per-spot tally is what makes "which
+ * situation do I play worst" answerable at all.
+ */
+export function summarizeSpotSession(answered: AnsweredSpot[]): SpotSessionResult {
+  const byRange: Record<string, PracticeAttempt[]> = {}
+  const bySpot = new Map<string, SpotAccuracyStat>()
+  for (const { rangeId, spotKey, attempt } of answered) {
+    ;(byRange[rangeId] ??= []).push(attempt)
+    const stat = bySpot.get(spotKey) ?? { spotKey, attempts: 0, correct: 0 }
+    stat.attempts += 1
+    if (attempt.correct) stat.correct += 1
+    bySpot.set(spotKey, stat)
+  }
+  return { byRange, bySpot: [...bySpot.values()] }
 }

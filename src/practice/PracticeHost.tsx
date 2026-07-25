@@ -11,12 +11,14 @@ import { accuracyPercentage } from '../domain/accuracy'
 import { summarizeActionAccuracy } from '../domain/actionRange'
 import { selectionForRange } from '../domain/comboSelection'
 import type { PokerHand } from '../domain/pokerHands'
+import type { SpotSessionResult } from '../domain/spotDrill'
 import type { PostflopScenario } from '../domain/postflopScenario'
 import { summarizePracticeAttempts } from '../domain/practice'
 import { currentStreak } from '../domain/spacedRepetition'
 import { DEFAULT_DRILL_SECONDS } from '../domain/timedDrill'
 import { recordActionAccuracy } from '../storage/actionAccuracyStorage'
 import { loadSessionHistory } from '../storage/sessionHistoryStorage'
+import { recordSpotAccuracy } from '../storage/spotAccuracyStorage'
 import type { ActionAttempt, PracticeAttempt } from '../types/practice'
 import type { SavedRange, TableSize } from '../types/range'
 import { rangeEdgeHands } from '../domain/edgeHands'
@@ -134,17 +136,18 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
    * The spot drill answers questions from several ranges in one session, so each
    * range's attempts are recorded as its own session and the summary sums them.
    */
-  const finishSpots = (attemptsByRange: Record<string, PracticeAttempt[]>) => {
-    const all = Object.values(attemptsByRange).flat()
+  const finishSpots = ({ byRange, bySpot }: SpotSessionResult) => {
+    const all = Object.values(byRange).flat()
     if (all.length === 0) {
       onClose()
       return
     }
-    for (const [rangeId, attempts] of Object.entries(attemptsByRange)) {
+    for (const [rangeId, attempts] of Object.entries(byRange)) {
       recordFinishedPracticeSession(rangeId, attempts)
     }
+    recordSpotAccuracy(bySpot)
     const summary = summarizePracticeAttempts(all)
-    const rangeCount = Object.keys(attemptsByRange).length
+    const rangeCount = Object.keys(byRange).length
     const playedAt = Object.values(loadSessionHistory())
       .flat()
       .map((session) => session.playedAt)
