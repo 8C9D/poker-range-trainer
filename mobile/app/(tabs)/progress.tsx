@@ -6,12 +6,18 @@ import { HAND_CLASS_LABELS } from '@core/domain/handClass';
 import { rankHandClassLeaks } from '@core/domain/leakReport';
 import { summarizeLibraryAnalytics } from '@core/domain/libraryAnalytics';
 import { currentStreak } from '@core/domain/spacedRepetition';
+import {
+  accuracyByActionType,
+  accuracyByPosition,
+  type AccuracyGroup,
+} from '@core/domain/seatAccuracy';
 import { rankWeakHands, weakHandPools } from '@core/domain/weakHands';
 import { dailyHandCounts, summarizeWeek } from '@core/domain/weeklyStats';
 import { loadHandAccuracy } from '@core/storage/handAccuracyStorage';
 import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
 import { loadSavedRanges } from '@core/storage/rangeStorage';
 import { loadSessionHistory } from '@core/storage/sessionHistoryStorage';
+import { ACTION_TYPE_LABELS, POSITION_LABELS } from '@core/types/range';
 
 import { Screen } from '../../components/Screen';
 import { fonts } from '../../theme/fonts';
@@ -41,7 +47,9 @@ function loadProgressState() {
     Object.entries(handAccuracy).filter(([rangeId]) => ranges.some((range) => range.id === rangeId)),
   );
   const leaks = rankHandClassLeaks(liveAccuracy);
-  return { ranges, streak, month, analytics, days, weakHands, leaks };
+  const seatGroups = accuracyByPosition(ranges, practiceStats);
+  const actionGroups = accuracyByActionType(ranges, practiceStats);
+  return { ranges, streak, month, analytics, days, weakHands, leaks, seatGroups, actionGroups };
 }
 
 /** Long-term training overview: streak, accuracy, volume, and weak spots. */
@@ -55,7 +63,8 @@ export default function ProgressScreen() {
     }, []),
   );
 
-  const { ranges, streak, month, analytics, days, weakHands, leaks } = state;
+  const { ranges, streak, month, analytics, days, weakHands, leaks, seatGroups, actionGroups } =
+    state;
   const maxDay = Math.max(1, ...days.map((day) => day.handsAnswered));
   const rangeName = (rangeId: string) =>
     ranges.find((range) => range.id === rangeId)?.name ?? 'Deleted range';
@@ -132,6 +141,33 @@ export default function ProgressScreen() {
             {analytics.totalCorrect} of {analytics.totalAttempts} correct ·{' '}
             {analytics.totalAttempts > 0 ? `${analytics.overallAccuracy.toFixed(0)}%` : '—'} overall
           </Text>
+        </View>
+
+        <View testID="seat-leaks" style={styles.card}>
+          <Text style={styles.sectionTitle}>Where you leak</Text>
+          {seatGroups.length === 0 && actionGroups.length === 0 ? (
+            <Text style={styles.empty}>
+              Practice ranges that record a position or an action and this will show which seats
+              and which actions you are weakest in.
+            </Text>
+          ) : (
+            <>
+              <LeakColumn
+                heading="By seat"
+                groups={seatGroups}
+                labels={POSITION_LABELS}
+                styles={styles}
+                theme={theme}
+              />
+              <LeakColumn
+                heading="By action"
+                groups={actionGroups}
+                labels={ACTION_TYPE_LABELS}
+                styles={styles}
+                theme={theme}
+              />
+            </>
+          )}
         </View>
 
         <View style={styles.card}>
@@ -218,6 +254,45 @@ export default function ProgressScreen() {
   );
 }
 
+/**
+ * One ranked column of the v8.4 leak breakdown: weakest group first, each an
+ * accuracy bar. Renders nothing when the cut has no group above the threshold.
+ */
+function LeakColumn<T extends string>({
+  heading,
+  groups,
+  labels,
+  styles,
+  theme,
+}: {
+  heading: string;
+  groups: AccuracyGroup<T>[];
+  labels: Record<T, string>;
+  styles: ReturnType<typeof makeStyles>;
+  theme: ThemeColors;
+}) {
+  if (groups.length === 0) return null;
+  return (
+    <View style={styles.seatColumn}>
+      <Text style={styles.seatHeading}>{heading}</Text>
+      {groups.map((group) => (
+        <View key={group.key} testID={`seat-row-${group.key}`} style={styles.seatRow}>
+          <Text style={styles.seatName}>{labels[group.key]}</Text>
+          <View style={styles.seatBar}>
+            <View
+              style={[
+                styles.seatFill,
+                { width: `${Math.max(2, group.accuracy)}%`, backgroundColor: theme.goldFill },
+              ]}
+            />
+          </View>
+          <Text style={styles.seatValue}>{group.accuracy.toFixed(0)}%</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 function makeStyles(theme: ThemeColors) {
   const tabular = { fontVariant: ['tabular-nums' as const] };
   return StyleSheet.create({
@@ -268,6 +343,20 @@ function makeStyles(theme: ThemeColors) {
       paddingVertical: 8,
     },
     empty: { fontFamily: fonts.body, fontSize: 14, color: theme.ink2 },
+    seatColumn: { gap: 7 },
+    seatHeading: { fontFamily: fonts.bodySemibold, fontSize: 12, color: theme.ink3 },
+    seatRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    seatName: { width: 58, fontFamily: fonts.body, fontSize: 13, color: theme.ink2 },
+    seatBar: { flex: 1, height: 7, borderRadius: 4, backgroundColor: theme.well, overflow: 'hidden' },
+    seatFill: { height: '100%', borderRadius: 4 },
+    seatValue: {
+      width: 40,
+      textAlign: 'right',
+      fontFamily: fonts.body,
+      fontSize: 13,
+      color: theme.ink2,
+      fontVariant: ['tabular-nums'],
+    },
     weakList: { gap: 2 },
     weakRowHead: { flexDirection: 'row', paddingBottom: 4, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.line },
     weakRow: { flexDirection: 'row', paddingVertical: 5 },

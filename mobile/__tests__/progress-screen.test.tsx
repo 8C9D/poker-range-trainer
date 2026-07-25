@@ -84,3 +84,44 @@ describe('ProgressScreen', () => {
     expect(getByText(/hand types you miss most/)).toBeTruthy();
   });
 });
+
+describe('ProgressScreen leak breakdown', () => {
+  beforeAll(() => {
+    installLocalStorage();
+  });
+
+  beforeEach(() => {
+    localStorageShim.clear();
+  });
+
+  function seedWithMetadata(id: string, metadata: SavedRange['metadata']): void {
+    saveSavedRange({
+      id,
+      name: id,
+      hands: ['AA', 'KK'],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      metadata,
+    });
+  }
+
+  it('explains the empty state when no range records a seat or action', async () => {
+    seed('r1', 'Unlabelled');
+    recordPracticeSession('r1', { totalQuestions: 10, correctAnswers: 5 });
+    const { getByText } = await render(<ProgressScreen />);
+
+    expect(getByText(/which seats/)).toBeTruthy();
+  });
+
+  it('ranks the weakest seat and action first', async () => {
+    seedWithMetadata('btn', { position: 'btn', actionType: 'open' });
+    seedWithMetadata('bb', { position: 'bb', actionType: 'defend' });
+    recordPracticeSession('btn', { totalQuestions: 10, correctAnswers: 9 });
+    recordPracticeSession('bb', { totalQuestions: 10, correctAnswers: 3 });
+    const { getByTestId } = await render(<ProgressScreen />);
+
+    const card = getByTestId('seat-leaks');
+    expect(card).toHaveTextContent('Where you leakBy seatBB30%BTN90%By actionDefend30%Open90%');
+    expect(getByTestId('seat-row-bb')).toHaveTextContent('BB30%');
+  });
+});

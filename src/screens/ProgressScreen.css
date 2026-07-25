@@ -181,3 +181,57 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* v8.4 "Where you leak": two ranked columns (seat, action) of accuracy bars. */
+.progress-seats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+}
+
+.progress-seat-heading {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--ink-3);
+}
+
+.progress-seat-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.progress-seat-row {
+  display: grid;
+  grid-template-columns: 54px 1fr 40px;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.progress-seat-name {
+  color: var(--ink-2);
+}
+
+.progress-seat-bar {
+  height: 7px;
+  border-radius: 4px;
+  background: var(--well);
+  overflow: hidden;
+}
+
+.progress-seat-fill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--gold-fill);
+}
+
+.progress-seat-value {
+  text-align: right;
+  color: var(--ink-2);
+}

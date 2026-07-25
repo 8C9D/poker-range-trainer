@@ -1347,4 +1347,16 @@ Slice status:
   user played it and was right (a fold, a miss, or an uncovered continuation ends the hand and
   deals fresh), marked with a "Same hand — the action continues." line so the repeated cards
   never read as a new deal.
-- **v8.4 — accuracy by seat and situation.** Pending.
+- **v8.4 — accuracy by seat and action.** DONE (web + mobile). `src/domain/seatAccuracy.ts`
+  re-cuts the stored per-range stats along the two axes every range already declares:
+  `accuracyByPosition` and `accuracyByActionType`, each ranked weakest-first, hiding groups
+  under a 5-attempt threshold and skipping archived/undeclared ranges. Surfaced as a "Where
+  you leak" card on Progress (both platforms) with two ranked columns of accuracy bars.
+
+  **Deviation from the roadmap text, deliberately:** the roadmap said "break the *spot drill's*
+  results down by position and by situation". Attempts are stored per range, not per spot, so a
+  spot-only cut would need a new store and would read empty until the user had done spot
+  sessions. Cutting the existing per-range stats instead is useful immediately and covers every
+  drill. The second axis is the range's declared **action type** rather than the spot
+  *situation*, because a range saved as e.g. "call" answers several situations — attributing it
+  to one would be a guess and to all would double-count.

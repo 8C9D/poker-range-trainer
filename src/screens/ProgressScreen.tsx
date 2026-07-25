@@ -3,6 +3,11 @@ import { HAND_CLASS_LABELS } from '../domain/handClass'
 import { rankHandClassLeaks, type HandClassLeak } from '../domain/leakReport'
 import { summarizeLibraryAnalytics } from '../domain/libraryAnalytics'
 import { currentStreak } from '../domain/spacedRepetition'
+import {
+  accuracyByActionType,
+  accuracyByPosition,
+  type AccuracyGroup,
+} from '../domain/seatAccuracy'
 import { rankWeakHands, weakHandPools } from '../domain/weakHands'
 import { dailyHandCounts, summarizeWeek } from '../domain/weeklyStats'
 import type { PokerHand } from '../domain/pokerHands'
@@ -10,7 +15,11 @@ import { loadHandAccuracy } from '../storage/handAccuracyStorage'
 import { loadPracticeStats } from '../storage/practiceStatsStorage'
 import { loadSavedRanges } from '../storage/rangeStorage'
 import { loadSessionHistory } from '../storage/sessionHistoryStorage'
-import type { SavedRange } from '../types/range'
+import {
+  ACTION_TYPE_LABELS,
+  POSITION_LABELS,
+  type SavedRange,
+} from '../types/range'
 import './ProgressScreen.css'
 
 interface ProgressScreenProps {
@@ -45,6 +54,8 @@ export function ProgressScreen({ onDrillWeakHands }: ProgressScreenProps) {
     ),
   )
   const leaks = rankHandClassLeaks(liveAccuracy)
+  const seatGroups = accuracyByPosition(ranges, practiceStats)
+  const actionGroups = accuracyByActionType(ranges, practiceStats)
 
   function rangeName(rangeId: string): string {
     return ranges.find((range) => range.id === rangeId)?.name ?? 'Deleted range'
@@ -125,6 +136,21 @@ export function ProgressScreen({ onDrillWeakHands }: ProgressScreenProps) {
         </p>
       </section>
 
+      <section className="coach-card" aria-label="Accuracy by seat and action">
+        <h3>Where you leak</h3>
+        {seatGroups.length === 0 && actionGroups.length === 0 ? (
+          <p className="progress-empty">
+            Practice ranges that record a position or an action and this will show which seats
+            and which actions you are weakest in.
+          </p>
+        ) : (
+          <div className="progress-seats">
+            <LeakColumn heading="By seat" groups={seatGroups} labels={POSITION_LABELS} />
+            <LeakColumn heading="By action" groups={actionGroups} labels={ACTION_TYPE_LABELS} />
+          </div>
+        )}
+      </section>
+
       <section className="coach-card" aria-label="Leaks by hand type">
         <h3>Leaks by hand type</h3>
         {leaks.length === 0 ? (
@@ -193,6 +219,43 @@ export function ProgressScreen({ onDrillWeakHands }: ProgressScreenProps) {
           </table>
         )}
       </section>
+    </div>
+  )
+}
+
+/**
+ * One ranked column of the v8.4 leak breakdown: weakest group first, each an
+ * accuracy bar. Renders nothing when the cut has no group above the threshold.
+ */
+function LeakColumn<T extends string>({
+  heading,
+  groups,
+  labels,
+}: {
+  heading: string
+  groups: AccuracyGroup<T>[]
+  labels: Record<T, string>
+}) {
+  if (groups.length === 0) return null
+  return (
+    <div className="progress-seat-column">
+      <h4 className="progress-seat-heading">{heading}</h4>
+      <ul className="progress-seat-list">
+        {groups.map((group) => (
+          <li key={group.key} className="progress-seat-row">
+            <span className="progress-seat-name">{labels[group.key]}</span>
+            <span className="progress-seat-bar">
+              <span
+                className="progress-seat-fill"
+                style={{ width: `${Math.max(2, group.accuracy)}%` }}
+              />
+            </span>
+            <span className="progress-seat-value coach-tabular">
+              {group.accuracy.toFixed(0)}%
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }

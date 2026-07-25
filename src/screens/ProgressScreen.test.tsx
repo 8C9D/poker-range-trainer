@@ -134,3 +134,36 @@ describe('ProgressScreen', () => {
     expect(screen.queryByRole('button', { name: 'Drill these' })).not.toBeInTheDocument()
   })
 })
+
+describe('ProgressScreen leak breakdown', () => {
+  function seedRange(id: string, name: string, metadata: SavedRange['metadata']) {
+    saveSavedRange({ ...makeRange(id, name), metadata })
+  }
+
+  it('explains the empty state when no range records a seat or action', () => {
+    saveSavedRange(makeRange('a', 'Unlabelled'))
+    recordPracticeSession('a', { totalQuestions: 10, correctAnswers: 5 }, TODAY)
+    render(<ProgressScreen onDrillWeakHands={vi.fn()} />)
+
+    const card = screen.getByRole('region', { name: 'Accuracy by seat and action' })
+    expect(within(card).getByText(/which seats/i)).toBeInTheDocument()
+  })
+
+  it('ranks the weakest seat and action first', () => {
+    seedRange('a', 'BTN open', { position: 'btn', actionType: 'open' })
+    seedRange('b', 'BB defend', { position: 'bb', actionType: 'defend' })
+    recordPracticeSession('a', { totalQuestions: 10, correctAnswers: 9 }, TODAY)
+    recordPracticeSession('b', { totalQuestions: 10, correctAnswers: 3 }, TODAY)
+    render(<ProgressScreen onDrillWeakHands={vi.fn()} />)
+
+    const card = screen.getByRole('region', { name: 'Accuracy by seat and action' })
+    const rows = within(card).getAllByRole('listitem')
+    // Two columns: seats (BB 30%, BTN 90%) then actions (Defend 30%, Open 90%).
+    expect(rows.map((row) => row.textContent)).toEqual([
+      'BB30%',
+      'BTN90%',
+      'Defend30%',
+      'Open90%',
+    ])
+  })
+})
