@@ -1325,6 +1325,16 @@ Slice status:
 - **v8.2 — the spot drill.** Domain done. `src/domain/spotDrill.ts` turns the coverage report
   into `coveredSpots` (every standard spot at a format that some range answers, paired with
   that range) and `drawSpotPrompt` (a uniform spot draw plus a hand, `null` when nothing is
-  covered). UI pending.
+  covered). `src/practice/SpotDrill.tsx` is the drill itself: it states the spot in plain
+  words, deals concrete cards, labels the answers with the matched range's own action verb,
+  and on every answer names the chart the spot belongs to (a miss also gets the v7.1
+  explanation). Attempts are grouped by grading range and each group is recorded as its own
+  session through `recordFinishedPracticeSession`, so spot practice feeds the same per-hand
+  accuracy, leak report, and scheduling as every other mode; the summary sums the run and
+  says how much of the library it spanned. Launched from the coverage card's **Play these
+  spots** button at the format currently shown (`PracticeRequest.spotFormat`), never from the
+  per-range mode picker, since a spot session belongs to the library rather than one range.
+  Answers are the same binary in-range/fold question as the recognition drill (action-verb
+  labelled); a per-hand-action variant is NOT part of this slice.
 - **v8.3 — chained spots.** Pending.
 - **v8.4 — accuracy by seat and situation.** Pending.

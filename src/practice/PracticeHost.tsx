@@ -18,11 +18,12 @@ import { DEFAULT_DRILL_SECONDS } from '../domain/timedDrill'
 import { recordActionAccuracy } from '../storage/actionAccuracyStorage'
 import { loadSessionHistory } from '../storage/sessionHistoryStorage'
 import type { ActionAttempt, PracticeAttempt } from '../types/practice'
-import type { SavedRange } from '../types/range'
+import type { SavedRange, TableSize } from '../types/range'
 import { rangeEdgeHands } from '../domain/edgeHands'
 import { ModePicker, type PracticeMode } from './ModePicker'
 import { OverlayFrame } from './OverlayFrame'
 import { RecognitionDrill } from './RecognitionDrill'
+import { SpotDrill } from './SpotDrill'
 import { SessionSummary, type SessionSummaryData } from './SessionSummary'
 
 export interface PracticeRequest {
@@ -34,6 +35,8 @@ export interface PracticeRequest {
   handPool?: PokerHand[]
   /** Per-range pools for multi-range weak-hand drills, keyed by range id. */
   handPools?: Record<string, PokerHand[]>
+  /** The format the 'spots' drill deals from; ignored by every other mode. */
+  spotFormat?: { tableSize: TableSize; stackDepthBb: number }
 }
 
 interface PracticeHostProps {
@@ -127,6 +130,38 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     })
   }
 
+  /**
+   * The spot drill answers questions from several ranges in one session, so each
+   * range's attempts are recorded as its own session and the summary sums them.
+   */
+  const finishSpots = (attemptsByRange: Record<string, PracticeAttempt[]>) => {
+    const all = Object.values(attemptsByRange).flat()
+    if (all.length === 0) {
+      onClose()
+      return
+    }
+    for (const [rangeId, attempts] of Object.entries(attemptsByRange)) {
+      recordFinishedPracticeSession(rangeId, attempts)
+    }
+    const summary = summarizePracticeAttempts(all)
+    const rangeCount = Object.keys(attemptsByRange).length
+    const playedAt = Object.values(loadSessionHistory())
+      .flat()
+      .map((session) => session.playedAt)
+    const streak = currentStreak(playedAt, new Date().toISOString())
+    setPhase({
+      kind: 'summary',
+      data: {
+        totalQuestions: summary.totalQuestions,
+        correctAnswers: summary.correctAnswers,
+        accuracy: summary.accuracyPercentage,
+        deltaLine: `Across ${rangeCount} range${rangeCount === 1 ? '' : 's'} of your library.`,
+        streakLine:
+          streak > 0 ? `${streak}-day streak — see you tomorrow to keep it going.` : null,
+      },
+    })
+  }
+
   const nextRange = () => {
     setIndex(index + 1)
     setPostflopScenario(null)
@@ -155,14 +190,35 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
   }
 
   if (phase.kind === 'summary') {
+    // A spot session spans the library, so it is not titled after one range.
+    const spots = request.mode === 'spots'
     return (
-      <OverlayFrame title={range.name} position={position} progress={1} onClose={onClose}>
-        <SessionSummary data={phase.data} hasNext={hasNext} onNext={nextRange} onDone={onClose} />
+      <OverlayFrame
+        title={spots ? 'Play the spot' : range.name}
+        position={spots ? null : position}
+        progress={1}
+        onClose={onClose}
+      >
+        <SessionSummary
+          data={phase.data}
+          hasNext={!spots && hasNext}
+          onNext={nextRange}
+          onDone={onClose}
+        />
       </OverlayFrame>
     )
   }
 
   switch (phase.mode) {
+    case 'spots':
+      return (
+        <SpotDrill
+          ranges={request.ranges}
+          tableSize={request.spotFormat?.tableSize ?? 'sixMax'}
+          stackDepthBb={request.spotFormat?.stackDepthBb ?? 100}
+          onFinish={finishSpots}
+        />
+      )
     case 'recognize':
       return (
         <RecognitionDrill

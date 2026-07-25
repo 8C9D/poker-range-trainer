@@ -8,6 +8,7 @@ import { answerVerbs } from './scenario'
 
 export type PracticeMode =
   | 'recognize'
+  | 'spots'
   | 'build'
   | 'timed'
   | 'weakness'

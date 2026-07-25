@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { LibraryScreen } from './LibraryScreen'
@@ -31,18 +31,18 @@ function rowNames() {
 
 describe('LibraryScreen', () => {
   it('shows spot coverage for a non-empty library, and not for an empty one', () => {
-    const { unmount } = render(<LibraryScreen />)
+    const { unmount } = render(<LibraryScreen onPlaySpots={vi.fn()} />)
     expect(screen.queryByRole('region', { name: 'Spot coverage' })).toBeNull()
     unmount()
 
     saveSavedRange(makeRange('a', 'BTN open', { metadata: { position: 'btn', actionType: 'open' } }))
-    render(<LibraryScreen />)
+    render(<LibraryScreen onPlaySpots={vi.fn()} />)
     const coverage = screen.getByRole('region', { name: 'Spot coverage' })
     expect(within(coverage).getByRole('button', { name: /BTN folded to you: 1 of 1/ })).toBeVisible()
   })
 
   it('shows the empty state and the New range button', () => {
-    render(<LibraryScreen />)
+    render(<LibraryScreen onPlaySpots={vi.fn()} />)
     expect(screen.getByRole('region', { name: 'Empty library' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'New range' })).toHaveAttribute(
       'href',
@@ -56,7 +56,7 @@ describe('LibraryScreen', () => {
         metadata: { position: 'utg', actionType: 'open' },
       }),
     )
-    render(<LibraryScreen />)
+    render(<LibraryScreen onPlaySpots={vi.fn()} />)
     const row = screen.getByRole('link', { name: 'Open range UTG open' })
     expect(row).toHaveAttribute('href', '#/library/a')
     expect(within(row).getByTestId('range-thumbnail')).toBeInTheDocument()
@@ -76,7 +76,7 @@ describe('LibraryScreen', () => {
       { totalQuestions: 10, correctAnswers: 9 },
       new Date().toISOString(),
     )
-    render(<LibraryScreen />)
+    render(<LibraryScreen onPlaySpots={vi.fn()} />)
     const row = screen.getByRole('link', { name: 'Open range UTG open' })
     expect(within(row).getByText('90%')).toBeInTheDocument()
     expect(within(row).getByText('today')).toBeInTheDocument()
@@ -91,7 +91,7 @@ describe('LibraryScreen', () => {
       dueAt: new Date(Date.now() + 5 * 86_400_000).toISOString(),
       lastReviewedAt: new Date().toISOString(),
     })
-    render(<LibraryScreen />)
+    render(<LibraryScreen onPlaySpots={vi.fn()} />)
     expect(screen.queryByText('Due')).not.toBeInTheDocument()
   })
 
@@ -99,7 +99,7 @@ describe('LibraryScreen', () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'UTG open'))
     saveSavedRange(makeRange('b', 'BTN defend'))
-    render(<LibraryScreen />)
+    render(<LibraryScreen onPlaySpots={vi.fn()} />)
     await user.type(screen.getByLabelText('Search ranges by name'), 'btn')
     expect(rowNames()).toEqual(['BTN defend'])
   })
@@ -107,7 +107,7 @@ describe('LibraryScreen', () => {
   it('shows a no-match message for a search without hits', async () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'UTG open'))
-    render(<LibraryScreen />)
+    render(<LibraryScreen onPlaySpots={vi.fn()} />)
     await user.type(screen.getByLabelText('Search ranges by name'), 'zzz')
     expect(screen.getByText(/No ranges match “zzz”/)).toBeInTheDocument()
   })
@@ -116,7 +116,7 @@ describe('LibraryScreen', () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'UTG open', { metadata: { position: 'utg' } }))
     saveSavedRange(makeRange('b', 'BTN open', { metadata: { position: 'btn' } }))
-    render(<LibraryScreen />)
+    render(<LibraryScreen onPlaySpots={vi.fn()} />)
 
     // Filters are collapsed by default.
     expect(screen.queryByLabelText('Filter ranges by position')).not.toBeInTheDocument()
@@ -132,7 +132,7 @@ describe('LibraryScreen', () => {
     saveSavedRange(makeRange('a', 'MTT open', { tags: ['MTT'] }))
     saveSavedRange(makeRange('b', 'Cash open', { tags: ['Cash'] }))
     saveSavedRange(makeRange('c', 'No tags'))
-    render(<LibraryScreen />)
+    render(<LibraryScreen onPlaySpots={vi.fn()} />)
 
     // The tag chip renders on its row (before the filter panel is opened).
     expect(screen.getByText('MTT')).toBeInTheDocument()
@@ -146,7 +146,7 @@ describe('LibraryScreen', () => {
   it('offers no tag filter when no range is tagged', async () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'UTG open'))
-    render(<LibraryScreen />)
+    render(<LibraryScreen onPlaySpots={vi.fn()} />)
     await user.click(screen.getByRole('button', { name: 'Filters' }))
     expect(screen.queryByLabelText('Filter ranges by tag')).not.toBeInTheDocument()
   })
@@ -163,7 +163,7 @@ describe('LibraryScreen', () => {
         metadata: { stackDepthBb: 40, actionType: 'jam', gameType: 'tournament' },
       }),
     )
-    render(<LibraryScreen />)
+    render(<LibraryScreen onPlaySpots={vi.fn()} />)
     await user.click(screen.getByRole('button', { name: 'Filters' }))
     await user.selectOptions(screen.getByLabelText('Filter ranges by stack depth'), '40')
     expect(rowNames()).toEqual(['MTT 40bb jam'])
@@ -176,7 +176,7 @@ describe('LibraryScreen', () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'Active range'))
     saveSavedRange(makeRange('b', 'Old range', { archived: true }))
-    render(<LibraryScreen />)
+    render(<LibraryScreen onPlaySpots={vi.fn()} />)
     expect(rowNames()).toEqual(['Active range'])
     await user.click(screen.getByRole('button', { name: 'Filters' }))
     await user.click(screen.getByRole('button', { name: 'Show archived' }))
@@ -188,7 +188,7 @@ describe('LibraryScreen', () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'Plain range'))
     saveSavedRange(makeRange('b', 'Starred range', { favorite: true }))
-    render(<LibraryScreen />)
+    render(<LibraryScreen onPlaySpots={vi.fn()} />)
     await user.click(screen.getByRole('button', { name: 'Filters' }))
     await user.click(screen.getByRole('button', { name: 'Favorites only' }))
     expect(rowNames()).toEqual(['Starred range'])
@@ -198,7 +198,7 @@ describe('LibraryScreen', () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'Zebra'))
     saveSavedRange(makeRange('b', 'Alpha'))
-    render(<LibraryScreen />)
+    render(<LibraryScreen onPlaySpots={vi.fn()} />)
     expect(rowNames()).toEqual(['Zebra', 'Alpha'])
     await user.selectOptions(screen.getByLabelText('Sort ranges'), 'name')
     expect(rowNames()).toEqual(['Alpha', 'Zebra'])
@@ -211,7 +211,7 @@ describe('LibraryScreen', () => {
     saveSavedRange(makeRange('c', 'Rusty'))
     recordPracticeSession('b', { totalQuestions: 10, correctAnswers: 9 })
     recordPracticeSession('c', { totalQuestions: 10, correctAnswers: 4 })
-    render(<LibraryScreen />)
+    render(<LibraryScreen onPlaySpots={vi.fn()} />)
     await user.selectOptions(screen.getByLabelText('Sort ranges'), 'accuracy')
     expect(rowNames()).toEqual(['Sharp', 'Rusty', 'Never practiced'])
   })

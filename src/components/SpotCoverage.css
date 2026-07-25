@@ -21,8 +21,17 @@
   font-size: 13px;
 }
 
-.spot-coverage-summary {
+.spot-coverage-summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
   margin: 8px 0 12px;
+}
+
+.spot-coverage-summary {
+  margin: 0;
   font-size: 13px;
   color: var(--ink-2);
 }

@@ -35,17 +35,23 @@ import {
   type ActionType,
   type GameType,
   type Position,
+  type TableSize,
 } from '../types/range'
 import './LibraryScreen.css'
 
 type SortOrder = '' | 'name' | 'recent' | 'practiced' | 'accuracy'
+
+interface LibraryScreenProps {
+  /** Start the v8.2 spot drill over the whole library at the given format. */
+  onPlaySpots: (format: { tableSize: TableSize; stackDepthBb: number }) => void
+}
 
 /**
  * The Library: search, filters, and sorted range rows. Rows navigate to the
  * per-range page. Data is loaded once on mount; every mutation lives on the
  * Range page, which navigating back from remounts this screen.
  */
-export function LibraryScreen() {
+export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
   const [ranges] = useState(() => loadSavedRanges())
   const [practiceStats] = useState(() => loadPracticeStats())
   const [reviewStates] = useState(() => loadReviewStates())
@@ -332,7 +338,7 @@ export function LibraryScreen() {
             </ul>
           )}
 
-          <SpotCoverage ranges={ranges} />
+          <SpotCoverage ranges={ranges} onPlaySpots={onPlaySpots} />
         </>
       )}
     </div>

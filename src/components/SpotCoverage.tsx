@@ -32,6 +32,8 @@ function createRangeHref(spot: Spot): string {
 
 interface SpotCoverageProps {
   ranges: SavedRange[]
+  /** Start the spot drill at the format currently shown; omitted where it cannot run. */
+  onPlaySpots?: (format: { tableSize: TableSize; stackDepthBb: number }) => void
 }
 
 /**
@@ -40,7 +42,7 @@ interface SpotCoverageProps {
  * naming the range that covers it or linking into a new range pre-filled with
  * that spot's metadata.
  */
-export function SpotCoverage({ ranges }: SpotCoverageProps) {
+export function SpotCoverage({ ranges, onPlaySpots }: SpotCoverageProps) {
   const inferred = useMemo(() => inferLibraryContext(ranges), [ranges])
   const [tableSize, setTableSize] = useState<TableSize>(inferred.tableSize)
   const [stackDepthBb, setStackDepthBb] = useState(inferred.stackDepthBb)
@@ -101,10 +103,21 @@ export function SpotCoverage({ ranges }: SpotCoverageProps) {
         </div>
       </div>
 
-      <p className="spot-coverage-summary coach-tabular">
-        {report.covered} of {report.total} standard spots covered ·{' '}
-        {report.coveragePercentage.toFixed(0)}%
-      </p>
+      <div className="spot-coverage-summary-row">
+        <p className="spot-coverage-summary coach-tabular">
+          {report.covered} of {report.total} standard spots covered ·{' '}
+          {report.coveragePercentage.toFixed(0)}%
+        </p>
+        {onPlaySpots && report.covered > 0 && (
+          <button
+            type="button"
+            className="coach-btn primary"
+            onClick={() => onPlaySpots({ tableSize, stackDepthBb })}
+          >
+            Play these spots
+          </button>
+        )}
+      </div>
 
       <div className="spot-coverage-scroll">
         <table className="spot-coverage-table">

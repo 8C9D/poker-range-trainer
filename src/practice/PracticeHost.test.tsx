@@ -321,3 +321,55 @@ describe('PracticeHost action quiz', () => {
     expect(Object.keys(loadActionAccuracy())).toEqual(['a'])
   })
 })
+
+describe('PracticeHost spot drill', () => {
+  const btnOpen = makeRange('a', 'BTN open', {
+    metadata: { position: 'btn', actionType: 'open' },
+  })
+
+  it('deals a covered spot and records the session against the grading range', () => {
+    const onClose = vi.fn()
+    render(
+      <PracticeHost
+        request={{
+          ranges: [btnOpen],
+          mode: 'spots',
+          spotFormat: { tableSize: 'sixMax', stackDepthBb: 100 },
+        }}
+        onClose={onClose}
+      />,
+    )
+
+    expect(screen.getByText('Play the spot')).toBeInTheDocument()
+    expect(screen.getByText('6-max, 100bb. Folded to you in the BTN.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close practice' }))
+
+    // The summary sums the whole run and names how much of the library it spanned.
+    expect(screen.getByText('Across 1 range of your library.')).toBeInTheDocument()
+    expect(loadPracticeStats().a.totalAttempts).toBe(1)
+    expect(Object.keys(loadReviewStates())).toEqual(['a'])
+    // A library-wide session is never titled after one range, and never queues a next.
+    expect(screen.queryByRole('button', { name: 'Next range' })).not.toBeInTheDocument()
+  })
+
+  it('closes without recording when nothing was answered', () => {
+    const onClose = vi.fn()
+    render(
+      <PracticeHost
+        request={{
+          ranges: [btnOpen],
+          mode: 'spots',
+          spotFormat: { tableSize: 'sixMax', stackDepthBb: 100 },
+        }}
+        onClose={onClose}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close practice' }))
+
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(loadPracticeStats()).toEqual({})
+  })
+})

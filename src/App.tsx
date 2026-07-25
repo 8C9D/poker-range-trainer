@@ -3,7 +3,7 @@ import { SharedRangePage } from './components/SharedRangePage'
 import { SharedPackPage } from './components/SharedPackPage'
 import { parsePackShareRoute, parseShareRoute } from './domain/shareRoute'
 import { decodeRangeFromHash } from './domain/rangeTransfer'
-import { saveSavedRange } from './storage/rangeStorage'
+import { loadSavedRanges, saveSavedRange } from './storage/rangeStorage'
 import { AppShell } from './app/AppShell'
 import { createRangeId } from './app/ids'
 import { routeHash, useHashRoute } from './app/routes'
@@ -122,7 +122,11 @@ function CoachApp() {
       {route.screen === 'today' ? (
         <TodayScreen onStartReview={startReview} />
       ) : route.screen === 'library' ? (
-        <LibraryScreen />
+        <LibraryScreen
+          onPlaySpots={(spotFormat) =>
+            setPractice({ ranges: loadSavedRanges(), mode: 'spots', spotFormat })
+          }
+        />
       ) : route.screen === 'range' ? (
         <RangeScreen key={route.id} id={route.id} tab={route.tab} onPractice={startPractice} />
       ) : route.screen === 'newRange' ? (

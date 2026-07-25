@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SpotCoverage } from './SpotCoverage'
@@ -88,6 +88,28 @@ describe('SpotCoverage', () => {
 
     expect(screen.queryByRole('row', { name: /^CO/ })).toBeNull()
     expect(screen.getByRole('button', { name: 'BTN folded to you: 0 of 1 covered' })).toBeVisible()
+  })
+
+  it('offers to play the covered spots at the shown format', async () => {
+    const user = userEvent.setup()
+    const onPlaySpots = vi.fn()
+    render(
+      <SpotCoverage
+        ranges={[makeRange('BTN open', { position: 'btn', actionType: 'open' })]}
+        onPlaySpots={onPlaySpots}
+      />,
+    )
+
+    await user.selectOptions(screen.getByLabelText('Stack depth for spot coverage'), '40')
+    await user.click(screen.getByRole('button', { name: 'Play these spots' }))
+
+    expect(onPlaySpots).toHaveBeenCalledWith({ tableSize: 'sixMax', stackDepthBb: 40 })
+  })
+
+  it('hides the play button when nothing is covered', () => {
+    render(<SpotCoverage ranges={[]} onPlaySpots={vi.fn()} />)
+
+    expect(screen.queryByRole('button', { name: 'Play these spots' })).toBeNull()
   })
 
   it('marks a seat and situation that has no standard spot', () => {
