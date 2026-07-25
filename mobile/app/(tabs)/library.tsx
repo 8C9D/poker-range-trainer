@@ -179,11 +179,18 @@ export default function LibraryScreen() {
     <View style={styles.header}>
       <View style={styles.titleRow}>
         <Text style={styles.title}>Library</Text>
-        <Link href="/range/new" asChild>
-          <Pressable testID="new-range" style={styles.primaryBtn}>
-            <Text style={styles.primaryBtnText}>New range</Text>
-          </Pressable>
-        </Link>
+        <View style={styles.titleActions}>
+          <Link href="/import" asChild>
+            <Pressable testID="import-range" style={styles.ghostBtn}>
+              <Text style={styles.ghostBtnText}>Import</Text>
+            </Pressable>
+          </Link>
+          <Link href="/range/new" asChild>
+            <Pressable testID="new-range" style={styles.primaryBtn}>
+              <Text style={styles.primaryBtnText}>New range</Text>
+            </Pressable>
+          </Link>
+        </View>
       </View>
 
       {ranges.length === 0 ? null : (
@@ -445,7 +452,16 @@ function makeStyles(theme: ThemeColors) {
     listContent: { padding: 16, gap: 12, paddingBottom: 32 },
     header: { gap: 12, marginBottom: 4 },
     titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    titleActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     title: { fontFamily: fonts.display, fontSize: 30, color: theme.ink },
+    ghostBtn: {
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line2,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+    },
+    ghostBtnText: { fontFamily: fonts.bodySemibold, fontSize: 14, color: theme.ink },
     primaryBtn: {
       backgroundColor: theme.goldFill,
       borderRadius: 12,

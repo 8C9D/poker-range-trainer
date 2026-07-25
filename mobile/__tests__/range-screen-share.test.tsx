@@ -5,8 +5,10 @@ import * as Clipboard from 'expo-clipboard';
 
 import { saveSavedRange } from '@core/storage/rangeStorage';
 import { publishSharedRange, unpublishSharedRange } from '@core/cloud/sharedRangesRepo';
+import { decodeRangeFromHash } from '@core/domain/rangeTransfer';
 
 import RangeScreen from '../app/range/[id]';
+import { extractSharedRangeHash } from '../lib/shareLink';
 import { installLocalStorage, localStorageShim } from '../platform/localStorageShim';
 
 // A signed-in session + fake client so the publish/unpublish menu items render; the cloud repo is
@@ -23,8 +25,8 @@ jest.mock('expo-router', () => ({
 jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn().mockResolvedValue(true) }));
 jest.mock('expo-linking', () => ({
   createURL: (path: string, opts?: { queryParams?: Record<string, string> }) => {
-    const token = opts?.queryParams?.token;
-    return `pokerrangetrainer://${path}${token ? `?token=${token}` : ''}`;
+    const query = new URLSearchParams(opts?.queryParams ?? {}).toString();
+    return `pokerrangetrainer://${path}${query ? `?${query}` : ''}`;
   },
 }));
 jest.mock('../lib/useMobileSession', () => ({
@@ -60,6 +62,22 @@ describe('RangeScreen sharing', () => {
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
     });
+  });
+
+  it('copies an account-free share link that decodes back to the range', async () => {
+    const user = userEvent.setup();
+    const { getByTestId, findByTestId } = await render(<RangeScreen />);
+    await user.press(getByTestId('range-menu-button'));
+    await user.press(await findByTestId('menu-copy-share-link'));
+
+    const copied = (Clipboard.setStringAsync as jest.Mock).mock.calls[0][0] as string;
+    const hash = extractSharedRangeHash(copied);
+    expect(hash).toBeTruthy();
+    expect(decodeRangeFromHash(hash as string)).toEqual(
+      expect.objectContaining({ name: 'UTG Open', hands: ['AA', 'KK'] }),
+    );
+    // No cloud call is involved — the link carries the range itself.
+    expect(publishMock).not.toHaveBeenCalled();
   });
 
   it('publishes a public share link and copies it to the clipboard', async () => {

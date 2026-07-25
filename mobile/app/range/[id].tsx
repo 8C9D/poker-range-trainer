@@ -7,7 +7,7 @@ import * as Linking from 'expo-linking';
 import { publishSharedRange, unpublishSharedRange } from '@core/cloud/sharedRangesRepo';
 import { accuracyPercentage } from '@core/domain/accuracy';
 import { formatRangeNotation } from '@core/domain/rangeNotation';
-import { formatRangeCsv } from '@core/domain/rangeTransfer';
+import { encodeRangeToHash, formatRangeCsv } from '@core/domain/rangeTransfer';
 import { calculateRangePercentage, countSelectedCombos } from '@core/domain/rangeMath';
 import { duplicateRange } from '@core/domain/rangeDuplication';
 import { setRangeArchived } from '@core/domain/rangeArchive';
@@ -37,7 +37,7 @@ import { RangeThumbnail } from '../../components/RangeThumbnail';
 import { Screen } from '../../components/Screen';
 import { Chip } from '../../components/ui';
 import { createRangeId } from '../../platform/createRangeId';
-import { buildRangeShareLink } from '../../lib/shareLink';
+import { buildOfflineRangeLink, buildRangeShareLink } from '../../lib/shareLink';
 import { useMobileSession } from '../../lib/useMobileSession';
 import { formatDayDistance } from '../../lib/format';
 import { fonts } from '../../theme/fonts';
@@ -261,6 +261,17 @@ export default function RangeScreen() {
               testID="menu-copy-csv"
               label="Copy CSV"
               onPress={() => copyText(formatRangeCsv(range), 'Range CSV')}
+              theme={theme}
+            />
+            <MenuItem
+              testID="menu-copy-share-link"
+              label="Copy share link"
+              onPress={() =>
+                copyText(
+                  buildOfflineRangeLink(Linking.createURL, encodeRangeToHash(range)),
+                  'Share link',
+                )
+              }
               theme={theme}
             />
             {session ? (
