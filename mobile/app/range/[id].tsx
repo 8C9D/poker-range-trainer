@@ -3,11 +3,17 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { Link, Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as Linking from 'expo-linking';
+import { documentDirectory, writeAsStringAsync } from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 
 import { publishSharedRange, unpublishSharedRange } from '@core/cloud/sharedRangesRepo';
 import { accuracyPercentage } from '@core/domain/accuracy';
 import { formatRangeNotation } from '@core/domain/rangeNotation';
-import { encodeRangeToHash, formatRangeCsv } from '@core/domain/rangeTransfer';
+import {
+  encodeRangeToHash,
+  formatRangeCsv,
+  serializeRangeExport,
+} from '@core/domain/rangeTransfer';
 import { calculateRangePercentage, countSelectedCombos } from '@core/domain/rangeMath';
 import { duplicateRange } from '@core/domain/rangeDuplication';
 import { setRangeArchived } from '@core/domain/rangeArchive';
@@ -39,7 +45,7 @@ import { Chip } from '../../components/ui';
 import { createRangeId } from '../../platform/createRangeId';
 import { buildOfflineRangeLink, buildRangeShareLink } from '../../lib/shareLink';
 import { useMobileSession } from '../../lib/useMobileSession';
-import { formatDayDistance } from '../../lib/format';
+import { formatDayDistance, safeRangeFileName } from '../../lib/format';
 import { fonts } from '../../theme/fonts';
 import { useTheme } from '../../theme/colors';
 import type { ThemeColors } from '../../theme/colors';
@@ -143,6 +149,25 @@ export default function RangeScreen() {
     Clipboard.setStringAsync(text)
       .then(() => Alert.alert('Copied', `${label} copied to clipboard.`))
       .catch(() => Alert.alert('Copy failed', 'Could not copy to the clipboard.'));
+  };
+  // Write the range's export envelope to a file and hand it to the share sheet, so it can
+  // land in Files/Mail/another device and be picked back up by the Account tab's importer.
+  const doExportFile = () => {
+    setMenuOpen(false);
+    void (async () => {
+      try {
+        const uri = `${documentDirectory ?? ''}${safeRangeFileName(range.name)}.json`;
+        await writeAsStringAsync(uri, serializeRangeExport(range));
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(uri);
+          setShareStatus('Exported the range file.');
+        } else {
+          setShareStatus(`Saved the range to ${uri}`);
+        }
+      } catch (error) {
+        setShareStatus(error instanceof Error ? error.message : 'Export failed.');
+      }
+    })();
   };
   const doDelete = () => {
     setMenuOpen(false);
@@ -261,6 +286,12 @@ export default function RangeScreen() {
               testID="menu-copy-csv"
               label="Copy CSV"
               onPress={() => copyText(formatRangeCsv(range), 'Range CSV')}
+              theme={theme}
+            />
+            <MenuItem
+              testID="menu-export-file"
+              label="Export range file"
+              onPress={doExportFile}
               theme={theme}
             />
             <MenuItem

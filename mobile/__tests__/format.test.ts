@@ -1,4 +1,4 @@
-import { formatDateLine, formatDayDistance, greetingFor } from '../lib/format';
+import { formatDateLine, formatDayDistance, greetingFor, safeRangeFileName } from '../lib/format';
 
 describe('formatDayDistance', () => {
   const now = '2026-07-11T12:00:00.000Z';
@@ -38,6 +38,17 @@ describe('formatDayDistance', () => {
   it('returns empty string for missing or invalid input', () => {
     expect(formatDayDistance('', now)).toBe('');
     expect(formatDayDistance('not-a-date', now)).toBe('');
+  });
+});
+
+describe('safeRangeFileName', () => {
+  it('collapses punctuation and spaces into single hyphens', () => {
+    expect(safeRangeFileName('UTG open — 100bb (v2)')).toBe('UTG-open-100bb-v2');
+  });
+
+  it('falls back to "range" when nothing usable remains', () => {
+    expect(safeRangeFileName('   ')).toBe('range');
+    expect(safeRangeFileName('***')).toBe('range');
   });
 });
 

@@ -5,7 +5,9 @@ import * as Clipboard from 'expo-clipboard';
 
 import { saveSavedRange } from '@core/storage/rangeStorage';
 import { publishSharedRange, unpublishSharedRange } from '@core/cloud/sharedRangesRepo';
-import { decodeRangeFromHash } from '@core/domain/rangeTransfer';
+import { decodeRangeFromHash, parseRangeExport } from '@core/domain/rangeTransfer';
+import { writeAsStringAsync } from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 
 import RangeScreen from '../app/range/[id]';
 import { extractSharedRangeHash } from '../lib/shareLink';
@@ -23,6 +25,14 @@ jest.mock('expo-router', () => ({
   Stack: { Screen: () => null },
 }));
 jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn().mockResolvedValue(true) }));
+jest.mock('expo-file-system/legacy', () => ({
+  documentDirectory: 'file:///docs/',
+  writeAsStringAsync: jest.fn(() => Promise.resolve()),
+}));
+jest.mock('expo-sharing', () => ({
+  isAvailableAsync: jest.fn(() => Promise.resolve(true)),
+  shareAsync: jest.fn(() => Promise.resolve()),
+}));
 jest.mock('expo-linking', () => ({
   createURL: (path: string, opts?: { queryParams?: Record<string, string> }) => {
     const query = new URLSearchParams(opts?.queryParams ?? {}).toString();
@@ -62,6 +72,19 @@ describe('RangeScreen sharing', () => {
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
     });
+  });
+
+  it('exports the range to a JSON file and offers it to the share sheet', async () => {
+    const user = userEvent.setup();
+    const { getByTestId, findByTestId, findByText } = await render(<RangeScreen />);
+    await user.press(getByTestId('range-menu-button'));
+    await user.press(await findByTestId('menu-export-file'));
+
+    expect(await findByText('Exported the range file.')).toBeTruthy();
+    const [uri, written] = (writeAsStringAsync as jest.Mock).mock.calls[0];
+    expect(uri).toBe('file:///docs/UTG-Open.json');
+    expect(parseRangeExport(written)).toEqual(expect.objectContaining({ name: 'UTG Open' }));
+    expect(Sharing.shareAsync).toHaveBeenCalledWith('file:///docs/UTG-Open.json');
   });
 
   it('copies an account-free share link that decodes back to the range', async () => {

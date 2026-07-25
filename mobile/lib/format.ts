@@ -51,6 +51,20 @@ function startOfLocalDay(date: Date): number {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 }
 
+/**
+ * A range name reduced to a safe file-name stem (the mobile port of the web app's
+ * `safeRangeFileName`): non-alphanumerics collapse to single hyphens, and a name with
+ * nothing usable falls back to 'range'.
+ */
+export function safeRangeFileName(name: string): string {
+  return (
+    name
+      .trim()
+      .replace(/[^a-z0-9]+/gi, '-')
+      .replace(/^-+|-+$/g, '') || 'range'
+  );
+}
+
 /** The Today screen's date line, e.g. "Friday, July 11". */
 export function formatDateLine(date: Date): string {
   return `${WEEKDAYS[date.getDay()]}, ${MONTHS[date.getMonth()]} ${date.getDate()}`;
