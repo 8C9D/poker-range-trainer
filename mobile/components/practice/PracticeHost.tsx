@@ -9,7 +9,7 @@ import { currentStreak } from '@core/domain/spacedRepetition';
 import { DEFAULT_DRILL_SECONDS } from '@core/domain/timedDrill';
 import { loadSessionHistory } from '@core/storage/sessionHistoryStorage';
 import type { PracticeAttempt } from '@core/types/practice';
-import type { SavedRange } from '@core/types/range';
+import type { SavedRange, TableSize } from '@core/types/range';
 
 import { ActionQuizDrill } from './ActionQuizDrill';
 import { BuildDrill } from './BuildDrill';
@@ -18,6 +18,7 @@ import { MixedQuizDrill } from './MixedQuizDrill';
 import { ModePicker, type PracticeMode } from './ModePicker';
 import { OverlayFrame } from './OverlayFrame';
 import { RecognitionDrill } from './RecognitionDrill';
+import { SpotDrill } from './SpotDrill';
 import { SessionSummary, type SessionSummaryData } from './SessionSummary';
 import { recordFinishedPracticeSession } from '../../lib/sessionRecording';
 
@@ -30,12 +31,15 @@ export interface PracticeRequest {
   handPool?: PokerHand[];
   /** Per-range pools for multi-range weak-hand drills, keyed by range id. */
   handPools?: Record<string, PokerHand[]>;
+  /** The format the 'spots' drill deals from; ignored by every other mode. */
+  spotFormat?: { tableSize: TableSize; stackDepthBb: number };
 }
 
 // Modes rendered inline in the overlay; postflop/board route out to their own drill
 // screens by design (overlay-inlining was considered and deferred at the Coach port).
 type InlineMode =
   | 'recognize'
+  | 'spots'
   | 'weakness'
   | 'edges'
   | 'timed'
@@ -45,6 +49,7 @@ type InlineMode =
   | 'combo';
 const INLINE_MODES = new Set<PracticeMode>([
   'recognize',
+  'spots',
   'weakness',
   'edges',
   'timed',
@@ -142,6 +147,37 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     });
   };
 
+  /**
+   * The spot drill answers questions from several ranges in one session, so each
+   * range's attempts are recorded as its own session and the summary sums them.
+   */
+  const finishSpots = (attemptsByRange: Record<string, PracticeAttempt[]>) => {
+    const all = Object.values(attemptsByRange).flat();
+    if (all.length === 0) {
+      onClose();
+      return;
+    }
+    for (const [rangeId, attempts] of Object.entries(attemptsByRange)) {
+      recordFinishedPracticeSession(rangeId, attempts);
+    }
+    const summary = summarizePracticeAttempts(all);
+    const rangeCount = Object.keys(attemptsByRange).length;
+    const playedAt = Object.values(loadSessionHistory())
+      .flat()
+      .map((session) => session.playedAt);
+    const streak = currentStreak(playedAt, new Date().toISOString());
+    setPhase({
+      kind: 'summary',
+      data: {
+        totalQuestions: summary.totalQuestions,
+        correctAnswers: summary.correctAnswers,
+        accuracy: summary.accuracyPercentage,
+        deltaLine: `Across ${rangeCount} range${rangeCount === 1 ? '' : 's'} of your library.`,
+        streakLine: streak > 0 ? `${streak}-day streak — see you tomorrow to keep it going.` : null,
+      },
+    });
+  };
+
   const nextRange = () => {
     setIndex(index + 1);
     setPhase({
@@ -160,10 +196,33 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
   }
 
   if (phase.kind === 'summary') {
+    // A spot session spans the library, so it is not titled after one range.
+    const spots = request.mode === 'spots';
     return (
-      <OverlayFrame title={range.name || 'Untitled'} position={position} progress={1} onClose={onClose}>
-        <SessionSummary data={phase.data} hasNext={hasNext} onNext={nextRange} onDone={onClose} />
+      <OverlayFrame
+        title={spots ? 'Play the spot' : range.name || 'Untitled'}
+        position={spots ? null : position}
+        progress={1}
+        onClose={onClose}
+      >
+        <SessionSummary
+          data={phase.data}
+          hasNext={!spots && hasNext}
+          onNext={nextRange}
+          onDone={onClose}
+        />
       </OverlayFrame>
+    );
+  }
+
+  if (phase.mode === 'spots') {
+    return (
+      <SpotDrill
+        ranges={request.ranges}
+        tableSize={request.spotFormat?.tableSize ?? 'sixMax'}
+        stackDepthBb={request.spotFormat?.stackDepthBb ?? 100}
+        onFinish={finishSpots}
+      />
     );
   }
 

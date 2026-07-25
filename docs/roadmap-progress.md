@@ -1335,6 +1335,9 @@ Slice status:
   spots** button at the format currently shown (`PracticeRequest.spotFormat`), never from the
   per-range mode picker, since a spot session belongs to the library rather than one range.
   Answers are the same binary in-range/fold question as the recognition drill (action-verb
-  labelled); a per-hand-action variant is NOT part of this slice.
+  labelled); a per-hand-action variant is NOT part of this slice. Mirrored on mobile:
+  `mobile/components/practice/SpotDrill.tsx` (same swipe + haptics as the recognition drill),
+  reachable at `/practice?mode=spots&table=…&stack=…`, which loads the whole library rather
+  than a range id, plus the matching **Play these spots** button on the mobile coverage card.
 - **v8.3 — chained spots.** Pending.
 - **v8.4 — accuracy by seat and situation.** Pending.

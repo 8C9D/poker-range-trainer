@@ -96,10 +96,25 @@ export function SpotCoverage({ ranges }: { ranges: SavedRange[] }) {
         testIdPrefix="coverage-stack"
       />
 
-      <Text testID="coverage-summary" style={styles.summary}>
-        {report.covered} of {report.total} standard spots covered ·{' '}
-        {report.coveragePercentage.toFixed(0)}%
-      </Text>
+      <View style={styles.summaryRow}>
+        <Text testID="coverage-summary" style={styles.summary}>
+          {report.covered} of {report.total} standard spots covered ·{' '}
+          {report.coveragePercentage.toFixed(0)}%
+        </Text>
+        {report.covered > 0 ? (
+          <Link
+            href={{
+              pathname: '/practice',
+              params: { mode: 'spots', table: tableSize, stack: String(stackDepthBb) },
+            }}
+            asChild
+          >
+            <Pressable testID="play-spots" accessibilityRole="button" style={styles.playBtn}>
+              <Text style={styles.playBtnText}>Play these spots</Text>
+            </Pressable>
+          </Link>
+        ) : null}
+      </View>
 
       {/* Five situations do not fit a phone; the grid scrolls, not the screen. */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -205,7 +220,21 @@ function makeStyles(theme: ThemeColors) {
       gap: 10,
     },
     sectionTitle: { fontFamily: fonts.bodySemibold, fontSize: 14, color: theme.ink },
+    summaryRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 10,
+    },
+    playBtn: {
+      backgroundColor: theme.goldFill,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+    },
+    playBtnText: { fontFamily: fonts.bodySemibold, fontSize: 13, color: theme.onAccent },
     summary: {
+      flexShrink: 1,
       fontFamily: fonts.body,
       fontSize: 13,
       color: theme.ink2,

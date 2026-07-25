@@ -2,8 +2,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Link, Stack, useLocalSearchParams, useRouter } from 'expo-router';
 
 import type { PokerHand } from '@core/domain/pokerHands';
-import { findSavedRangeById } from '@core/storage/rangeStorage';
-import type { SavedRange } from '@core/types/range';
+import { findSavedRangeById, loadSavedRanges } from '@core/storage/rangeStorage';
+import { TABLE_SIZES, type SavedRange, type TableSize } from '@core/types/range';
 
 import { PracticeHost, type PracticeRequest } from '../components/practice/PracticeHost';
 import type { PracticeMode } from '../components/practice/ModePicker';
@@ -13,6 +13,7 @@ import { useTheme } from '../theme/colors';
 
 const MODES: PracticeMode[] = [
   'recognize',
+  'spots',
   'build',
   'timed',
   'weakness',
@@ -57,12 +58,19 @@ export default function PracticeScreen() {
     mode?: string;
     pool?: string;
     pools?: string;
+    table?: string;
+    stack?: string;
   }>();
 
+  const mode = asMode(params.mode);
+  // The spot drill is not launched from a range: it deals from the whole library.
   const ids = params.queue ? commaList(params.queue) : params.id ? [params.id] : [];
-  const ranges = ids
-    .map((id) => findSavedRangeById(id))
-    .filter((range): range is SavedRange => range !== undefined);
+  const ranges =
+    mode === 'spots'
+      ? loadSavedRanges()
+      : ids
+          .map((id) => findSavedRangeById(id))
+          .filter((range): range is SavedRange => range !== undefined);
   const handPool = commaList(params.pool) as PokerHand[];
 
   const close = () => {
@@ -86,7 +94,16 @@ export default function PracticeScreen() {
 
   const request: PracticeRequest = {
     ranges,
-    mode: asMode(params.mode),
+    mode,
+    spotFormat:
+      mode === 'spots'
+        ? {
+            tableSize: (TABLE_SIZES as readonly string[]).includes(params.table ?? '')
+              ? (params.table as TableSize)
+              : 'sixMax',
+            stackDepthBb: Number(params.stack) > 0 ? Number(params.stack) : 100,
+          }
+        : undefined,
     handPool: handPool.length > 0 ? handPool : undefined,
     handPools: parsePools(params.pools),
   };

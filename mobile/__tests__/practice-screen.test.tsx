@@ -252,3 +252,51 @@ describe('PracticeScreen (overlay host)', () => {
     expect(getByText('Range not found.')).toBeTruthy();
   });
 });
+
+describe('PracticeScreen spot drill', () => {
+  beforeAll(() => {
+    installLocalStorage();
+  });
+
+  beforeEach(() => {
+    localStorageShim.clear();
+    mockParams.mockReturnValue({ mode: 'spots', table: 'sixMax', stack: '100' });
+  });
+
+  it('deals from the whole library and records against the grading range', async () => {
+    // Every hand is in range, so answering "open" always scores correct.
+    saveSavedRange({
+      id: 'btn',
+      name: 'BTN open',
+      hands: generateHandMatrix().flat(),
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      metadata: { position: 'btn', actionType: 'open' },
+    });
+    const { getByTestId, findByTestId, getByText } = await render(<PracticeScreen />);
+
+    expect(getByTestId('spot-scenario')).toHaveTextContent(
+      '6-max, 100bb. Folded to you in the BTN.',
+    );
+    fireEvent.press(getByTestId('answer-yes'));
+    await findByTestId('drill-feedback');
+    fireEvent.press(getByTestId('overlay-close'));
+
+    await findByTestId('summary-done');
+    expect(getByText('Across 1 range of your library.')).toBeTruthy();
+    expect(loadPracticeStats().btn.totalAttempts).toBe(1);
+  });
+
+  it('explains an uncovered format instead of dealing', async () => {
+    saveSavedRange({
+      id: 'r1',
+      name: 'No scenario',
+      hands: ['AA'],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    const { getByTestId } = await render(<PracticeScreen />);
+
+    expect(getByTestId('spot-drill-empty')).toBeTruthy();
+  });
+});

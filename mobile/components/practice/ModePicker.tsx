@@ -14,6 +14,7 @@ import type { ThemeColors } from '../../theme/colors';
 
 export type PracticeMode =
   | 'recognize'
+  | 'spots'
   | 'build'
   | 'timed'
   | 'weakness'

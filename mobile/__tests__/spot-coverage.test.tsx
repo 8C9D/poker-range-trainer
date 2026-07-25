@@ -61,6 +61,16 @@ describe('SpotCoverage', () => {
     expect(getByTestId('coverage-create-sixMax|bb|facingOpen|utg|100')).toBeTruthy();
   });
 
+  it('offers to play the covered spots and hides the button when none are', async () => {
+    const ranges = [makeRange('BTN open', { position: 'btn', actionType: 'open' })];
+    const { queryByTestId, rerender } = await render(<SpotCoverage ranges={ranges} />);
+
+    expect(queryByTestId('play-spots')).toBeTruthy();
+
+    await rerender(<SpotCoverage ranges={[]} />);
+    expect(queryByTestId('play-spots')).toBeNull();
+  });
+
   it('opens on the format the library is mostly written for', async () => {
     const ranges = [makeRange('hu', { position: 'btn', tableSize: 'headsUp', stackDepthBb: 20 })];
     const { getByTestId, queryByTestId } = await render(<SpotCoverage ranges={ranges} />);
