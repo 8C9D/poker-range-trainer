@@ -56,3 +56,28 @@ describe('recordFinishedPracticeSession', () => {
     expect(loadReviewStates()['r1']).toBeDefined()
   })
 })
+
+describe('recordFinishedPracticeSession confidence weighting', () => {
+  /** Ten answers on `hand`, all correct — a perfect session by whole-session accuracy. */
+  function perfectSession(hand: string): PracticeAttempt[] {
+    return Array.from({ length: 10 }, () => attempt(hand, true))
+  }
+
+  it('shortens the next interval while stubbornly-wrong hands remain', () => {
+    // A long-standing weak hand, then a flawless session on a different hand.
+    recordFinishedPracticeSession('r1', [attempt('72o', false), attempt('72o', false)])
+    const afterWeak = loadReviewStates()['r1']
+
+    recordFinishedPracticeSession('r1', perfectSession('AA'))
+    const withWeakHand = loadReviewStates()['r1'].intervalDays
+
+    // The same perfect session on a range with a clean record schedules further out.
+    localStorage.clear()
+    recordFinishedPracticeSession('r2', perfectSession('AA'))
+    recordFinishedPracticeSession('r2', perfectSession('AA'))
+    const clean = loadReviewStates()['r2'].intervalDays
+
+    expect(afterWeak.intervalDays).toBe(1)
+    expect(withWeakHand).toBeLessThan(clean)
+  })
+})

@@ -153,3 +153,34 @@ describe('currentStreak', () => {
     expect(currentStreak([day('04')], TODAY)).toBe(0)
   })
 })
+
+describe('scheduleNextReview confidence weighting', () => {
+  const strong: RangeReviewState = {
+    rangeId: 'r1',
+    ease: 2.5,
+    intervalDays: 10,
+    dueAt: '',
+    lastReviewedAt: '',
+  }
+
+  it('leaves the schedule untouched at full confidence', () => {
+    const next = scheduleNextReview(strong, 90, '2026-01-01T00:00:00.000Z', 1)
+    expect(next.intervalDays).toBe(25)
+    expect(scheduleNextReview(strong, 90, '2026-01-01T00:00:00.000Z').intervalDays).toBe(25)
+  })
+
+  it('pulls the next review closer when the per-hand record is shaky', () => {
+    const next = scheduleNextReview(strong, 90, '2026-01-01T00:00:00.000Z', 0.6)
+    expect(next.intervalDays).toBe(15)
+    expect(next.dueAt).toBe('2026-01-16T00:00:00.000Z')
+  })
+
+  it('never shrinks the interval past half, or below a day', () => {
+    expect(scheduleNextReview(strong, 90, '2026-01-01T00:00:00.000Z', 0).intervalDays).toBe(13)
+    expect(scheduleNextReview(strong, 30, '2026-01-01T00:00:00.000Z', 0).intervalDays).toBe(1)
+  })
+
+  it('ignores a non-finite confidence rather than corrupting the schedule', () => {
+    expect(scheduleNextReview(strong, 90, '2026-01-01T00:00:00.000Z', NaN).intervalDays).toBe(25)
+  })
+})

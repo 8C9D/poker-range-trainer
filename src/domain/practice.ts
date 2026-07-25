@@ -192,6 +192,23 @@ export function handsWithMistakes(rangeStats: RangeHandAccuracy): PokerHand[] {
 }
 
 /**
+ * How solid a range's cumulative per-hand record is, as a 0–1 factor for the
+ * review schedule (v7.4).
+ *
+ * A weak hand is one the user gets right less than half the time. The factor is
+ * `1 - weakShare` over the hands with any attempts, so a range where nothing is
+ * weak scores 1 and one where every hand is weak scores 0. A range with no
+ * recorded hands scores 1 — no evidence is not evidence of trouble, and the
+ * caller's schedule then behaves exactly as it did before per-hand data existed.
+ */
+export function rangeHandConfidence(rangeStats: RangeHandAccuracy): number {
+  const practiced = Object.values(rangeStats).filter((stat) => stat.attempts > 0)
+  if (practiced.length === 0) return 1
+  const weak = practiced.filter((stat) => handAccuracyRate(stat) < 50).length
+  return 1 - weak / practiced.length
+}
+
+/**
  * Compare a user-built set of hands against a target range, for "build from
  * memory" practice (mode 3).
  *

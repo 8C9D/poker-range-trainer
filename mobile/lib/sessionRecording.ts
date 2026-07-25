@@ -1,6 +1,10 @@
-import { summarizeHandAccuracy, summarizePracticeAttempts } from '@core/domain/practice';
+import {
+  rangeHandConfidence,
+  summarizeHandAccuracy,
+  summarizePracticeAttempts,
+} from '@core/domain/practice';
 import { scheduleNextReview, seedReviewState } from '@core/domain/spacedRepetition';
-import { recordHandAccuracy } from '@core/storage/handAccuracyStorage';
+import { loadHandAccuracy, recordHandAccuracy } from '@core/storage/handAccuracyStorage';
 import { recordPracticeSession } from '@core/storage/practiceStatsStorage';
 import { loadReviewStates, saveReviewState } from '@core/storage/reviewStateStorage';
 import { recordPracticeSessionHistory } from '@core/storage/sessionHistoryStorage';
@@ -19,5 +23,8 @@ export function recordFinishedPracticeSession(rangeId: string, attempts: Practic
   recordPracticeSessionHistory(rangeId, summary);
   const reviewedAt = new Date().toISOString();
   const prev = loadReviewStates()[rangeId] ?? seedReviewState(rangeId);
-  saveReviewState(scheduleNextReview(prev, summary.accuracyPercentage, reviewedAt));
+  // Read the per-hand record back AFTER this session's answers are folded in, so hands
+  // that are still shaky pull the next review closer.
+  const confidence = rangeHandConfidence(loadHandAccuracy()[rangeId] ?? {});
+  saveReviewState(scheduleNextReview(prev, summary.accuracyPercentage, reviewedAt, confidence));
 }

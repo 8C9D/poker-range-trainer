@@ -21,6 +21,15 @@ export const FIRST_INTERVAL_DAYS = 1
 /** Milliseconds in a day. */
 export const DAY_MS = 86_400_000
 
+/** Least a shaky per-hand record may shrink an interval to (half). */
+export const MIN_CONFIDENCE = 0.5
+
+/** Keep a caller's confidence inside [MIN_CONFIDENCE, 1], treating junk as 1. */
+function clampConfidence(confidence: number): number {
+  if (!Number.isFinite(confidence)) return 1
+  return Math.min(1, Math.max(MIN_CONFIDENCE, confidence))
+}
+
 /** A brand-new review state for `rangeId` (never scheduled or reviewed yet). */
 export function seedReviewState(rangeId: string): RangeReviewState {
   return { rangeId, ease: DEFAULT_EASE, intervalDays: 0, dueAt: '', lastReviewedAt: '' }
@@ -40,6 +49,7 @@ export function scheduleNextReview(
   prev: RangeReviewState,
   accuracyPercentage: number,
   reviewedAt: string,
+  confidence = 1,
 ): RangeReviewState {
   let ease = prev.ease
   let intervalDays: number
@@ -53,6 +63,11 @@ export function scheduleNextReview(
     intervalDays =
       prev.intervalDays <= 0 ? FIRST_INTERVAL_DAYS : Math.round(prev.intervalDays * prev.ease)
   }
+  // v7.4: a strong session can still hide a handful of stubbornly-wrong hands, so
+  // pull the interval back toward "soon" in proportion to how shaky the range's
+  // per-hand record is. `confidence` of 1 (the default, and the value used when
+  // there is no per-hand data) leaves the schedule exactly as it was.
+  intervalDays = Math.max(1, Math.round(intervalDays * clampConfidence(confidence)))
   const dueAt = new Date(new Date(reviewedAt).getTime() + intervalDays * DAY_MS).toISOString()
   return { rangeId: prev.rangeId, ease, intervalDays, dueAt, lastReviewedAt: reviewedAt }
 }

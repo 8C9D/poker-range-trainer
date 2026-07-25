@@ -13,6 +13,7 @@ import {
   compareBuiltRange,
   getRandomPracticeHand,
   getRandomHandFrom,
+  rangeHandConfidence,
 } from './practice'
 import type { HandAccuracyStat, PracticeAttempt } from '../types/practice'
 
@@ -486,5 +487,35 @@ describe('getRandomHandFrom', () => {
   it('always returns the only entry for a single-element pool', () => {
     expect(getRandomHandFrom(['AA'], () => 0)).toBe('AA')
     expect(getRandomHandFrom(['AA'], () => 0.999)).toBe('AA')
+  })
+})
+
+describe('rangeHandConfidence', () => {
+  function stat(hand: string, attempts: number, correct: number): HandAccuracyStat {
+    return { hand, attempts, correct, falsePositives: attempts - correct, falseNegatives: 0 }
+  }
+
+  it('scores a range with no recorded hands as fully confident', () => {
+    expect(rangeHandConfidence({})).toBe(1)
+    // A hand with no attempts carries no evidence either.
+    expect(rangeHandConfidence({ AA: stat('AA', 0, 0) })).toBe(1)
+  })
+
+  it('scores a clean record as fully confident', () => {
+    expect(rangeHandConfidence({ AA: stat('AA', 4, 4), KK: stat('KK', 4, 3) })).toBe(1)
+  })
+
+  it('drops in proportion to the share of hands under 50%', () => {
+    const stats = {
+      AA: stat('AA', 4, 4),
+      KK: stat('KK', 4, 1),
+      QQ: stat('QQ', 4, 0),
+      JJ: stat('JJ', 4, 4),
+    }
+    expect(rangeHandConfidence(stats)).toBe(0.5)
+  })
+
+  it('scores an all-weak record as zero', () => {
+    expect(rangeHandConfidence({ AA: stat('AA', 4, 0) })).toBe(0)
   })
 })
