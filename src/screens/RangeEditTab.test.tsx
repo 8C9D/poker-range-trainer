@@ -69,6 +69,71 @@ describe('RangeEditTab per-hand notes', () => {
   })
 })
 
+describe('RangeEditTab per-hand overlays', () => {
+  const overlays = {
+    mixedStrategies: {
+      AA: [{ action: 'raise' as const, frequency: 100 }],
+      KK: [{ action: 'call' as const, frequency: 100 }],
+    },
+    comboSelections: { AA: ['AhAs'], KK: ['KhKs'] },
+  }
+
+  it('drops the mixed strategy and combo selection of a deselected hand', () => {
+    const onSaved = vi.fn()
+    render(<RangeEditTab range={makeRange(overlays)} onSaved={onSaved} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'AA' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    const saved = onSaved.mock.calls[0][0] as SavedRange
+    expect(saved.hands).toEqual(['KK'])
+    // Otherwise the frequency quiz keeps drilling AA, which the Frequencies tab
+    // can no longer show or clear because it lists only the range's hands.
+    expect(saved.mixedStrategies).toEqual({ KK: overlays.mixedStrategies.KK })
+    expect(saved.comboSelections).toEqual({ KK: overlays.comboSelections.KK })
+  })
+
+  it('keeps the overlays of hands that remain selected', () => {
+    const onSaved = vi.fn()
+    render(<RangeEditTab range={makeRange(overlays)} onSaved={onSaved} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    const saved = onSaved.mock.calls[0][0] as SavedRange
+    expect(saved.mixedStrategies).toEqual(overlays.mixedStrategies)
+    expect(saved.comboSelections).toEqual(overlays.comboSelections)
+  })
+
+  it('restores a deselected hand’s overlays when it is re-selected in the same session', () => {
+    const onSaved = vi.fn()
+    render(<RangeEditTab range={makeRange(overlays)} onSaved={onSaved} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'AA' }))
+    fireEvent.click(screen.getByRole('button', { name: 'AA' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    const saved = onSaved.mock.calls[0][0] as SavedRange
+    expect(saved.mixedStrategies).toEqual(overlays.mixedStrategies)
+    expect(saved.comboSelections).toEqual(overlays.comboSelections)
+  })
+
+  it('drops the fields entirely when no selected hand has an overlay', () => {
+    const onSaved = vi.fn()
+    render(
+      <RangeEditTab
+        range={makeRange({ mixedStrategies: { AA: [{ action: 'raise', frequency: 100 }] } })}
+        onSaved={onSaved}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'AA' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    const saved = onSaved.mock.calls[0][0] as SavedRange
+    expect(saved).not.toHaveProperty('mixedStrategies')
+  })
+})
+
 describe('RangeEditTab save accessibility', () => {
   it('associates the disabled save button with the reason it is blocked', () => {
     render(<RangeEditTab range={null} onSaved={vi.fn()} />)

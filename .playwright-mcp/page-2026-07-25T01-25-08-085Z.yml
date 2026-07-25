@@ -1,0 +1,51 @@
+- generic [ref=e174]:
+  - navigation "Main navigation" [ref=e175]:
+    - link "Today" [ref=e176] [cursor=pointer]:
+      - /url: "#/today"
+    - link "Library" [ref=e182] [cursor=pointer]:
+      - /url: "#/library"
+    - link "Progress" [ref=e189] [cursor=pointer]:
+      - /url: "#/progress"
+    - link "Account" [ref=e193] [cursor=pointer]:
+      - /url: "#/account"
+  - main [ref=e198]:
+    - generic [ref=e199]:
+      - generic [ref=e200]:
+        - heading "Library" [level=1] [ref=e201]
+        - link "New range" [ref=e202] [cursor=pointer]:
+          - /url: "#/library/new"
+      - generic [ref=e203]:
+        - searchbox "Search ranges by name" [ref=e204]
+        - button "Filters" [ref=e205] [cursor=pointer]
+        - combobox "Sort ranges" [ref=e206]:
+          - option "Default order" [selected]
+          - option "Name (A–Z)"
+          - option "Recently edited"
+          - option "Recently practiced"
+          - option "Accuracy"
+      - list "Saved ranges" [ref=e207]:
+        - listitem [ref=e208]:
+          - link "Open range UTG open 100bb" [ref=e209] [cursor=pointer]:
+            - /url: "#/library/r1"
+            - generic [ref=e235]:
+              - generic [ref=e236]: UTG open 100bb
+              - generic [ref=e237]:
+                - generic [ref=e238]: UTG
+                - generic [ref=e239]: Open
+                - generic [ref=e240]: 10.9%
+            - generic [ref=e241]:
+              - generic [ref=e242]: 73%
+              - generic [ref=e243]: today
+        - listitem [ref=e244]:
+          - link "Open range BTN vs 3-bet defend" [ref=e245] [cursor=pointer]:
+            - /url: "#/library/r2"
+            - generic [ref=e259]:
+              - generic [ref=e260]: BTN vs 3-bet defend
+              - generic [ref=e261]:
+                - generic [ref=e262]: BTN vs SB
+                - generic [ref=e263]: Defend
+                - generic [ref=e264]: 5.1%
+                - generic [ref=e265]: Due
+            - generic [ref=e266]:
+              - generic [ref=e267]: 93%
+              - generic [ref=e268]: 14d ago

@@ -60,6 +60,40 @@ describe('EditorScreen overlay preservation', () => {
     });
   });
 
+  it('prunes a deselected hand’s mixed strategy but restores it on re-select', async () => {
+    saveSavedRange({
+      id: 'r1',
+      name: 'UTG Open',
+      hands: ['AA', 'KK'],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      mixedStrategies: {
+        AA: [{ action: 'raise', frequency: 100 }],
+        KK: [{ action: 'call', frequency: 100 }],
+      },
+    });
+
+    const user = userEvent.setup();
+    const { getByTestId } = await render(<RangeEditor id="r1" />);
+
+    // Otherwise the frequency quiz keeps drilling KK, which the Frequencies editor
+    // can no longer reach because it lists only the range's hands.
+    await user.press(getByTestId('hand-cell-KK'));
+    await waitFor(() => {
+      expect(findSavedRangeById('r1')?.mixedStrategies).toEqual({
+        AA: [{ action: 'raise', frequency: 100 }],
+      });
+    });
+
+    await user.press(getByTestId('hand-cell-KK'));
+    await waitFor(() => {
+      expect(findSavedRangeById('r1')?.mixedStrategies).toEqual({
+        AA: [{ action: 'raise', frequency: 100 }],
+        KK: [{ action: 'call', frequency: 100 }],
+      });
+    });
+  });
+
   it('keeps favorite and handActions when the binary grid is edited', async () => {
     // A range with overlay fields the binary editor does not edit.
     saveSavedRange({

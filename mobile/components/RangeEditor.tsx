@@ -10,6 +10,7 @@ import {
   toggleCombo,
   type ComboSelection,
 } from '@core/domain/comboSelection';
+import type { HandMixedStrategy } from '@core/domain/mixedStrategy';
 import { ALL_HANDS, type PokerHand } from '@core/domain/pokerHands';
 import { mergeShortcutHands } from '@core/domain/rangeShortcuts';
 import { findSavedRangeById, saveSavedRange } from '@core/storage/rangeStorage';
@@ -91,6 +92,8 @@ export function RangeEditor({ id: idParam, showNotesLink = true }: RangeEditorPr
   // Notes pruned for deselected hands this session, so a transient deselect (e.g. a
   // drag-paint slip) restores the note when the hand is re-selected instead of losing it.
   const prunedNotesRef = useRef<Record<PokerHand, string>>({});
+  // Same for mixed strategies, which the Frequencies editor lists per range hand.
+  const prunedStrategiesRef = useRef<Record<PokerHand, HandMixedStrategy>>({});
   useEffect(() => {
     if (!hydratedRef.current) {
       hydratedRef.current = true;
@@ -118,6 +121,20 @@ export function RangeEditor({ id: idParam, showNotesLink = true }: RangeEditorPr
     for (const [hand, note] of Object.entries(existingNotes)) {
       if (!selected.has(hand as PokerHand)) prunedNotesRef.current[hand as PokerHand] = note;
     }
+    // A mixed strategy for a hand outside the range is unreachable in the Frequencies
+    // editor (it lists only the range's hands) yet would still drive the frequency
+    // quiz, so prune it the same way — with the same-session restore.
+    const existingStrategies = existing?.mixedStrategies ?? ({} as Record<PokerHand, HandMixedStrategy>);
+    const mixedStrategies: Record<PokerHand, HandMixedStrategy> = {};
+    for (const hand of selected) {
+      const strategy = existingStrategies[hand] ?? prunedStrategiesRef.current[hand];
+      if (strategy && strategy.length > 0) mixedStrategies[hand] = strategy;
+    }
+    for (const [hand, strategy] of Object.entries(existingStrategies)) {
+      if (!selected.has(hand as PokerHand)) {
+        prunedStrategiesRef.current[hand as PokerHand] = strategy;
+      }
+    }
     saveSavedRange({
       ...(existing ?? {}),
       id: draft.id,
@@ -128,6 +145,7 @@ export function RangeEditor({ id: idParam, showNotesLink = true }: RangeEditorPr
       metadata,
       comboSelections: Object.keys(comboSelections).length > 0 ? comboSelections : undefined,
       handNotes: Object.keys(handNotes).length > 0 ? handNotes : undefined,
+      mixedStrategies: Object.keys(mixedStrategies).length > 0 ? mixedStrategies : undefined,
       // Overrides the spread's stored tags; storage drops the field when empty.
       tags,
     });

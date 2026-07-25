@@ -6,6 +6,7 @@ import { RangeMetadataEditor } from '../components/RangeMetadataEditor'
 import { RangeNotation } from '../components/RangeNotation'
 import { RangeShortcuts } from '../components/RangeShortcuts'
 import { RangeTagEditor } from '../components/RangeTagEditor'
+import type { HandMixedStrategy } from '../domain/mixedStrategy'
 import type { PokerHand } from '../domain/pokerHands'
 import { normalizeTags } from '../domain/rangeLibrary'
 import {
@@ -61,6 +62,16 @@ export function RangeEditTab({ range, onSaved }: RangeEditTabProps) {
     ...(range?.handNotes ?? {}),
   })
   const [tagsDraft, setTagsDraft] = useState<string[]>(() => range?.tags ?? [])
+  // Snapshots of the per-hand overlays taken when the tab mounts. Saving prunes
+  // them to the selected hands (see `handleSave`), but they are read from here so
+  // re-selecting a hand in the same editing session restores its data, exactly
+  // like the per-hand notes draft.
+  const [mixedSnapshot] = useState<Record<PokerHand, HandMixedStrategy>>(() => ({
+    ...(range?.mixedStrategies ?? {}),
+  }))
+  const [combosSnapshot] = useState<Record<PokerHand, string[]>>(() => ({
+    ...(range?.comboSelections ?? {}),
+  }))
   // Status line confirming the last save, cleared on the next change.
   const [savedName, setSavedName] = useState<string | null>(null)
 
@@ -168,6 +179,21 @@ export function RangeEditTab({ range, onSaved }: RangeEditTabProps) {
       if (note && note.trim().length > 0) prunedNotes[hand] = note
     }
     saved.handNotes = prunedNotes
+    // Same for the other per-hand overlays: a mixed strategy or combo selection for
+    // a hand that left the range is unreachable in its editor (both list only the
+    // range's hands) yet would still drive the frequency quiz and the grids.
+    const prunedMixed: Record<PokerHand, HandMixedStrategy> = {}
+    const prunedCombos: Record<PokerHand, string[]> = {}
+    for (const hand of selectedHands) {
+      const strategy = mixedSnapshot[hand]
+      if (strategy && strategy.length > 0) prunedMixed[hand] = strategy
+      const combos = combosSnapshot[hand]
+      if (combos && combos.length > 0) prunedCombos[hand] = combos
+    }
+    if (Object.keys(prunedMixed).length > 0) saved.mixedStrategies = prunedMixed
+    else delete saved.mixedStrategies
+    if (Object.keys(prunedCombos).length > 0) saved.comboSelections = prunedCombos
+    else delete saved.comboSelections
     // Persist cleaned tags, or drop the field entirely when none remain.
     const savedTags = normalizeTags(tagsDraft)
     if (savedTags.length > 0) saved.tags = savedTags
