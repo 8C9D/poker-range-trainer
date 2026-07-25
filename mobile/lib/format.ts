@@ -29,18 +29,26 @@ const MONTHS = [
 ] as const;
 
 /**
- * A compact relative day description for list rows: 'today', 'yesterday', 'Nd ago';
- * same-day and future timestamps are both 'today'. Empty or invalid input yields ''.
+ * A compact relative day description for list rows: 'today', 'yesterday', 'Nd ago',
+ * counted in local calendar days. Same-day and future timestamps are both 'today'.
+ * Empty or invalid input yields ''.
  */
 export function formatDayDistance(iso: string, nowIso: string): string {
   if (!iso) return '';
-  const then = new Date(iso).getTime();
-  const now = new Date(nowIso).getTime();
-  if (Number.isNaN(then) || Number.isNaN(now)) return '';
-  const days = Math.floor((now - then) / 86_400_000);
+  const then = new Date(iso);
+  const now = new Date(nowIso);
+  if (Number.isNaN(then.getTime()) || Number.isNaN(now.getTime())) return '';
+  // Calendar days apart, not 24-hour buckets: an 11pm session is "yesterday" the next
+  // morning, not "today". Local midnights (like the greeting) and rounded so a DST
+  // shift can't turn a whole day into 0 or 2.
+  const days = Math.round((startOfLocalDay(now) - startOfLocalDay(then)) / 86_400_000);
   if (days <= 0) return 'today';
   if (days === 1) return 'yesterday';
   return `${days}d ago`;
+}
+
+function startOfLocalDay(date: Date): number {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 }
 
 /** The Today screen's date line, e.g. "Friday, July 11". */

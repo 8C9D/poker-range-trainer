@@ -1,0 +1,42 @@
+- generic [ref=e3]:
+  - navigation "Main navigation" [ref=e4]:
+    - link "Today" [ref=e5] [cursor=pointer]:
+      - /url: "#/today"
+    - link "Library" [ref=e11] [cursor=pointer]:
+      - /url: "#/library"
+    - link "Progress" [ref=e18] [cursor=pointer]:
+      - /url: "#/progress"
+    - link "Account" [ref=e22] [cursor=pointer]:
+      - /url: "#/account"
+  - main [ref=e27]:
+    - generic [ref=e28]:
+      - paragraph [ref=e29]: Friday, July 24
+      - heading "Good evening" [level=1] [ref=e31]
+      - region "Today's review" [ref=e32]:
+        - generic [ref=e33]:
+          - heading "Today’s review" [level=2] [ref=e34]
+          - paragraph [ref=e35]: 2 ranges due · ~3 min
+        - button "Start review" [ref=e36] [cursor=pointer]
+      - region "Due now" [ref=e37]:
+        - heading "Due now" [level=3] [ref=e38]
+        - list [ref=e39]:
+          - listitem [ref=e40]:
+            - generic [ref=e66]:
+              - generic [ref=e67]: UTG open 100bb
+              - generic [ref=e68]: 80% last accuracy · practiced 12d ago
+            - button "Review" [ref=e69] [cursor=pointer]
+          - listitem [ref=e70]:
+            - generic [ref=e84]:
+              - generic [ref=e85]: BTN vs 3-bet defend
+              - generic [ref=e86]: 93% last accuracy · practiced 13d ago
+            - button "Review" [ref=e87] [cursor=pointer]
+      - region "This week" [ref=e88]:
+        - generic [ref=e89]:
+          - generic [ref=e90]: "0"
+          - generic [ref=e91]: Hands this week
+        - generic [ref=e92]:
+          - generic [ref=e93]: —
+          - generic [ref=e94]: Accuracy
+        - generic [ref=e95]:
+          - generic [ref=e96]: —
+          - generic [ref=e97]: Sharpest range

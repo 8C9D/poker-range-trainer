@@ -13,6 +13,28 @@ describe('formatDayDistance', () => {
     expect(formatDayDistance('2026-07-05T09:00:00.000Z', now)).toBe('6d ago');
   });
 
+  // Local-time constructors keep these assertions true in any time zone.
+  const localIso = (year: number, month: number, day: number, hour: number, minute: number) =>
+    new Date(year, month, day, hour, minute).toISOString();
+
+  it('counts calendar days, so last night is yesterday even a few hours later', () => {
+    expect(formatDayDistance(localIso(2026, 6, 10, 23, 0), localIso(2026, 6, 11, 8, 0))).toBe(
+      'yesterday',
+    );
+  });
+
+  it('counts calendar days for older timestamps too', () => {
+    expect(formatDayDistance(localIso(2026, 6, 6, 23, 0), localIso(2026, 6, 11, 8, 0))).toBe(
+      '5d ago',
+    );
+  });
+
+  it('keeps a long same-day gap as today', () => {
+    expect(formatDayDistance(localIso(2026, 6, 11, 0, 30), localIso(2026, 6, 11, 23, 0))).toBe(
+      'today',
+    );
+  });
+
   it('returns empty string for missing or invalid input', () => {
     expect(formatDayDistance('', now)).toBe('');
     expect(formatDayDistance('not-a-date', now)).toBe('');
