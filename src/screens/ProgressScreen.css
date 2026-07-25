@@ -235,3 +235,37 @@
   text-align: right;
   color: var(--ink-2);
 }
+
+/* v8.6 "Weakest spots": the recorded spots you play worst, each drillable. */
+.progress-spot-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.progress-spot-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.progress-spot-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.progress-spot-name {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.progress-spot-meta {
+  font-size: 12.5px;
+  color: var(--ink-2);
+}

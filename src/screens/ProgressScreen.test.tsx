@@ -6,6 +6,7 @@ import { saveSavedRange } from '../storage/rangeStorage'
 import { recordPracticeSession } from '../storage/practiceStatsStorage'
 import { recordPracticeSessionHistory } from '../storage/sessionHistoryStorage'
 import { recordHandAccuracy } from '../storage/handAccuracyStorage'
+import { recordSpotAccuracy } from '../storage/spotAccuracyStorage'
 import type { SavedRange } from '../types/range'
 
 beforeEach(() => {
@@ -29,7 +30,7 @@ describe('ProgressScreen', () => {
     saveSavedRange(makeRange('a', 'UTG open'))
     recordPracticeSession('a', { totalQuestions: 10, correctAnswers: 8 }, TODAY)
     recordPracticeSessionHistory('a', { totalQuestions: 10, correctAnswers: 8 }, TODAY)
-    render(<ProgressScreen onDrillWeakHands={vi.fn()} />)
+    render(<ProgressScreen onDrillWeakHands={vi.fn()} onDrillSpot={vi.fn()} />)
 
     const tiles = screen.getByRole('region', { name: 'Training overview' })
     expect(within(tiles).getByText('1 day')).toBeInTheDocument()
@@ -41,7 +42,7 @@ describe('ProgressScreen', () => {
   it('draws seven bars with today emphasized', () => {
     saveSavedRange(makeRange('a', 'UTG open'))
     recordPracticeSessionHistory('a', { totalQuestions: 12, correctAnswers: 9 }, TODAY)
-    render(<ProgressScreen onDrillWeakHands={vi.fn()} />)
+    render(<ProgressScreen onDrillWeakHands={vi.fn()} onDrillSpot={vi.fn()} />)
 
     const chart = screen.getByRole('region', { name: 'Hands answered this week' })
     const days = within(chart).getAllByRole('listitem')
@@ -55,7 +56,7 @@ describe('ProgressScreen', () => {
     saveSavedRange(makeRange('b', 'BTN open'))
     recordPracticeSession('a', { totalQuestions: 10, correctAnswers: 8 }, TODAY)
     recordPracticeSession('b', { totalQuestions: 10, correctAnswers: 6 }, TODAY)
-    render(<ProgressScreen onDrillWeakHands={vi.fn()} />)
+    render(<ProgressScreen onDrillWeakHands={vi.fn()} onDrillSpot={vi.fn()} />)
 
     const analytics = screen.getByRole('region', { name: 'Library analytics' })
     expect(analytics).toHaveTextContent('2 ranges practiced · 14 of 20 correct · 70% overall')
@@ -72,7 +73,7 @@ describe('ProgressScreen', () => {
       { hand: 'KK', attempts: 4, correct: 3, falsePositives: 1, falseNegatives: 0 },
     ])
     const onDrillWeakHands = vi.fn()
-    render(<ProgressScreen onDrillWeakHands={onDrillWeakHands} />)
+    render(<ProgressScreen onDrillWeakHands={onDrillWeakHands} onDrillSpot={vi.fn()} />)
 
     const weak = screen.getByRole('region', { name: 'Weakest hands' })
     const rows = within(weak).getAllByRole('row').slice(1)
@@ -100,7 +101,7 @@ describe('ProgressScreen', () => {
       { hand: '76s', attempts: 2, correct: 0, falsePositives: 0, falseNegatives: 2 },
     ])
     const onDrillWeakHands = vi.fn()
-    render(<ProgressScreen onDrillWeakHands={onDrillWeakHands} />)
+    render(<ProgressScreen onDrillWeakHands={onDrillWeakHands} onDrillSpot={vi.fn()} />)
 
     const leaks = screen.getByRole('region', { name: 'Leaks by hand type' })
     const rows = within(leaks).getAllByRole('listitem')
@@ -120,7 +121,7 @@ describe('ProgressScreen', () => {
     recordHandAccuracy('gone', [
       { hand: '98s', attempts: 4, correct: 0, falsePositives: 0, falseNegatives: 4 },
     ])
-    render(<ProgressScreen onDrillWeakHands={vi.fn()} />)
+    render(<ProgressScreen onDrillWeakHands={vi.fn()} onDrillSpot={vi.fn()} />)
 
     const leaks = screen.getByRole('region', { name: 'Leaks by hand type' })
     expect(within(leaks).queryByText(/Suited connectors/)).not.toBeInTheDocument()
@@ -129,7 +130,7 @@ describe('ProgressScreen', () => {
 
   it('shows an empty state without recorded misses', () => {
     saveSavedRange(makeRange('a', 'UTG open'))
-    render(<ProgressScreen onDrillWeakHands={vi.fn()} />)
+    render(<ProgressScreen onDrillWeakHands={vi.fn()} onDrillSpot={vi.fn()} />)
     expect(screen.getByText(/No recorded misses yet/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Drill these' })).not.toBeInTheDocument()
   })
@@ -143,7 +144,7 @@ describe('ProgressScreen leak breakdown', () => {
   it('explains the empty state when no range records a seat or action', () => {
     saveSavedRange(makeRange('a', 'Unlabelled'))
     recordPracticeSession('a', { totalQuestions: 10, correctAnswers: 5 }, TODAY)
-    render(<ProgressScreen onDrillWeakHands={vi.fn()} />)
+    render(<ProgressScreen onDrillWeakHands={vi.fn()} onDrillSpot={vi.fn()} />)
 
     const card = screen.getByRole('region', { name: 'Accuracy by seat and action' })
     expect(within(card).getByText(/which seats/i)).toBeInTheDocument()
@@ -154,7 +155,7 @@ describe('ProgressScreen leak breakdown', () => {
     seedRange('b', 'BB defend', { position: 'bb', actionType: 'defend' })
     recordPracticeSession('a', { totalQuestions: 10, correctAnswers: 9 }, TODAY)
     recordPracticeSession('b', { totalQuestions: 10, correctAnswers: 3 }, TODAY)
-    render(<ProgressScreen onDrillWeakHands={vi.fn()} />)
+    render(<ProgressScreen onDrillWeakHands={vi.fn()} onDrillSpot={vi.fn()} />)
 
     const card = screen.getByRole('region', { name: 'Accuracy by seat and action' })
     const rows = within(card).getAllByRole('listitem')
@@ -165,5 +166,40 @@ describe('ProgressScreen leak breakdown', () => {
       'Defend30%',
       'Open90%',
     ])
+  })
+})
+
+describe('ProgressScreen weakest spots', () => {
+  const BB_VS_CO = 'sixMax|bb|facingOpen|co|100'
+
+  it('is hidden until a spot has enough recorded answers', () => {
+    recordSpotAccuracy([{ spotKey: BB_VS_CO, attempts: 4, correct: 1 }])
+    render(<ProgressScreen onDrillWeakHands={vi.fn()} onDrillSpot={vi.fn()} />)
+
+    expect(screen.queryByRole('region', { name: 'Weakest spots' })).toBeNull()
+  })
+
+  it('describes the weakest spots and drills one', async () => {
+    const user = userEvent.setup()
+    const onDrillSpot = vi.fn()
+    recordSpotAccuracy([
+      { spotKey: BB_VS_CO, attempts: 10, correct: 3 },
+      { spotKey: 'sixMax|btn|foldedToYou|-|100', attempts: 10, correct: 9 },
+    ])
+    render(<ProgressScreen onDrillWeakHands={vi.fn()} onDrillSpot={onDrillSpot} />)
+
+    const card = screen.getByRole('region', { name: 'Weakest spots' })
+    const rows = within(card).getAllByRole('listitem')
+    expect(rows[0]).toHaveTextContent('6-max, 100bb. You are in the BB facing an open from the CO.')
+    expect(rows[0]).toHaveTextContent('3/10 · 30%')
+
+    await user.click(within(rows[0]).getByRole('button', { name: /^Drill/ }))
+    expect(onDrillSpot).toHaveBeenCalledWith({
+      tableSize: 'sixMax',
+      position: 'bb',
+      situation: 'facingOpen',
+      versusPosition: 'co',
+      stackDepthBb: 100,
+    })
   })
 })

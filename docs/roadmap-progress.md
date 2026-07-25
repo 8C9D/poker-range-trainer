@@ -1368,3 +1368,24 @@ coverage card, which is the wrong place for a daily training action. Today now s
 "Play the spot" card (web and mobile) whenever the library covers at least one standard
 spot, stating the coverage and starting the drill at the format `inferLibraryContext`
 picks. Hidden entirely while no range describes a situation.
+
+### v8.6: Per-spot accuracy and weakest spots (added after the five roadmap slices)
+
+Closes the gap flagged in v8.4. Attempts were only ever stored per range, so the app
+could say "you leak from the big blind" but never "you leak in BB vs a CO open".
+
+- `parseSpotKey` (in `domain/spot`) reads a `spotKey` back into a `Spot`, validating
+  every field, since the key is now persisted.
+- `SpotAccuracyStat` + `storage/spotAccuracyStorage.ts` (`poker-range-trainer.spot-accuracy.v1`)
+  hold cumulative attempts/correct per spot, keyed by `spotKey` so a record survives
+  renaming or replacing whichever range happens to cover that spot.
+- `summarizeSpotSession` (in `domain/spotDrill`) folds a finished session into its two
+  cuts — attempts by grading range (unchanged) and tallies by spot — and both drills now
+  report that shape; the practice hosts record both.
+- `domain/spotLeaks.ts` ranks recorded spots weakest-first (5-attempt threshold, skipping
+  keys that no longer parse).
+- A "Weakest spots" card on Progress (web + mobile) lists the worst five in plain words
+  with a **Drill** action that reruns the spot drill restricted to that one spot
+  (`PracticeRequest.spotKeys`; a restricted run does not chain).
+
+There are now **eight** localStorage keys, not seven.

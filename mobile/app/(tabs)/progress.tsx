@@ -6,6 +6,8 @@ import { HAND_CLASS_LABELS } from '@core/domain/handClass';
 import { rankHandClassLeaks } from '@core/domain/leakReport';
 import { summarizeLibraryAnalytics } from '@core/domain/libraryAnalytics';
 import { currentStreak } from '@core/domain/spacedRepetition';
+import { describeSpot, spotKey } from '@core/domain/spot';
+import { rankSpotLeaks } from '@core/domain/spotLeaks';
 import {
   accuracyByActionType,
   accuracyByPosition,
@@ -17,6 +19,7 @@ import { loadHandAccuracy } from '@core/storage/handAccuracyStorage';
 import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
 import { loadSavedRanges } from '@core/storage/rangeStorage';
 import { loadSessionHistory } from '@core/storage/sessionHistoryStorage';
+import { loadSpotAccuracy } from '@core/storage/spotAccuracyStorage';
 import { ACTION_TYPE_LABELS, POSITION_LABELS } from '@core/types/range';
 
 import { Screen } from '../../components/Screen';
@@ -47,9 +50,21 @@ function loadProgressState() {
     Object.entries(handAccuracy).filter(([rangeId]) => ranges.some((range) => range.id === rangeId)),
   );
   const leaks = rankHandClassLeaks(liveAccuracy);
+  const spotLeaks = rankSpotLeaks(loadSpotAccuracy());
   const seatGroups = accuracyByPosition(ranges, practiceStats);
   const actionGroups = accuracyByActionType(ranges, practiceStats);
-  return { ranges, streak, month, analytics, days, weakHands, leaks, seatGroups, actionGroups };
+  return {
+    ranges,
+    streak,
+    month,
+    analytics,
+    days,
+    weakHands,
+    leaks,
+    seatGroups,
+    actionGroups,
+    spotLeaks,
+  };
 }
 
 /** Long-term training overview: streak, accuracy, volume, and weak spots. */
@@ -63,8 +78,18 @@ export default function ProgressScreen() {
     }, []),
   );
 
-  const { ranges, streak, month, analytics, days, weakHands, leaks, seatGroups, actionGroups } =
-    state;
+  const {
+    ranges,
+    streak,
+    month,
+    analytics,
+    days,
+    weakHands,
+    leaks,
+    seatGroups,
+    actionGroups,
+    spotLeaks,
+  } = state;
   const maxDay = Math.max(1, ...days.map((day) => day.handsAnswered));
   const rangeName = (rangeId: string) =>
     ranges.find((range) => range.id === rangeId)?.name ?? 'Deleted range';
@@ -142,6 +167,40 @@ export default function ProgressScreen() {
             {analytics.totalAttempts > 0 ? `${analytics.overallAccuracy.toFixed(0)}%` : '—'} overall
           </Text>
         </View>
+
+        {spotLeaks.length > 0 ? (
+          <View testID="spot-leaks" style={styles.card}>
+            <Text style={styles.sectionTitle}>Weakest spots</Text>
+            <View style={styles.spotList}>
+              {spotLeaks.slice(0, 5).map((leak) => (
+                <View key={spotKey(leak.spot)} style={styles.spotRow}>
+                  <View style={styles.spotInfo}>
+                    <Text style={styles.spotName}>{describeSpot(leak.spot)}</Text>
+                    <Text style={styles.spotMeta}>
+                      {leak.correct}/{leak.attempts} · {leak.accuracy.toFixed(0)}%
+                    </Text>
+                  </View>
+                  <Link
+                    href={{
+                      pathname: '/practice',
+                      params: {
+                        mode: 'spots',
+                        table: leak.spot.tableSize,
+                        stack: String(leak.spot.stackDepthBb),
+                        spot: spotKey(leak.spot),
+                      },
+                    }}
+                    asChild
+                  >
+                    <Text testID={`drill-spot-${spotKey(leak.spot)}`} style={styles.drillBtn}>
+                      Drill
+                    </Text>
+                  </Link>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
 
         <View testID="seat-leaks" style={styles.card}>
           <Text style={styles.sectionTitle}>Where you leak</Text>
@@ -343,6 +402,16 @@ function makeStyles(theme: ThemeColors) {
       paddingVertical: 8,
     },
     empty: { fontFamily: fonts.body, fontSize: 14, color: theme.ink2 },
+    spotList: { gap: 12, marginTop: 6 },
+    spotRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+    spotInfo: { flex: 1, gap: 2 },
+    spotName: { fontFamily: fonts.bodyMedium, fontSize: 13.5, color: theme.ink },
+    spotMeta: {
+      fontFamily: fonts.body,
+      fontSize: 12.5,
+      color: theme.ink2,
+      fontVariant: ['tabular-nums'],
+    },
     seatColumn: { gap: 7 },
     seatHeading: { fontFamily: fonts.bodySemibold, fontSize: 12, color: theme.ink3 },
     seatRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },

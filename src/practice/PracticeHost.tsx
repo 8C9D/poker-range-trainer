@@ -39,6 +39,8 @@ export interface PracticeRequest {
   handPools?: Record<string, PokerHand[]>
   /** The format the 'spots' drill deals from; ignored by every other mode. */
   spotFormat?: { tableSize: TableSize; stackDepthBb: number }
+  /** Restrict the 'spots' drill to these spots (drilling one weak spot). */
+  spotKeys?: string[]
 }
 
 interface PracticeHostProps {
@@ -219,6 +221,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
           ranges={request.ranges}
           tableSize={request.spotFormat?.tableSize ?? 'sixMax'}
           stackDepthBb={request.spotFormat?.stackDepthBb ?? 100}
+          spotKeys={request.spotKeys}
           onFinish={finishSpots}
         />
       )

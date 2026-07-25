@@ -39,8 +39,9 @@ The app implements the full roadmap (**v1–v8**). At a glance:
 - **Mistake tracking & analytics** — per-hand accuracy, an accuracy heatmap, a
   weakest-hands performance view, a leak report grouping misses by hand type
   (suited connectors, offsuit broadway, …) with a one-tap drill, an accuracy
-  breakdown by seat and by action ("you leak from the big blind"), "practice
-  mistakes only", session history, and a library-wide practice summary.
+  breakdown by seat and by action ("you leak from the big blind"), a weakest-spots
+  list naming the exact situations you play worst (each drillable on its own),
+  "practice mistakes only", session history, and a library-wide practice summary.
 - **Spaced repetition & goals** — a "due for review" queue, a review streak, and an
   optional daily hands goal with progress on Today. Each session advances the
   range's review schedule by accuracy, pulled closer when its per-hand record

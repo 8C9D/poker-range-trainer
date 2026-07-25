@@ -60,6 +60,7 @@ export default function PracticeScreen() {
     pools?: string;
     table?: string;
     stack?: string;
+    spot?: string;
   }>();
 
   const mode = asMode(params.mode);
@@ -104,6 +105,7 @@ export default function PracticeScreen() {
             stackDepthBb: Number(params.stack) > 0 ? Number(params.stack) : 100,
           }
         : undefined,
+    spotKeys: mode === 'spots' && params.spot ? [params.spot] : undefined,
     handPool: handPool.length > 0 ? handPool : undefined,
     handPools: parsePools(params.pools),
   };

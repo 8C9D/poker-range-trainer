@@ -20,6 +20,7 @@ import { ProgressScreen } from './screens/ProgressScreen'
 import { RangeScreen } from './screens/RangeScreen'
 import { TodayScreen } from './screens/TodayScreen'
 import type { PokerHand } from './domain/pokerHands'
+import { spotKey } from './domain/spot'
 import type { SavedRange } from './types/range'
 
 /**
@@ -146,6 +147,14 @@ function CoachApp() {
         <ProgressScreen
           onDrillWeakHands={(queue, pools) =>
             setPractice({ ranges: queue, mode: 'recognize', handPools: pools })
+          }
+          onDrillSpot={(spot) =>
+            setPractice({
+              ranges: loadSavedRanges(),
+              mode: 'spots',
+              spotFormat: { tableSize: spot.tableSize, stackDepthBb: spot.stackDepthBb },
+              spotKeys: [spotKey(spot)],
+            })
           }
         />
       ) : (

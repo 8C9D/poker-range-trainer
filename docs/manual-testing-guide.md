@@ -79,12 +79,13 @@ All data lives in `localStorage` under these keys (origin = the dev/preview URL)
 | `poker-range-trainer.session-history.v1` | Finished-session log (per range) + streak source |
 | `poker-range-trainer.review-state.v1` | Spaced-repetition schedule per range |
 | `poker-range-trainer.training-goal.v1` | Daily hands goal (target, or off) |
+| `poker-range-trainer.spot-accuracy.v1` | Per-spot accuracy (the weakest-spots report) |
 
 **To reset to a clean slate:** open DevTools → Application → Local Storage and
 delete those keys (or "Clear site data"), then reload. An incognito/private window
 is the easiest fully-clean environment.
 
-> **Cloud note:** the seven keys above are the whole story for local-only testing.
+> **Cloud note:** the eight keys above are the whole story for local-only testing.
 > When cloud sync is configured **and** you are signed in, a copy of your library
 > also lives server-side (Supabase) and is **not** removed by clearing
 > `localStorage` — use the "Delete cloud data" control for that (see §3).
@@ -692,10 +693,18 @@ from a known state (see §2).
 - [ ] A seat/action needs at least 5 answered questions to appear; below that the card
       explains what to do instead.
 
-### 5.36 Persistence / data integrity
+### 5.36 Weakest spots (v8.6)
+
+- [ ] After a spot session, **Progress** gains a "Weakest spots" card naming the exact
+      situations you play worst, each with its record and accuracy.
+- [ ] A spot needs at least 5 answered questions to appear.
+- [ ] **Drill** on a row reruns the spot drill on that spot alone — it deals only that
+      situation and never chains into a follow-up.
+
+### 5.37 Persistence / data integrity
 
 - [ ] Everything survives a page reload (ranges, stats, history, actions, schedule).
-- [ ] Clearing the seven localStorage keys returns the app to a clean slate with no
+- [ ] Clearing the eight localStorage keys returns the app to a clean slate with no
       crash.
 - [ ] Manually corrupting a key (e.g. set `saved-ranges.v1` to `not json`) doesn't
       crash the app — it should fall back to empty/defaults. (Storage validates and

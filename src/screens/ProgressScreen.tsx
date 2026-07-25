@@ -8,6 +8,8 @@ import {
   accuracyByPosition,
   type AccuracyGroup,
 } from '../domain/seatAccuracy'
+import { describeSpot, spotKey, type Spot } from '../domain/spot'
+import { rankSpotLeaks } from '../domain/spotLeaks'
 import { rankWeakHands, weakHandPools } from '../domain/weakHands'
 import { dailyHandCounts, summarizeWeek } from '../domain/weeklyStats'
 import type { PokerHand } from '../domain/pokerHands'
@@ -15,6 +17,7 @@ import { loadHandAccuracy } from '../storage/handAccuracyStorage'
 import { loadPracticeStats } from '../storage/practiceStatsStorage'
 import { loadSavedRanges } from '../storage/rangeStorage'
 import { loadSessionHistory } from '../storage/sessionHistoryStorage'
+import { loadSpotAccuracy } from '../storage/spotAccuracyStorage'
 import {
   ACTION_TYPE_LABELS,
   POSITION_LABELS,
@@ -25,14 +28,17 @@ import './ProgressScreen.css'
 interface ProgressScreenProps {
   /** Drill the queued ranges, each restricted to its own weak-hand pool. */
   onDrillWeakHands: (queue: SavedRange[], pools: Record<string, PokerHand[]>) => void
+  /** Drill one recorded spot on its own. */
+  onDrillSpot: (spot: Spot) => void
 }
 
 /** Long-term training overview: streak, accuracy, volume, and weak spots. */
-export function ProgressScreen({ onDrillWeakHands }: ProgressScreenProps) {
+export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreenProps) {
   const [ranges] = useState(() => loadSavedRanges())
   const [history] = useState(() => loadSessionHistory())
   const [practiceStats] = useState(() => loadPracticeStats())
   const [handAccuracy] = useState(() => loadHandAccuracy())
+  const [spotAccuracy] = useState(() => loadSpotAccuracy())
   const [now] = useState(() => new Date())
 
   const nowIso = now.toISOString()
@@ -54,6 +60,7 @@ export function ProgressScreen({ onDrillWeakHands }: ProgressScreenProps) {
     ),
   )
   const leaks = rankHandClassLeaks(liveAccuracy)
+  const spotLeaks = rankSpotLeaks(spotAccuracy)
   const seatGroups = accuracyByPosition(ranges, practiceStats)
   const actionGroups = accuracyByActionType(ranges, practiceStats)
 
@@ -150,6 +157,32 @@ export function ProgressScreen({ onDrillWeakHands }: ProgressScreenProps) {
           </div>
         )}
       </section>
+
+      {spotLeaks.length > 0 && (
+        <section className="coach-card" aria-label="Weakest spots">
+          <h3>Weakest spots</h3>
+          <ul className="progress-spot-list">
+            {spotLeaks.slice(0, 5).map((leak) => (
+              <li key={spotKey(leak.spot)} className="progress-spot-row">
+                <div className="progress-spot-info">
+                  <span className="progress-spot-name">{describeSpot(leak.spot)}</span>
+                  <span className="progress-spot-meta coach-tabular">
+                    {leak.correct}/{leak.attempts} · {leak.accuracy.toFixed(0)}%
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="coach-btn"
+                  onClick={() => onDrillSpot(leak.spot)}
+                  aria-label={`Drill ${describeSpot(leak.spot)}`}
+                >
+                  Drill
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="coach-card" aria-label="Leaks by hand type">
         <h3>Leaks by hand type</h3>

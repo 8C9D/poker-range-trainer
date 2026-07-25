@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 
 import { recordHandAccuracy } from '@core/storage/handAccuracyStorage';
 import { recordPracticeSession } from '@core/storage/practiceStatsStorage';
+import { recordSpotAccuracy } from '@core/storage/spotAccuracyStorage';
 import { recordPracticeSessionHistory } from '@core/storage/sessionHistoryStorage';
 import { saveSavedRange } from '@core/storage/rangeStorage';
 import type { SavedRange } from '@core/types/range';
@@ -123,5 +124,37 @@ describe('ProgressScreen leak breakdown', () => {
     const card = getByTestId('seat-leaks');
     expect(card).toHaveTextContent('Where you leakBy seatBB30%BTN90%By actionDefend30%Open90%');
     expect(getByTestId('seat-row-bb')).toHaveTextContent('BB30%');
+  });
+});
+
+describe('ProgressScreen weakest spots', () => {
+  const BB_VS_CO = 'sixMax|bb|facingOpen|co|100';
+
+  beforeAll(() => {
+    installLocalStorage();
+  });
+
+  beforeEach(() => {
+    localStorageShim.clear();
+  });
+
+  it('is hidden until a spot has enough recorded answers', async () => {
+    recordSpotAccuracy([{ spotKey: BB_VS_CO, attempts: 4, correct: 1 }]);
+    const { queryByTestId } = await render(<ProgressScreen />);
+
+    expect(queryByTestId('spot-leaks')).toBeNull();
+  });
+
+  it('describes the weakest spots, worst first, each drillable', async () => {
+    recordSpotAccuracy([
+      { spotKey: BB_VS_CO, attempts: 10, correct: 3 },
+      { spotKey: 'sixMax|btn|foldedToYou|-|100', attempts: 10, correct: 9 },
+    ]);
+    const { getByTestId } = await render(<ProgressScreen />);
+
+    expect(getByTestId('spot-leaks')).toHaveTextContent(
+      /Weakest spots6-max, 100bb\. You are in the BB facing an open from the CO\.3\/10 · 30%/,
+    );
+    expect(getByTestId(`drill-spot-${BB_VS_CO}`)).toBeTruthy();
   });
 });

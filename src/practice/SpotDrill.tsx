@@ -26,6 +26,8 @@ interface SpotDrillProps {
   ranges: SavedRange[]
   tableSize: TableSize
   stackDepthBb: number
+  /** When set, only these spots are dealt (drilling one weak spot). */
+  spotKeys?: string[]
   questionCount?: number
   /** Called with the finished session, cut by range and by spot. */
   onFinish: (result: SpotSessionResult) => void
@@ -44,14 +46,17 @@ export function SpotDrill({
   ranges,
   tableSize,
   stackDepthBb,
+  spotKeys,
   questionCount = DRILL_QUESTION_COUNT,
   onFinish,
   random = Math.random,
 }: SpotDrillProps) {
-  const covered = useMemo(
-    () => coveredSpots(ranges, tableSize, stackDepthBb),
-    [ranges, tableSize, stackDepthBb],
-  )
+  const covered = useMemo(() => {
+    const all = coveredSpots(ranges, tableSize, stackDepthBb)
+    // A restricted run also has no follow-ups to chain into, which is what
+    // drilling one weak spot should do.
+    return spotKeys ? all.filter((entry) => spotKeys.includes(spotKey(entry.spot))) : all
+  }, [ranges, tableSize, stackDepthBb, spotKeys])
 
   type Question = SpotPrompt & { cards: Card[]; chained: boolean }
 
