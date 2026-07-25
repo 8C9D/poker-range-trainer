@@ -88,6 +88,45 @@ describe('ProgressScreen', () => {
     expect(pools).toEqual({ a: ['AKs'], b: ['KK'] })
   })
 
+  it('ranks leaks by hand type and drills a whole class', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange('a', 'UTG open'))
+    saveSavedRange(makeRange('b', 'BTN open'))
+    recordHandAccuracy('a', [
+      { hand: '98s', attempts: 4, correct: 1, falsePositives: 0, falseNegatives: 3 },
+      { hand: 'AA', attempts: 4, correct: 3, falsePositives: 1, falseNegatives: 0 },
+    ])
+    recordHandAccuracy('b', [
+      { hand: '76s', attempts: 2, correct: 0, falsePositives: 0, falseNegatives: 2 },
+    ])
+    const onDrillWeakHands = vi.fn()
+    render(<ProgressScreen onDrillWeakHands={onDrillWeakHands} />)
+
+    const leaks = screen.getByRole('region', { name: 'Leaks by hand type' })
+    const rows = within(leaks).getAllByRole('listitem')
+    expect(rows[0]).toHaveTextContent('Suited connectors')
+    expect(rows[0]).toHaveTextContent('1/6 · 17%')
+    expect(rows[0]).toHaveTextContent('98s, 76s')
+    expect(rows[1]).toHaveTextContent('Premium pairs')
+
+    await user.click(within(leaks).getByRole('button', { name: 'Drill Suited connectors' }))
+    const [queue, pools] = onDrillWeakHands.mock.calls[0]
+    expect(queue.map((range: SavedRange) => range.id)).toEqual(['a', 'b'])
+    expect(pools).toEqual({ a: ['98s'], b: ['76s'] })
+  })
+
+  it('leaves out leaks whose range was deleted', () => {
+    saveSavedRange(makeRange('a', 'UTG open'))
+    recordHandAccuracy('gone', [
+      { hand: '98s', attempts: 4, correct: 0, falsePositives: 0, falseNegatives: 4 },
+    ])
+    render(<ProgressScreen onDrillWeakHands={vi.fn()} />)
+
+    const leaks = screen.getByRole('region', { name: 'Leaks by hand type' })
+    expect(within(leaks).queryByText(/Suited connectors/)).not.toBeInTheDocument()
+    expect(within(leaks).getByText(/hand types you miss most/)).toBeInTheDocument()
+  })
+
   it('shows an empty state without recorded misses', () => {
     saveSavedRange(makeRange('a', 'UTG open'))
     render(<ProgressScreen onDrillWeakHands={vi.fn()} />)

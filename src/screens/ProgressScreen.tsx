@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { HAND_CLASS_LABELS } from '../domain/handClass'
+import { rankHandClassLeaks, type HandClassLeak } from '../domain/leakReport'
 import { summarizeLibraryAnalytics } from '../domain/libraryAnalytics'
 import { currentStreak } from '../domain/spacedRepetition'
 import { rankWeakHands, weakHandPools } from '../domain/weakHands'
@@ -36,9 +38,22 @@ export function ProgressScreen({ onDrillWeakHands }: ProgressScreenProps) {
   const weakHands = rankWeakHands(handAccuracy).filter((entry) =>
     ranges.some((range) => range.id === entry.rangeId),
   )
+  // Stats for deleted ranges would name leaks the user can no longer drill.
+  const liveAccuracy = Object.fromEntries(
+    Object.entries(handAccuracy).filter(([rangeId]) =>
+      ranges.some((range) => range.id === rangeId),
+    ),
+  )
+  const leaks = rankHandClassLeaks(liveAccuracy)
 
   function rangeName(rangeId: string): string {
     return ranges.find((range) => range.id === rangeId)?.name ?? 'Deleted range'
+  }
+
+  function drillLeak(leak: HandClassLeak) {
+    const queue = ranges.filter((range) => leak.pools[range.id]?.length)
+    if (queue.length === 0) return
+    onDrillWeakHands(queue, leak.pools)
   }
 
   function drillWeakHands() {
@@ -108,6 +123,38 @@ export function ProgressScreen({ onDrillWeakHands }: ProgressScreenProps) {
           · {analytics.totalCorrect} of {analytics.totalAttempts} correct ·{' '}
           {analytics.totalAttempts > 0 ? `${analytics.overallAccuracy.toFixed(0)}%` : '—'} overall
         </p>
+      </section>
+
+      <section className="coach-card" aria-label="Leaks by hand type">
+        <h3>Leaks by hand type</h3>
+        {leaks.length === 0 ? (
+          <p className="progress-empty">
+            Practice a little more and the hand types you miss most will show up here.
+          </p>
+        ) : (
+          <ul className="progress-leaks">
+            {leaks.map((leak) => (
+              <li key={leak.handClass} className="progress-leak">
+                <div className="progress-leak-info">
+                  <span className="progress-leak-name">{HAND_CLASS_LABELS[leak.handClass]}</span>
+                  <span className="progress-leak-meta coach-tabular">
+                    {leak.correct}/{leak.attempts} · {leak.accuracy.toFixed(0)}% ·{' '}
+                    {leak.missedHands.slice(0, 4).join(', ')}
+                    {leak.missedHands.length > 4 ? '…' : ''}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="coach-btn"
+                  onClick={() => drillLeak(leak)}
+                  aria-label={`Drill ${HAND_CLASS_LABELS[leak.handClass]}`}
+                >
+                  Drill
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="coach-card" aria-label="Weakest hands">

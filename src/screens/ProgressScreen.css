@@ -99,6 +99,42 @@
   font-size: 14px;
 }
 
+.progress-leaks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.progress-leak {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.progress-leak-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.progress-leak-name {
+  font-weight: 600;
+  font-size: 14.5px;
+}
+
+.progress-leak-meta {
+  font-size: 12.5px;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .progress-weak-header {
   display: flex;
   align-items: center;
