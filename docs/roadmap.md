@@ -711,6 +711,45 @@ Goal: A complete poker range study platform.
 
 ---
 
+## v7: Deeper training quality
+
+Goal: make the existing training loop measurably better at fixing leaks, rather than adding new surface area.
+Chosen on 2026-07-24 over three alternatives (realistic multi-street scenarios, the deferred v5.1 community features, and an iOS polish-only pass).
+
+Every slice below builds on data the app already stores (per-hand accuracy, action accuracy, session history, review states), stays local-first, and ships on web and mobile together.
+
+### v7.0: Leak report by hand class
+
+- Group recorded mistakes into poker-meaningful classes (pocket pairs, suited aces, suited connectors, offsuit broadway, offsuit trash, etc.) instead of only listing individual hands.
+- Pure domain: a hand-class categorizer plus an aggregator over the stored per-hand accuracy.
+- Surface the ranked classes on Progress ("you fold too many suited connectors"), each drillable.
+
+### v7.1: Explain every miss
+
+- After a wrong answer, say *why* in one line: the hand's class, whether the range includes its neighbours, and where it sits relative to the range edge.
+- Pure domain: an explanation generator taking the hand, the range, and the attempt.
+- Shown in the drill's feedback area and in the end-of-session mistake review.
+
+### v7.2: Borderline-biased prompts
+
+- A range's hard hands are the ones on its edge (in-range hands whose grid neighbours are out, and vice versa).
+- Pure domain: an edge-distance score per hand, plus a prompt-drawing weight that mixes edge distance with the user's per-hand accuracy.
+- New "Edges" drill variant, and a difficulty ramp that leans on edge hands as session accuracy rises.
+
+### v7.3: Daily training goals
+
+- The user sets a small daily target (hands answered and/or accuracy).
+- Today shows progress toward it; the summary reports it; the streak survives a met goal.
+- Local storage of the goal, pure domain for progress evaluation.
+
+### v7.4: Confidence-weighted scheduling
+
+- Today's schedule advances on whole-session accuracy; a range with a few stubbornly-wrong hands can look "learned".
+- Fold per-hand confidence (accuracy and attempt count) into the interval so a range with weak hands comes back sooner.
+- Pure extension of `spacedRepetition`, with the existing behaviour preserved when no per-hand data exists.
+
+---
+
 # Suggested implementation sequence
 
 ## Phase 1: Foundation
