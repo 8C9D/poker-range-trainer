@@ -4,7 +4,12 @@ import * as DocumentPicker from 'expo-document-picker';
 import { documentDirectory, readAsStringAsync, writeAsStringAsync } from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 
-import { parseRangeExport, parseRangePack, serializeRangePack } from '@core/domain/rangeTransfer';
+import {
+  parseRangeCsv,
+  parseRangeExport,
+  parseRangePack,
+  serializeRangePack,
+} from '@core/domain/rangeTransfer';
 import { loadSavedRanges, saveSavedRange } from '@core/storage/rangeStorage';
 import type { SavedRange } from '@core/types/range';
 
@@ -47,16 +52,16 @@ export function RangeFilesPanel() {
     }
   }, []);
 
-  const pickJsonFile = useCallback(async (): Promise<string | null> => {
-    const result = await DocumentPicker.getDocumentAsync({
-      type: 'application/json',
-      copyToCacheDirectory: true,
-    });
-    if (result.canceled) return null;
-    const uri = result.assets[0]?.uri;
-    if (!uri) return null;
-    return readAsStringAsync(uri);
-  }, []);
+  const pickFile = useCallback(
+    async (type: string): Promise<{ text: string; name: string } | null> => {
+      const result = await DocumentPicker.getDocumentAsync({ type, copyToCacheDirectory: true });
+      if (result.canceled) return null;
+      const asset = result.assets[0];
+      if (!asset?.uri) return null;
+      return { text: await readAsStringAsync(asset.uri), name: asset.name ?? '' };
+    },
+    [],
+  );
 
   const handleExportPack = useCallback(() => {
     void run(async () => {
@@ -78,24 +83,44 @@ export function RangeFilesPanel() {
 
   const handleImportPack = useCallback(() => {
     void run(async () => {
-      const text = await pickJsonFile();
-      if (text === null) return;
-      const pack = parseRangePack(text);
+      const picked = await pickFile('application/json');
+      if (!picked) return;
+      const pack = parseRangePack(picked.text);
       pack.ranges.forEach(addAsNewRange);
       const count = pack.ranges.length;
       setStatus(`Added ${count} range${count === 1 ? '' : 's'} from the pack.`);
     });
-  }, [pickJsonFile, run]);
+  }, [pickFile, run]);
 
   const handleImportRange = useCallback(() => {
     void run(async () => {
-      const text = await pickJsonFile();
-      if (text === null) return;
-      const range = parseRangeExport(text);
+      const picked = await pickFile('application/json');
+      if (!picked) return;
+      const range = parseRangeExport(picked.text);
       addAsNewRange(range);
       setStatus(`Added “${range.name || 'Untitled'}” to your library.`);
     });
-  }, [pickJsonFile, run]);
+  }, [pickFile, run]);
+
+  const handleImportCsv = useCallback(() => {
+    void run(async () => {
+      const picked = await pickFile('text/comma-separated-values');
+      if (!picked) return;
+      const parsed = parseRangeCsv(picked.text);
+      // The CSV may omit a name; fall back to the file name (sans extension).
+      const fallback = picked.name.replace(/\.csv$/i, '').trim() || 'Imported range';
+      const name = parsed.name?.trim() || fallback;
+      const now = new Date().toISOString();
+      saveSavedRange({
+        id: createRangeId(),
+        name,
+        hands: parsed.hands,
+        createdAt: now,
+        updatedAt: now,
+      });
+      setStatus(`Added “${name}” from CSV.`);
+    });
+  }, [pickFile, run]);
 
   return (
     <View style={styles.panel}>
@@ -130,6 +155,15 @@ export function RangeFilesPanel() {
         onPress={handleImportRange}
       >
         <Text style={styles.secondaryText}>Import a single range file</Text>
+      </Pressable>
+      <Pressable
+        testID="csv-import"
+        accessibilityRole="button"
+        disabled={busy}
+        style={[styles.button, styles.secondary, busy && styles.buttonDisabled]}
+        onPress={handleImportCsv}
+      >
+        <Text style={styles.secondaryText}>Import a CSV file</Text>
       </Pressable>
       {status ? (
         <Text testID="range-files-status" style={styles.status}>

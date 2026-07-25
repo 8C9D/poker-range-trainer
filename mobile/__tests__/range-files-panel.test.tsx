@@ -4,7 +4,11 @@ import * as DocumentPicker from 'expo-document-picker';
 import { readAsStringAsync, writeAsStringAsync } from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 
-import { serializeRangeExport, serializeRangePack } from '@core/domain/rangeTransfer';
+import {
+  formatRangeCsv,
+  serializeRangeExport,
+  serializeRangePack,
+} from '@core/domain/rangeTransfer';
 import { loadSavedRanges, saveSavedRange } from '@core/storage/rangeStorage';
 import type { SavedRange } from '@core/types/range';
 
@@ -44,8 +48,8 @@ function makeRange(id: string, name: string): SavedRange {
   };
 }
 
-function pickFile(contents: string): void {
-  mockPick.mockResolvedValue({ canceled: false, assets: [{ uri: 'file:///pick.json' }] });
+function pickFile(contents: string, name = 'pick.json'): void {
+  mockPick.mockResolvedValue({ canceled: false, assets: [{ uri: `file:///${name}`, name }] });
   mockRead.mockResolvedValue(contents);
 }
 
@@ -115,6 +119,18 @@ describe('RangeFilesPanel', () => {
     );
     expect(loadSavedRanges()).toHaveLength(1);
     expect(loadSavedRanges()[0].id).toBe('new-0');
+  });
+
+  it('imports a CSV file, naming the range after the file when the CSV has no name', async () => {
+    pickFile(formatRangeCsv({ ...makeRange('x', ''), hands: ['AA', 'AKs'] }), 'button-opens.csv');
+
+    const user = userEvent.setup();
+    const { getByTestId } = await render(<RangeFilesPanel />);
+
+    await user.press(getByTestId('csv-import'));
+
+    await waitFor(() => expect(getByTestId('range-files-status')).toHaveTextContent(/button-opens/));
+    expect(loadSavedRanges()[0].hands).toEqual(['AA', 'AKs']);
   });
 
   it('surfaces a parse error and imports nothing', async () => {
