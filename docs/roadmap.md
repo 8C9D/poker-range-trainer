@@ -792,6 +792,15 @@ It builds entirely on the v1.3 scenario metadata already stored on each range (`
 - Rank the weakest of each so the user learns "you leak from the small blind", which no per-range number shows.
 - Cut from the per-range stats already stored (every range declares its seat and action), so the breakdown covers every drill rather than only spot sessions.
 
+### v8.5: Play the spot from Today
+
+- The drill is a daily training action, not a library-management one: offer it on Today whenever the library covers a spot.
+
+### v8.6: Per-spot accuracy
+
+- Record every spot-drill answer against the spot it was dealt from, not only against the range that graded it.
+- Rank the recorded spots weakest-first and let the user drill one on its own — the most specific answer the app can give to "what should I work on".
+
 ---
 
 # Suggested implementation sequence
