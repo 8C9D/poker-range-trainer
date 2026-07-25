@@ -1305,7 +1305,13 @@ Slice status:
   treats seat + action type as required and everything else as optional detail that
   must not contradict, so a generic chart still answers (60) and a fully pinned one
   wins (100). Archived ranges are excluded.
-- **v8.1 — spot coverage map.** Pending.
+- **v8.1 — spot coverage map.** Domain done. `src/domain/spotCoverage.ts` folds
+  `standardSpots` through `matchRangeToSpot` into a seat-by-situation map (`buildSpotCoverage`)
+  with per-cell covered/total counts and the matching range on each entry; cells holding no
+  standard spot are dropped rather than shown as gaps. `inferLibraryContext` picks the table
+  size and stack depth the library is mostly written for (most common declared value among
+  active ranges, defaulting to 6-max 100bb) so the map can open on a useful format. UI
+  pending.
 - **v8.2 — the spot drill.** Pending.
 - **v8.3 — chained spots.** Pending.
 - **v8.4 — accuracy by seat and situation.** Pending.
