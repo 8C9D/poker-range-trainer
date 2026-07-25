@@ -23,14 +23,20 @@ The app implements the full roadmap (**v1–v6**). At a glance:
   duplicate; each card summarizes combos, scenario, source, hand-notes, and
   practice accuracy.
 - **Practice modes** — recognize-hands (in/out) with a missing-hands review,
-  build-from-memory, timed drill, weakness-focused drill, a "pick the correct
-  action" quiz (for action charts), and a primary-action quiz (for
-  mixed-frequency charts); swipe-to-answer on touch devices.
+  build-from-memory, timed drill, weakness-focused drill, an edge drill (only the
+  hands on the range boundary), a "pick the correct action" quiz (for action
+  charts), and a primary-action quiz (for mixed-frequency charts);
+  swipe-to-answer on touch devices. A miss is explained: where the hand sits in
+  the chart, how much of its hand type the range plays, and whether it is on the
+  range edge.
 - **Mistake tracking & analytics** — per-hand accuracy, an accuracy heatmap, a
-  weakest-hands performance view, "practice mistakes only", session history, and a
-  library-wide practice summary.
-- **Spaced repetition** — a "due for review" queue and a review streak, with each
-  session advancing the range's review schedule by accuracy.
+  weakest-hands performance view, a leak report grouping misses by hand type
+  (suited connectors, offsuit broadway, …) with a one-tap drill, "practice
+  mistakes only", session history, and a library-wide practice summary.
+- **Spaced repetition & goals** — a "due for review" queue, a review streak, and an
+  optional daily hands goal with progress on Today. Each session advances the
+  range's review schedule by accuracy, pulled closer when its per-hand record
+  still has stubbornly-wrong hands.
 - **Multi-action ranges** — assign an action (fold/call/raise/3-bet/4-bet/jam/
   mixed) per hand on a multi-color grid, see per-action percentages, and
   import/export action-grouped notation.

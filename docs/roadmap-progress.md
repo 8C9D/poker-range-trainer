@@ -1241,3 +1241,44 @@ design decision before building them; they would be the only remaining roadmap w
 
 A future `finish-roadmap` / `roadmap-slice` invocation should find NO pending slice here and report the
 roadmap complete. To extend the product further, add new roadmap items to `docs/roadmap.md` first.
+
+---
+
+## v7: Deeper training quality (added 2026-07-24)
+
+The roadmap was extended past v6 on 2026-07-24 with a **v7: Deeper training quality**
+section (see `docs/roadmap.md`), chosen by the user over three alternatives (realistic
+multi-street scenarios, the deferred v5.1 community features, and an iOS polish-only pass).
+All five slices are built, validated, committed, and pushed, on **web and mobile** together.
+
+- **v7.0 — leak report by hand class.** `src/domain/handClass.ts` partitions the 169 hands
+  into twelve poker-meaningful classes (premium/medium/small pairs, suited aces, suited
+  broadway, suited connectors, suited gappers, other suited, and the offsuit equivalents),
+  with plural nouns for mid-sentence use. `src/domain/leakReport.ts` folds the stored
+  per-hand accuracy into class-level leaks (attempts, correct, accuracy, missed hands, and
+  per-range drill pools), ranked weakest-first, dropping classes below a 3-attempt threshold
+  or with no misses at all. Surfaced as a "Leaks by hand type" card on Progress (web and
+  mobile), each row drillable; stats for deleted ranges are filtered out first.
+- **v7.1 — explain every miss.** `src/domain/missExplanation.ts` adds `gridNeighbours` and
+  `explainHand`, returning the hand's class, how much of that class the range plays, how many
+  grid neighbours are in, whether it sits on the range edge, and a one-line summary. The
+  recognition drill shows the line under the feedback on a miss only (both platforms); the
+  feedback slot reserves the extra line's height so scoring never shifts the cards.
+- **v7.2 — edge drill.** `src/domain/edgeHands.ts` computes a range's boundary (hands whose
+  grid neighbours are not all treated the same way), both sides of it. A new `edges` practice
+  mode drills only those hands; the picker hides it for a range with no boundary (empty or
+  all 169).
+- **v7.3 — daily training goal.** `src/domain/trainingGoal.ts` (+ `trainingGoalStorage`)
+  evaluates today's hands against a target (10/20/40/80, or off) and formats the status line.
+  Today shows a goal card with a progress bar on both platforms; the setting persists locally.
+- **v7.4 — confidence-weighted scheduling.** `rangeHandConfidence` (in `domain/practice`)
+  scores a range by the share of its practiced hands still under 50%. `scheduleNextReview`
+  takes an optional confidence factor (clamped to [0.5, 1], defaulting to 1 so prior behaviour
+  is unchanged) and shrinks the interval by it. Both session recorders read the per-hand
+  record back after the session is folded in and pass the factor.
+
+Also shipped alongside v7 (parity/bug work, not roadmap slices): a portable base64url codec
+so share links work on Hermes, account-free share links + a paste/deep-link import screen on
+mobile, pack/range/CSV file import + range file export on mobile, calendar-day
+`formatDayDistance`, pruning of orphaned mixed strategies/combo selections when a hand leaves
+a range, and a raised Vitest timeout to stop the grid screens flaking.
