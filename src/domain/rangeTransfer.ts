@@ -1,5 +1,6 @@
 import type { SavedRange } from '../types/range'
 import { RANGE_ACTIONS, type RangeAction } from '../types/range'
+import { decodeBase64Url, encodeBase64Url } from './base64url'
 import { generateHandMatrix, isValidHand, type PokerHand } from './pokerHands'
 import { calculateRangePercentage, countSelectedCombos } from './rangeMath'
 
@@ -40,9 +41,7 @@ export function serializeRangeExport(range: SavedRange): string {
  * (`decodeRangeFromHash`) reverses it.
  */
 export function encodeRangeToHash(range: SavedRange): string {
-  const json = serializeRangeExport(range)
-  const base64 = btoa(unescape(encodeURIComponent(json)))
-  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+  return encodeBase64Url(serializeRangeExport(range))
 }
 
 /**
@@ -52,8 +51,7 @@ export function encodeRangeToHash(range: SavedRange): string {
 export function decodeRangeFromHash(hash: string): SavedRange {
   let json: string
   try {
-    const base64 = hash.replace(/-/g, '+').replace(/_/g, '/')
-    json = decodeURIComponent(escape(atob(base64)))
+    json = decodeBase64Url(hash)
   } catch {
     throw new Error('Share link is not a valid range.')
   }

@@ -178,6 +178,15 @@ describe('encodeRangeToHash / decodeRangeFromHash', () => {
   it('rejects a malformed hash', () => {
     expect(() => decodeRangeFromHash('!!!not base64!!!')).toThrow(/Share link|valid/)
   })
+
+  it('still decodes links minted by the original browser btoa encoding', () => {
+    const range = makeRange({ name: 'BTN open ♠', hands: ['AA', 'AKs'] })
+    const legacy = btoa(unescape(encodeURIComponent(serializeRangeExport(range))))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '')
+    expect(decodeRangeFromHash(legacy)).toEqual(range)
+  })
 })
 
 describe('range packs', () => {
