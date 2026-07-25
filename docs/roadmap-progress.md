@@ -1322,6 +1322,9 @@ Slice status:
   `/range/new` reading the same parameters through `parseScenarioParams` into a `prefill`
   prop on `RangeEditor`. The parameter encode/validate pair is shared at
   `src/domain/scenarioParams.ts` so both platforms check one vocabulary.
-- **v8.2 — the spot drill.** Pending.
+- **v8.2 — the spot drill.** Domain done. `src/domain/spotDrill.ts` turns the coverage report
+  into `coveredSpots` (every standard spot at a format that some range answers, paired with
+  that range) and `drawSpotPrompt` (a uniform spot draw plus a hand, `null` when nothing is
+  covered). UI pending.
 - **v8.3 — chained spots.** Pending.
 - **v8.4 — accuracy by seat and situation.** Pending.
