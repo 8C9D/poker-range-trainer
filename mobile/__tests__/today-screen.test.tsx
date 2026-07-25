@@ -1,10 +1,11 @@
-import { render } from '@testing-library/react-native';
+import { render, userEvent } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 
 import { recordPracticeSession } from '@core/storage/practiceStatsStorage';
 import { saveReviewState } from '@core/storage/reviewStateStorage';
 import { recordPracticeSessionHistory } from '@core/storage/sessionHistoryStorage';
 import { saveSavedRange } from '@core/storage/rangeStorage';
+import { loadTrainingGoal, saveTrainingGoal } from '@core/storage/trainingGoalStorage';
 import type { SavedRange } from '@core/types/range';
 
 import TodayScreen from '../app/(tabs)/index';
@@ -99,5 +100,29 @@ describe('TodayScreen', () => {
 
     expect(getByTestId('week-hands')).toHaveTextContent('10');
     expect(getByTestId('week-accuracy')).toHaveTextContent('80%');
+  });
+  it('tracks the daily goal and persists a change to it', async () => {
+    seed('r1', 'UTG Open');
+    recordPracticeSessionHistory(
+      'r1',
+      { totalQuestions: 12, correctAnswers: 9 },
+      new Date().toISOString(),
+    );
+    saveTrainingGoal(20);
+
+    const user = userEvent.setup();
+    const { getByTestId, queryByTestId } = await render(<TodayScreen />);
+
+    expect(getByTestId('goal-line')).toHaveTextContent('12 of 20 hands — 8 to go.');
+    expect(getByTestId('goal-bar')).toBeTruthy();
+
+    await user.press(getByTestId('goal-10'));
+    expect(getByTestId('goal-line')).toHaveTextContent('Goal met — 12 hands today.');
+    expect(loadTrainingGoal()).toBe(10);
+
+    await user.press(getByTestId('goal-0'));
+    expect(getByTestId('goal-line')).toHaveTextContent('No daily goal set.');
+    expect(queryByTestId('goal-bar')).toBeNull();
+    expect(loadTrainingGoal()).toBe(0);
   });
 });

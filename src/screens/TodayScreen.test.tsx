@@ -6,6 +6,7 @@ import { saveSavedRange } from '../storage/rangeStorage'
 import { saveReviewState } from '../storage/reviewStateStorage'
 import { recordPracticeSessionHistory } from '../storage/sessionHistoryStorage'
 import { recordPracticeSession } from '../storage/practiceStatsStorage'
+import { loadTrainingGoal, saveTrainingGoal } from '../storage/trainingGoalStorage'
 import type { SavedRange } from '../types/range'
 
 beforeEach(() => {
@@ -108,6 +109,36 @@ describe('TodayScreen', () => {
     expect(within(tiles).getByText('20')).toBeInTheDocument()
     expect(within(tiles).getByText('75%')).toBeInTheDocument()
     expect(within(tiles).getByText('BTN open')).toBeInTheDocument()
+  })
+
+  it('tracks the daily goal and persists a change to it', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange('a', 'UTG open'))
+    recordPracticeSessionHistory('a', { totalQuestions: 12, correctAnswers: 9 }, TODAY)
+    saveTrainingGoal(20)
+    render(<TodayScreen onStartReview={vi.fn()} />)
+
+    const card = screen.getByRole('region', { name: 'Daily goal' })
+    expect(within(card).getByText('12 of 20 hands — 8 to go.')).toBeInTheDocument()
+    expect(within(card).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '60')
+
+    await user.selectOptions(within(card).getByRole('combobox'), '10')
+    expect(within(card).getByText('Goal met — 12 hands today.')).toBeInTheDocument()
+    expect(loadTrainingGoal()).toBe(10)
+  })
+
+  it('hides the progress bar when the goal is switched off', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange('a', 'UTG open'))
+    saveTrainingGoal(20)
+    render(<TodayScreen onStartReview={vi.fn()} />)
+
+    const card = screen.getByRole('region', { name: 'Daily goal' })
+    await user.selectOptions(within(card).getByRole('combobox'), '0')
+
+    expect(within(card).getByText('No daily goal set.')).toBeInTheDocument()
+    expect(within(card).queryByRole('progressbar')).not.toBeInTheDocument()
+    expect(loadTrainingGoal()).toBe(0)
   })
 
   it('shows last accuracy and last practiced on due rows once practiced', () => {

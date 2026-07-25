@@ -135,6 +135,45 @@
   color: var(--ink-2);
 }
 
+.today-goal {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.today-goal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.today-goal-head h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.today-goal-line {
+  margin: 0;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.today-goal-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.today-goal-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--gold-fill);
+  transition: width 200ms ease;
+}
+
 @media (max-width: 640px) {
   .today-tiles {
     grid-template-columns: 1fr;

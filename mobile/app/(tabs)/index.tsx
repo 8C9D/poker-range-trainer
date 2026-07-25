@@ -4,11 +4,17 @@ import { Link, useFocusEffect } from 'expo-router';
 
 import { practiceAccuracyPercentage } from '@core/domain/practiceStats';
 import { currentStreak, selectDueRanges } from '@core/domain/spacedRepetition';
+import {
+  GOAL_OPTIONS,
+  evaluateDailyGoal,
+  goalLine,
+} from '@core/domain/trainingGoal';
 import { summarizeWeek } from '@core/domain/weeklyStats';
 import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
 import { loadReviewStates } from '@core/storage/reviewStateStorage';
 import { loadSavedRanges } from '@core/storage/rangeStorage';
 import { loadSessionHistory } from '@core/storage/sessionHistoryStorage';
+import { loadTrainingGoal, saveTrainingGoal } from '@core/storage/trainingGoalStorage';
 
 import { RangeThumbnail } from '../../components/RangeThumbnail';
 import { Screen } from '../../components/Screen';
@@ -40,7 +46,8 @@ function loadTodayState() {
   const sharpestName = week.sharpestRangeId
     ? (ranges.find((range) => range.id === week.sharpestRangeId)?.name ?? null)
     : null;
-  return { now, nowIso, ranges, practiceStats, due, streak, week, sharpestName };
+  const goal = loadTrainingGoal();
+  return { now, nowIso, ranges, practiceStats, due, streak, week, sharpestName, history, goal };
 }
 
 /**
@@ -58,8 +65,15 @@ export default function TodayScreen() {
     }, []),
   );
 
-  const { now, nowIso, ranges, practiceStats, due, streak, week, sharpestName } = state;
+  const { now, nowIso, ranges, practiceStats, due, streak, week, sharpestName, history, goal } =
+    state;
   const estimatedMinutes = Math.max(1, Math.ceil(due.length * MINUTES_PER_RANGE));
+  const goalProgress = evaluateDailyGoal(history, nowIso, goal);
+
+  const pickGoal = (target: number) => {
+    saveTrainingGoal(target);
+    setState((prev) => ({ ...prev, goal: target }));
+  };
 
   const explainStreak = () =>
     Alert.alert(
@@ -172,6 +186,44 @@ export default function TodayScreen() {
               </View>
             ) : null}
 
+            <View testID="today-goal" style={styles.card}>
+              <View style={styles.goalHead}>
+                <Text style={styles.sectionTitle}>Daily goal</Text>
+                <View style={styles.goalOptions}>
+                  {[0, ...GOAL_OPTIONS].map((option) => {
+                    const active = goal === option;
+                    return (
+                      <Pressable
+                        key={option}
+                        testID={`goal-${option}`}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: active }}
+                        onPress={() => pickGoal(option)}
+                        style={[styles.goalChip, active && styles.goalChipActive]}
+                      >
+                        <Text style={[styles.goalChipText, active && styles.goalChipTextActive]}>
+                          {option === 0 ? 'Off' : option}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+              <Text testID="goal-line" style={styles.goalLine}>
+                {goalLine(goalProgress)}
+              </Text>
+              {goal > 0 ? (
+                <View
+                  testID="goal-bar"
+                  accessibilityRole="progressbar"
+                  accessibilityValue={{ min: 0, max: 100, now: Math.round(goalProgress.percent) }}
+                  style={styles.goalTrack}
+                >
+                  <View style={[styles.goalFill, { width: `${goalProgress.percent}%` }]} />
+                </View>
+              ) : null}
+            </View>
+
             <View style={styles.tiles}>
               <View style={styles.tile}>
                 <Text testID="week-hands" style={styles.tileValue}>
@@ -275,6 +327,31 @@ function makeStyles(theme: ThemeColors) {
       paddingVertical: 8,
     },
     rowBtnText: { fontFamily: fonts.bodySemibold, fontSize: 13, color: theme.ink },
+    goalHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
+    goalOptions: { flexDirection: 'row', gap: 6 },
+    goalChip: {
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line2,
+      borderRadius: 999,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+    },
+    goalChipActive: { backgroundColor: theme.line2 },
+    goalChipText: { fontFamily: fonts.bodyMedium, fontSize: 12, color: theme.ink2 },
+    goalChipTextActive: { color: theme.ink },
+    goalLine: {
+      fontFamily: fonts.body,
+      fontSize: 14,
+      color: theme.ink2,
+      fontVariant: ['tabular-nums'],
+    },
+    goalTrack: { height: 8, borderRadius: 999, backgroundColor: theme.line, overflow: 'hidden' },
+    goalFill: { height: '100%', borderRadius: 999, backgroundColor: theme.goldFill },
     tiles: { flexDirection: 'row', gap: 10 },
     tile: {
       flex: 1,

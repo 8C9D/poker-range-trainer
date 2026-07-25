@@ -3,11 +3,13 @@ import { RangeThumbnail } from '../components/RangeThumbnail'
 import { formatDateLine, formatDayDistance, greetingFor } from '../app/format'
 import { practiceAccuracyPercentage } from '../domain/practiceStats'
 import { currentStreak, selectDueRanges } from '../domain/spacedRepetition'
+import { GOAL_OPTIONS, evaluateDailyGoal, goalLine } from '../domain/trainingGoal'
 import { summarizeWeek } from '../domain/weeklyStats'
 import { loadPracticeStats } from '../storage/practiceStatsStorage'
 import { loadReviewStates } from '../storage/reviewStateStorage'
 import { loadSavedRanges } from '../storage/rangeStorage'
 import { loadSessionHistory } from '../storage/sessionHistoryStorage'
+import { loadTrainingGoal, saveTrainingGoal } from '../storage/trainingGoalStorage'
 import type { SavedRange } from '../types/range'
 import './TodayScreen.css'
 
@@ -30,6 +32,7 @@ export function TodayScreen({ onStartReview }: TodayScreenProps) {
   const [reviewStates] = useState(() => loadReviewStates())
   const [history] = useState(() => loadSessionHistory())
   const [practiceStats] = useState(() => loadPracticeStats())
+  const [goal, setGoal] = useState(() => loadTrainingGoal())
 
   const nowIso = now.toISOString()
   const due = selectDueRanges(
@@ -46,6 +49,7 @@ export function TodayScreen({ onStartReview }: TodayScreenProps) {
     ? (ranges.find((range) => range.id === week.sharpestRangeId)?.name ?? null)
     : null
   const estimatedMinutes = Math.max(1, Math.ceil(due.length * MINUTES_PER_RANGE))
+  const goalProgress = evaluateDailyGoal(history, nowIso, goal)
 
   return (
     <div className="today">
@@ -135,6 +139,44 @@ export function TodayScreen({ onStartReview }: TodayScreenProps) {
               </ul>
             </section>
           )}
+
+          <section className="coach-card today-goal" aria-label="Daily goal">
+            <div className="today-goal-head">
+              <h3>Daily goal</h3>
+              <label className="today-goal-picker">
+                <select
+                  className="coach-input"
+                  aria-label="Daily goal in hands"
+                  value={goal}
+                  onChange={(event) => {
+                    const next = Number(event.target.value)
+                    saveTrainingGoal(next)
+                    setGoal(next)
+                  }}
+                >
+                  <option value={0}>Off</option>
+                  {GOAL_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option} hands
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <p className="today-goal-line coach-tabular">{goalLine(goalProgress)}</p>
+            {goal > 0 && (
+              <div
+                className="today-goal-bar"
+                role="progressbar"
+                aria-label="Daily goal progress"
+                aria-valuenow={Math.round(goalProgress.percent)}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              >
+                <span style={{ width: `${goalProgress.percent}%` }} />
+              </div>
+            )}
+          </section>
 
           <section className="today-tiles" aria-label="This week">
             <div className="coach-card today-tile">
