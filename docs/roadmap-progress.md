@@ -1339,5 +1339,12 @@ Slice status:
   `mobile/components/practice/SpotDrill.tsx` (same swipe + haptics as the recognition drill),
   reachable at `/practice?mode=spots&table=…&stack=…`, which loads the whole library rather
   than a range id, plus the matching **Play these spots** button on the mobile coverage card.
-- **v8.3 — chained spots.** Pending.
+- **v8.3 — chained spots.** DONE (web + mobile). `followUpSpots` (in `domain/spot`) gives the
+  second decisions a spot can lead to — an open can be 3-bet by anyone behind, a 3-bet can be
+  4-bet by the original raiser, a 4-bet can be jammed on — and returns nothing where the action
+  ends. `nextChainedSpot` (in `domain/spotDrill`) filters those to what the library actually
+  covers and draws one. Both drills carry the SAME hand and cards into the follow-up when the
+  user played it and was right (a fold, a miss, or an uncovered continuation ends the hand and
+  deals fresh), marked with a "Same hand — the action continues." line so the repeated cards
+  never read as a new deal.
 - **v8.4 — accuracy by seat and situation.** Pending.

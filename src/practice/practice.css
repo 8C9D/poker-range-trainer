@@ -93,6 +93,16 @@
   text-align: center;
 }
 
+/* Marks the second decision of a chained spot, so the same cards don't read as
+   a new hand. */
+.drill-chain {
+  margin: 0 0 -12px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--accent-strong);
+  text-align: center;
+}
+
 .playing-cards {
   display: flex;
   gap: 14px;

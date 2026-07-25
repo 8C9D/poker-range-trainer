@@ -5,7 +5,12 @@ import type { Card } from '../domain/cards'
 import { explainHand } from '../domain/missExplanation'
 import { createPracticeAttempt } from '../domain/practice'
 import { describeSpot } from '../domain/spot'
-import { coveredSpots, drawSpotPrompt, type SpotPrompt } from '../domain/spotDrill'
+import {
+  coveredSpots,
+  drawSpotPrompt,
+  nextChainedSpot,
+  type SpotPrompt,
+} from '../domain/spotDrill'
 import type { PracticeAttempt } from '../types/practice'
 import type { SavedRange, TableSize } from '../types/range'
 import { DRILL_QUESTION_COUNT, HIT_DWELL_MS, MISS_DWELL_MS } from './RecognitionDrill'
@@ -51,10 +56,27 @@ export function SpotDrill({
     [ranges, tableSize, stackDepthBb],
   )
 
-  function draw(): (SpotPrompt & { cards: Card[] }) | null {
+  type Question = SpotPrompt & { cards: Card[]; chained: boolean }
+
+  function draw(): Question | null {
     const next = drawSpotPrompt(covered, random)
     if (!next) return null
-    return { ...next, cards: drawPracticeCombo([next.hand], [], undefined, random) }
+    return {
+      ...next,
+      cards: drawPracticeCombo([next.hand], [], undefined, random),
+      chained: false,
+    }
+  }
+
+  /**
+   * The same hand carried into the second decision, when the user played it
+   * correctly and the library covers what comes next. Folding — or a wrong
+   * answer — ends the hand, so the chain only ever rewards a right one.
+   */
+  function chain(current: Question, attempt: PracticeAttempt): Question | null {
+    if (!attempt.correct || !attempt.expectedInRange) return null
+    const next = nextChainedSpot(current.spot, covered, random)
+    return next ? { ...next, hand: current.hand, cards: current.cards, chained: true } : null
   }
 
   const [prompt, setPrompt] = useState(draw)
@@ -96,7 +118,7 @@ export function SpotDrill({
           return
         }
         setFeedback(null)
-        setPrompt(draw())
+        setPrompt(chain(prompt, attempt) ?? draw())
       },
       attempt.correct ? HIT_DWELL_MS : MISS_DWELL_MS,
     )
@@ -129,6 +151,7 @@ export function SpotDrill({
       onClose={() => finish(answeredRef.current)}
     >
       <div className="drill-center" {...swipe}>
+        {prompt.chained && <p className="drill-chain">Same hand — the action continues.</p>}
         <p className="drill-scenario">{describeSpot(prompt.spot)}</p>
         <PlayingCards cards={prompt.cards} />
         <p className="sr-only" data-testid="drill-hand">

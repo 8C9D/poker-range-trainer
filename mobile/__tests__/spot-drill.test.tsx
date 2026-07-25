@@ -18,6 +18,11 @@ function makeRange(name: string, metadata: RangeMetadata): SavedRange {
 }
 
 const btnOpen = makeRange('BTN open', { position: 'btn', actionType: 'open' });
+const vsBbThreeBet = makeRange('BTN vs BB 3-bet', {
+  position: 'btn',
+  actionType: 'fourBet',
+  versusPosition: 'bb',
+});
 const bbDefend = makeRange('BB defend vs CO', {
   position: 'bb',
   actionType: 'defend',
@@ -116,5 +121,34 @@ describe('SpotDrill', () => {
     fireEvent.press(getByTestId('overlay-close'));
 
     expect(onFinish).toHaveBeenCalledWith({});
+  });
+});
+
+describe('SpotDrill chained spots', () => {
+  it('carries a correctly played hand into the covered follow-up spot', async () => {
+    const { getByTestId, findByTestId } = await renderDrill({
+      ranges: [btnOpen, vsBbThreeBet],
+      random: () => 0,
+    });
+
+    fireEvent.press(getByTestId('answer-yes'));
+    await findByTestId('drill-feedback');
+
+    expect(await findByTestId('spot-chain')).toBeTruthy();
+    expect(getByTestId('spot-scenario')).toHaveTextContent(/facing a 3-bet from the BB/);
+    expect(getByTestId('drill-hand')).toHaveTextContent('AA');
+  });
+
+  it('ends the hand on a fold and deals a fresh spot', async () => {
+    const { getByTestId, findByTestId, queryByTestId } = await renderDrill({
+      ranges: [btnOpen, vsBbThreeBet],
+      random: () => 0,
+    });
+
+    fireEvent.press(getByTestId('answer-no'));
+    await findByTestId('drill-feedback');
+    await waitFor(() => expect(queryByTestId('drill-feedback')).toBeNull(), { timeout: 3000 });
+
+    expect(queryByTestId('spot-chain')).toBeNull();
   });
 });

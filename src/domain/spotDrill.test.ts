@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { coveredSpots, drawSpotPrompt } from './spotDrill'
-import { spotKey } from './spot'
+import { coveredSpots, drawSpotPrompt, nextChainedSpot } from './spotDrill'
+import { spotKey, type Spot } from './spot'
 import { ALL_HANDS } from './pokerHands'
 import type { RangeMetadata, SavedRange } from '../types/range'
 
@@ -74,5 +74,47 @@ describe('drawSpotPrompt', () => {
     const covered = coveredSpots([btnOpen, bbVsCo], 'sixMax', 100)
 
     expect(drawSpotPrompt(covered, () => 1)?.range.name).toBe('BB defend vs CO')
+  })
+})
+
+describe('nextChainedSpot', () => {
+  const btnOpenSpot: Spot = {
+    tableSize: 'sixMax',
+    position: 'btn',
+    situation: 'foldedToYou',
+    stackDepthBb: 100,
+  }
+  const vsBbThreeBet = makeRange('BTN vs BB 3-bet', {
+    position: 'btn',
+    actionType: 'fourBet',
+    versusPosition: 'bb',
+  })
+
+  it('ends the hand when the library has no range for what comes next', () => {
+    const covered = coveredSpots([btnOpen], 'sixMax', 100)
+
+    expect(nextChainedSpot(btnOpenSpot, covered, () => 0)).toBeNull()
+  })
+
+  it('continues into a covered follow-up spot', () => {
+    const covered = coveredSpots([btnOpen, vsBbThreeBet], 'sixMax', 100)
+    const next = nextChainedSpot(btnOpenSpot, covered, () => 0)
+
+    expect(next?.range.name).toBe('BTN vs BB 3-bet')
+    expect(spotKey(next!.spot)).toBe('sixMax|btn|facingThreeBet|bb|100')
+  })
+
+  it('never offers a follow-up that is not a continuation of this spot', () => {
+    // The BB defend range covers a spot, but not one that follows a BTN open.
+    const covered = coveredSpots([btnOpen, bbVsCo], 'sixMax', 100)
+
+    expect(nextChainedSpot(btnOpenSpot, covered, () => 0)).toBeNull()
+  })
+
+  it('ends the hand after a jam', () => {
+    const covered = coveredSpots([btnOpen, vsBbThreeBet], 'sixMax', 100)
+    const jam: Spot = { ...btnOpenSpot, situation: 'facingJam', versusPosition: 'bb' }
+
+    expect(nextChainedSpot(jam, covered, () => 0)).toBeNull()
   })
 })

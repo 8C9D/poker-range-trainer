@@ -182,6 +182,41 @@ export function defaultActionTypeForSpot(spot: Spot): ActionType {
 }
 
 /**
+ * The spots that can follow this one once hero puts money in (v8.3).
+ *
+ * A hand does not end when you open it: someone behind can 3-bet, and the player
+ * you 3-bet can 4-bet. Each entry is a second decision on the *same* hand, in the
+ * same seat and format. Returns an empty list where the action ends — hero has
+ * jammed, called a jam, or nobody is left to act.
+ */
+export function followUpSpots(spot: Spot): Spot[] {
+  const { tableSize, position, stackDepthBb } = spot
+  const follow = (situation: SpotSituation, versusPosition: Position): Spot => ({
+    tableSize,
+    position,
+    situation,
+    versusPosition,
+    stackDepthBb,
+  })
+  switch (spot.situation) {
+    case 'foldedToYou':
+      // Hero opened; anyone still to act can 3-bet.
+      return villainsForSituation(tableSize, position, 'facingThreeBet').map((villain) =>
+        follow('facingThreeBet', villain),
+      )
+    case 'facingOpen':
+      // Hero 3-bet; the original raiser can 4-bet back.
+      return spot.versusPosition ? [follow('facingFourBet', spot.versusPosition)] : []
+    case 'facingThreeBet':
+      // Hero 4-bet; the 3-bettor can shove.
+      return spot.versusPosition ? [follow('facingJam', spot.versusPosition)] : []
+    case 'facingFourBet':
+    case 'facingJam':
+      return []
+  }
+}
+
+/**
  * The scenario metadata a range written for this spot would carry.
  *
  * What the coverage map hands to the range editor when the user fills a gap.

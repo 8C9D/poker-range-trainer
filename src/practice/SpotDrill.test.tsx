@@ -15,6 +15,11 @@ function makeRange(name: string, metadata: RangeMetadata): SavedRange {
 }
 
 const btnOpen = makeRange('BTN open', { position: 'btn', actionType: 'open' })
+const vsBbThreeBet = makeRange('BTN vs BB 3-bet', {
+  position: 'btn',
+  actionType: 'fourBet',
+  versusPosition: 'bb',
+})
 const bbDefend = makeRange('BB defend vs CO', {
   position: 'bb',
   actionType: 'defend',
@@ -113,5 +118,48 @@ describe('SpotDrill', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close practice' }))
 
     expect(onFinish).toHaveBeenCalledWith({})
+  })
+})
+
+describe('SpotDrill chained spots', () => {
+  it('carries a correctly played hand into the covered follow-up spot', () => {
+    vi.useFakeTimers()
+    // random() === 0 deals the first covered spot (the BTN open) and AA, which is
+    // in the range; the follow-up is the covered BTN-vs-3-bet chart.
+    renderDrill({ ranges: [btnOpen, vsBbThreeBet], random: () => 0 })
+
+    expect(screen.getByText('6-max, 100bb. Folded to you in the BTN.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }))
+    act(() => vi.runAllTimers())
+
+    expect(screen.getByText('Same hand — the action continues.')).toBeInTheDocument()
+    expect(
+      screen.getByText('6-max, 100bb. You are in the BTN facing a 3-bet from the BB.'),
+    ).toBeInTheDocument()
+    // Same hand, still AA.
+    expect(screen.getByTestId('drill-hand')).toHaveTextContent('AA')
+    vi.useRealTimers()
+  })
+
+  it('ends the hand on a fold and deals a fresh spot', () => {
+    vi.useFakeTimers()
+    renderDrill({ ranges: [btnOpen, vsBbThreeBet], random: () => 0 })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fold' }))
+    act(() => vi.runAllTimers())
+
+    expect(screen.queryByText('Same hand — the action continues.')).not.toBeInTheDocument()
+    vi.useRealTimers()
+  })
+
+  it('does not chain when the library has no range for what comes next', () => {
+    vi.useFakeTimers()
+    renderDrill({ ranges: [btnOpen], random: () => 0 })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }))
+    act(() => vi.runAllTimers())
+
+    expect(screen.queryByText('Same hand — the action continues.')).not.toBeInTheDocument()
+    vi.useRealTimers()
   })
 })

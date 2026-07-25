@@ -1,6 +1,6 @@
 import { getRandomPracticeHand } from './practice'
 import type { PokerHand } from './pokerHands'
-import type { Spot } from './spot'
+import { followUpSpots, spotKey, type Spot } from './spot'
 import { buildSpotCoverage } from './spotCoverage'
 import type { SavedRange, TableSize } from '../types/range'
 
@@ -53,9 +53,32 @@ export function drawSpotPrompt(
   covered: CoveredSpot[],
   random: () => number = Math.random,
 ): SpotPrompt | null {
-  if (covered.length === 0) return null
+  const chosen = pick(covered, random)
+  return chosen ? { ...chosen, hand: getRandomPracticeHand(random) } : null
+}
+
+/**
+ * The second decision on the same hand (v8.3), or `null` when the hand ends here.
+ *
+ * A spot can continue — you open and get 3-bet — but only if the library holds a
+ * range for what comes next. An uncovered continuation is not asked: the drill
+ * never quizzes a chart the user has not written.
+ */
+export function nextChainedSpot(
+  spot: Spot,
+  covered: CoveredSpot[],
+  random: () => number = Math.random,
+): CoveredSpot | null {
+  const wanted = new Set(followUpSpots(spot).map(spotKey))
+  return pick(
+    covered.filter((candidate) => wanted.has(spotKey(candidate.spot))),
+    random,
+  )
+}
+
+/** One entry drawn uniformly, or null when there is nothing to draw from. */
+function pick<T>(items: T[], random: () => number): T | null {
+  if (items.length === 0) return null
   // `random()` can return exactly 1 in theory; clamp so the index stays in range.
-  const index = Math.min(Math.floor(random() * covered.length), covered.length - 1)
-  const chosen = covered[index]
-  return { ...chosen, hand: getRandomPracticeHand(random) }
+  return items[Math.min(Math.floor(random() * items.length), items.length - 1)]
 }

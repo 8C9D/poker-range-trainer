@@ -8,7 +8,12 @@ import type { Card } from '@core/domain/cards';
 import { explainHand } from '@core/domain/missExplanation';
 import { createPracticeAttempt } from '@core/domain/practice';
 import { describeSpot } from '@core/domain/spot';
-import { coveredSpots, drawSpotPrompt, type SpotPrompt } from '@core/domain/spotDrill';
+import {
+  coveredSpots,
+  drawSpotPrompt,
+  nextChainedSpot,
+  type SpotPrompt,
+} from '@core/domain/spotDrill';
 import type { PracticeAttempt } from '@core/types/practice';
 import type { SavedRange, TableSize } from '@core/types/range';
 
@@ -20,6 +25,9 @@ import { answerVerbs, feedbackLine } from '../../lib/scenario';
 import { fonts } from '../../theme/fonts';
 import { useTheme } from '../../theme/colors';
 import type { ThemeColors } from '../../theme/colors';
+
+/** One dealt question: the spot, its cards, and whether it continues a previous hand. */
+type Question = SpotPrompt & { cards: Card[]; chained: boolean };
 
 /** One answered question, tagged with the range that graded it. */
 interface SpotAttempt {
@@ -60,10 +68,24 @@ export function SpotDrill({
     [ranges, tableSize, stackDepthBb],
   );
 
-  function draw(): (SpotPrompt & { cards: Card[] }) | null {
+  function draw(): Question | null {
     const next = drawSpotPrompt(covered, random);
     if (!next) return null;
-    return { ...next, cards: drawPracticeCombo([next.hand], [], undefined, random) };
+    return {
+      ...next,
+      cards: drawPracticeCombo([next.hand], [], undefined, random),
+      chained: false,
+    };
+  }
+
+  /**
+   * The same hand carried into the second decision, when the user played it correctly
+   * and the library covers what comes next. Folding — or a wrong answer — ends the hand.
+   */
+  function chain(current: Question, attempt: PracticeAttempt): Question | null {
+    if (!attempt.correct || !attempt.expectedInRange) return null;
+    const next = nextChainedSpot(current.spot, covered, random);
+    return next ? { ...next, hand: current.hand, cards: current.cards, chained: true } : null;
   }
 
   const [prompt, setPrompt] = useState(draw);
@@ -105,7 +127,7 @@ export function SpotDrill({
           return;
         }
         setFeedback(null);
-        setPrompt(draw());
+        setPrompt(chain(prompt, attempt) ?? draw());
       },
       attempt.correct ? HIT_DWELL_MS : MISS_DWELL_MS,
     );
@@ -160,6 +182,11 @@ export function SpotDrill({
       <View style={styles.body}>
         <GestureDetector gesture={swipeGesture}>
           <View style={styles.center}>
+            {prompt.chained ? (
+              <Text testID="spot-chain" style={styles.chain}>
+                Same hand — the action continues.
+              </Text>
+            ) : null}
             <Text testID="spot-scenario" style={styles.scenario}>
               {describeSpot(prompt.spot)}
             </Text>
@@ -219,6 +246,15 @@ function makeStyles(theme: ThemeColors) {
     body: { flex: 1, padding: 20, gap: 12 },
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 20 },
     scenario: { fontFamily: fonts.body, fontSize: 15, color: theme.ink2, textAlign: 'center' },
+    // Marks the second decision of a chained spot, so the same cards don't read as
+    // a new hand.
+    chain: {
+      fontFamily: fonts.bodyMedium,
+      fontSize: 12.5,
+      color: theme.accentStrong,
+      textAlign: 'center',
+      marginBottom: -12,
+    },
     srOnly: { width: 1, height: 1, opacity: 0, position: 'absolute' },
     // Tall enough for the second line, so scoring an answer never shifts the cards.
     feedbackSlot: {

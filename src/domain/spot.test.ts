@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   defaultActionTypeForSpot,
+  followUpSpots,
   describeSpot,
   matchRangeToSpot,
   scoreRangeForSpot,
@@ -106,6 +107,32 @@ describe('describeSpot', () => {
 
   it('names the opponent and the action faced', () => {
     expect(describeSpot(bbVsCo)).toBe('6-max, 100bb. You are in the BB facing an open from the CO.')
+  })
+})
+
+describe('followUpSpots', () => {
+  it('offers a 3-bet from every seat behind an opener', () => {
+    expect(followUpSpots(btnOpen)).toEqual([
+      { ...btnOpen, situation: 'facingThreeBet', versusPosition: 'sb' },
+      { ...btnOpen, situation: 'facingThreeBet', versusPosition: 'bb' },
+    ])
+  })
+
+  it('sends a 3-bet back to the original raiser as a 4-bet', () => {
+    expect(followUpSpots(bbVsCo)).toEqual([{ ...bbVsCo, situation: 'facingFourBet' }])
+  })
+
+  it('sends a 4-bet back to the 3-bettor as a jam', () => {
+    const vsThreeBet: Spot = { ...btnOpen, situation: 'facingThreeBet', versusPosition: 'bb' }
+
+    expect(followUpSpots(vsThreeBet)).toEqual([{ ...vsThreeBet, situation: 'facingJam' }])
+  })
+
+  it('ends the hand where there is nothing left to face', () => {
+    expect(followUpSpots({ ...bbVsCo, situation: 'facingFourBet' })).toEqual([])
+    expect(followUpSpots({ ...bbVsCo, situation: 'facingJam' })).toEqual([])
+    // The big blind opening (nobody behind) has no 3-bet to face.
+    expect(followUpSpots({ ...btnOpen, position: 'bb' })).toEqual([])
   })
 })
 
