@@ -803,6 +803,37 @@ It builds entirely on the v1.3 scenario metadata already stored on each range (`
 
 ---
 
+## v9: The daily workout
+
+Goal: turn "what should I train today?" into one tap.
+Chosen on 2026-07-27 over two alternatives (a polish-and-hardening-only pass, and drafting several candidate scopes first).
+
+The app now knows what is due (spaced repetition), where the user leaks (per-spot and per-hand accuracy), and how much they want to train (the daily goal) - but the user still has to assemble a session from those signals by hand, across three different cards.
+v9 composes them: one guided run that reviews what is due, drills the worst spots, and finishes on fresh material, sized to the daily goal.
+
+Every slice builds only on data the app already stores, stays local-first, and ships on web and mobile together.
+
+### v9.0: The workout plan
+
+- Pure domain (`src/domain/dailyWorkout.ts`): compose today's plan from the stored signals - a review segment (due ranges), a weak-spot segment (the worst recorded spots the current library still covers), and a fresh-play segment (the spot drill over the rest of the library).
+- Each segment carries a plain-language reason ("3 ranges due", "42% in BB vs a CO open") so the plan reads like a coach's note, not a config dump.
+- Cap the segments (and skip empty ones) so a workout stays close to the daily goal's size, and estimate its length.
+- No UI in this slice; tests for the composition rules, the caps, and the empty cases.
+
+### v9.1: The workout runner
+
+- Today gets a "Daily workout" card as the primary action, summarizing the plan in one line.
+- The run plays the segments back-to-back in the practice overlay with a "Part 2 of 3 - Weakest spots" hand-off between them; each segment records through its drill's existing recorder, so stats, schedules, and per-spot accuracy advance exactly as if the drills were run by hand.
+- One combined summary ends the run: hands answered, accuracy, and what each segment contributed.
+
+### v9.2: Workout completion
+
+- Remember the last completed workout day; the Today card flips to a done state for the rest of the day instead of re-offering the same plan.
+- The summary and the done state report daily-goal progress, so finishing the workout visibly meets the goal.
+- The individual cards (review, play the spot) stay - the workout is the default path, not the only one.
+
+---
+
 # Suggested implementation sequence
 
 ## Phase 1: Foundation
