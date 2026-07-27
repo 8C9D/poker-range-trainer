@@ -4,7 +4,7 @@ A complete, current guide to manually testing the Poker Range Trainer: how to ru
 it, what features exist (and what records what), what does **not** exist yet, and a
 feature-by-feature checklist of what to test.
 
-This guide reflects the app through the **full v1–v6 roadmap** — every roadmap
+This guide reflects the app through the **full v1–v8 roadmap** — every roadmap
 version is implemented (the only intentionally deferred items are the heavy v5.1
 community features; see §4) — plus post-roadmap additions (range tags). The older, narrower [`manual-testing-checklist.md`](./manual-testing-checklist.md)
 only covers v1–v1.3 and is superseded by this document.
@@ -37,8 +37,9 @@ build.
 The UI is organized as routed screens, navigated from the left icon rail (bottom
 tabs under 640px):
 
-- **Today** (default) — a review queue and streak; **Start review** drills the due
-  ranges straight through.
+- **Today** (default) — a review queue and streak, the optional daily-goal card,
+  and (once the library covers a standard spot) a **Play the spot** card;
+  **Start review** drills the due ranges straight through.
 - **Library** — searchable, filterable rows; **New range** opens a blank editor;
   clicking a row opens that range's page.
 - **Range page** — a per-range page with a header **Practice** button and a **⋯**
@@ -333,7 +334,7 @@ nothing. The streak counts days with any recorded recognition/timed/weakness ses
 
 ## 4. What does NOT exist yet
 
-The app now implements the full **v1–v6** roadmap. The only intentionally
+The app now implements the full **v1–v8** roadmap. The only intentionally
 **deferred** items are the heavy multi-user community features and a few solver-grade
 niceties — don't test for these; confirm they're absent if anything.
 
@@ -672,10 +673,12 @@ from a known state (see §2).
       stack depth already filled in.
 - [ ] Changing the table size or stack depth redraws the map.
 
-### 5.34 Play the spot (v8.2, v8.3)
+### 5.34 Play the spot (v8.2, v8.3, v8.5)
 
 - [ ] **Play these spots** on the coverage card starts a drill that states a situation
       in words ("6-max, 100bb. Folded to you in the BTN.") instead of naming a range.
+- [ ] **Today** shows a "Play the spot" card starting the same drill whenever the
+      library covers at least one standard spot, and hides it when none is covered.
 - [ ] The answer buttons use the matched range's action verb (Open / Defend / 4-bet …).
 - [ ] Every answer names the chart that graded it; a miss also explains the hand.
 - [ ] Playing a hand correctly can continue it into the follow-up spot — the same two

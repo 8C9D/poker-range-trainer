@@ -4,7 +4,9 @@ A web app for creating, saving, editing, and practicing Texas Hold'em ranges on 
 standard 13×13 starting-hand grid. It is local-first — it runs entirely in the
 browser and persists to `localStorage`, with no account required — and adds
 OPTIONAL cloud accounts and sync (via Supabase) when configured. It also installs
-as an offline-capable PWA.
+as an offline-capable PWA. The repo additionally contains a native iOS app
+(`mobile/`, Expo / React Native) that mirrors the web app and reuses the same
+domain core (see [`docs/ios-roadmap.md`](docs/ios-roadmap.md)).
 
 Built with React, TypeScript, and Vite. Poker-domain logic is kept separate from
 the UI (see [Project structure](#project-structure)).
@@ -129,6 +131,7 @@ src/
   test/          Vitest setup.
 docs/            Roadmap, manual testing guide, acceptance reviews, and the docs-sync report.
 supabase/        SQL migrations documenting the optional cloud schema (ranges, backups, shared ranges, shared packs).
+mobile/          The Expo (React Native) iOS app — its own package, reusing src/ domain/storage/cloud logic via the @core alias.
 ```
 
 Tests live beside the code they cover (e.g. `domain/practice.ts` /

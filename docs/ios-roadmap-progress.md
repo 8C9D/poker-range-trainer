@@ -234,5 +234,6 @@ The agent must NOT fake or run these. Exact steps:
 
 - **Weakness-focused drill** — likely redundant with the slice-27 mistakes-only toggle;
   reconsider whether it adds value before building.
-- **Per-hand notes** (M6) — `SavedRange.handNotes` already exists in `@core`; a notes editor on
-  the (action or binary) editor is a small, self-contained M6 slice that needs no postflop UX.
+- **Per-hand notes** (M6) — DONE since this note was written: `mobile/app/notes-editor.tsx`
+  shipped in `fa6484e` (with tests in `mobile/__tests__/notes-editor-screen.test.tsx`).
+  No longer a candidate.
