@@ -46,6 +46,7 @@ export function TodayScreen({ onStartReview, onPlaySpots, onStartWorkout }: Toda
   const [history] = useState(() => loadSessionHistory())
   const [practiceStats] = useState(() => loadPracticeStats())
   const [spotAccuracy] = useState(() => loadSpotAccuracy())
+  const [workoutCompletion] = useState(() => loadWorkoutCompletion())
   const [goal, setGoal] = useState(() => loadTrainingGoal())
 
   const nowIso = now.toISOString()
@@ -69,7 +70,7 @@ export function TodayScreen({ onStartReview, onPlaySpots, onStartWorkout }: Toda
   const spotCoverage = buildSpotCoverage(ranges, spotFormat.tableSize, spotFormat.stackDepthBb)
   // A finished workout stays finished for the day; the card flips to its done
   // state instead of re-offering the same plan.
-  const workoutDone = workoutCompletedToday(loadWorkoutCompletion(), nowIso)
+  const workoutDone = workoutCompletedToday(workoutCompletion, nowIso)
   const workout = workoutDone
     ? null
     : buildDailyWorkout({
