@@ -335,6 +335,12 @@
   font-weight: 600;
 }
 
+.session-summary-goal {
+  margin: 0;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
 .session-summary-streak {
   margin: 0;
   font-size: 14px;

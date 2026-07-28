@@ -4,6 +4,7 @@ import {
   MAX_WEAK_SPOTS,
   MIN_SEGMENT_QUESTIONS,
   buildDailyWorkout,
+  workoutCompletedToday,
   type DailyWorkoutInput,
   type ReviewSegment,
   type WeakSpotsSegment,
@@ -229,5 +230,19 @@ describe('buildDailyWorkout', () => {
 
     // Two segments (review + fresh) split the default 20 hands.
     expect(workout?.totalQuestions).toBe(20)
+  })
+})
+
+describe('workoutCompletedToday', () => {
+  it('is true only on the same UTC day', () => {
+    expect(workoutCompletedToday('2026-07-27T06:00:00.000Z', NOW)).toBe(true)
+    expect(workoutCompletedToday('2026-07-27T23:59:59.000Z', NOW)).toBe(true)
+    expect(workoutCompletedToday('2026-07-26T23:59:59.000Z', NOW)).toBe(false)
+    expect(workoutCompletedToday('2026-07-28T00:00:00.000Z', NOW)).toBe(false)
+  })
+
+  it('treats a missing or unparseable record as not completed', () => {
+    expect(workoutCompletedToday(null, NOW)).toBe(false)
+    expect(workoutCompletedToday('not a date', NOW)).toBe(false)
   })
 })

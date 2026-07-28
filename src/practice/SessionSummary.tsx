@@ -7,6 +7,8 @@ export interface SessionSummaryData {
   accuracy: number
   /** Growth-framed comparison line, or null when there is nothing to compare. */
   deltaLine: string | null
+  /** Daily-goal progress line (the workout reports it), or null to omit. */
+  goalLine?: string | null
   /** Streak confirmation line, or null when no streak is active. */
   streakLine: string | null
 }
@@ -67,6 +69,7 @@ export function SessionSummary({ data, hasNext, onNext, onDone }: SessionSummary
         {data.correctAnswers} of {data.totalQuestions} correct
       </p>
       {data.deltaLine && <p className="session-summary-delta">{data.deltaLine}</p>}
+      {data.goalLine && <p className="session-summary-goal">{data.goalLine}</p>}
       {data.streakLine && <p className="session-summary-streak">{data.streakLine}</p>}
       <div className="session-summary-actions">
         {hasNext ? (

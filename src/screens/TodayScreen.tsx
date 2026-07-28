@@ -1,7 +1,12 @@
 import { useState } from 'react'
 import { RangeThumbnail } from '../components/RangeThumbnail'
 import { formatDateLine, formatDayDistance, greetingFor } from '../app/format'
-import { buildDailyWorkout, summarizeWorkout, type DailyWorkout } from '../domain/dailyWorkout'
+import {
+  buildDailyWorkout,
+  summarizeWorkout,
+  workoutCompletedToday,
+  type DailyWorkout,
+} from '../domain/dailyWorkout'
 import { practiceAccuracyPercentage } from '../domain/practiceStats'
 import { currentStreak, selectDueRanges } from '../domain/spacedRepetition'
 import { buildSpotCoverage, inferLibraryContext } from '../domain/spotCoverage'
@@ -13,6 +18,7 @@ import { loadSavedRanges } from '../storage/rangeStorage'
 import { loadSessionHistory } from '../storage/sessionHistoryStorage'
 import { loadSpotAccuracy } from '../storage/spotAccuracyStorage'
 import { loadTrainingGoal, saveTrainingGoal } from '../storage/trainingGoalStorage'
+import { loadWorkoutCompletion } from '../storage/workoutStorage'
 import type { SavedRange, TableSize } from '../types/range'
 import './TodayScreen.css'
 
@@ -61,13 +67,18 @@ export function TodayScreen({ onStartReview, onPlaySpots, onStartWorkout }: Toda
   // The spot drill only has something to deal once a range describes a situation.
   const spotFormat = inferLibraryContext(ranges)
   const spotCoverage = buildSpotCoverage(ranges, spotFormat.tableSize, spotFormat.stackDepthBb)
-  const workout = buildDailyWorkout({
-    ranges,
-    reviewStates,
-    spotAccuracy,
-    now: nowIso,
-    goalHands: goal,
-  })
+  // A finished workout stays finished for the day; the card flips to its done
+  // state instead of re-offering the same plan.
+  const workoutDone = workoutCompletedToday(loadWorkoutCompletion(), nowIso)
+  const workout = workoutDone
+    ? null
+    : buildDailyWorkout({
+        ranges,
+        reviewStates,
+        spotAccuracy,
+        now: nowIso,
+        goalHands: goal,
+      })
 
   return (
     <div className="today">
@@ -102,20 +113,31 @@ export function TodayScreen({ onStartReview, onPlaySpots, onStartWorkout }: Toda
         </section>
       ) : (
         <>
-          {workout && (
+          {workoutDone ? (
             <section className="coach-card today-cta" aria-label="Daily workout">
               <div className="today-cta-copy">
                 <h2>Daily workout</h2>
-                <p className="coach-tabular">{summarizeWorkout(workout)}</p>
+                <p className="coach-tabular">
+                  Done for today. {goal > 0 ? goalLine(goalProgress) : 'See you tomorrow.'}
+                </p>
               </div>
-              <button
-                type="button"
-                className="coach-btn primary"
-                onClick={() => onStartWorkout(workout)}
-              >
-                Start workout
-              </button>
             </section>
+          ) : (
+            workout && (
+              <section className="coach-card today-cta" aria-label="Daily workout">
+                <div className="today-cta-copy">
+                  <h2>Daily workout</h2>
+                  <p className="coach-tabular">{summarizeWorkout(workout)}</p>
+                </div>
+                <button
+                  type="button"
+                  className="coach-btn primary"
+                  onClick={() => onStartWorkout(workout)}
+                >
+                  Start workout
+                </button>
+              </section>
+            )
           )}
 
           {due.length > 0 ? (

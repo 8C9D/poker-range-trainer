@@ -5,6 +5,8 @@ import { ALL_HANDS } from '@core/domain/pokerHands';
 import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
 import { loadReviewStates } from '@core/storage/reviewStateStorage';
 import { loadSpotAccuracy } from '@core/storage/spotAccuracyStorage';
+import { saveTrainingGoal } from '@core/storage/trainingGoalStorage';
+import { loadWorkoutCompletion } from '@core/storage/workoutStorage';
 import type { SavedRange } from '@core/types/range';
 
 import { WorkoutHost } from '../components/practice/WorkoutHost';
@@ -120,10 +122,13 @@ describe('WorkoutHost', () => {
     expect(getByText('1 of 1 correct')).toBeTruthy();
     expect(getByText('Review 1/1')).toBeTruthy();
     expect(loadPracticeStats().a.totalAttempts).toBe(1);
+    // An early exit is not a completed workout: the card keeps offering the plan.
+    expect(loadWorkoutCompletion()).toBeNull();
   });
 
   it('runs the segments back-to-back and sums them in one summary', async () => {
     const user = userEvent.setup();
+    saveTrainingGoal(20);
     const onClose = jest.fn();
     const { getByTestId, getByText, findByTestId } = await render(
       <WorkoutHost workout={makeWorkout()} ranges={[everyHand, btnOpen]} onClose={onClose} />,
@@ -154,6 +159,9 @@ describe('WorkoutHost', () => {
       attempts: 1,
       correct: 1,
     });
+    // A full run completes the workout for the day and reports goal progress.
+    expect(loadWorkoutCompletion()).not.toBeNull();
+    expect(getByText('2 of 20 hands — 18 to go.')).toBeTruthy();
 
     await user.press(await findByTestId('summary-done'));
     expect(onClose).toHaveBeenCalledTimes(1);

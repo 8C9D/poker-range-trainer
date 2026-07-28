@@ -6,6 +6,7 @@ import { saveReviewState } from '@core/storage/reviewStateStorage';
 import { recordPracticeSessionHistory } from '@core/storage/sessionHistoryStorage';
 import { saveSavedRange } from '@core/storage/rangeStorage';
 import { loadTrainingGoal, saveTrainingGoal } from '@core/storage/trainingGoalStorage';
+import { recordWorkoutCompletion } from '@core/storage/workoutStorage';
 import type { SavedRange } from '@core/types/range';
 
 import TodayScreen from '../app/(tabs)/index';
@@ -190,5 +191,36 @@ describe('TodayScreen daily workout', () => {
     const { queryByTestId } = await render(<TodayScreen />);
 
     expect(queryByTestId('today-workout')).toBeNull();
+  });
+});
+
+describe('TodayScreen workout done state', () => {
+  beforeAll(() => {
+    installLocalStorage();
+  });
+
+  beforeEach(() => {
+    localStorageShim.clear();
+  });
+
+  it('flips the card to done for the rest of the day', async () => {
+    seed('r1', 'UTG Open');
+    saveTrainingGoal(20);
+    recordWorkoutCompletion(new Date().toISOString());
+
+    const { getByTestId, queryByTestId } = await render(<TodayScreen />);
+
+    expect(getByTestId('today-workout-done')).toHaveTextContent(/Done for today\. 0 of 20 hands/);
+    expect(queryByTestId('start-workout')).toBeNull();
+  });
+
+  it('re-offers the plan when the completion is from an earlier day', async () => {
+    seed('r1', 'UTG Open');
+    recordWorkoutCompletion('2026-01-05T09:00:00.000Z');
+
+    const { getByTestId, queryByTestId } = await render(<TodayScreen />);
+
+    expect(getByTestId('start-workout')).toBeTruthy();
+    expect(queryByTestId('today-workout-done')).toBeNull();
   });
 });

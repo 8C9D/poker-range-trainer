@@ -1,4 +1,4 @@
-import { selectDueRanges } from './spacedRepetition'
+import { DAY_MS, selectDueRanges } from './spacedRepetition'
 import { describeSpot, spotKey } from './spot'
 import { inferLibraryContext } from './spotCoverage'
 import { coveredSpots } from './spotDrill'
@@ -215,6 +215,18 @@ function selectWeakSpots(
 
 function sameFormat(a: WorkoutFormat, b: WorkoutFormat): boolean {
   return a.tableSize === b.tableSize && a.stackDepthBb === b.stackDepthBb
+}
+
+/**
+ * Whether a recorded completion falls on the same UTC day as `now` (v9.2) —
+ * the same day bucketing the streak and the daily goal use. A missing or
+ * unparseable record counts as not completed.
+ */
+export function workoutCompletedToday(lastCompletedAt: string | null, now: string): boolean {
+  if (!lastCompletedAt) return false
+  const completedDay = Math.floor(new Date(lastCompletedAt).getTime() / DAY_MS)
+  if (!Number.isFinite(completedDay)) return false
+  return completedDay === Math.floor(new Date(now).getTime() / DAY_MS)
 }
 
 /** The heading a segment goes by in hand-offs and summaries. */

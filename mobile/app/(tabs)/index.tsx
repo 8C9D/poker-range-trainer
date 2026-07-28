@@ -2,7 +2,11 @@ import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Link, useFocusEffect } from 'expo-router';
 
-import { buildDailyWorkout, summarizeWorkout } from '@core/domain/dailyWorkout';
+import {
+  buildDailyWorkout,
+  summarizeWorkout,
+  workoutCompletedToday,
+} from '@core/domain/dailyWorkout';
 import { practiceAccuracyPercentage } from '@core/domain/practiceStats';
 import { currentStreak, selectDueRanges } from '@core/domain/spacedRepetition';
 import { buildSpotCoverage, inferLibraryContext } from '@core/domain/spotCoverage';
@@ -18,6 +22,7 @@ import { loadSavedRanges } from '@core/storage/rangeStorage';
 import { loadSessionHistory } from '@core/storage/sessionHistoryStorage';
 import { loadSpotAccuracy } from '@core/storage/spotAccuracyStorage';
 import { loadTrainingGoal, saveTrainingGoal } from '@core/storage/trainingGoalStorage';
+import { loadWorkoutCompletion } from '@core/storage/workoutStorage';
 
 import { RangeThumbnail } from '../../components/RangeThumbnail';
 import { Screen } from '../../components/Screen';
@@ -53,13 +58,18 @@ function loadTodayState() {
   // The spot drill only has something to deal once a range describes a situation.
   const spotFormat = inferLibraryContext(ranges);
   const spotCoverage = buildSpotCoverage(ranges, spotFormat.tableSize, spotFormat.stackDepthBb);
-  const workout = buildDailyWorkout({
-    ranges,
-    reviewStates,
-    spotAccuracy: loadSpotAccuracy(),
-    now: nowIso,
-    goalHands: goal,
-  });
+  // A finished workout stays finished for the day; the card flips to its done
+  // state instead of re-offering the same plan.
+  const workoutDone = workoutCompletedToday(loadWorkoutCompletion(), nowIso);
+  const workout = workoutDone
+    ? null
+    : buildDailyWorkout({
+        ranges,
+        reviewStates,
+        spotAccuracy: loadSpotAccuracy(),
+        now: nowIso,
+        goalHands: goal,
+      });
   return {
     now,
     nowIso,
@@ -74,6 +84,7 @@ function loadTodayState() {
     spotFormat,
     spotCoverage,
     workout,
+    workoutDone,
   };
 }
 
@@ -106,6 +117,7 @@ export default function TodayScreen() {
     spotFormat,
     spotCoverage,
     workout,
+    workoutDone,
   } = state;
   const estimatedMinutes = Math.max(1, Math.ceil(due.length * MINUTES_PER_RANGE));
   const goalProgress = evaluateDailyGoal(history, nowIso, goal);
@@ -161,7 +173,14 @@ export default function TodayScreen() {
           </View>
         ) : (
           <>
-            {workout ? (
+            {workoutDone ? (
+              <View testID="today-workout-done" style={styles.card}>
+                <Text style={styles.cardTitle}>Daily workout</Text>
+                <Text style={styles.cardBody}>
+                  Done for today. {goal > 0 ? goalLine(goalProgress) : 'See you tomorrow.'}
+                </Text>
+              </View>
+            ) : workout ? (
               <View testID="today-workout" style={styles.card}>
                 <Text style={styles.cardTitle}>Daily workout</Text>
                 <Text style={styles.cardBody}>{summarizeWorkout(workout)}</Text>

@@ -7,6 +7,7 @@ import { saveReviewState } from '../storage/reviewStateStorage'
 import { recordPracticeSessionHistory } from '../storage/sessionHistoryStorage'
 import { recordPracticeSession } from '../storage/practiceStatsStorage'
 import { loadTrainingGoal, saveTrainingGoal } from '../storage/trainingGoalStorage'
+import { recordWorkoutCompletion } from '../storage/workoutStorage'
 import type { SavedRange } from '../types/range'
 
 beforeEach(() => {
@@ -220,5 +221,28 @@ describe('TodayScreen daily workout', () => {
 
     expect(screen.getByRole('button', { name: 'Start workout' })).toHaveClass('primary')
     expect(screen.getByRole('button', { name: 'Start review' })).not.toHaveClass('primary')
+  })
+})
+
+describe('TodayScreen workout done state', () => {
+  it('flips the card to done for the rest of the day', () => {
+    saveSavedRange(makeRange('a', 'UTG open'))
+    saveTrainingGoal(20)
+    recordWorkoutCompletion(TODAY)
+    render(<TodayScreen onStartReview={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
+
+    const card = screen.getByRole('region', { name: 'Daily workout' })
+    expect(within(card).getByText(/Done for today\. 0 of 20 hands/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Start workout' })).toBeNull()
+    // With the workout done, plain review is the primary action again.
+    expect(screen.getByRole('button', { name: 'Start review' })).toHaveClass('primary')
+  })
+
+  it('re-offers the plan when the completion is from an earlier day', () => {
+    saveSavedRange(makeRange('a', 'UTG open'))
+    recordWorkoutCompletion('2026-01-05T09:00:00.000Z')
+    render(<TodayScreen onStartReview={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
+
+    expect(screen.getByRole('button', { name: 'Start workout' })).toBeInTheDocument()
   })
 })

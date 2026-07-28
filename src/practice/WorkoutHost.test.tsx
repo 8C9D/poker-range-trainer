@@ -7,6 +7,8 @@ import { ALL_HANDS } from '../domain/pokerHands'
 import { loadPracticeStats } from '../storage/practiceStatsStorage'
 import { loadReviewStates } from '../storage/reviewStateStorage'
 import { loadSpotAccuracy } from '../storage/spotAccuracyStorage'
+import { saveTrainingGoal } from '../storage/trainingGoalStorage'
+import { loadWorkoutCompletion } from '../storage/workoutStorage'
 import type { SavedRange } from '../types/range'
 
 beforeEach(() => {
@@ -114,10 +116,13 @@ describe('WorkoutHost', () => {
     expect(screen.getByText('1 of 1 correct')).toBeInTheDocument()
     expect(screen.getByText('Review 1/1')).toBeInTheDocument()
     expect(loadPracticeStats().a.totalAttempts).toBe(1)
+    // An early exit is not a completed workout: the card keeps offering the plan.
+    expect(loadWorkoutCompletion()).toBeNull()
   })
 
   it('runs the segments back-to-back and sums them in one summary', () => {
     vi.useFakeTimers()
+    saveTrainingGoal(20)
     const onClose = vi.fn()
     render(
       <WorkoutHost workout={makeWorkout()} ranges={[everyHand, btnOpen]} onClose={onClose} />,
@@ -146,6 +151,9 @@ describe('WorkoutHost', () => {
       attempts: 1,
       correct: 1,
     })
+    // A full run completes the workout for the day and reports goal progress.
+    expect(loadWorkoutCompletion()).not.toBeNull()
+    expect(screen.getByText('2 of 20 hands — 18 to go.')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Done' }))
     expect(onClose).toHaveBeenCalledTimes(1)

@@ -12,6 +12,8 @@ export interface SessionSummaryData {
   accuracy: number;
   /** Growth-framed comparison line, or null when there is nothing to compare. */
   deltaLine: string | null;
+  /** Daily-goal progress line (the workout reports it), or null to omit. */
+  goalLine?: string | null;
   /** Streak confirmation line, or null when no streak is active. */
   streakLine: string | null;
 }
@@ -68,6 +70,7 @@ export function SessionSummary({ data, hasNext, onNext, onDone }: SessionSummary
         {data.correctAnswers} of {data.totalQuestions} correct
       </Text>
       {data.deltaLine ? <Text style={styles.delta}>{data.deltaLine}</Text> : null}
+      {data.goalLine ? <Text style={styles.goal}>{data.goalLine}</Text> : null}
       {data.streakLine ? <Text style={styles.streak}>{data.streakLine}</Text> : null}
       <View style={styles.actions}>
         {hasNext ? (
@@ -115,6 +118,7 @@ function makeStyles(theme: ThemeColors) {
       fontVariant: ['tabular-nums'],
     },
     delta: { fontFamily: fonts.bodySemibold, fontSize: 15.5, color: theme.ink2, textAlign: 'center' },
+    goal: { fontFamily: fonts.body, fontSize: 14, color: theme.ink2, textAlign: 'center' },
     streak: { fontFamily: fonts.body, fontSize: 14, color: theme.accent, textAlign: 'center' },
     actions: { flexDirection: 'row', gap: 12, marginTop: 8 },
     primaryBtn: {

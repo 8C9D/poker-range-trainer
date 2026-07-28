@@ -10,8 +10,11 @@ import {
 } from '../domain/dailyWorkout'
 import { currentStreak } from '../domain/spacedRepetition'
 import type { SpotSessionResult } from '../domain/spotDrill'
+import { evaluateDailyGoal, goalLine } from '../domain/trainingGoal'
 import { loadSessionHistory } from '../storage/sessionHistoryStorage'
 import { recordSpotAccuracy } from '../storage/spotAccuracyStorage'
+import { loadTrainingGoal } from '../storage/trainingGoalStorage'
+import { recordWorkoutCompletion } from '../storage/workoutStorage'
 import type { PracticeAttempt } from '../types/practice'
 import type { SavedRange } from '../types/range'
 import { OverlayFrame } from './OverlayFrame'
@@ -59,7 +62,11 @@ export function WorkoutHost({ workout, ranges, onClose }: WorkoutHostProps) {
     tally.correct += attempts.filter((attempt) => attempt.correct).length
   }
 
-  function showSummary() {
+  function showSummary(completed: boolean) {
+    const now = new Date().toISOString()
+    // Only a run that made it through every segment counts as today's workout;
+    // an early exit keeps its answers but leaves the card offering the plan.
+    if (completed) recordWorkoutCompletion(now)
     const total = answeredSoFar()
     const correct = talliesRef.current.reduce((sum, tally) => sum + tally.correct, 0)
     const contributions = segments
@@ -68,10 +75,12 @@ export function WorkoutHost({ workout, ranges, onClose }: WorkoutHostProps) {
       .map(
         ({ segment, tally }) => `${segmentTitle(segment.kind)} ${tally.correct}/${tally.total}`,
       )
-    const playedAt = Object.values(loadSessionHistory())
+    const history = loadSessionHistory()
+    const playedAt = Object.values(history)
       .flat()
       .map((session) => session.playedAt)
-    const streak = currentStreak(playedAt, new Date().toISOString())
+    const streak = currentStreak(playedAt, now)
+    const goalProgress = evaluateDailyGoal(history, now, loadTrainingGoal())
     setPhase({
       kind: 'summary',
       data: {
@@ -79,6 +88,7 @@ export function WorkoutHost({ workout, ranges, onClose }: WorkoutHostProps) {
         correctAnswers: correct,
         accuracy: accuracyPercentage(correct, total),
         deltaLine: contributions.join(' · '),
+        goalLine: goalProgress.target > 0 ? goalLine(goalProgress) : null,
         streakLine:
           streak > 0 ? `${streak}-day streak — see you tomorrow to keep it going.` : null,
       },
@@ -88,7 +98,7 @@ export function WorkoutHost({ workout, ranges, onClose }: WorkoutHostProps) {
   /** Leave the run: nothing answered = abandon, anything answered = summary. */
   function exit() {
     if (answeredSoFar() === 0) onClose()
-    else showSummary()
+    else showSummary(false)
   }
 
   function advance() {
@@ -97,7 +107,7 @@ export function WorkoutHost({ workout, ranges, onClose }: WorkoutHostProps) {
       setRangeIndex(0)
       setPhase({ kind: 'handoff' })
     } else {
-      showSummary()
+      showSummary(true)
     }
   }
 
