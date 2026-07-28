@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Link, useFocusEffect } from 'expo-router';
 
+import { buildDailyWorkout, summarizeWorkout } from '@core/domain/dailyWorkout';
 import { practiceAccuracyPercentage } from '@core/domain/practiceStats';
 import { currentStreak, selectDueRanges } from '@core/domain/spacedRepetition';
 import { buildSpotCoverage, inferLibraryContext } from '@core/domain/spotCoverage';
@@ -15,6 +16,7 @@ import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
 import { loadReviewStates } from '@core/storage/reviewStateStorage';
 import { loadSavedRanges } from '@core/storage/rangeStorage';
 import { loadSessionHistory } from '@core/storage/sessionHistoryStorage';
+import { loadSpotAccuracy } from '@core/storage/spotAccuracyStorage';
 import { loadTrainingGoal, saveTrainingGoal } from '@core/storage/trainingGoalStorage';
 
 import { RangeThumbnail } from '../../components/RangeThumbnail';
@@ -51,6 +53,13 @@ function loadTodayState() {
   // The spot drill only has something to deal once a range describes a situation.
   const spotFormat = inferLibraryContext(ranges);
   const spotCoverage = buildSpotCoverage(ranges, spotFormat.tableSize, spotFormat.stackDepthBb);
+  const workout = buildDailyWorkout({
+    ranges,
+    reviewStates,
+    spotAccuracy: loadSpotAccuracy(),
+    now: nowIso,
+    goalHands: goal,
+  });
   return {
     now,
     nowIso,
@@ -64,6 +73,7 @@ function loadTodayState() {
     goal,
     spotFormat,
     spotCoverage,
+    workout,
   };
 }
 
@@ -95,13 +105,15 @@ export default function TodayScreen() {
     goal,
     spotFormat,
     spotCoverage,
+    workout,
   } = state;
   const estimatedMinutes = Math.max(1, Math.ceil(due.length * MINUTES_PER_RANGE));
   const goalProgress = evaluateDailyGoal(history, nowIso, goal);
 
   const pickGoal = (target: number) => {
     saveTrainingGoal(target);
-    setState((prev) => ({ ...prev, goal: target }));
+    // The workout is sized to the goal, so reload the whole card state.
+    setState(loadTodayState());
   };
 
   const explainStreak = () =>
@@ -149,6 +161,18 @@ export default function TodayScreen() {
           </View>
         ) : (
           <>
+            {workout ? (
+              <View testID="today-workout" style={styles.card}>
+                <Text style={styles.cardTitle}>Daily workout</Text>
+                <Text style={styles.cardBody}>{summarizeWorkout(workout)}</Text>
+                <Link href="/workout" asChild>
+                  <Pressable testID="start-workout" style={styles.primaryBtn}>
+                    <Text style={styles.primaryBtnText}>Start workout</Text>
+                  </Pressable>
+                </Link>
+              </View>
+            ) : null}
+
             {due.length > 0 ? (
               <View style={styles.card}>
                 <Text style={styles.cardTitle}>Today&rsquo;s review</Text>
@@ -162,8 +186,13 @@ export default function TodayScreen() {
                   }}
                   asChild
                 >
-                  <Pressable testID="start-review" style={styles.primaryBtn}>
-                    <Text style={styles.primaryBtnText}>Start review</Text>
+                  <Pressable
+                    testID="start-review"
+                    style={workout ? styles.ghostBtn : styles.primaryBtn}
+                  >
+                    <Text style={workout ? styles.ghostBtnText : styles.primaryBtnText}>
+                      Start review
+                    </Text>
                   </Pressable>
                 </Link>
               </View>

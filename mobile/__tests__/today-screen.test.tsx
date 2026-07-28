@@ -158,3 +158,37 @@ describe('TodayScreen spot drill entry', () => {
     expect(getByTestId('play-spots')).toBeTruthy();
   });
 });
+
+describe('TodayScreen daily workout', () => {
+  beforeAll(() => {
+    installLocalStorage();
+  });
+
+  beforeEach(() => {
+    localStorageShim.clear();
+  });
+
+  it('offers the composed workout as the primary action', async () => {
+    seed('r1', 'UTG Open');
+
+    const { getByTestId } = await render(<TodayScreen />);
+
+    expect(getByTestId('today-workout')).toHaveTextContent(/1 review · ~\d+ min/);
+    expect(getByTestId('start-workout')).toBeTruthy();
+  });
+
+  it('is hidden when there is nothing to plan', async () => {
+    seed('r1', 'Unlabelled');
+    saveReviewState({
+      rangeId: 'r1',
+      ease: 2.5,
+      intervalDays: 1,
+      dueAt: '2999-01-01T00:00:00.000Z',
+      lastReviewedAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    const { queryByTestId } = await render(<TodayScreen />);
+
+    expect(queryByTestId('today-workout')).toBeNull();
+  });
+});
