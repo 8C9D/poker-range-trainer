@@ -216,3 +216,27 @@ function selectWeakSpots(
 function sameFormat(a: WorkoutFormat, b: WorkoutFormat): boolean {
   return a.tableSize === b.tableSize && a.stackDepthBb === b.stackDepthBb
 }
+
+/** The heading a segment goes by in hand-offs and summaries. */
+export function segmentTitle(kind: WorkoutSegment['kind']): string {
+  switch (kind) {
+    case 'review':
+      return 'Review'
+    case 'weakSpots':
+      return 'Weakest spots'
+    case 'freshSpots':
+      return 'Free play'
+  }
+}
+
+/** One line describing the plan, for the workout card. */
+export function summarizeWorkout(workout: DailyWorkout): string {
+  const parts = workout.segments.map((segment) =>
+    segment.kind === 'review'
+      ? `${segment.ranges.length} review${segment.ranges.length === 1 ? '' : 's'}`
+      : segment.kind === 'weakSpots'
+        ? `${segment.leaks.length} weak spot${segment.leaks.length === 1 ? '' : 's'}`
+        : 'free play',
+  )
+  return `${parts.join(' · ')} · ~${workout.estimatedMinutes} min`
+}

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { RangeThumbnail } from '../components/RangeThumbnail'
 import { formatDateLine, formatDayDistance, greetingFor } from '../app/format'
+import { buildDailyWorkout, summarizeWorkout, type DailyWorkout } from '../domain/dailyWorkout'
 import { practiceAccuracyPercentage } from '../domain/practiceStats'
 import { currentStreak, selectDueRanges } from '../domain/spacedRepetition'
 import { buildSpotCoverage, inferLibraryContext } from '../domain/spotCoverage'
@@ -10,6 +11,7 @@ import { loadPracticeStats } from '../storage/practiceStatsStorage'
 import { loadReviewStates } from '../storage/reviewStateStorage'
 import { loadSavedRanges } from '../storage/rangeStorage'
 import { loadSessionHistory } from '../storage/sessionHistoryStorage'
+import { loadSpotAccuracy } from '../storage/spotAccuracyStorage'
 import { loadTrainingGoal, saveTrainingGoal } from '../storage/trainingGoalStorage'
 import type { SavedRange, TableSize } from '../types/range'
 import './TodayScreen.css'
@@ -22,6 +24,8 @@ interface TodayScreenProps {
   onStartReview: (queue: SavedRange[]) => void
   /** Start the spot drill over the whole library at the given format. */
   onPlaySpots: (format: { tableSize: TableSize; stackDepthBb: number }) => void
+  /** Run the composed daily workout. */
+  onStartWorkout: (workout: DailyWorkout) => void
 }
 
 /**
@@ -29,12 +33,13 @@ interface TodayScreenProps {
  * once on mount (practice unmounts this screen, so returning always re-reads
  * fresh stats).
  */
-export function TodayScreen({ onStartReview, onPlaySpots }: TodayScreenProps) {
+export function TodayScreen({ onStartReview, onPlaySpots, onStartWorkout }: TodayScreenProps) {
   const [now] = useState(() => new Date())
   const [ranges] = useState(() => loadSavedRanges())
   const [reviewStates] = useState(() => loadReviewStates())
   const [history] = useState(() => loadSessionHistory())
   const [practiceStats] = useState(() => loadPracticeStats())
+  const [spotAccuracy] = useState(() => loadSpotAccuracy())
   const [goal, setGoal] = useState(() => loadTrainingGoal())
 
   const nowIso = now.toISOString()
@@ -56,6 +61,13 @@ export function TodayScreen({ onStartReview, onPlaySpots }: TodayScreenProps) {
   // The spot drill only has something to deal once a range describes a situation.
   const spotFormat = inferLibraryContext(ranges)
   const spotCoverage = buildSpotCoverage(ranges, spotFormat.tableSize, spotFormat.stackDepthBb)
+  const workout = buildDailyWorkout({
+    ranges,
+    reviewStates,
+    spotAccuracy,
+    now: nowIso,
+    goalHands: goal,
+  })
 
   return (
     <div className="today">
@@ -90,6 +102,22 @@ export function TodayScreen({ onStartReview, onPlaySpots }: TodayScreenProps) {
         </section>
       ) : (
         <>
+          {workout && (
+            <section className="coach-card today-cta" aria-label="Daily workout">
+              <div className="today-cta-copy">
+                <h2>Daily workout</h2>
+                <p className="coach-tabular">{summarizeWorkout(workout)}</p>
+              </div>
+              <button
+                type="button"
+                className="coach-btn primary"
+                onClick={() => onStartWorkout(workout)}
+              >
+                Start workout
+              </button>
+            </section>
+          )}
+
           {due.length > 0 ? (
             <section className="coach-card today-cta" aria-label="Today's review">
               <div className="today-cta-copy">
@@ -99,7 +127,11 @@ export function TodayScreen({ onStartReview, onPlaySpots }: TodayScreenProps) {
                   min
                 </p>
               </div>
-              <button type="button" className="coach-btn primary" onClick={() => onStartReview(due)}>
+              <button
+                type="button"
+                className={workout ? 'coach-btn' : 'coach-btn primary'}
+                onClick={() => onStartReview(due)}
+              >
                 Start review
               </button>
             </section>

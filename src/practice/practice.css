@@ -348,6 +348,25 @@
   padding-top: 8px;
 }
 
+/* --- Daily workout hand-off --- */
+
+.workout-handoff {
+  gap: 10px;
+  text-align: center;
+}
+
+.workout-handoff h2 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.workout-handoff-reason {
+  margin: 0 0 10px;
+  color: var(--ink-2);
+  font-size: 15px;
+  max-width: 420px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .practice-overlay *,
   .practice-overlay *::before,

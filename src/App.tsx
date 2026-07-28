@@ -14,11 +14,15 @@ import type { PracticeRequest } from './practice/PracticeHost'
 const PracticeHost = lazy(() =>
   import('./practice/PracticeHost').then((module) => ({ default: module.PracticeHost })),
 )
+const WorkoutHost = lazy(() =>
+  import('./practice/WorkoutHost').then((module) => ({ default: module.WorkoutHost })),
+)
 import { AccountScreen } from './screens/AccountScreen'
 import { LibraryScreen } from './screens/LibraryScreen'
 import { ProgressScreen } from './screens/ProgressScreen'
 import { RangeScreen } from './screens/RangeScreen'
 import { TodayScreen } from './screens/TodayScreen'
+import type { DailyWorkout } from './domain/dailyWorkout'
 import type { PokerHand } from './domain/pokerHands'
 import { spotKey } from './domain/spot'
 import type { SavedRange } from './types/range'
@@ -95,6 +99,7 @@ function App() {
 function CoachApp() {
   const route = useHashRoute()
   const [practice, setPractice] = useState<PracticeRequest | null>(null)
+  const [workout, setWorkout] = useState<DailyWorkout | null>(null)
 
   function startReview(queue: SavedRange[]) {
     if (queue.length === 0) return
@@ -106,6 +111,20 @@ function CoachApp() {
     // A restricted pool (weak hands) goes straight to recognition; otherwise
     // open the mode picker.
     setPractice({ ranges: [range], mode: handPool ? 'recognize' : null, handPool })
+  }
+
+  if (workout) {
+    return (
+      <Suspense
+        fallback={<div style={{ position: 'fixed', inset: 0, background: 'var(--bg)' }} aria-busy="true" />}
+      >
+        <WorkoutHost
+          workout={workout}
+          ranges={loadSavedRanges()}
+          onClose={() => setWorkout(null)}
+        />
+      </Suspense>
+    )
   }
 
   if (practice) {
@@ -126,6 +145,7 @@ function CoachApp() {
           onPlaySpots={(spotFormat) =>
             setPractice({ ranges: loadSavedRanges(), mode: 'spots', spotFormat })
           }
+          onStartWorkout={setWorkout}
         />
       ) : route.screen === 'library' ? (
         <LibraryScreen
