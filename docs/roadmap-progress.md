@@ -1389,3 +1389,41 @@ could say "you leak from the big blind" but never "you leak in BB vs a CO open".
   (`PracticeRequest.spotKeys`; a restricted run does not chain).
 
 There are now **eight** localStorage keys, not seven.
+
+## v9 progress notes (daily workout)
+
+All three v9 slices are DONE (web + mobile), 2026-07-28.
+
+- **v9.0 — the workout plan.** `src/domain/dailyWorkout.ts`: `buildDailyWorkout` composes
+  today's plan from the stored signals — a review segment (due ranges via
+  `selectDueRanges`, capped at 3), a weak-spot segment (the worst recorded spots under
+  80% accuracy that the current library still covers, capped at 3 and pinned to one
+  format since a spot drill runs at one table size/depth — the weakest qualifying leak
+  picks it), and a fresh-play segment (the spot drill at `inferLibraryContext`'s format,
+  skipped when it would just re-deal the weak spots). Segment sizes split the daily
+  goal (default 20 hands) evenly, floored at 5 questions; each segment carries a
+  plain-language `reason`. Returns `null` when there is nothing to plan. Helpers
+  `segmentTitle` and `summarizeWorkout` keep the wording shared across platforms.
+- **v9.1 — the workout runner.** Web: `src/practice/WorkoutHost.tsx` plays the segments
+  back-to-back — a hand-off screen before each part ("Part 2 of 3", the reason), the
+  existing `RecognitionDrill`/`SpotDrill` at the planned `questionCount`s, and one
+  combined `SessionSummary` (per-segment contributions in the delta line). Recording
+  reuses the drills' existing recorders (`recordFinishedPracticeSession`,
+  `recordSpotAccuracy`), so stats, schedules, and per-spot accuracy advance exactly as
+  if the drills were run by hand. Early close keeps what was answered and jumps to the
+  summary; closing before any answer abandons. Today leads with a "Daily workout" card
+  (`summarizeWorkout` one-liner, primary button; the plain review button demotes to
+  non-primary while the card shows). Mobile mirrors all of it: `mobile/components/
+  practice/WorkoutHost.tsx`, a `/workout` route that recomposes the plan from storage
+  (a workout is derived state — nothing is serialized through the URL), and the same
+  Today card.
+- **v9.2 — workout completion.** `storage/workoutStorage.ts`
+  (`poker-range-trainer.workout.v1`, the NINTH localStorage key) stores the last
+  completion timestamp; `workoutCompletedToday` (in `domain/dailyWorkout`) does the
+  same UTC-day bucketing as the streak. Only a run that finishes every segment records
+  a completion — an early exit re-offers the plan. The Today card flips to "Done for
+  today" (with the daily-goal line) for the rest of the day, and the workout summary
+  reports goal progress (`SessionSummaryData.goalLine`, new optional field on both
+  platforms). The full-backup file deliberately does NOT include the new key — it
+  already excludes the training-goal and spot-accuracy keys, and the completion flag
+  is day-scoped device state, not library data.

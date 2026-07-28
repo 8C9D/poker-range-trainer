@@ -4,7 +4,7 @@ A complete, current guide to manually testing the Poker Range Trainer: how to ru
 it, what features exist (and what records what), what does **not** exist yet, and a
 feature-by-feature checklist of what to test.
 
-This guide reflects the app through the **full v1–v8 roadmap** — every roadmap
+This guide reflects the app through the **full v1–v9 roadmap** — every roadmap
 version is implemented (the only intentionally deferred items are the heavy v5.1
 community features; see §4) — plus post-roadmap additions (range tags). The older, narrower [`manual-testing-checklist.md`](./manual-testing-checklist.md)
 only covers v1–v1.3 and is superseded by this document.
@@ -37,9 +37,10 @@ build.
 The UI is organized as routed screens, navigated from the left icon rail (bottom
 tabs under 640px):
 
-- **Today** (default) — a review queue and streak, the optional daily-goal card,
-  and (once the library covers a standard spot) a **Play the spot** card;
-  **Start review** drills the due ranges straight through.
+- **Today** (default) — the **Daily workout** card (the primary action), a review
+  queue and streak, the optional daily-goal card, and (once the library covers a
+  standard spot) a **Play the spot** card; **Start review** drills the due
+  ranges straight through.
 - **Library** — searchable, filterable rows; **New range** opens a blank editor;
   clicking a row opens that range's page.
 - **Range page** — a per-range page with a header **Practice** button and a **⋯**
@@ -81,12 +82,13 @@ All data lives in `localStorage` under these keys (origin = the dev/preview URL)
 | `poker-range-trainer.review-state.v1` | Spaced-repetition schedule per range |
 | `poker-range-trainer.training-goal.v1` | Daily hands goal (target, or off) |
 | `poker-range-trainer.spot-accuracy.v1` | Per-spot accuracy (the weakest-spots report) |
+| `poker-range-trainer.workout.v1` | When the daily workout was last completed |
 
 **To reset to a clean slate:** open DevTools → Application → Local Storage and
 delete those keys (or "Clear site data"), then reload. An incognito/private window
 is the easiest fully-clean environment.
 
-> **Cloud note:** the eight keys above are the whole story for local-only testing.
+> **Cloud note:** the nine keys above are the whole story for local-only testing.
 > When cloud sync is configured **and** you are signed in, a copy of your library
 > also lives server-side (Supabase) and is **not** removed by clearing
 > `localStorage` — use the "Delete cloud data" control for that (see §3).
@@ -334,7 +336,7 @@ nothing. The streak counts days with any recorded recognition/timed/weakness ses
 
 ## 4. What does NOT exist yet
 
-The app now implements the full **v1–v8** roadmap. The only intentionally
+The app now implements the full **v1–v9** roadmap. The only intentionally
 **deferred** items are the heavy multi-user community features and a few solver-grade
 niceties — don't test for these; confirm they're absent if anything.
 
@@ -704,10 +706,28 @@ from a known state (see §2).
 - [ ] **Drill** on a row reruns the spot drill on that spot alone — it deals only that
       situation and never chains into a follow-up.
 
-### 5.37 Persistence / data integrity
+### 5.37 Daily workout (v9)
+
+- [ ] **Today** leads with a "Daily workout" card summarizing the plan in one line
+      (e.g. "2 reviews · 1 weak spot · free play · ~2 min"); **Start workout** runs it.
+- [ ] The run plays its parts back-to-back with a hand-off screen before each
+      ("Part 2 of 3", the segment's reason); reviews come first, then weakest
+      spots, then free spot play.
+- [ ] Segment sizes scale with the daily goal (the goal's hands split across the
+      parts, never below 5 questions each).
+- [ ] One combined summary ends the run: hands answered, accuracy, what each part
+      contributed, and (when a goal is set) daily-goal progress.
+- [ ] Closing mid-run keeps what was answered (stats/schedules advance) and jumps
+      to the summary; closing before any answer abandons without recording.
+- [ ] Only a full run flips the Today card to "Done for today" (with goal
+      progress) for the rest of the day; an early exit re-offers the plan.
+- [ ] The plain review and Play-the-spot cards remain alongside the workout.
+- [ ] With no due ranges, no weak spots, and no spot coverage, the card is hidden.
+
+### 5.38 Persistence / data integrity
 
 - [ ] Everything survives a page reload (ranges, stats, history, actions, schedule).
-- [ ] Clearing the eight localStorage keys returns the app to a clean slate with no
+- [ ] Clearing the nine localStorage keys returns the app to a clean slate with no
       crash.
 - [ ] Manually corrupting a key (e.g. set `saved-ranges.v1` to `not json`) doesn't
       crash the app — it should fall back to empty/defaults. (Storage validates and

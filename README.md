@@ -13,7 +13,7 @@ the UI (see [Project structure](#project-structure)).
 
 ## Features
 
-The app implements the full roadmap (**v1–v8**). At a glance:
+The app implements the full roadmap (**v1–v9**). At a glance:
 
 - **Range editor** — 13×13 grid with click-to-toggle and drag-to-paint
   selection, range shortcut buttons, live combo count and percentage, range
@@ -48,6 +48,10 @@ The app implements the full roadmap (**v1–v8**). At a glance:
   optional daily hands goal with progress on Today. Each session advances the
   range's review schedule by accuracy, pulled closer when its per-hand record
   still has stubbornly-wrong hands.
+- **Daily workout** — one tap on Today runs a guided session composed from what
+  the data says you need: due reviews, then your weakest recorded spots, then
+  free spot play, sized to the daily goal, ending in one combined summary. A
+  finished workout stays "done" for the rest of the day.
 - **Multi-action ranges** — assign an action (fold/call/raise/3-bet/4-bet/jam/
   mixed) per hand on a multi-color grid, see per-action percentages, and
   import/export action-grouped notation.
