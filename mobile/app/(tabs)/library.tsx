@@ -20,10 +20,11 @@ import {
 } from '@core/domain/rangeLibrary';
 import { calculateRangePercentage } from '@core/domain/rangeMath';
 import { practiceAccuracyPercentage } from '@core/domain/practiceStats';
+import { setRangeArchived } from '@core/domain/rangeArchive';
 import { selectDueRanges } from '@core/domain/spacedRepetition';
 import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
 import { loadReviewStates } from '@core/storage/reviewStateStorage';
-import { deleteSavedRanges, loadSavedRanges } from '@core/storage/rangeStorage';
+import { deleteSavedRanges, loadSavedRanges, saveSavedRange } from '@core/storage/rangeStorage';
 import {
   ACTION_TYPE_LABELS,
   ACTION_TYPES,
@@ -170,6 +171,9 @@ export default function LibraryScreen() {
   ]);
   const visibleIds = new Set(visibleRanges.map((range) => range.id));
   const visibleSelectedIds = new Set([...selectedIds].filter((id) => visibleIds.has(id)));
+  const visibleSelectedRanges = visibleRanges.filter((range) => visibleSelectedIds.has(range.id));
+  const selectedAreArchived =
+    visibleSelectedRanges.length > 0 && visibleSelectedRanges.every((range) => range.archived);
 
   const activeFilterCount =
     (position ? 1 : 0) +
@@ -235,6 +239,30 @@ export default function LibraryScreen() {
                 <Text style={styles.ghostBtnText}>Select visible</Text>
               </Pressable>
               <Text style={styles.selectionCount}>{visibleSelectedIds.size} selected</Text>
+              <Pressable
+                testID="archive-selected"
+                accessibilityRole="button"
+                accessibilityState={{ disabled: visibleSelectedIds.size === 0 }}
+                disabled={visibleSelectedIds.size === 0}
+                style={[styles.ghostBtn, visibleSelectedIds.size === 0 && styles.disabled]}
+                onPress={() => {
+                  const nextArchived = !selectedAreArchived;
+                  setData((current) => ({
+                    ...current,
+                    ranges: current.ranges.map((range) => {
+                      if (!visibleSelectedIds.has(range.id)) return range;
+                      const next = setRangeArchived(range, nextArchived);
+                      saveSavedRange(next);
+                      return next;
+                    }),
+                  }));
+                  setSelectedIds(new Set());
+                }}
+              >
+                <Text style={styles.ghostBtnText}>
+                  {selectedAreArchived ? 'Unarchive' : 'Archive'}
+                </Text>
+              </Pressable>
               <Pressable
                 testID="delete-selected"
                 disabled={visibleSelectedIds.size === 0}

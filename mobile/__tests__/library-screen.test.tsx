@@ -208,4 +208,26 @@ describe('LibraryScreen', () => {
       expect(loadSavedRanges().map((range) => range.name)).toEqual(['Keep']),
     );
   });
+
+  it('bulk archives and unarchives selected ranges', async () => {
+    seed({ id: 'r1', name: 'Keep' });
+    seed({ id: 'r2', name: 'Archive me' });
+
+    const { getByTestId, findByLabelText, findByText } = await render(<LibraryScreen />);
+    await fireEvent.press(getByTestId('manage-ranges'));
+    await fireEvent.press(await findByLabelText('Select Archive me'));
+    await fireEvent.press(getByTestId('archive-selected'));
+
+    await waitFor(() => expect(loadSavedRanges().find((range) => range.id === 'r2')?.archived).toBe(true));
+
+    await fireEvent.press(getByTestId('filters-toggle'));
+    await fireEvent.press(getByTestId('toggle-archived'));
+    await fireEvent.press(await findByLabelText('Select Archive me'));
+    expect(await findByText('Unarchive')).toBeTruthy();
+    await fireEvent.press(getByTestId('archive-selected'));
+
+    await waitFor(() =>
+      expect(loadSavedRanges().some((range) => range.archived)).toBe(false),
+    );
+  });
 });
