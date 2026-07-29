@@ -325,6 +325,6 @@ describe('RangeScreen new-range mode', () => {
     const saved = loadSavedRanges()
     expect(saved).toHaveLength(1)
     expect(saved[0].name).toBe('Fresh range')
-    expect(window.location.hash).toBe(`#/library/${saved[0].id}/edit`)
+    expect(window.location.hash).toBe(`#/library/${saved[0].id}`)
   })
 })

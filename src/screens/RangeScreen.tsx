@@ -132,7 +132,7 @@ export function RangeScreen({ id, tab, prefill, onPractice }: RangeScreenProps) 
         <RangeEditTab
           range={null}
           prefill={prefill}
-          onSaved={(saved) => navigate({ screen: 'range', id: saved.id, tab: 'edit' })}
+          onSaved={(saved) => navigate({ screen: 'range', id: saved.id, tab: 'overview' })}
         />
       </div>
     )
