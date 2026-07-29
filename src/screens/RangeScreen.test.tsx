@@ -220,6 +220,10 @@ describe('RangeScreen tabs', () => {
     await user.click(screen.getByRole('button', { name: 'AA: unassigned' }))
     await user.click(screen.getByRole('button', { name: 'Save actions' }))
     expect(findSavedRangeById('r1')?.handActions?.['AA']).toBe('raise')
+    expect(screen.getByRole('status')).toHaveTextContent('Actions saved.')
+
+    await user.click(screen.getByRole('button', { name: 'KK: unassigned' }))
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
   it('saves partial combo selections from the Combos tab', async () => {

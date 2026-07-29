@@ -453,6 +453,7 @@ function ActionsTab({ range, onSaved }: { range: SavedRange; onSaved: () => void
   const [draft, setDraft] = useState<Record<PokerHand, RangeAction>>({
     ...(range.handActions ?? {}),
   })
+  const [saved, setSaved] = useState(false)
   return (
     <div className="range-tab-stack">
       <div className="range-tab-actions">
@@ -462,16 +463,31 @@ function ActionsTab({ range, onSaved }: { range: SavedRange; onSaved: () => void
           onClick={() => {
             saveSavedRange({ ...range, handActions: draft, updatedAt: new Date().toISOString() })
             onSaved()
+            setSaved(true)
           }}
         >
           Save actions
         </button>
+        {saved && (
+          <p className="range-screen-status" role="status">
+            Actions saved.
+          </p>
+        )}
       </div>
       <MultiActionEditor
         handActions={draft}
-        onSetHandAction={(hand, action) => setDraft((prev) => ({ ...prev, [hand]: action }))}
+        onSetHandAction={(hand, action) => {
+          setSaved(false)
+          setDraft((prev) => ({ ...prev, [hand]: action }))
+        }}
       />
-      <ActionNotation handActions={draft} onReplaceActions={setDraft} />
+      <ActionNotation
+        handActions={draft}
+        onReplaceActions={(next) => {
+          setSaved(false)
+          setDraft(next)
+        }}
+      />
     </div>
   )
 }
