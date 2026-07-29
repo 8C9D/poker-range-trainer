@@ -250,4 +250,23 @@ describe('LibraryScreen', () => {
       expect(loadSavedRanges().some((range) => range.favorite)).toBe(false),
     );
   });
+
+  it('toggles selection for every visible range', async () => {
+    seed({ id: 'r1', name: 'One' });
+    seed({ id: 'r2', name: 'Two' });
+
+    const { getByTestId, findByText, findByLabelText } = await render(<LibraryScreen />);
+    await fireEvent.press(getByTestId('manage-ranges'));
+    await fireEvent.press(getByTestId('select-visible'));
+
+    expect(await findByText('2 selected')).toBeTruthy();
+    await findByLabelText('Deselect One');
+    await findByLabelText('Deselect Two');
+    expect(await findByText('Deselect visible')).toBeTruthy();
+
+    await fireEvent.press(getByTestId('select-visible'));
+    expect(await findByText('0 selected')).toBeTruthy();
+    await findByLabelText('Select One');
+    await findByLabelText('Select Two');
+  });
 });

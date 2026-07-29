@@ -173,6 +173,8 @@ export default function LibraryScreen() {
   const visibleIds = new Set(visibleRanges.map((range) => range.id));
   const visibleSelectedIds = new Set([...selectedIds].filter((id) => visibleIds.has(id)));
   const visibleSelectedRanges = visibleRanges.filter((range) => visibleSelectedIds.has(range.id));
+  const allVisibleSelected =
+    visibleRanges.length > 0 && visibleSelectedIds.size === visibleRanges.length;
   const selectedAreArchived =
     visibleSelectedRanges.length > 0 && visibleSelectedRanges.every((range) => range.archived);
   const selectedAreFavorite =
@@ -236,10 +238,24 @@ export default function LibraryScreen() {
             <View style={styles.bulkActions}>
               <Pressable
                 testID="select-visible"
-                style={styles.ghostBtn}
-                onPress={() => setSelectedIds(new Set(visibleRanges.map((range) => range.id)))}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: visibleRanges.length === 0 }}
+                disabled={visibleRanges.length === 0}
+                style={[styles.ghostBtn, visibleRanges.length === 0 && styles.disabled]}
+                onPress={() =>
+                  setSelectedIds((current) => {
+                    const next = new Set(current);
+                    for (const range of visibleRanges) {
+                      if (allVisibleSelected) next.delete(range.id);
+                      else next.add(range.id);
+                    }
+                    return next;
+                  })
+                }
               >
-                <Text style={styles.ghostBtnText}>Select visible</Text>
+                <Text style={styles.ghostBtnText}>
+                  {allVisibleSelected ? 'Deselect visible' : 'Select visible'}
+                </Text>
               </Pressable>
               <Text style={styles.selectionCount}>{visibleSelectedIds.size} selected</Text>
               <Pressable
