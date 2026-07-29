@@ -168,6 +168,8 @@ export default function LibraryScreen() {
     sort,
     practiceStats,
   ]);
+  const visibleIds = new Set(visibleRanges.map((range) => range.id));
+  const visibleSelectedIds = new Set([...selectedIds].filter((id) => visibleIds.has(id)));
 
   const activeFilterCount =
     (position ? 1 : 0) +
@@ -232,25 +234,27 @@ export default function LibraryScreen() {
               >
                 <Text style={styles.ghostBtnText}>Select visible</Text>
               </Pressable>
-              <Text style={styles.selectionCount}>{selectedIds.size} selected</Text>
+              <Text style={styles.selectionCount}>{visibleSelectedIds.size} selected</Text>
               <Pressable
                 testID="delete-selected"
-                disabled={selectedIds.size === 0}
-                style={[styles.ghostBtn, selectedIds.size === 0 && styles.disabled]}
+                disabled={visibleSelectedIds.size === 0}
+                style={[styles.ghostBtn, visibleSelectedIds.size === 0 && styles.disabled]}
                 onPress={() =>
                   Alert.alert(
                     'Delete selected ranges',
-                    `Delete ${selectedIds.size} selected range${selectedIds.size === 1 ? '' : 's'}? This cannot be undone.`,
+                    `Delete ${visibleSelectedIds.size} selected range${visibleSelectedIds.size === 1 ? '' : 's'}? This cannot be undone.`,
                     [
                       { text: 'Cancel', style: 'cancel' },
                       {
                         text: 'Delete',
                         style: 'destructive',
                         onPress: () => {
-                          deleteSavedRanges(selectedIds);
+                          deleteSavedRanges(visibleSelectedIds);
                           setData((current) => ({
                             ...current,
-                            ranges: current.ranges.filter((range) => !selectedIds.has(range.id)),
+                            ranges: current.ranges.filter(
+                              (range) => !visibleSelectedIds.has(range.id),
+                            ),
                           }));
                           setSelectedIds(new Set());
                         },

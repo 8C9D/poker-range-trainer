@@ -115,6 +115,8 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
           : sort === 'accuracy'
             ? sortRangesByAccuracy(tagged, practiceStats)
             : tagged
+  const visibleIds = new Set(visibleRanges.map((range) => range.id))
+  const visibleSelectedIds = new Set(Array.from(selectedIds).filter((id) => visibleIds.has(id)))
 
   const activeFilterCount =
     (position ? 1 : 0) +
@@ -215,21 +217,23 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
               >
                 Select visible
               </button>
-              <span className="coach-tabular">{selectedIds.size} selected</span>
+              <span className="coach-tabular">{visibleSelectedIds.size} selected</span>
               <button
                 type="button"
                 className="coach-btn danger"
-                disabled={selectedIds.size === 0}
+                disabled={visibleSelectedIds.size === 0}
                 onClick={() => {
                   if (
                     !window.confirm(
-                      `Delete ${selectedIds.size} selected range${selectedIds.size === 1 ? '' : 's'}? This cannot be undone.`,
+                      `Delete ${visibleSelectedIds.size} selected range${visibleSelectedIds.size === 1 ? '' : 's'}? This cannot be undone.`,
                     )
                   ) {
                     return
                   }
-                  deleteSavedRanges(selectedIds)
-                  setRanges((current) => current.filter((range) => !selectedIds.has(range.id)))
+                  deleteSavedRanges(visibleSelectedIds)
+                  setRanges((current) =>
+                    current.filter((range) => !visibleSelectedIds.has(range.id)),
+                  )
                   setSelectedIds(new Set())
                 }}
               >

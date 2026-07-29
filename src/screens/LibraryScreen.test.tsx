@@ -250,4 +250,19 @@ describe('LibraryScreen', () => {
     expect(loadSavedRanges().map((range) => range.name)).toEqual(['Keep'])
     expect(rowNames()).toEqual(['Keep'])
   })
+
+  it('drops bulk selections that become hidden by search', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange('a', 'Keep'))
+    saveSavedRange(makeRange('b', 'Hide me'))
+    render(<LibraryScreen onPlaySpots={vi.fn()} />)
+
+    await user.click(screen.getByRole('button', { name: 'Manage' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select Hide me' }))
+    await user.type(screen.getByLabelText('Search ranges by name'), 'keep')
+
+    expect(screen.getByText('0 selected')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Delete selected' })).toBeDisabled()
+    expect(loadSavedRanges()).toHaveLength(2)
+  })
 })
