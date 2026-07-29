@@ -331,8 +331,16 @@ export function saveSavedRange(range: SavedRange): void {
 
 /** Remove the range with the given id. No-op when the id is not present. */
 export function deleteSavedRange(id: string): void {
+  deleteSavedRanges([id])
+}
+
+/** Remove every range whose id is in the supplied collection, in one storage write. */
+export function deleteSavedRanges(ids: Iterable<string>): void {
+  const idSet = new Set(ids)
+  if (idSet.size === 0) return
+
   const ranges = loadSavedRanges()
-  const remaining = ranges.filter((range) => range.id !== id)
+  const remaining = ranges.filter((range) => !idSet.has(range.id))
   if (remaining.length !== ranges.length) {
     writeSavedRanges(remaining)
   }

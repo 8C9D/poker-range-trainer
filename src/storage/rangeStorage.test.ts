@@ -1,10 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import type { RangeMetadata, SavedRange } from '../types/range'
 import {
   STORAGE_KEY,
   loadSavedRanges,
   saveSavedRange,
   deleteSavedRange,
+  deleteSavedRanges,
   findSavedRangeById,
   replaceSavedRanges,
 } from './rangeStorage'
@@ -134,6 +135,30 @@ describe('deleteSavedRange', () => {
     saveSavedRange(makeRange({ id: 'a' }))
     deleteSavedRange('does-not-exist')
     expect(loadSavedRanges().map((r) => r.id)).toEqual(['a'])
+  })
+})
+
+describe('deleteSavedRanges', () => {
+  it('removes an exact set of ids while preserving the remaining order', () => {
+    saveSavedRange(makeRange({ id: 'a' }))
+    saveSavedRange(makeRange({ id: 'b' }))
+    saveSavedRange(makeRange({ id: 'c' }))
+    saveSavedRange(makeRange({ id: 'd' }))
+
+    deleteSavedRanges(['b', 'd', 'missing', 'b'])
+
+    expect(loadSavedRanges().map((range) => range.id)).toEqual(['a', 'c'])
+  })
+
+  it('does not write when the id collection is empty or has no matches', () => {
+    saveSavedRange(makeRange({ id: 'a' }))
+    const setItem = vi.spyOn(Storage.prototype, 'setItem')
+
+    deleteSavedRanges([])
+    deleteSavedRanges(['missing'])
+
+    expect(setItem).not.toHaveBeenCalled()
+    setItem.mockRestore()
   })
 })
 
