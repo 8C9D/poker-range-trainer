@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import type { ReactNode } from 'react';
 
@@ -36,6 +36,12 @@ describe('LibraryScreen', () => {
 
   beforeEach(() => {
     localStorageShim.clear();
+  });
+
+  afterEach(async () => {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 60));
+    });
   });
 
   it('lists saved ranges with thumbnails', async () => {
