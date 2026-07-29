@@ -230,4 +230,24 @@ describe('LibraryScreen', () => {
       expect(loadSavedRanges().some((range) => range.archived)).toBe(false),
     );
   });
+
+  it('bulk favorites and unfavorites selected ranges', async () => {
+    seed({ id: 'r1', name: 'Keep' });
+    seed({ id: 'r2', name: 'Favorite me' });
+
+    const { getByTestId, findByLabelText, findByText } = await render(<LibraryScreen />);
+    await fireEvent.press(getByTestId('manage-ranges'));
+    await fireEvent.press(await findByLabelText('Select Favorite me'));
+    await fireEvent.press(getByTestId('favorite-selected'));
+
+    await waitFor(() => expect(loadSavedRanges().find((range) => range.id === 'r2')?.favorite).toBe(true));
+
+    await fireEvent.press(await findByLabelText('Select Favorite me'));
+    expect(await findByText('Unfavorite')).toBeTruthy();
+    await fireEvent.press(getByTestId('favorite-selected'));
+
+    await waitFor(() =>
+      expect(loadSavedRanges().some((range) => range.favorite)).toBe(false),
+    );
+  });
 });

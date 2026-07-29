@@ -21,6 +21,7 @@ import {
 import { calculateRangePercentage } from '@core/domain/rangeMath';
 import { practiceAccuracyPercentage } from '@core/domain/practiceStats';
 import { setRangeArchived } from '@core/domain/rangeArchive';
+import { setRangeFavorite } from '@core/domain/rangeFavorite';
 import { selectDueRanges } from '@core/domain/spacedRepetition';
 import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
 import { loadReviewStates } from '@core/storage/reviewStateStorage';
@@ -174,6 +175,8 @@ export default function LibraryScreen() {
   const visibleSelectedRanges = visibleRanges.filter((range) => visibleSelectedIds.has(range.id));
   const selectedAreArchived =
     visibleSelectedRanges.length > 0 && visibleSelectedRanges.every((range) => range.archived);
+  const selectedAreFavorite =
+    visibleSelectedRanges.length > 0 && visibleSelectedRanges.every((range) => range.favorite);
 
   const activeFilterCount =
     (position ? 1 : 0) +
@@ -239,6 +242,30 @@ export default function LibraryScreen() {
                 <Text style={styles.ghostBtnText}>Select visible</Text>
               </Pressable>
               <Text style={styles.selectionCount}>{visibleSelectedIds.size} selected</Text>
+              <Pressable
+                testID="favorite-selected"
+                accessibilityRole="button"
+                accessibilityState={{ disabled: visibleSelectedIds.size === 0 }}
+                disabled={visibleSelectedIds.size === 0}
+                style={[styles.ghostBtn, visibleSelectedIds.size === 0 && styles.disabled]}
+                onPress={() => {
+                  const nextFavorite = !selectedAreFavorite;
+                  setData((current) => ({
+                    ...current,
+                    ranges: current.ranges.map((range) => {
+                      if (!visibleSelectedIds.has(range.id)) return range;
+                      const next = setRangeFavorite(range, nextFavorite);
+                      saveSavedRange(next);
+                      return next;
+                    }),
+                  }));
+                  setSelectedIds(new Set());
+                }}
+              >
+                <Text style={styles.ghostBtnText}>
+                  {selectedAreFavorite ? 'Unfavorite' : 'Favorite'}
+                </Text>
+              </Pressable>
               <Pressable
                 testID="archive-selected"
                 accessibilityRole="button"
