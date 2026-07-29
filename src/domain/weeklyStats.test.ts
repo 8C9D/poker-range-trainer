@@ -43,6 +43,27 @@ describe('summarizeWeek', () => {
     expect(summary.correctAnswers).toBe(4)
   })
 
+  it('uses the same local calendar-day window as the daily chart', () => {
+    const now = new Date(2026, 6, 11, 12).toISOString()
+    const firstDay = new Date(2026, 6, 5, 0, 15).toISOString()
+    const previousEvening = new Date(2026, 6, 4, 23, 45).toISOString()
+    const history = {
+      a: [
+        session('a', previousEvening, 20, 20),
+        session('a', firstDay, 7, 5),
+      ],
+    }
+
+    const summary = summarizeWeek(history, now)
+    const chartTotal = dailyHandCounts(history, now).reduce(
+      (sum, day) => sum + day.handsAnswered,
+      0,
+    )
+
+    expect(summary.handsAnswered).toBe(7)
+    expect(summary.handsAnswered).toBe(chartTotal)
+  })
+
   it('picks the range with the highest windowed accuracy as sharpest', () => {
     const history = {
       a: [session('a', '2026-07-10T10:00:00.000Z', 10, 6)],
