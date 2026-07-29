@@ -279,6 +279,30 @@ describe('LibraryScreen', () => {
     expect(rowNames()).toEqual(['Keep', 'Archive one', 'Archive two'])
   })
 
+  it('bulk favorites and unfavorites selected ranges', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange('a', 'Keep'))
+    saveSavedRange(makeRange('b', 'Favorite one'))
+    saveSavedRange(makeRange('c', 'Favorite two'))
+    render(<LibraryScreen onPlaySpots={vi.fn()} />)
+
+    await user.click(screen.getByRole('button', { name: 'Manage' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select Favorite one' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select Favorite two' }))
+    await user.click(screen.getByRole('button', { name: 'Favorite selected' }))
+
+    expect(loadSavedRanges().filter((range) => range.favorite).map((range) => range.name)).toEqual([
+      'Favorite one',
+      'Favorite two',
+    ])
+
+    await user.click(screen.getByRole('checkbox', { name: 'Select Favorite one' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select Favorite two' }))
+    await user.click(screen.getByRole('button', { name: 'Unfavorite selected' }))
+
+    expect(loadSavedRanges().some((range) => range.favorite)).toBe(false)
+  })
+
   it('drops bulk selections that become hidden by search', async () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'Keep'))
@@ -290,6 +314,7 @@ describe('LibraryScreen', () => {
     await user.type(screen.getByLabelText('Search ranges by name'), 'keep')
 
     expect(screen.getByText('0 selected')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Favorite selected' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Archive selected' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Delete selected' })).toBeDisabled()
     expect(loadSavedRanges()).toHaveLength(2)

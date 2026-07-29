@@ -22,6 +22,7 @@ import {
 import { calculateRangePercentage } from '../domain/rangeMath'
 import { practiceAccuracyPercentage } from '../domain/practiceStats'
 import { setRangeArchived } from '../domain/rangeArchive'
+import { setRangeFavorite } from '../domain/rangeFavorite'
 import { selectDueRanges } from '../domain/spacedRepetition'
 import { loadPracticeStats } from '../storage/practiceStatsStorage'
 import { loadReviewStates } from '../storage/reviewStateStorage'
@@ -121,6 +122,8 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
   const visibleSelectedRanges = visibleRanges.filter((range) => visibleSelectedIds.has(range.id))
   const selectedAreArchived =
     visibleSelectedRanges.length > 0 && visibleSelectedRanges.every((range) => range.archived)
+  const selectedAreFavorite =
+    visibleSelectedRanges.length > 0 && visibleSelectedRanges.every((range) => range.favorite)
 
   const activeFilterCount =
     (position ? 1 : 0) +
@@ -222,6 +225,24 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
                 Select visible
               </button>
               <span className="coach-tabular">{visibleSelectedIds.size} selected</span>
+              <button
+                type="button"
+                className="coach-btn"
+                disabled={visibleSelectedIds.size === 0}
+                onClick={() => {
+                  const nextFavorite = !selectedAreFavorite
+                  const nextRanges = ranges.map((range) => {
+                    if (!visibleSelectedIds.has(range.id)) return range
+                    const next = setRangeFavorite(range, nextFavorite)
+                    saveSavedRange(next)
+                    return next
+                  })
+                  setRanges(nextRanges)
+                  setSelectedIds(new Set())
+                }}
+              >
+                {selectedAreFavorite ? 'Unfavorite selected' : 'Favorite selected'}
+              </button>
               <button
                 type="button"
                 className="coach-btn"

@@ -29,6 +29,7 @@
 
 .library-bulk-actions {
   margin-block: var(--space-3);
+  flex-wrap: wrap;
 }
 
 .library-toolbar {
