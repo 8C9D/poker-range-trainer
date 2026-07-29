@@ -102,6 +102,24 @@ describe('TodayScreen', () => {
     expect(getByTestId('week-hands')).toHaveTextContent('10');
     expect(getByTestId('week-accuracy')).toHaveTextContent('80%');
   });
+
+  it('does not let a deleted range replace the sharpest live range', async () => {
+    seed('live', 'UTG Open');
+    recordPracticeSessionHistory(
+      'live',
+      { totalQuestions: 10, correctAnswers: 8 },
+      new Date().toISOString(),
+    );
+    recordPracticeSessionHistory(
+      'deleted',
+      { totalQuestions: 10, correctAnswers: 10 },
+      new Date().toISOString(),
+    );
+
+    const { getByTestId } = await render(<TodayScreen />);
+
+    expect(getByTestId('week-sharpest')).toHaveTextContent('UTG Open');
+  });
   it('tracks the daily goal and persists a change to it', async () => {
     seed('r1', 'UTG Open');
     recordPracticeSessionHistory(

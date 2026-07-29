@@ -63,6 +63,17 @@ describe('ProgressScreen', () => {
     expect(getByTestId('drill-weak-hands')).toBeTruthy();
   });
 
+  it('leaves deleted ranges out of library analytics', async () => {
+    seed('live', 'UTG Open');
+    recordPracticeSession('live', { totalQuestions: 10, correctAnswers: 8 });
+    recordPracticeSession('deleted', { totalQuestions: 20, correctAnswers: 20 });
+
+    const { getByText, queryByText } = await render(<ProgressScreen />);
+
+    expect(getByText('10')).toBeTruthy();
+    expect(queryByText('30')).toBeNull();
+  });
+
   it('groups misses into hand-type leaks, each drillable', async () => {
     seed('r1', 'UTG Open');
     recordHandAccuracy('r1', [
@@ -146,6 +157,22 @@ describe('ProgressScreen weakest spots', () => {
   });
 
   it('describes the weakest spots, worst first, each drillable', async () => {
+    saveSavedRange({
+      id: 'bb',
+      name: 'BB defend',
+      hands: ['AA', 'KK'],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      metadata: { position: 'bb', actionType: 'defend', versusPosition: 'co' },
+    });
+    saveSavedRange({
+      id: 'btn',
+      name: 'BTN open',
+      hands: ['AA', 'KK'],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      metadata: { position: 'btn', actionType: 'open' },
+    });
     recordSpotAccuracy([
       { spotKey: BB_VS_CO, attempts: 10, correct: 3 },
       { spotKey: 'sixMax|btn|foldedToYou|-|100', attempts: 10, correct: 9 },
@@ -156,5 +183,12 @@ describe('ProgressScreen weakest spots', () => {
       /Weakest spots6-max, 100bb\. You are in the BB facing an open from the CO\.3\/10 · 30%/,
     );
     expect(getByTestId(`drill-spot-${BB_VS_CO}`)).toBeTruthy();
+  });
+
+  it('hides a recorded spot after its covering range is deleted', async () => {
+    recordSpotAccuracy([{ spotKey: BB_VS_CO, attempts: 10, correct: 2 }]);
+    const { queryByTestId } = await render(<ProgressScreen />);
+
+    expect(queryByTestId('spot-leaks')).toBeNull();
   });
 });

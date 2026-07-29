@@ -21,6 +21,7 @@ export function summarizeWeek(
   history: Record<string, PracticeSessionRecord[]>,
   now: string,
   windowDays = 7,
+  sharpestRangeIds?: ReadonlySet<string>,
 ): WeeklySummary {
   const nowTimestamp = new Date(now).getTime()
   const todayNum = localCalendarDay(now)
@@ -45,10 +46,12 @@ export function summarizeWeek(
       if (dayNum === null || dayNum < firstNum || dayNum > todayNum || at > nowTimestamp) continue
       handsAnswered += session.totalQuestions
       correctAnswers += session.correctAnswers
-      const entry = perRange.get(session.rangeId) ?? { total: 0, correct: 0 }
-      entry.total += session.totalQuestions
-      entry.correct += session.correctAnswers
-      perRange.set(session.rangeId, entry)
+      if (sharpestRangeIds === undefined || sharpestRangeIds.has(session.rangeId)) {
+        const entry = perRange.get(session.rangeId) ?? { total: 0, correct: 0 }
+        entry.total += session.totalQuestions
+        entry.correct += session.correctAnswers
+        perRange.set(session.rangeId, entry)
+      }
     }
   }
 

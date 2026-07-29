@@ -62,6 +62,16 @@ describe('ProgressScreen', () => {
     expect(analytics).toHaveTextContent('2 ranges practiced · 14 of 20 correct · 70% overall')
   })
 
+  it('leaves deleted ranges out of library analytics', () => {
+    saveSavedRange(makeRange('live', 'UTG open'))
+    recordPracticeSession('live', { totalQuestions: 10, correctAnswers: 8 }, TODAY)
+    recordPracticeSession('deleted', { totalQuestions: 20, correctAnswers: 20 }, TODAY)
+    render(<ProgressScreen onDrillWeakHands={vi.fn()} onDrillSpot={vi.fn()} />)
+
+    const analytics = screen.getByRole('region', { name: 'Library analytics' })
+    expect(analytics).toHaveTextContent('1 range practiced · 8 of 10 correct · 80% overall')
+  })
+
   it('lists the weakest hands across ranges and drills them per range', async () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'UTG open'))
@@ -182,6 +192,14 @@ describe('ProgressScreen weakest spots', () => {
   it('describes the weakest spots and drills one', async () => {
     const user = userEvent.setup()
     const onDrillSpot = vi.fn()
+    saveSavedRange({
+      ...makeRange('bb', 'BB defend'),
+      metadata: { position: 'bb', actionType: 'defend', versusPosition: 'co' },
+    })
+    saveSavedRange({
+      ...makeRange('btn', 'BTN open'),
+      metadata: { position: 'btn', actionType: 'open' },
+    })
     recordSpotAccuracy([
       { spotKey: BB_VS_CO, attempts: 10, correct: 3 },
       { spotKey: 'sixMax|btn|foldedToYou|-|100', attempts: 10, correct: 9 },
@@ -201,5 +219,12 @@ describe('ProgressScreen weakest spots', () => {
       versusPosition: 'co',
       stackDepthBb: 100,
     })
+  })
+
+  it('hides a recorded spot after its covering range is deleted', () => {
+    recordSpotAccuracy([{ spotKey: BB_VS_CO, attempts: 10, correct: 2 }])
+    render(<ProgressScreen onDrillWeakHands={vi.fn()} onDrillSpot={vi.fn()} />)
+
+    expect(screen.queryByRole('region', { name: 'Weakest spots' })).toBeNull()
   })
 })

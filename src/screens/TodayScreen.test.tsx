@@ -112,6 +112,16 @@ describe('TodayScreen', () => {
     expect(within(tiles).getByText('BTN open')).toBeInTheDocument()
   })
 
+  it('does not let a deleted range replace the sharpest live range', () => {
+    saveSavedRange(makeRange('live', 'UTG open'))
+    recordPracticeSessionHistory('live', { totalQuestions: 10, correctAnswers: 8 }, TODAY)
+    recordPracticeSessionHistory('deleted', { totalQuestions: 10, correctAnswers: 10 }, TODAY)
+    render(<TodayScreen onStartReview={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
+
+    const tiles = screen.getByRole('region', { name: 'This week' })
+    expect(within(tiles).getByText('UTG open')).toBeInTheDocument()
+  })
+
   it('tracks the daily goal and persists a change to it', async () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'UTG open'))

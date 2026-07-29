@@ -6,7 +6,7 @@ import { HAND_CLASS_LABELS } from '@core/domain/handClass';
 import { rankHandClassLeaks } from '@core/domain/leakReport';
 import { summarizeLibraryAnalytics } from '@core/domain/libraryAnalytics';
 import { currentStreak } from '@core/domain/spacedRepetition';
-import { describeSpot, spotKey } from '@core/domain/spot';
+import { describeSpot, matchRangeToSpot, spotKey } from '@core/domain/spot';
 import { rankSpotLeaks } from '@core/domain/spotLeaks';
 import {
   accuracyByActionType,
@@ -40,7 +40,10 @@ function loadProgressState() {
     .map((session) => session.playedAt);
   const streak = currentStreak(playedAt, nowIso);
   const month = summarizeWeek(history, nowIso, 30);
-  const analytics = summarizeLibraryAnalytics(Object.values(practiceStats));
+  const liveRangeIds = new Set(ranges.map((range) => range.id));
+  const analytics = summarizeLibraryAnalytics(
+    Object.values(practiceStats).filter((stat) => liveRangeIds.has(stat.rangeId)),
+  );
   const days = dailyHandCounts(history, nowIso);
   const weakHands = rankWeakHands(handAccuracy).filter((entry) =>
     ranges.some((range) => range.id === entry.rangeId),
@@ -50,7 +53,9 @@ function loadProgressState() {
     Object.entries(handAccuracy).filter(([rangeId]) => ranges.some((range) => range.id === rangeId)),
   );
   const leaks = rankHandClassLeaks(liveAccuracy);
-  const spotLeaks = rankSpotLeaks(loadSpotAccuracy());
+  const spotLeaks = rankSpotLeaks(loadSpotAccuracy()).filter(
+    (leak) => matchRangeToSpot(ranges, leak.spot) !== null,
+  );
   const seatGroups = accuracyByPosition(ranges, practiceStats);
   const actionGroups = accuracyByActionType(ranges, practiceStats);
   return {

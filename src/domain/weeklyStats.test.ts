@@ -94,6 +94,18 @@ describe('summarizeWeek', () => {
     expect(summary.sharpestRangeId).toBe('b')
     expect(summary.sharpestAccuracy).toBe(80)
   })
+
+  it('can exclude deleted ranges from the sharpest ranking without losing volume', () => {
+    const history = {
+      live: [session('live', '2026-07-10T10:00:00.000Z', 10, 8)],
+      deleted: [session('deleted', '2026-07-10T11:00:00.000Z', 10, 10)],
+    }
+
+    const summary = summarizeWeek(history, NOW, 7, new Set(['live']))
+
+    expect(summary.handsAnswered).toBe(20)
+    expect(summary.sharpestRangeId).toBe('live')
+  })
 })
 
 describe('dailyHandCounts', () => {

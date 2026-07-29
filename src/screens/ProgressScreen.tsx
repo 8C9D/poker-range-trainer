@@ -8,7 +8,7 @@ import {
   accuracyByPosition,
   type AccuracyGroup,
 } from '../domain/seatAccuracy'
-import { describeSpot, spotKey, type Spot } from '../domain/spot'
+import { describeSpot, matchRangeToSpot, spotKey, type Spot } from '../domain/spot'
 import { rankSpotLeaks } from '../domain/spotLeaks'
 import { rankWeakHands, weakHandPools } from '../domain/weakHands'
 import { dailyHandCounts, summarizeWeek } from '../domain/weeklyStats'
@@ -47,7 +47,10 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
     .map((session) => session.playedAt)
   const streak = currentStreak(playedAt, nowIso)
   const month = summarizeWeek(history, nowIso, 30)
-  const analytics = summarizeLibraryAnalytics(Object.values(practiceStats))
+  const liveRangeIds = new Set(ranges.map((range) => range.id))
+  const analytics = summarizeLibraryAnalytics(
+    Object.values(practiceStats).filter((stat) => liveRangeIds.has(stat.rangeId)),
+  )
   const days = dailyHandCounts(history, nowIso)
   const maxDay = Math.max(1, ...days.map((day) => day.handsAnswered))
   const weakHands = rankWeakHands(handAccuracy).filter((entry) =>
@@ -60,7 +63,9 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
     ),
   )
   const leaks = rankHandClassLeaks(liveAccuracy)
-  const spotLeaks = rankSpotLeaks(spotAccuracy)
+  const spotLeaks = rankSpotLeaks(spotAccuracy).filter(
+    (leak) => matchRangeToSpot(ranges, leak.spot) !== null,
+  )
   const seatGroups = accuracyByPosition(ranges, practiceStats)
   const actionGroups = accuracyByActionType(ranges, practiceStats)
 

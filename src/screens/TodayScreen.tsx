@@ -59,7 +59,7 @@ export function TodayScreen({ onStartReview, onPlaySpots, onStartWorkout }: Toda
     .flat()
     .map((session) => session.playedAt)
   const streak = currentStreak(playedAt, nowIso)
-  const week = summarizeWeek(history, nowIso)
+  const week = summarizeWeek(history, nowIso, 7, new Set(ranges.map((range) => range.id)))
   const sharpestName = week.sharpestRangeId
     ? (ranges.find((range) => range.id === week.sharpestRangeId)?.name ?? null)
     : null
