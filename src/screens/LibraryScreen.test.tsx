@@ -303,6 +303,24 @@ describe('LibraryScreen', () => {
     expect(loadSavedRanges().some((range) => range.favorite)).toBe(false)
   })
 
+  it('toggles selection for every visible range', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange('a', 'One'))
+    saveSavedRange(makeRange('b', 'Two'))
+    render(<LibraryScreen onPlaySpots={vi.fn()} />)
+
+    await user.click(screen.getByRole('button', { name: 'Manage' }))
+    await user.click(screen.getByRole('button', { name: 'Select visible' }))
+    expect(screen.getByText('2 selected')).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Select One' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Select Two' })).toBeChecked()
+
+    await user.click(screen.getByRole('button', { name: 'Deselect visible' }))
+    expect(screen.getByText('0 selected')).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Select One' })).not.toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Select Two' })).not.toBeChecked()
+  })
+
   it('drops bulk selections that become hidden by search', async () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'Keep'))

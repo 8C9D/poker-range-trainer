@@ -120,6 +120,8 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
   const visibleIds = new Set(visibleRanges.map((range) => range.id))
   const visibleSelectedIds = new Set(Array.from(selectedIds).filter((id) => visibleIds.has(id)))
   const visibleSelectedRanges = visibleRanges.filter((range) => visibleSelectedIds.has(range.id))
+  const allVisibleSelected =
+    visibleRanges.length > 0 && visibleSelectedIds.size === visibleRanges.length
   const selectedAreArchived =
     visibleSelectedRanges.length > 0 && visibleSelectedRanges.every((range) => range.archived)
   const selectedAreFavorite =
@@ -219,10 +221,19 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
               <button
                 type="button"
                 className="coach-btn"
-                onClick={() => setSelectedIds(new Set(visibleRanges.map((range) => range.id)))}
+                onClick={() =>
+                  setSelectedIds((current) => {
+                    const next = new Set(current)
+                    for (const range of visibleRanges) {
+                      if (allVisibleSelected) next.delete(range.id)
+                      else next.add(range.id)
+                    }
+                    return next
+                  })
+                }
                 disabled={visibleRanges.length === 0}
               >
-                Select visible
+                {allVisibleSelected ? 'Deselect visible' : 'Select visible'}
               </button>
               <span className="coach-tabular">{visibleSelectedIds.size} selected</span>
               <button
