@@ -27,47 +27,35 @@ interface SessionSummaryProps {
 }
 
 /**
- * The peak-end session summary: an accuracy ring whose percentage counts up (and scales
- * in) on mount, the count line, the growth-framed delta, and the streak confirmation.
- * Honors the reduce-motion setting — it snaps to the final value instead of animating.
+ * The peak-end session summary: an accuracy ring that scales in on mount, the count
+ * line, the growth-framed delta, and the streak confirmation. The final score is
+ * readable immediately; reduced motion skips the entrance animation entirely.
  */
 export function SessionSummary({ data, hasNext, onNext, onDone }: SessionSummaryProps) {
   const theme = useTheme();
   const styles = makeStyles(theme);
 
-  const [value] = useState(() => new Animated.Value(0));
-  const [scale] = useState(() => new Animated.Value(0.85));
-  const [shown, setShown] = useState(0);
+  const [scale] = useState(() => new Animated.Value(1));
 
   useEffect(() => {
-    const listenerId = value.addListener(({ value: v }) => setShown(Math.round(v)));
     let cancelled = false;
     let animation: Animated.CompositeAnimation | null = null;
     AccessibilityInfo.isReduceMotionEnabled().then((reduce) => {
-      if (cancelled) return;
-      if (reduce) {
-        value.setValue(data.accuracy);
-        scale.setValue(1);
-        setShown(Math.round(data.accuracy));
-        return;
-      }
-      animation = Animated.parallel([
-        Animated.timing(value, { toValue: data.accuracy, duration: 800, useNativeDriver: false }),
-        Animated.spring(scale, { toValue: 1, friction: 6, useNativeDriver: true }),
-      ]);
+      if (cancelled || reduce) return;
+      scale.setValue(0.85);
+      animation = Animated.spring(scale, { toValue: 1, friction: 6, useNativeDriver: true });
       animation.start();
     });
     return () => {
       cancelled = true;
       animation?.stop();
-      value.removeListener(listenerId);
     };
-  }, [data.accuracy, value, scale]);
+  }, [scale]);
 
   return (
     <View style={styles.wrap}>
       <Animated.View style={[styles.ring, { transform: [{ scale }] }]}>
-        <Text style={styles.ringLabel}>{shown}%</Text>
+        <Text style={styles.ringLabel}>{Math.round(data.accuracy)}%</Text>
       </Animated.View>
       <Text style={styles.count}>
         {data.correctAnswers} of {data.totalQuestions} correct
