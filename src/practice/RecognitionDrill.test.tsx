@@ -135,6 +135,34 @@ describe('RecognitionDrill', () => {
     expect(screen.getByText('Correct — open AA.')).toBeInTheDocument()
   })
 
+  it('answers with arrow keys and ignores duplicate input during feedback', () => {
+    const onFinish = vi.fn()
+    render(
+      <RecognitionDrill
+        range={RANGE}
+        variant="standard"
+        handPool={['AA']}
+        onFinish={onFinish}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Open' })).toHaveAttribute(
+      'aria-keyshortcuts',
+      'ArrowRight',
+    )
+    expect(screen.getByRole('button', { name: 'Fold' })).toHaveAttribute(
+      'aria-keyshortcuts',
+      'ArrowLeft',
+    )
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    fireEvent.keyDown(window, { key: 'ArrowLeft' })
+    expect(screen.getByText('Correct — open AA.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close practice' }))
+    expect(onFinish.mock.calls[0][0]).toHaveLength(1)
+    expect(onFinish.mock.calls[0][0][0].userAnsweredInRange).toBe(true)
+  })
+
   it('uses the full question count by default', () => {
     expect(DRILL_QUESTION_COUNT).toBe(20)
   })

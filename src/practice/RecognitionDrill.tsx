@@ -85,6 +85,7 @@ export function RecognitionDrill({
   const [feedback, setFeedback] = useState<PracticeAttempt | null>(null)
   const attemptsRef = useRef(attempts)
   const finishedRef = useRef(false)
+  const answeringRef = useRef(false)
   const dwellTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Timed variant: tick every 250ms and end the session when time is up.
@@ -118,7 +119,8 @@ export function RecognitionDrill({
   )
 
   function answer(userAnsweredInRange: boolean) {
-    if (feedback !== null || finishedRef.current) return
+    if (answeringRef.current || feedback !== null || finishedRef.current) return
+    answeringRef.current = true
     const attempt = createPracticeAttempt(prompt.hand, range.hands, userAnsweredInRange)
     const nextAttempts = [...attempts, attempt]
     setAttempts(nextAttempts)
@@ -139,10 +141,36 @@ export function RecognitionDrill({
         finish(nextAttempts)
         return
       }
+      answeringRef.current = false
       setFeedback(null)
       setPrompt(drawPrompt(nextAttempts))
     }, dwell)
   }
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.repeat || event.altKey || event.ctrlKey || event.metaKey) return
+      const target = event.target
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return
+      }
+      if (event.key === 'ArrowRight') {
+        event.preventDefault()
+        answer(true)
+      } else if (event.key === 'ArrowLeft') {
+        event.preventDefault()
+        answer(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  })
 
   const swipe = useSwipe({
     onSwipeRight: () => answer(true),
@@ -189,7 +217,7 @@ export function RecognitionDrill({
         </div>
         {!feedback && (
           <p className="drill-swipe-hint">
-            Swipe right to {verbs.yes.toLowerCase()}, left to fold
+            Swipe or use arrow keys: right to {verbs.yes.toLowerCase()}, left to fold
           </p>
         )}
       </div>
@@ -198,6 +226,7 @@ export function RecognitionDrill({
           type="button"
           className="drill-answer yes"
           disabled={feedback !== null}
+          aria-keyshortcuts="ArrowRight"
           onClick={() => answer(true)}
         >
           {verbs.yes}
@@ -206,6 +235,7 @@ export function RecognitionDrill({
           type="button"
           className="drill-answer no"
           disabled={feedback !== null}
+          aria-keyshortcuts="ArrowLeft"
           onClick={() => answer(false)}
         >
           {verbs.no}
