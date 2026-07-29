@@ -157,6 +157,33 @@ describe('RangeEditTab save accessibility', () => {
   })
 })
 
+describe('RangeEditTab selection history', () => {
+  it('undoes and redoes hand selection changes', () => {
+    const onSaved = vi.fn()
+    render(<RangeEditTab range={makeRange()} onSaved={onSaved} />)
+
+    const aces = screen.getByRole('button', { name: 'AA' })
+    fireEvent.click(aces)
+    expect(aces).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    expect(aces).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Redo' }))
+    expect(aces).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('clears redo history after a new grid edit', () => {
+    render(<RangeEditTab range={makeRange()} onSaved={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'AA' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    fireEvent.click(screen.getByRole('button', { name: 'QQ' }))
+
+    expect(screen.getByRole('button', { name: 'Redo' })).toBeDisabled()
+  })
+})
+
 describe('RangeEditTab scenario pre-fill', () => {
   it('starts a new range from the supplied scenario metadata', () => {
     render(

@@ -8,6 +8,12 @@ import { RangeShortcuts } from '../components/RangeShortcuts'
 import { RangeTagEditor } from '../components/RangeTagEditor'
 import type { HandMixedStrategy } from '../domain/mixedStrategy'
 import type { PokerHand } from '../domain/pokerHands'
+import {
+  createHandSelectionHistory,
+  recordHandSelection,
+  redoHandSelection,
+  undoHandSelection,
+} from '../domain/handSelectionHistory'
 import { normalizeTags } from '../domain/rangeLibrary'
 import {
   calculateRangePercentage,
@@ -49,7 +55,10 @@ interface RangeEditTabProps {
 export function RangeEditTab({ range, prefill, onSaved }: RangeEditTabProps) {
   const initial = range?.metadata ?? (range ? undefined : prefill)
   const [name, setName] = useState(range?.name ?? '')
-  const [selected, setSelected] = useState<Set<PokerHand>>(() => new Set(range?.hands ?? []))
+  const [selectionHistory, setSelectionHistory] = useState(() =>
+    createHandSelectionHistory(range?.hands ?? []),
+  )
+  const selected = useMemo(() => new Set(selectionHistory.present), [selectionHistory.present])
   const [gameType, setGameType] = useState<GameType | ''>(initial?.gameType ?? '')
   const [tableSize, setTableSize] = useState<TableSize | ''>(initial?.tableSize ?? '')
   const [stackDepth, setStackDepth] = useState(
@@ -86,16 +95,22 @@ export function RangeEditTab({ range, prefill, onSaved }: RangeEditTabProps) {
 
   function setHandSelected(hand: PokerHand, shouldSelect: boolean) {
     setSavedName(null)
-    setSelected((prev) => {
-      if (prev.has(hand) === shouldSelect) return prev
+    setSelectionHistory((history) => {
+      const prev = new Set(history.present)
+      if (prev.has(hand) === shouldSelect) return history
       const next = new Set(prev)
       if (shouldSelect) {
         next.add(hand)
       } else {
         next.delete(hand)
       }
-      return next
+      return recordHandSelection(history, next)
     })
+  }
+
+  function replaceSelection(hands: Iterable<PokerHand>) {
+    setSavedName(null)
+    setSelectionHistory((history) => recordHandSelection(history, hands))
   }
 
   // Blank means "no stack depth"; a non-empty value must parse to a positive,
@@ -232,13 +247,32 @@ export function RangeEditTab({ range, prefill, onSaved }: RangeEditTabProps) {
         <button
           type="button"
           className="coach-btn quiet"
-          onClick={() => {
-            setSavedName(null)
-            setSelected(new Set())
-          }}
+          onClick={() => replaceSelection([])}
           disabled={selected.size === 0}
         >
           Clear Selection
+        </button>
+        <button
+          type="button"
+          className="coach-btn quiet"
+          onClick={() => {
+            setSavedName(null)
+            setSelectionHistory(undoHandSelection)
+          }}
+          disabled={selectionHistory.past.length === 0}
+        >
+          Undo
+        </button>
+        <button
+          type="button"
+          className="coach-btn quiet"
+          onClick={() => {
+            setSavedName(null)
+            setSelectionHistory(redoHandSelection)
+          }}
+          disabled={selectionHistory.future.length === 0}
+        >
+          Redo
         </button>
         {saveHint && (
           <p id="range-edit-save-hint" className="range-edit-hint">
@@ -262,17 +296,13 @@ export function RangeEditTab({ range, prefill, onSaved }: RangeEditTabProps) {
 
       <RangeShortcuts
         onAddHands={(hands) => {
-          setSavedName(null)
-          setSelected((prev) => new Set(mergeShortcutHands(Array.from(prev), hands)))
+          replaceSelection(mergeShortcutHands(Array.from(selected), hands))
         }}
       />
 
       <RangeNotation
         selectedHands={selectedHands}
-        onReplaceHands={(hands) => {
-          setSavedName(null)
-          setSelected(new Set(hands))
-        }}
+        onReplaceHands={replaceSelection}
       />
 
       <RangeMetadataEditor
