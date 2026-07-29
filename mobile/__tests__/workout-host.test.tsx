@@ -121,7 +121,7 @@ describe('WorkoutHost', () => {
     await user.press(getByTestId('overlay-close'));
 
     expect(getByText('1 of 1 correct')).toBeTruthy();
-    expect(getByText('Review 1/1')).toBeTruthy();
+    expect(getByText('Stopped early · Review 1/1')).toBeTruthy();
     expect(loadPracticeStats().a.totalAttempts).toBe(1);
     // An early exit is not a completed workout: the card keeps offering the plan.
     expect(loadWorkoutCompletion()).toBeNull();

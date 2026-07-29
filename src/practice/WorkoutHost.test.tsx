@@ -115,7 +115,7 @@ describe('WorkoutHost', () => {
 
     expect(screen.getByLabelText('Session summary')).toBeInTheDocument()
     expect(screen.getByText('1 of 1 correct')).toBeInTheDocument()
-    expect(screen.getByText('Review 1/1')).toBeInTheDocument()
+    expect(screen.getByText('Stopped early · Review 1/1')).toBeInTheDocument()
     expect(loadPracticeStats().a.totalAttempts).toBe(1)
     // An early exit is not a completed workout: the card keeps offering the plan.
     expect(loadWorkoutCompletion()).toBeNull()

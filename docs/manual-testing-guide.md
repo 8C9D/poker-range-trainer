@@ -719,7 +719,8 @@ from a known state (see §2).
 - [ ] One combined summary ends the run: hands answered, accuracy, what each part
       contributed, and (when a goal is set) daily-goal progress.
 - [ ] Closing mid-run keeps what was answered (stats/schedules advance) and jumps
-      to the summary; closing before any answer abandons without recording.
+      to a summary labelled "Stopped early"; closing before any answer abandons
+      without recording.
 - [ ] Only a full run flips the Today card to "Done for today" (with goal
       progress) for the rest of the day; an early exit re-offers the plan.
 - [ ] The plain review and Play-the-spot cards remain alongside the workout.

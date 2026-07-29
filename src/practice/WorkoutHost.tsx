@@ -81,13 +81,14 @@ export function WorkoutHost({ workout, ranges, onClose }: WorkoutHostProps) {
       .map((session) => session.playedAt)
     const streak = currentStreak(playedAt, now)
     const goalProgress = evaluateDailyGoal(history, now, loadTrainingGoal())
+    const contributionLine = contributions.join(' · ')
     setPhase({
       kind: 'summary',
       data: {
         totalQuestions: total,
         correctAnswers: correct,
         accuracy: accuracyPercentage(correct, total),
-        deltaLine: contributions.join(' · '),
+        deltaLine: completed ? contributionLine : `Stopped early · ${contributionLine}`,
         goalLine: goalProgress.target > 0 ? goalLine(goalProgress) : null,
         streakLine:
           streak > 0 ? `${streak}-day streak — see you tomorrow to keep it going.` : null,
