@@ -21,10 +21,11 @@ import {
 } from '../domain/rangeLibrary'
 import { calculateRangePercentage } from '../domain/rangeMath'
 import { practiceAccuracyPercentage } from '../domain/practiceStats'
+import { setRangeArchived } from '../domain/rangeArchive'
 import { selectDueRanges } from '../domain/spacedRepetition'
 import { loadPracticeStats } from '../storage/practiceStatsStorage'
 import { loadReviewStates } from '../storage/reviewStateStorage'
-import { deleteSavedRanges, loadSavedRanges } from '../storage/rangeStorage'
+import { deleteSavedRanges, loadSavedRanges, saveSavedRange } from '../storage/rangeStorage'
 import {
   ACTION_TYPE_LABELS,
   ACTION_TYPES,
@@ -117,6 +118,9 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
             : tagged
   const visibleIds = new Set(visibleRanges.map((range) => range.id))
   const visibleSelectedIds = new Set(Array.from(selectedIds).filter((id) => visibleIds.has(id)))
+  const visibleSelectedRanges = visibleRanges.filter((range) => visibleSelectedIds.has(range.id))
+  const selectedAreArchived =
+    visibleSelectedRanges.length > 0 && visibleSelectedRanges.every((range) => range.archived)
 
   const activeFilterCount =
     (position ? 1 : 0) +
@@ -218,6 +222,24 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
                 Select visible
               </button>
               <span className="coach-tabular">{visibleSelectedIds.size} selected</span>
+              <button
+                type="button"
+                className="coach-btn"
+                disabled={visibleSelectedIds.size === 0}
+                onClick={() => {
+                  const nextArchived = !selectedAreArchived
+                  const nextRanges = ranges.map((range) => {
+                    if (!visibleSelectedIds.has(range.id)) return range
+                    const next = setRangeArchived(range, nextArchived)
+                    saveSavedRange(next)
+                    return next
+                  })
+                  setRanges(nextRanges)
+                  setSelectedIds(new Set())
+                }}
+              >
+                {selectedAreArchived ? 'Unarchive selected' : 'Archive selected'}
+              </button>
               <button
                 type="button"
                 className="coach-btn danger"

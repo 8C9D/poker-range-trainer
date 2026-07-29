@@ -251,6 +251,34 @@ describe('LibraryScreen', () => {
     expect(rowNames()).toEqual(['Keep'])
   })
 
+  it('bulk archives and unarchives selected ranges', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange('a', 'Keep'))
+    saveSavedRange(makeRange('b', 'Archive one'))
+    saveSavedRange(makeRange('c', 'Archive two'))
+    render(<LibraryScreen onPlaySpots={vi.fn()} />)
+
+    await user.click(screen.getByRole('button', { name: 'Manage' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select Archive one' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select Archive two' }))
+    await user.click(screen.getByRole('button', { name: 'Archive selected' }))
+
+    expect(loadSavedRanges().filter((range) => range.archived).map((range) => range.name)).toEqual([
+      'Archive one',
+      'Archive two',
+    ])
+    expect(rowNames()).toEqual(['Keep'])
+
+    await user.click(screen.getByRole('button', { name: 'Filters' }))
+    await user.click(screen.getByRole('button', { name: 'Show archived' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select Archive one' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select Archive two' }))
+    await user.click(screen.getByRole('button', { name: 'Unarchive selected' }))
+
+    expect(loadSavedRanges().some((range) => range.archived)).toBe(false)
+    expect(rowNames()).toEqual(['Keep', 'Archive one', 'Archive two'])
+  })
+
   it('drops bulk selections that become hidden by search', async () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'Keep'))
@@ -262,6 +290,7 @@ describe('LibraryScreen', () => {
     await user.type(screen.getByLabelText('Search ranges by name'), 'keep')
 
     expect(screen.getByText('0 selected')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Archive selected' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Delete selected' })).toBeDisabled()
     expect(loadSavedRanges()).toHaveLength(2)
   })
