@@ -172,6 +172,24 @@ describe('LibraryScreen', () => {
     expect(rowNames()).toEqual(['MTT 40bb jam'])
   })
 
+  it('clears search, sort, filters, and toggles in one action', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange('a', 'Zebra', { metadata: { position: 'utg' } }))
+    saveSavedRange(makeRange('b', 'Alpha', { metadata: { position: 'btn' } }))
+    render(<LibraryScreen onPlaySpots={vi.fn()} />)
+
+    await user.type(screen.getByLabelText('Search ranges by name'), 'alpha')
+    await user.selectOptions(screen.getByLabelText('Sort ranges'), 'name')
+    await user.click(screen.getByRole('button', { name: 'Filters' }))
+    await user.selectOptions(screen.getByLabelText('Filter ranges by position'), 'btn')
+    expect(rowNames()).toEqual(['Alpha'])
+
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }))
+    expect(screen.getByLabelText('Search ranges by name')).toHaveValue('')
+    expect(screen.getByLabelText('Sort ranges')).toHaveValue('')
+    expect(rowNames()).toEqual(['Zebra', 'Alpha'])
+  })
+
   it('hides archived ranges until Show archived is on', async () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'Active range'))

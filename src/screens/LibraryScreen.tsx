@@ -124,6 +124,19 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
     (tag ? 1 : 0) +
     (favoritesOnly ? 1 : 0) +
     (showArchived ? 1 : 0)
+  const hasViewChanges = query.length > 0 || sort !== '' || activeFilterCount > 0
+
+  function clearViewChanges() {
+    setQuery('')
+    setPosition('')
+    setActionType('')
+    setStackDepth('')
+    setGameType('')
+    setTag('')
+    setSort('')
+    setFavoritesOnly(false)
+    setShowArchived(false)
+  }
 
   return (
     <div className="library">
@@ -185,6 +198,11 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
               <option value="practiced">Recently practiced</option>
               <option value="accuracy">Accuracy</option>
             </select>
+            {hasViewChanges && (
+              <button type="button" className="coach-btn quiet" onClick={clearViewChanges}>
+                Clear filters
+              </button>
+            )}
           </div>
 
           {managing && (
