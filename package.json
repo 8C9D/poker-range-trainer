@@ -5,10 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
+    "build": "tsc -b && vite build && npm --prefix mobile run typecheck",
+    "lint": "eslint . && npm --prefix mobile run lint",
     "test": "vitest",
-    "test:run": "vitest run",
+    "test:run": "vitest run && npm --prefix mobile run test:run -- --runInBand",
     "preview": "vite preview"
   },
   "dependencies": {
