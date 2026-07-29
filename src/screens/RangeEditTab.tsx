@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createRangeId } from '../app/ids'
 import { HandGrid } from '../components/HandGrid'
 import { HandNotesEditor } from '../components/HandNotesEditor'
@@ -112,6 +112,27 @@ export function RangeEditTab({ range, prefill, onSaved }: RangeEditTabProps) {
     setSavedName(null)
     setSelectionHistory((history) => recordHandSelection(history, hands))
   }
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'z') return
+      const target = event.target
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return
+      }
+      event.preventDefault()
+      setSavedName(null)
+      setSelectionHistory(event.shiftKey ? redoHandSelection : undoHandSelection)
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   // Blank means "no stack depth"; a non-empty value must parse to a positive,
   // finite number (matching storage's rule). Invalid input blocks saving.

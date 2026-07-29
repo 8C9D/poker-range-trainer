@@ -182,6 +182,21 @@ describe('RangeEditTab selection history', () => {
 
     expect(screen.getByRole('button', { name: 'Redo' })).toBeDisabled()
   })
+
+  it('supports keyboard undo and redo without intercepting text input undo', () => {
+    render(<RangeEditTab range={makeRange()} onSaved={vi.fn()} />)
+    const aces = screen.getByRole('button', { name: 'AA' })
+
+    fireEvent.click(aces)
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true })
+    expect(aces).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true, shiftKey: true })
+    expect(aces).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.keyDown(screen.getByLabelText('Range name'), { key: 'z', ctrlKey: true })
+    expect(aces).toHaveAttribute('aria-pressed', 'false')
+  })
 })
 
 describe('RangeEditTab scenario pre-fill', () => {
