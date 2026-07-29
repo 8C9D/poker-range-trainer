@@ -337,15 +337,42 @@ export function RangeEditTab({ range, prefill, onSaved }: RangeEditTabProps) {
         notes={notes}
         sourceKind={sourceKind}
         sourceReference={sourceReference}
-        onGameTypeChange={setGameType}
-        onTableSizeChange={setTableSize}
-        onStackDepthChange={setStackDepth}
-        onPositionChange={setPosition}
-        onVersusPositionChange={setVersusPosition}
-        onActionTypeChange={setActionType}
-        onNotesChange={setNotes}
-        onSourceKindChange={setSourceKind}
-        onSourceReferenceChange={setSourceReference}
+        onGameTypeChange={(value) => {
+          setSavedName(null)
+          setGameType(value)
+        }}
+        onTableSizeChange={(value) => {
+          setSavedName(null)
+          setTableSize(value)
+        }}
+        onStackDepthChange={(value) => {
+          setSavedName(null)
+          setStackDepth(value)
+        }}
+        onPositionChange={(value) => {
+          setSavedName(null)
+          setPosition(value)
+        }}
+        onVersusPositionChange={(value) => {
+          setSavedName(null)
+          setVersusPosition(value)
+        }}
+        onActionTypeChange={(value) => {
+          setSavedName(null)
+          setActionType(value)
+        }}
+        onNotesChange={(value) => {
+          setSavedName(null)
+          setNotes(value)
+        }}
+        onSourceKindChange={(value) => {
+          setSavedName(null)
+          setSourceKind(value)
+        }}
+        onSourceReferenceChange={(value) => {
+          setSavedName(null)
+          setSourceReference(value)
+        }}
       />
 
       <RangeTagEditor
@@ -357,7 +384,14 @@ export function RangeEditTab({ range, prefill, onSaved }: RangeEditTabProps) {
       />
 
       {selectedHands.length > 0 && (
-        <HandNotesEditor hands={selectedHands} notes={notesDraft} onChange={setNotesDraft} />
+        <HandNotesEditor
+          hands={selectedHands}
+          notes={notesDraft}
+          onChange={(next) => {
+            setSavedName(null)
+            setNotesDraft(next)
+          }}
+        />
       )}
     </div>
   )

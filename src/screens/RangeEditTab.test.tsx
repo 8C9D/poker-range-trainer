@@ -155,6 +155,28 @@ describe('RangeEditTab save accessibility', () => {
       /fix the stack depth/i,
     )
   })
+
+  it('clears the saved status when scenario metadata changes', async () => {
+    const user = userEvent.setup()
+    render(<RangeEditTab range={makeRange()} onSaved={vi.fn()} />)
+
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }))
+    expect(screen.getByRole('status')).toHaveTextContent('Saved “BTN open”.')
+
+    await user.selectOptions(screen.getByLabelText('Position'), 'btn')
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('clears the saved status when a per-hand note changes', async () => {
+    const user = userEvent.setup()
+    render(<RangeEditTab range={makeRange()} onSaved={vi.fn()} />)
+
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }))
+    expect(screen.getByRole('status')).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('Note for AA'), 'Never fold')
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
 })
 
 describe('RangeEditTab selection history', () => {
