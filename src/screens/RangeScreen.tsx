@@ -562,6 +562,7 @@ function FrequenciesTab({ range, onSaved }: { range: SavedRange; onSaved: () => 
     ...(range.mixedStrategies ?? {}),
   })
   const [activeHand, setActiveHand] = useState<PokerHand | null>(range.hands[0] ?? null)
+  const [saved, setSaved] = useState(false)
 
   return (
     <div className="range-tab-stack">
@@ -576,10 +577,16 @@ function FrequenciesTab({ range, onSaved }: { range: SavedRange; onSaved: () => 
               updatedAt: new Date().toISOString(),
             })
             onSaved()
+            setSaved(true)
           }}
         >
           Save frequencies
         </button>
+        {saved && (
+          <p className="range-screen-status" role="status">
+            Frequencies saved.
+          </p>
+        )}
       </div>
       <MixedStrategyGrid mixedStrategies={draft} />
       <label className="range-freq-hand">
@@ -599,12 +606,16 @@ function FrequenciesTab({ range, onSaved }: { range: SavedRange; onSaved: () => 
       {activeHand && (
         <MixedStrategyEditor
           strategy={draft[activeHand] ?? []}
-          onChange={(next) => setDraft((prev) => ({ ...prev, [activeHand]: next }))}
+          onChange={(next) => {
+            setSaved(false)
+            setDraft((prev) => ({ ...prev, [activeHand]: next }))
+          }}
         />
       )}
       <MixedNotation
         mixedStrategies={draft}
         onReplace={(next) => {
+          setSaved(false)
           setDraft(next)
           setActiveHand(range.hands[0] ?? null)
         }}

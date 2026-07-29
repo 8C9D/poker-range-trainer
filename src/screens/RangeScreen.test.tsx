@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { RangeScreen } from './RangeScreen'
 import { findSavedRangeById, loadSavedRanges, saveSavedRange } from '../storage/rangeStorage'
@@ -238,6 +238,26 @@ describe('RangeScreen tabs', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Combos saved.')
 
     await user.click(toggles[1])
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('confirms frequency saves until the strategy changes again', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange({ hands: ['AA'] }))
+    render(<RangeScreen id="r1" tab="frequencies" onPractice={vi.fn()} />)
+
+    fireEvent.change(screen.getByRole('slider', { name: 'Raise' }), {
+      target: { value: '100' },
+    })
+    await user.click(screen.getByRole('button', { name: 'Save frequencies' }))
+    expect(findSavedRangeById('r1')?.mixedStrategies?.['AA']).toEqual([
+      { action: 'raise', frequency: 100 },
+    ])
+    expect(screen.getByRole('status')).toHaveTextContent('Frequencies saved.')
+
+    fireEvent.change(screen.getByRole('slider', { name: 'Raise' }), {
+      target: { value: '50' },
+    })
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
