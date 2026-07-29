@@ -59,7 +59,7 @@ describe('LibraryScreen', () => {
     seed({ id: 'r2', name: 'BTN Open' });
 
     const { getByTestId, getByText, queryByText } = await render(<LibraryScreen />);
-    fireEvent.changeText(getByTestId('library-search'), 'btn');
+    await fireEvent.changeText(getByTestId('library-search'), 'btn');
 
     await waitFor(() => expect(queryByText('UTG Open')).toBeNull());
     expect(getByText('BTN Open')).toBeTruthy();
@@ -70,8 +70,8 @@ describe('LibraryScreen', () => {
     seed({ id: 'r2', name: 'BTN Open', metadata: { position: 'btn' } });
 
     const { getByTestId, findByTestId, getByText, queryByText } = await render(<LibraryScreen />);
-    fireEvent.press(getByTestId('filters-toggle'));
-    fireEvent.press(await findByTestId('filter-position-btn'));
+    await fireEvent.press(getByTestId('filters-toggle'));
+    await fireEvent.press(await findByTestId('filter-position-btn'));
 
     await waitFor(() => expect(queryByText('UTG Open')).toBeNull());
     expect(getByText('BTN Open')).toBeTruthy();
@@ -82,8 +82,8 @@ describe('LibraryScreen', () => {
     seed({ id: 'r1', name: 'Alpha' });
 
     const { getByTestId, findByTestId, getAllByTestId } = await render(<LibraryScreen />);
-    fireEvent.press(getByTestId('filters-toggle'));
-    fireEvent.press(await findByTestId('sort-name'));
+    await fireEvent.press(getByTestId('filters-toggle'));
+    await fireEvent.press(await findByTestId('sort-name'));
 
     await waitFor(() =>
       expect(getAllByTestId(/^range-row-/)[0].props.testID).toBe('range-row-r1'),
@@ -95,8 +95,8 @@ describe('LibraryScreen', () => {
     seed({ id: 'r2', name: 'BTN Open', favorite: true });
 
     const { getByTestId, findByTestId, getByText, queryByText } = await render(<LibraryScreen />);
-    fireEvent.press(getByTestId('filters-toggle'));
-    fireEvent.press(await findByTestId('filter-favorites'));
+    await fireEvent.press(getByTestId('filters-toggle'));
+    await fireEvent.press(await findByTestId('filter-favorites'));
 
     await waitFor(() => expect(queryByText('UTG Open')).toBeNull());
     expect(getByText('BTN Open')).toBeTruthy();
@@ -108,8 +108,8 @@ describe('LibraryScreen', () => {
     const { getByTestId, findByTestId, queryByText } = await render(<LibraryScreen />);
     expect(queryByText('UTG Open')).toBeNull();
 
-    fireEvent.press(getByTestId('filters-toggle'));
-    fireEvent.press(await findByTestId('toggle-archived'));
+    await fireEvent.press(getByTestId('filters-toggle'));
+    await fireEvent.press(await findByTestId('toggle-archived'));
 
     await waitFor(() => expect(queryByText('UTG Open')).not.toBeNull());
   });
@@ -125,8 +125,8 @@ describe('LibraryScreen', () => {
     expect(getByText('MTT')).toBeTruthy();
     expect(getByText('Cash')).toBeTruthy();
 
-    fireEvent.press(getByTestId('filters-toggle'));
-    fireEvent.press(await findByTestId('filter-tag-MTT'));
+    await fireEvent.press(getByTestId('filters-toggle'));
+    await fireEvent.press(await findByTestId('filter-tag-MTT'));
 
     await waitFor(() => expect(queryByText('BTN Open')).toBeNull());
     expect(queryByText('SB Open')).toBeNull();
@@ -137,7 +137,7 @@ describe('LibraryScreen', () => {
     seed({ id: 'r1', name: 'UTG Open' });
 
     const { getByTestId, findByTestId, queryByTestId } = await render(<LibraryScreen />);
-    fireEvent.press(getByTestId('filters-toggle'));
+    await fireEvent.press(getByTestId('filters-toggle'));
 
     // The other filter groups appear, but no tag group.
     await findByTestId('filter-position-btn');

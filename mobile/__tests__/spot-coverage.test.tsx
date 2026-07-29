@@ -44,18 +44,18 @@ describe('SpotCoverage', () => {
       <SpotCoverage ranges={ranges} />,
     );
 
-    fireEvent.press(getByTestId('coverage-btn-foldedToYou'));
+    await fireEvent.press(getByTestId('coverage-btn-foldedToYou'));
     expect(await findByText('6-max, 100bb. Folded to you in the BTN.')).toBeTruthy();
     expect(getByText('BTN open')).toBeTruthy();
 
-    fireEvent.press(getByTestId('coverage-btn-foldedToYou'));
+    await fireEvent.press(getByTestId('coverage-btn-foldedToYou'));
     await waitFor(() => expect(queryByTestId('coverage-detail')).toBeNull());
   });
 
   it('offers a create action for every uncovered spot in a cell', async () => {
     const { getByTestId, findAllByText } = await render(<SpotCoverage ranges={[]} />);
 
-    fireEvent.press(getByTestId('coverage-bb-facingOpen'));
+    await fireEvent.press(getByTestId('coverage-bb-facingOpen'));
 
     expect(await findAllByText('Create')).toHaveLength(5);
     expect(getByTestId('coverage-create-sixMax|bb|facingOpen|utg|100')).toBeTruthy();
@@ -84,7 +84,7 @@ describe('SpotCoverage', () => {
   it('redraws the map for another table size', async () => {
     const { getByTestId, queryByTestId } = await render(<SpotCoverage ranges={[]} />);
 
-    fireEvent.press(getByTestId('coverage-table-headsUp'));
+    await fireEvent.press(getByTestId('coverage-table-headsUp'));
 
     await waitFor(() => expect(queryByTestId('coverage-co-foldedToYou')).toBeNull());
     expect(getByTestId('coverage-summary')).toHaveTextContent(/^0 of 5 /);
@@ -93,8 +93,8 @@ describe('SpotCoverage', () => {
   it('keeps a format selected when its control is tapped again', async () => {
     const { getByTestId } = await render(<SpotCoverage ranges={[]} />);
 
-    fireEvent.press(getByTestId('coverage-stack-20'));
-    fireEvent.press(getByTestId('coverage-stack-20'));
+    await fireEvent.press(getByTestId('coverage-stack-20'));
+    await fireEvent.press(getByTestId('coverage-stack-20'));
 
     await waitFor(() => expect(getByTestId('coverage-btn-foldedToYou')).toBeTruthy());
     expect(getByTestId('coverage-summary')).toHaveTextContent(/^0 of 65/);
