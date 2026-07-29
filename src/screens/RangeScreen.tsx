@@ -501,8 +501,10 @@ function CombosTab({ range, onSaved }: { range: SavedRange; onSaved: () => void 
     }
     return initial
   })
+  const [saved, setSaved] = useState(false)
 
   function setDraftCombo(hand: PokerHand, combo: Card[]) {
+    setSaved(false)
     setDraft((prev) => ({
       ...prev,
       [hand]: toggleCombo(prev[hand] ?? allCombosForHand(hand), combo),
@@ -526,6 +528,7 @@ function CombosTab({ range, onSaved }: { range: SavedRange; onSaved: () => void 
       updatedAt: new Date().toISOString(),
     })
     onSaved()
+    setSaved(true)
   }
 
   return (
@@ -534,6 +537,11 @@ function CombosTab({ range, onSaved }: { range: SavedRange; onSaved: () => void 
         <button type="button" className="coach-btn" onClick={handleSave}>
           Save combos
         </button>
+        {saved && (
+          <p className="range-screen-status" role="status">
+            Combos saved.
+          </p>
+        )}
       </div>
       {range.hands.map((hand) => (
         <div key={hand} className="coach-card range-combo-hand">

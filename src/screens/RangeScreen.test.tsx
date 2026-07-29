@@ -235,6 +235,10 @@ describe('RangeScreen tabs', () => {
     await user.click(toggles[0])
     await user.click(screen.getByRole('button', { name: 'Save combos' }))
     expect(findSavedRangeById('r1')?.comboSelections?.['AA']).toHaveLength(5)
+    expect(screen.getByRole('status')).toHaveTextContent('Combos saved.')
+
+    await user.click(toggles[1])
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
   it('shows the stats tab with the performance view', () => {
