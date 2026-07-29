@@ -10,6 +10,7 @@ import {
   type RangeAction,
   type SavedRange,
 } from '../types/range'
+import { ACTION_BY_SHORTCUT, ACTION_SHORTCUTS } from './actionQuizShortcuts'
 import './ActionPalette.css'
 import './PracticeSession.css'
 
@@ -33,20 +34,6 @@ interface AnsweredState {
   expected: RangeAction
   correct: boolean
 }
-
-const ACTION_SHORTCUTS: Record<RangeAction, string> = {
-  fold: 'F',
-  call: 'C',
-  raise: 'R',
-  threeBet: '3',
-  fourBet: '4',
-  jam: 'J',
-  mixed: 'M',
-}
-
-const ACTION_BY_SHORTCUT = Object.fromEntries(
-  Object.entries(ACTION_SHORTCUTS).map(([action, key]) => [key.toLowerCase(), action]),
-) as Record<string, RangeAction>
 
 /**
  * Mode-2 practice ("what is the correct action for AJs?"): prompts a hand from

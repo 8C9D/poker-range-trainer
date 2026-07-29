@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MixedActionQuiz } from './MixedActionQuiz'
 import type { SavedRange } from '../types/range'
@@ -57,5 +57,27 @@ describe('MixedActionQuiz', () => {
     await user.click(screen.getByRole('button', { name: 'Fold' }))
     expect(screen.getByText('Incorrect')).toBeInTheDocument()
     expect(screen.getByText('Primary action: Raise')).toBeInTheDocument()
+  })
+
+  it('answers with mnemonic keys and ignores duplicate input during feedback', () => {
+    render(
+      <MixedActionQuiz
+        range={makeRange({ mixedStrategies: MIX_AA })}
+        onExit={vi.fn()}
+        random={() => 0}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Raise' })).toHaveAttribute(
+      'aria-keyshortcuts',
+      'R',
+    )
+    fireEvent.keyDown(window, { key: 'r' })
+    fireEvent.keyDown(window, { key: 'f' })
+
+    expect(screen.getByText('Correct!')).toBeInTheDocument()
+    expect(
+      within(screen.getByLabelText('Quiz stats')).getByText('Total questions: 1'),
+    ).toBeInTheDocument()
   })
 })

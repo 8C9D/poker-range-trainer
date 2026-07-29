@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { accuracyPercentage } from '../domain/accuracy'
 import { getRandomHandFrom } from '../domain/practice'
 import { handsWithMixedStrategy, primaryAction } from '../domain/mixedStrategy'
@@ -9,6 +9,7 @@ import {
   type RangeAction,
   type SavedRange,
 } from '../types/range'
+import { ACTION_BY_SHORTCUT, ACTION_SHORTCUTS } from './actionQuizShortcuts'
 import './ActionPalette.css'
 import './PracticeSession.css'
 
@@ -42,6 +43,45 @@ export function MixedActionQuiz({ range, onExit, random = Math.random }: MixedAc
   const [answered, setAnswered] = useState<AnsweredState | null>(null)
   const [total, setTotal] = useState(0)
   const [correct, setCorrect] = useState(0)
+  const answeringRef = useRef(false)
+
+  function answer(chosen: RangeAction) {
+    if (answeringRef.current || answered) return
+    answeringRef.current = true
+    const expected = primaryAction(mixedStrategies[currentHand] ?? []) ?? 'fold'
+    const isCorrect = chosen === expected
+    setAnswered({ chosen, expected, correct: isCorrect })
+    setTotal((value) => value + 1)
+    if (isCorrect) setCorrect((value) => value + 1)
+  }
+
+  function nextHand() {
+    setCurrentHand(getRandomHandFrom(pool, random))
+    answeringRef.current = false
+    setAnswered(null)
+  }
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.repeat || event.altKey || event.ctrlKey || event.metaKey) return
+      const target = event.target
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return
+      }
+      const action = ACTION_BY_SHORTCUT[event.key.toLowerCase()]
+      if (!action) return
+      event.preventDefault()
+      answer(action)
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  })
 
   if (pool.length === 0) {
     return (
@@ -57,20 +97,6 @@ export function MixedActionQuiz({ range, onExit, random = Math.random }: MixedAc
         </p>
       </section>
     )
-  }
-
-  function answer(chosen: RangeAction) {
-    if (answered) return
-    const expected = primaryAction(mixedStrategies[currentHand] ?? []) ?? 'fold'
-    const isCorrect = chosen === expected
-    setAnswered({ chosen, expected, correct: isCorrect })
-    setTotal((value) => value + 1)
-    if (isCorrect) setCorrect((value) => value + 1)
-  }
-
-  function nextHand() {
-    setCurrentHand(getRandomHandFrom(pool, random))
-    setAnswered(null)
   }
 
   const accuracy = Math.round(accuracyPercentage(correct, total))
@@ -118,11 +144,13 @@ export function MixedActionQuiz({ range, onExit, random = Math.random }: MixedAc
               key={action}
               type="button"
               className={`action-swatch action-${action}`}
+              aria-keyshortcuts={ACTION_SHORTCUTS[action]}
               onClick={() => answer(action)}
             >
               {RANGE_ACTION_LABELS[action]}
             </button>
           ))}
+          <p className="practice-expected">Keyboard: F · C · R · 3 · 4 · J · M</p>
         </div>
       )}
     </section>
