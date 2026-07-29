@@ -6,6 +6,7 @@ import {
   buildDailyWorkout,
   workoutCompletedToday,
   type DailyWorkoutInput,
+  type FreshSpotsSegment,
   type ReviewSegment,
   type WeakSpotsSegment,
 } from './dailyWorkout'
@@ -188,6 +189,27 @@ describe('buildDailyWorkout', () => {
     })
 
     expect(workout?.segments.map((segment) => segment.kind)).toEqual(['weakSpots'])
+  })
+
+  it('keeps weak spots out of fresh play at the same format', () => {
+    const weakKey = 'sixMax|bb|facingOpen|co|100'
+    const workout = build({
+      ranges: [btnOpen, bbVsCo],
+      reviewStates: {
+        'BTN open': notDue('BTN open'),
+        'BB defend vs CO': notDue('BB defend vs CO'),
+      },
+      spotAccuracy: {
+        [weakKey]: stat(weakKey, 10, 2),
+      },
+    })
+
+    const fresh = workout?.segments.find(
+      (segment): segment is FreshSpotsSegment => segment.kind === 'freshSpots',
+    )
+    expect(fresh?.spotKeys).not.toContain(weakKey)
+    expect(fresh?.spotKeys).toContain('sixMax|btn|foldedToYou|-|100')
+    expect(fresh?.reason).toMatch(/other covered spot/)
   })
 
   it('splits the goal across the present segments', () => {

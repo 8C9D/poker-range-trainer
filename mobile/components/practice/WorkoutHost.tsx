@@ -199,7 +199,7 @@ export function WorkoutHost({ workout, ranges, onClose }: WorkoutHostProps) {
       ranges={ranges}
       tableSize={segment.format.tableSize}
       stackDepthBb={segment.format.stackDepthBb}
-      spotKeys={segment.kind === 'weakSpots' ? segment.spotKeys : undefined}
+      spotKeys={segment.spotKeys}
       questionCount={segment.questionCount}
       onFinish={(result) => finishSpotSegment(segment, result)}
     />

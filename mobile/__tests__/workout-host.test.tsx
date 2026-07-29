@@ -47,6 +47,7 @@ function makeWorkout(overrides: Partial<DailyWorkout> = {}): DailyWorkout {
       {
         kind: 'freshSpots',
         format: { tableSize: 'sixMax', stackDepthBb: 100 },
+        spotKeys: ['sixMax|btn|foldedToYou|-|100'],
         questionCount: 1,
         reason: 'Free play across the 1 spot your library covers.',
       },

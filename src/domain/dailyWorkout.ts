@@ -54,6 +54,8 @@ export interface WeakSpotsSegment {
 export interface FreshSpotsSegment {
   kind: 'freshSpots'
   format: WorkoutFormat
+  /** Covered spots not already assigned to the weak-spots segment. */
+  spotKeys: string[]
   questionCount: number
   reason: string
 }
@@ -95,22 +97,22 @@ export function buildDailyWorkout(input: DailyWorkoutInput): DailyWorkout | null
   const weak = selectWeakSpots(ranges, spotAccuracy)
   const libraryFormat = inferLibraryContext(ranges)
   const covered = coveredSpots(ranges, libraryFormat.tableSize, libraryFormat.stackDepthBb)
-  // Fresh play would just re-deal the weak-spot segment when the weak spots are
-  // the whole covered library at the same format — skip it then.
-  const freshIsDistinct =
-    covered.length > 0 &&
-    !(
-      weak !== null &&
-      sameFormat(weak.format, libraryFormat) &&
-      covered.every((entry) => weak.keys.includes(spotKey(entry.spot)))
-    )
+  // Fresh play is the remainder of the covered library at its default format.
+  // When the weak-spots segment uses that same format, remove those prompts so
+  // the two back-to-back segments cannot drill the same spots.
+  const weakKeysAtLibraryFormat =
+    weak !== null && sameFormat(weak.format, libraryFormat) ? new Set(weak.keys) : null
+  const freshSpotKeys = covered
+    .map((entry) => spotKey(entry.spot))
+    .filter((key) => !weakKeysAtLibraryFormat?.has(key))
+  const hasFreshSpots = freshSpotKeys.length > 0
 
   // Each due range is its own recognition drill, so it is one sizing unit even
   // though the runner groups all review drills under one hand-off. Counting the
   // review group as a single unit makes a capped three-range review consume up
   // to three times its intended share of the daily goal.
   const workoutUnits =
-    reviewRanges.length + (weak ? 1 : 0) + (freshIsDistinct ? 1 : 0)
+    reviewRanges.length + (weak ? 1 : 0) + (hasFreshSpots ? 1 : 0)
   if (workoutUnits === 0) return null
 
   const budget = goalHands > 0 ? goalHands : DEFAULT_GOAL_HANDS
@@ -145,12 +147,13 @@ export function buildDailyWorkout(input: DailyWorkoutInput): DailyWorkout | null
     })
   }
 
-  if (freshIsDistinct) {
+  if (hasFreshSpots) {
     segments.push({
       kind: 'freshSpots',
       format: libraryFormat,
+      spotKeys: freshSpotKeys,
       questionCount: share,
-      reason: `Free play across the ${covered.length} spot${covered.length === 1 ? '' : 's'} your library covers.`,
+      reason: `Free play across ${freshSpotKeys.length} other covered spot${freshSpotKeys.length === 1 ? '' : 's'}.`,
     })
   }
 
