@@ -24,7 +24,7 @@ import { practiceAccuracyPercentage } from '../domain/practiceStats'
 import { selectDueRanges } from '../domain/spacedRepetition'
 import { loadPracticeStats } from '../storage/practiceStatsStorage'
 import { loadReviewStates } from '../storage/reviewStateStorage'
-import { loadSavedRanges } from '../storage/rangeStorage'
+import { deleteSavedRanges, loadSavedRanges } from '../storage/rangeStorage'
 import {
   ACTION_TYPE_LABELS,
   ACTION_TYPES,
@@ -52,7 +52,7 @@ interface LibraryScreenProps {
  * Range page, which navigating back from remounts this screen.
  */
 export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
-  const [ranges] = useState(() => loadSavedRanges())
+  const [ranges, setRanges] = useState(() => loadSavedRanges())
   const [practiceStats] = useState(() => loadPracticeStats())
   const [reviewStates] = useState(() => loadReviewStates())
   const [nowIso] = useState(() => new Date().toISOString())
@@ -67,6 +67,8 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
   const [sort, setSort] = useState<SortOrder>('')
   const [showArchived, setShowArchived] = useState(false)
   const [favoritesOnly, setFavoritesOnly] = useState(false)
+  const [managing, setManaging] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
 
   // Both depend only on the mount-once library data, so memoize them instead of
   // recomputing due dates across the whole library on every search keystroke.
@@ -127,9 +129,24 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
     <div className="library">
       <header className="library-header">
         <h1>Library</h1>
-        <a className="coach-btn primary" href={routeHash({ screen: 'newRange' })}>
-          New range
-        </a>
+        <div className="library-header-actions">
+          {ranges.length > 0 && (
+            <button
+              type="button"
+              className="coach-btn"
+              aria-pressed={managing}
+              onClick={() => {
+                setManaging((value) => !value)
+                setSelectedIds(new Set())
+              }}
+            >
+              {managing ? 'Done' : 'Manage'}
+            </button>
+          )}
+          <a className="coach-btn primary" href={routeHash({ screen: 'newRange' })}>
+            New range
+          </a>
+        </div>
       </header>
 
       {ranges.length === 0 ? (
@@ -169,6 +186,39 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
               <option value="accuracy">Accuracy</option>
             </select>
           </div>
+
+          {managing && (
+            <div className="library-bulk-actions" role="group" aria-label="Bulk range actions">
+              <button
+                type="button"
+                className="coach-btn"
+                onClick={() => setSelectedIds(new Set(visibleRanges.map((range) => range.id)))}
+                disabled={visibleRanges.length === 0}
+              >
+                Select visible
+              </button>
+              <span className="coach-tabular">{selectedIds.size} selected</span>
+              <button
+                type="button"
+                className="coach-btn danger"
+                disabled={selectedIds.size === 0}
+                onClick={() => {
+                  if (
+                    !window.confirm(
+                      `Delete ${selectedIds.size} selected range${selectedIds.size === 1 ? '' : 's'}? This cannot be undone.`,
+                    )
+                  ) {
+                    return
+                  }
+                  deleteSavedRanges(selectedIds)
+                  setRanges((current) => current.filter((range) => !selectedIds.has(range.id)))
+                  setSelectedIds(new Set())
+                }}
+              >
+                Delete selected
+              </button>
+            </div>
+          )}
 
           {filtersOpen && (
             <div className="library-filters" role="group" aria-label="Range filters">
@@ -273,7 +323,23 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
                 const percentage = calculateRangePercentage(range.hands)
                 const meta = range.metadata
                 return (
-                  <li key={range.id}>
+                  <li key={range.id} className="library-list-item">
+                    {managing && (
+                      <input
+                        type="checkbox"
+                        className="library-row-select"
+                        aria-label={`Select ${range.name}`}
+                        checked={selectedIds.has(range.id)}
+                        onChange={(event) => {
+                          setSelectedIds((current) => {
+                            const next = new Set(current)
+                            if (event.target.checked) next.add(range.id)
+                            else next.delete(range.id)
+                            return next
+                          })
+                        }}
+                      />
+                    )}
                     <a
                       className="coach-card library-row"
                       href={routeHash({ screen: 'range', id: range.id, tab: 'overview' })}

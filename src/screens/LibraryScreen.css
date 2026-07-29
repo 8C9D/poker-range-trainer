@@ -20,6 +20,17 @@
   letter-spacing: -0.02em;
 }
 
+.library-header-actions,
+.library-bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.library-bulk-actions {
+  margin-block: var(--space-3);
+}
+
 .library-toolbar {
   display: flex;
   gap: 8px;
@@ -73,6 +84,21 @@
   text-decoration: none;
   color: inherit;
   transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.library-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.library-list-item .library-row {
+  flex: 1;
+}
+
+.library-row-select {
+  inline-size: 1.15rem;
+  block-size: 1.15rem;
 }
 
 .library-row:hover {

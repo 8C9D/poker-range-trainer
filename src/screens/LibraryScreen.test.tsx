@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { LibraryScreen } from './LibraryScreen'
-import { saveSavedRange } from '../storage/rangeStorage'
+import { loadSavedRanges, saveSavedRange } from '../storage/rangeStorage'
 import { recordPracticeSession } from '../storage/practiceStatsStorage'
 import { saveReviewState } from '../storage/reviewStateStorage'
 import type { SavedRange } from '../types/range'
@@ -214,5 +214,22 @@ describe('LibraryScreen', () => {
     render(<LibraryScreen onPlaySpots={vi.fn()} />)
     await user.selectOptions(screen.getByLabelText('Sort ranges'), 'accuracy')
     expect(rowNames()).toEqual(['Sharp', 'Rusty', 'Never practiced'])
+  })
+
+  it('bulk deletes selected ranges after confirmation', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange('a', 'Keep'))
+    saveSavedRange(makeRange('b', 'Delete one'))
+    saveSavedRange(makeRange('c', 'Delete two'))
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    render(<LibraryScreen onPlaySpots={vi.fn()} />)
+
+    await user.click(screen.getByRole('button', { name: 'Manage' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select Delete one' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select Delete two' }))
+    await user.click(screen.getByRole('button', { name: 'Delete selected' }))
+
+    expect(loadSavedRanges().map((range) => range.name)).toEqual(['Keep'])
+    expect(rowNames()).toEqual(['Keep'])
   })
 })
