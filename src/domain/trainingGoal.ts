@@ -18,7 +18,7 @@ export const DEFAULT_GOAL_HANDS = 20
 export interface DailyGoalProgress {
   /** Target hands for the day; 0 when no goal is set. */
   target: number
-  /** Hands answered today (the same UTC-day bucketing as the streak). */
+  /** Hands answered today (the same local-day bucketing as the streak). */
   answered: number
   /** Hands still to go, never negative. */
   remaining: number

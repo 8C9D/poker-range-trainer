@@ -119,7 +119,7 @@ describe('selectDueRanges', () => {
 
 describe('currentStreak', () => {
   const TODAY = '2026-06-06T12:00:00.000Z'
-  // A review timestamp on the given June day (UTC).
+  // These midday timestamps land on the same calendar date in every supported zone.
   const day = (date: string, time = '08:00:00.000Z') => `2026-06-${date}T${time}`
 
   it('is 0 for no reviews', () => {
@@ -151,6 +151,14 @@ describe('currentStreak', () => {
 
   it('is 0 when the latest review is older than yesterday', () => {
     expect(currentStreak([day('04')], TODAY)).toBe(0)
+  })
+
+  it('starts a new local day at local midnight, not at UTC midnight', () => {
+    const today = new Date(2026, 5, 6, 0, 30).toISOString()
+    const previousEvening = new Date(2026, 5, 5, 23, 30).toISOString()
+    const twoDaysAgo = new Date(2026, 5, 4, 12).toISOString()
+
+    expect(currentStreak([previousEvening, twoDaysAgo], today)).toBe(2)
   })
 })
 

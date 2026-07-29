@@ -133,7 +133,7 @@ export default function ProgressScreen() {
           <View style={styles.chart}>
             {days.map((day, index) => {
               const isToday = index === days.length - 1;
-              const weekday = WEEKDAYS_SHORT[new Date(day.dayStart).getUTCDay()];
+              const weekday = WEEKDAYS_SHORT[new Date(day.dayStart).getDay()];
               const heightPct = Math.round((day.handsAnswered / maxDay) * 100);
               return (
                 <View

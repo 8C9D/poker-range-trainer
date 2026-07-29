@@ -1,5 +1,8 @@
 import type { RangeReviewState } from '../types/practice'
 import type { SavedRange } from '../types/range'
+import { DAY_MS, localCalendarDay } from './calendarDay'
+
+export { DAY_MS } from './calendarDay'
 
 /**
  * Pure spaced-repetition scheduling for range review (v2.2).
@@ -18,9 +21,6 @@ export const DEFAULT_EASE = 2.5
 export const MIN_EASE = 1.3
 /** Interval (days) granted by the first strong review of a range. */
 export const FIRST_INTERVAL_DAYS = 1
-/** Milliseconds in a day. */
-export const DAY_MS = 86_400_000
-
 /** Least a shaky per-hand record may shrink an interval to (half). */
 export const MIN_CONFIDENCE = 0.5
 
@@ -99,7 +99,7 @@ export function selectDueRanges(
 }
 
 /**
- * The current review streak: the number of consecutive UTC days ending at
+ * The current review streak: the number of consecutive local calendar days ending at
  * `today` (with a one-day grace for `today - 1`) on which at least one review
  * happened. `reviewTimestamps` are ISO-8601 strings (e.g. session `playedAt`
  * values across all ranges); multiple reviews on a day count once, and an empty
@@ -107,9 +107,12 @@ export function selectDueRanges(
  */
 export function currentStreak(reviewTimestamps: string[], today: string): number {
   const activeDays = new Set(
-    reviewTimestamps.map((iso) => Math.floor(new Date(iso).getTime() / DAY_MS)),
+    reviewTimestamps
+      .map(localCalendarDay)
+      .filter((day): day is number => day !== null),
   )
-  const todayNum = Math.floor(new Date(today).getTime() / DAY_MS)
+  const todayNum = localCalendarDay(today)
+  if (todayNum === null) return 0
 
   let anchor: number
   if (activeDays.has(todayNum)) {

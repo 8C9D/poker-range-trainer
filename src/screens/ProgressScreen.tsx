@@ -113,7 +113,6 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
             const date = new Date(day.dayStart)
             const weekday = date.toLocaleDateString(undefined, {
               weekday: 'short',
-              timeZone: 'UTC',
             })
             const isToday = index === days.length - 1
             return (

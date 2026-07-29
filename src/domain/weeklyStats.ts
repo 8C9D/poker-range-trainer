@@ -1,5 +1,6 @@
 import type { PracticeSessionRecord } from '../types/practice'
 import { accuracyPercentage } from './accuracy'
+import { localCalendarDay, localDayStart } from './calendarDay'
 import { DAY_MS } from './spacedRepetition'
 
 /**
@@ -68,34 +69,36 @@ export function summarizeWeek(
 
 /** One day of the hands-per-day chart. */
 export interface DailyHandCount {
-  /** Start of the (UTC) day as an ISO timestamp. */
+  /** Start of the local calendar day as an ISO timestamp. */
   dayStart: string
   handsAnswered: number
 }
 
 /**
- * Hands answered per UTC day over the trailing `days` window, oldest first and
- * ending with the day containing `now` (same day bucketing as the streak).
+ * Hands answered per local calendar day over the trailing `days` window, oldest
+ * first and ending with the day containing `now` (same bucketing as the streak).
  */
 export function dailyHandCounts(
   history: Record<string, PracticeSessionRecord[]>,
   now: string,
   days = 7,
 ): DailyHandCount[] {
-  const todayNum = Math.floor(new Date(now).getTime() / DAY_MS)
+  const todayNum = localCalendarDay(now)
+  const todayStart = localDayStart(now)
+  if (todayNum === null || todayStart === null) return []
   const firstNum = todayNum - (days - 1)
   const counts = new Array<number>(days).fill(0)
   for (const sessions of Object.values(history)) {
     for (const session of sessions) {
-      const at = new Date(session.playedAt).getTime()
-      if (Number.isNaN(at)) continue
-      const dayNum = Math.floor(at / DAY_MS)
+      const dayNum = localCalendarDay(session.playedAt)
+      if (dayNum === null) continue
       if (dayNum < firstNum || dayNum > todayNum) continue
       counts[dayNum - firstNum] += session.totalQuestions
     }
   }
-  return counts.map((handsAnswered, index) => ({
-    dayStart: new Date((firstNum + index) * DAY_MS).toISOString(),
-    handsAnswered,
-  }))
+  return counts.map((handsAnswered, index) => {
+    const dayStart = new Date(todayStart)
+    dayStart.setDate(dayStart.getDate() - (days - 1 - index))
+    return { dayStart: dayStart.toISOString(), handsAnswered }
+  })
 }

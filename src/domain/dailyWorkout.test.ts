@@ -276,11 +276,20 @@ describe('buildDailyWorkout', () => {
 })
 
 describe('workoutCompletedToday', () => {
-  it('is true only on the same UTC day', () => {
-    expect(workoutCompletedToday('2026-07-27T06:00:00.000Z', NOW)).toBe(true)
-    expect(workoutCompletedToday('2026-07-27T23:59:59.000Z', NOW)).toBe(true)
-    expect(workoutCompletedToday('2026-07-26T23:59:59.000Z', NOW)).toBe(false)
-    expect(workoutCompletedToday('2026-07-28T00:00:00.000Z', NOW)).toBe(false)
+  it('is true only on the same local calendar day', () => {
+    const now = new Date(2026, 6, 27, 12).toISOString()
+    expect(workoutCompletedToday(new Date(2026, 6, 27, 6).toISOString(), now)).toBe(true)
+    expect(workoutCompletedToday(new Date(2026, 6, 26, 23, 59).toISOString(), now)).toBe(false)
+    expect(workoutCompletedToday(new Date(2026, 6, 28, 0).toISOString(), now)).toBe(false)
+  })
+
+  it('does not mark the workout done across local midnight near a UTC boundary', () => {
+    const now = new Date(2026, 6, 28, 0, 30).toISOString()
+    const previousEvening = new Date(2026, 6, 27, 23, 30).toISOString()
+    const afterMidnight = new Date(2026, 6, 28, 0, 5).toISOString()
+
+    expect(workoutCompletedToday(previousEvening, now)).toBe(false)
+    expect(workoutCompletedToday(afterMidnight, now)).toBe(true)
   })
 
   it('treats a missing or unparseable record as not completed', () => {

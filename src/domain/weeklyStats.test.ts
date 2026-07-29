@@ -80,25 +80,47 @@ describe('dailyHandCounts', () => {
     const days = dailyHandCounts({}, NOW)
     expect(days).toHaveLength(7)
     expect(days.every((day) => day.handsAnswered === 0)).toBe(true)
-    expect(days[6].dayStart).toBe('2026-07-11T00:00:00.000Z')
-    expect(days[0].dayStart).toBe('2026-07-05T00:00:00.000Z')
+    expect(new Date(days[6].dayStart).getDate()).toBe(11)
+    expect(new Date(days[0].dayStart).getDate()).toBe(5)
+    expect(new Date(days[6].dayStart).getHours()).toBe(0)
+    expect(new Date(days[0].dayStart).getHours()).toBe(0)
   })
 
-  it('buckets sessions into their UTC day', () => {
+  it('buckets sessions into their local calendar day', () => {
+    const localNow = new Date(2026, 6, 11, 12).toISOString()
     const days = dailyHandCounts(
       {
         a: [
-          session('a', '2026-07-11T01:00:00.000Z', 10, 8),
-          session('a', '2026-07-11T23:00:00.000Z', 5, 5),
-          session('a', '2026-07-09T12:00:00.000Z', 7, 6),
+          session('a', new Date(2026, 6, 11, 1).toISOString(), 10, 8),
+          session('a', new Date(2026, 6, 11, 23).toISOString(), 5, 5),
+          session('a', new Date(2026, 6, 9, 12).toISOString(), 7, 6),
         ],
-        b: [session('b', '2026-07-09T13:00:00.000Z', 3, 1)],
+        b: [session('b', new Date(2026, 6, 9, 13).toISOString(), 3, 1)],
       },
-      NOW,
+      localNow,
     )
     expect(days[6].handsAnswered).toBe(15)
     expect(days[4].handsAnswered).toBe(10)
     expect(days[5].handsAnswered).toBe(0)
+  })
+
+  it('does not pull the previous local evening into today near a UTC boundary', () => {
+    const now = new Date(2026, 6, 11, 0, 30).toISOString()
+    const previousEvening = new Date(2026, 6, 10, 23, 30).toISOString()
+    const afterMidnight = new Date(2026, 6, 11, 0, 15).toISOString()
+
+    const days = dailyHandCounts(
+      {
+        a: [
+          session('a', previousEvening, 9, 9),
+          session('a', afterMidnight, 4, 4),
+        ],
+      },
+      now,
+      1,
+    )
+
+    expect(days[0].handsAnswered).toBe(4)
   })
 
   it('ignores sessions outside the window', () => {
