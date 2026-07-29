@@ -1,9 +1,10 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { Alert } from 'react-native';
 import type { ReactNode } from 'react';
 
 import { recordPracticeSession } from '@core/storage/practiceStatsStorage';
 import { saveReviewState } from '@core/storage/reviewStateStorage';
-import { saveSavedRange } from '@core/storage/rangeStorage';
+import { loadSavedRanges, saveSavedRange } from '@core/storage/rangeStorage';
 import type { SavedRange } from '@core/types/range';
 
 import LibraryScreen from '../app/(tabs)/library';
@@ -169,5 +170,23 @@ describe('LibraryScreen', () => {
     // r1 was never reviewed -> due; r2 is scheduled far in the future -> not due.
     expect(getByTestId('due-r1')).toBeTruthy();
     expect(queryByTestId('due-r2')).toBeNull();
+  });
+
+  it('bulk deletes selected ranges after confirmation', async () => {
+    seed({ id: 'r1', name: 'Keep' });
+    seed({ id: 'r2', name: 'Delete me' });
+    jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
+      buttons?.find((button) => button.style === 'destructive')?.onPress?.();
+    });
+
+    const { getByTestId, findByLabelText } = await render(<LibraryScreen />);
+    fireEvent.press(getByTestId('manage-ranges'));
+    fireEvent.press(await findByLabelText('Select Delete me'));
+    await findByLabelText('Deselect Delete me');
+    fireEvent.press(getByTestId('delete-selected'));
+
+    await waitFor(() =>
+      expect(loadSavedRanges().map((range) => range.name)).toEqual(['Keep']),
+    );
   });
 });

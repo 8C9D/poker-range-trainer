@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Link, useFocusEffect } from 'expo-router';
 
 import {
@@ -23,7 +23,7 @@ import { practiceAccuracyPercentage } from '@core/domain/practiceStats';
 import { selectDueRanges } from '@core/domain/spacedRepetition';
 import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
 import { loadReviewStates } from '@core/storage/reviewStateStorage';
-import { loadSavedRanges } from '@core/storage/rangeStorage';
+import { deleteSavedRanges, loadSavedRanges } from '@core/storage/rangeStorage';
 import {
   ACTION_TYPE_LABELS,
   ACTION_TYPES,
@@ -96,6 +96,8 @@ export default function LibraryScreen() {
   const [sort, setSort] = useState<SortOrder | undefined>(undefined);
   const [showArchived, setShowArchived] = useState(false);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [managing, setManaging] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
 
   const stackOptions = useMemo<SegmentedOption<number>[]>(
     () => distinctStackDepths(ranges).map((d) => ({ key: d, label: `${d}bb` })),
@@ -181,6 +183,18 @@ export default function LibraryScreen() {
       <View style={styles.titleRow}>
         <Text style={styles.title}>Library</Text>
         <View style={styles.titleActions}>
+          {ranges.length > 0 ? (
+            <Pressable
+              testID="manage-ranges"
+              style={styles.ghostBtn}
+              onPress={() => {
+                setManaging((value) => !value);
+                setSelectedIds(new Set());
+              }}
+            >
+              <Text style={styles.ghostBtnText}>{managing ? 'Done' : 'Manage'}</Text>
+            </Pressable>
+          ) : null}
           <Link href="/import" asChild>
             <Pressable testID="import-range" style={styles.ghostBtn}>
               <Text style={styles.ghostBtnText}>Import</Text>
@@ -196,6 +210,46 @@ export default function LibraryScreen() {
 
       {ranges.length === 0 ? null : (
         <>
+          {managing ? (
+            <View style={styles.bulkActions}>
+              <Pressable
+                testID="select-visible"
+                style={styles.ghostBtn}
+                onPress={() => setSelectedIds(new Set(visibleRanges.map((range) => range.id)))}
+              >
+                <Text style={styles.ghostBtnText}>Select visible</Text>
+              </Pressable>
+              <Text style={styles.selectionCount}>{selectedIds.size} selected</Text>
+              <Pressable
+                testID="delete-selected"
+                disabled={selectedIds.size === 0}
+                style={[styles.ghostBtn, selectedIds.size === 0 && styles.disabled]}
+                onPress={() =>
+                  Alert.alert(
+                    'Delete selected ranges',
+                    `Delete ${selectedIds.size} selected range${selectedIds.size === 1 ? '' : 's'}? This cannot be undone.`,
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Delete',
+                        style: 'destructive',
+                        onPress: () => {
+                          deleteSavedRanges(selectedIds);
+                          setData((current) => ({
+                            ...current,
+                            ranges: current.ranges.filter((range) => !selectedIds.has(range.id)),
+                          }));
+                          setSelectedIds(new Set());
+                        },
+                      },
+                    ],
+                  )
+                }
+              >
+                <Text style={styles.deleteText}>Delete</Text>
+              </Pressable>
+            </View>
+          ) : null}
           <TextInput
             testID="library-search"
             style={styles.search}
@@ -313,6 +367,16 @@ export default function LibraryScreen() {
             nowIso={nowIso}
             theme={theme}
             styles={styles}
+            managing={managing}
+            selected={selectedIds.has(item.id)}
+            onToggle={() =>
+              setSelectedIds((current) => {
+                const next = new Set(current);
+                if (next.has(item.id)) next.delete(item.id);
+                else next.add(item.id);
+                return next;
+              })
+            }
           />
         )}
         ListEmptyComponent={
@@ -395,6 +459,9 @@ function RangeRow({
   nowIso,
   theme,
   styles,
+  managing,
+  selected,
+  onToggle,
 }: {
   range: SavedRange;
   stats: ReturnType<typeof loadPracticeStats>[string] | undefined;
@@ -402,17 +469,26 @@ function RangeRow({
   nowIso: string;
   theme: ThemeColors;
   styles: ReturnType<typeof makeStyles>;
+  managing: boolean;
+  selected: boolean;
+  onToggle: () => void;
 }) {
   const meta = range.metadata;
   const percentage = calculateRangePercentage(range.hands);
-  return (
-    <Link href={{ pathname: '/range/[id]', params: { id: range.id } }} asChild>
-      <Pressable
+  const row = (
+    <Pressable
         testID={`range-row-${range.id}`}
         accessibilityRole="button"
-        accessibilityLabel={`Open range ${range.name || 'Untitled'}`}
+        accessibilityLabel={
+          managing
+            ? `${selected ? 'Deselect' : 'Select'} ${range.name || 'Untitled'}`
+            : `Open range ${range.name || 'Untitled'}`
+        }
+        accessibilityState={managing ? { selected } : undefined}
+        onPress={managing ? onToggle : undefined}
         style={styles.row}
       >
+        {managing ? <Text style={styles.selectionBox}>{selected ? '✓' : '○'}</Text> : null}
         <RangeThumbnail hands={range.hands} size={44} />
         <View style={styles.rowInfo}>
           <View style={styles.rowNameLine}>
@@ -450,7 +526,13 @@ function RangeRow({
             <Text style={styles.rowPracticed}>Not practiced</Text>
           )}
         </View>
-      </Pressable>
+    </Pressable>
+  );
+  return managing ? (
+    row
+  ) : (
+    <Link href={{ pathname: '/range/[id]', params: { id: range.id } }} asChild>
+      {row}
     </Link>
   );
 }
@@ -462,6 +544,11 @@ function makeStyles(theme: ThemeColors) {
     footer: { marginTop: 4 },
     titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     titleActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    bulkActions: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+    selectionCount: { fontFamily: fonts.bodyMedium, fontSize: 13, color: theme.ink2 },
+    selectionBox: { fontSize: 18, color: theme.accent, width: 22, textAlign: 'center' },
+    deleteText: { fontFamily: fonts.bodySemibold, fontSize: 14, color: theme.bad },
+    disabled: { opacity: 0.4 },
     title: { fontFamily: fonts.display, fontSize: 30, color: theme.ink },
     ghostBtn: {
       borderWidth: StyleSheet.hairlineWidth,
