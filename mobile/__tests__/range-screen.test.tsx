@@ -1,5 +1,6 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
+import * as Linking from 'expo-linking';
 
 import { recordHandAccuracy } from '@core/storage/handAccuracyStorage';
 import { recordPracticeSessionHistory } from '@core/storage/sessionHistoryStorage';
@@ -13,6 +14,10 @@ import { installLocalStorage, localStorageShim } from '../platform/localStorageS
 // simply seeds nothing. Links render children; router is a no-op.
 jest.mock('react-native-mmkv');
 jest.mock('expo-crypto');
+jest.mock('expo-linking', () => ({
+  createURL: jest.fn((path: string) => `poker-range-trainer://${path}`),
+  openURL: jest.fn(() => Promise.resolve()),
+}));
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ id: 'r1' }),
   useFocusEffect: () => {},
@@ -55,6 +60,30 @@ describe('RangeScreen', () => {
     const { getByText } = await render(<RangeScreen />);
 
     expect(getByText('UTG')).toBeTruthy();
+  });
+
+  it('opens web source references', async () => {
+    seed({
+      id: 'r1',
+      name: 'UTG Open',
+      source: { kind: 'solver', reference: 'https://example.com/utg-open' },
+    });
+
+    const { getByTestId } = await render(<RangeScreen />);
+    fireEvent.press(getByTestId('source-reference-link'));
+    expect(Linking.openURL).toHaveBeenCalledWith('https://example.com/utg-open');
+  });
+
+  it('leaves source citations as plain text', async () => {
+    seed({
+      id: 'r1',
+      name: 'UTG Open',
+      source: { kind: 'solver', reference: 'GTOWizard 6-max' },
+    });
+
+    const { getByText, queryByTestId } = await render(<RangeScreen />);
+    expect(getByText(/GTOWizard 6-max/)).toBeTruthy();
+    expect(queryByTestId('source-reference-link')).toBeNull();
   });
 
   it('switches to the Edit tab', async () => {

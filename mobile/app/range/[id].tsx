@@ -18,6 +18,7 @@ import { calculateRangePercentage, countSelectedCombos } from '@core/domain/rang
 import { duplicateRange } from '@core/domain/rangeDuplication';
 import { setRangeArchived } from '@core/domain/rangeArchive';
 import { setRangeFavorite } from '@core/domain/rangeFavorite';
+import { sourceReferenceUrl } from '@core/domain/sourceReference';
 import { loadReviewStates } from '@core/storage/reviewStateStorage';
 import { loadSessionHistory } from '@core/storage/sessionHistoryStorage';
 import {
@@ -429,6 +430,7 @@ function OverviewTab({
   const lastSession = history.length > 0 ? history[history.length - 1] : null;
   const recentSessions = history.slice(-5).reverse();
   const handNoteCount = Object.keys(range.handNotes ?? {}).length;
+  const sourceUrl = sourceReferenceUrl(range.source?.reference);
 
   return (
     <View style={{ gap: 16 }}>
@@ -456,10 +458,26 @@ function OverviewTab({
             <Text style={[styles.factLine, { color: theme.ink2 }]}>{range.metadata.notes}</Text>
           ) : null}
           {range.source ? (
-            <Text style={styles.factLine}>
-              Source: {RANGE_SOURCE_KIND_LABELS[range.source.kind]}
-              {range.source.reference ? ` · ${range.source.reference}` : ''}
-            </Text>
+            sourceUrl && range.source.reference ? (
+              <View style={styles.sourceRow}>
+                <Text style={styles.factLine}>
+                  Source: {RANGE_SOURCE_KIND_LABELS[range.source.kind]} ·{' '}
+                </Text>
+                <Pressable
+                  testID="source-reference-link"
+                  accessibilityRole="link"
+                  accessibilityLabel={`Open source ${range.source.reference}`}
+                  onPress={() => void Linking.openURL(sourceUrl)}
+                >
+                  <Text style={styles.sourceLink}>{range.source.reference}</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <Text style={styles.factLine}>
+                Source: {RANGE_SOURCE_KIND_LABELS[range.source.kind]}
+                {range.source.reference ? ` · ${range.source.reference}` : ''}
+              </Text>
+            )
           ) : null}
           {handNoteCount > 0 ? (
             <Text style={styles.factLine}>
@@ -551,6 +569,13 @@ function makeStyles(theme: ThemeColors) {
       fontSize: 14,
       color: theme.ink,
       fontVariant: ['tabular-nums'],
+    },
+    sourceRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline' },
+    sourceLink: {
+      fontFamily: fonts.body,
+      fontSize: 14,
+      color: theme.accent,
+      textDecorationLine: 'underline',
     },
     sectionTitle: { fontFamily: fonts.bodySemibold, fontSize: 14, color: theme.ink },
     sessionRow: { flexDirection: 'row', justifyContent: 'space-between' },
