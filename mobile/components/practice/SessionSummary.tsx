@@ -42,6 +42,7 @@ export function SessionSummary({ data, hasNext, onNext, onDone }: SessionSummary
   useEffect(() => {
     const listenerId = value.addListener(({ value: v }) => setShown(Math.round(v)));
     let cancelled = false;
+    let animation: Animated.CompositeAnimation | null = null;
     AccessibilityInfo.isReduceMotionEnabled().then((reduce) => {
       if (cancelled) return;
       if (reduce) {
@@ -50,13 +51,15 @@ export function SessionSummary({ data, hasNext, onNext, onDone }: SessionSummary
         setShown(Math.round(data.accuracy));
         return;
       }
-      Animated.parallel([
+      animation = Animated.parallel([
         Animated.timing(value, { toValue: data.accuracy, duration: 800, useNativeDriver: false }),
         Animated.spring(scale, { toValue: 1, friction: 6, useNativeDriver: true }),
-      ]).start();
+      ]);
+      animation.start();
     });
     return () => {
       cancelled = true;
+      animation?.stop();
       value.removeListener(listenerId);
     };
   }, [data.accuracy, value, scale]);
