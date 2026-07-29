@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ActionQuiz } from './ActionQuiz'
 import type { RangeAction, SavedRange } from '../types/range'
@@ -98,5 +98,30 @@ describe('ActionQuiz', () => {
 
     await user.click(screen.getByRole('button', { name: 'End quiz' }))
     expect(onExit).toHaveBeenCalledWith([])
+  })
+
+  it('answers with mnemonic keys and ignores duplicate input during feedback', async () => {
+    const user = userEvent.setup()
+    const onExit = vi.fn()
+    render(
+      <ActionQuiz
+        range={makeRange({ handActions: RAISE_AA })}
+        onExit={onExit}
+        random={() => 0}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Raise' })).toHaveAttribute(
+      'aria-keyshortcuts',
+      'R',
+    )
+    fireEvent.keyDown(window, { key: 'r' })
+    fireEvent.keyDown(window, { key: 'f' })
+    expect(screen.getByText('Correct!')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'End quiz' }))
+    expect(onExit.mock.calls[0][0]).toEqual([
+      { hand: 'AA', chosen: 'raise', expected: 'raise', correct: true },
+    ])
   })
 })

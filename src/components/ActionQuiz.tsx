@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { accuracyPercentage } from '../domain/accuracy'
 import { assignedHands, correctActionFor } from '../domain/actionRange'
 import { getRandomHandFrom } from '../domain/practice'
@@ -34,6 +34,20 @@ interface AnsweredState {
   correct: boolean
 }
 
+const ACTION_SHORTCUTS: Record<RangeAction, string> = {
+  fold: 'F',
+  call: 'C',
+  raise: 'R',
+  threeBet: '3',
+  fourBet: '4',
+  jam: 'J',
+  mixed: 'M',
+}
+
+const ACTION_BY_SHORTCUT = Object.fromEntries(
+  Object.entries(ACTION_SHORTCUTS).map(([action, key]) => [key.toLowerCase(), action]),
+) as Record<string, RangeAction>
+
 /**
  * Mode-2 practice ("what is the correct action for AJs?"): prompts a hand from
  * the range's assigned action chart and scores the user's chosen action against
@@ -52,6 +66,46 @@ export function ActionQuiz({ range, onExit, random = Math.random }: ActionQuizPr
   const [correct, setCorrect] = useState(0)
   // Every answered question, handed back on exit so App can record per-action accuracy.
   const [attempts, setAttempts] = useState<ActionAttempt[]>([])
+  const answeringRef = useRef(false)
+
+  function answer(chosen: RangeAction) {
+    if (answeringRef.current || answered) return
+    answeringRef.current = true
+    const expected = correctActionFor(handActions, currentHand)
+    const isCorrect = chosen === expected
+    setAnswered({ chosen, expected, correct: isCorrect })
+    setAttempts((prev) => [...prev, { hand: currentHand, chosen, expected, correct: isCorrect }])
+    setTotal((value) => value + 1)
+    if (isCorrect) setCorrect((value) => value + 1)
+  }
+
+  function nextHand() {
+    setCurrentHand(getRandomHandFrom(pool, random))
+    answeringRef.current = false
+    setAnswered(null)
+  }
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.repeat || event.altKey || event.ctrlKey || event.metaKey) return
+      const target = event.target
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return
+      }
+      const action = ACTION_BY_SHORTCUT[event.key.toLowerCase()]
+      if (!action) return
+      event.preventDefault()
+      answer(action)
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  })
 
   if (pool.length === 0) {
     return (
@@ -67,21 +121,6 @@ export function ActionQuiz({ range, onExit, random = Math.random }: ActionQuizPr
         </p>
       </section>
     )
-  }
-
-  function answer(chosen: RangeAction) {
-    if (answered) return
-    const expected = correctActionFor(handActions, currentHand)
-    const isCorrect = chosen === expected
-    setAnswered({ chosen, expected, correct: isCorrect })
-    setAttempts((prev) => [...prev, { hand: currentHand, chosen, expected, correct: isCorrect }])
-    setTotal((value) => value + 1)
-    if (isCorrect) setCorrect((value) => value + 1)
-  }
-
-  function nextHand() {
-    setCurrentHand(getRandomHandFrom(pool, random))
-    setAnswered(null)
   }
 
   const accuracy = Math.round(accuracyPercentage(correct, total))
@@ -129,11 +168,13 @@ export function ActionQuiz({ range, onExit, random = Math.random }: ActionQuizPr
               key={action}
               type="button"
               className={`action-swatch action-${action}`}
+              aria-keyshortcuts={ACTION_SHORTCUTS[action]}
               onClick={() => answer(action)}
             >
               {RANGE_ACTION_LABELS[action]}
             </button>
           ))}
+          <p className="practice-expected">Keyboard: F · C · R · 3 · 4 · J · M</p>
         </div>
       )}
     </section>
