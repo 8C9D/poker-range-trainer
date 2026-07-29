@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Link } from 'expo-router';
 
@@ -11,6 +11,12 @@ import {
   type ComboSelection,
 } from '@core/domain/comboSelection';
 import type { HandMixedStrategy } from '@core/domain/mixedStrategy';
+import {
+  createHandSelectionHistory,
+  recordHandSelection,
+  redoHandSelection,
+  undoHandSelection,
+} from '@core/domain/handSelectionHistory';
 import { ALL_HANDS, type PokerHand } from '@core/domain/pokerHands';
 import { mergeShortcutHands } from '@core/domain/rangeShortcuts';
 import { findSavedRangeById, saveSavedRange } from '@core/storage/rangeStorage';
@@ -79,7 +85,10 @@ export function RangeEditor({ id: idParam, prefill, showNotesLink = true }: Rang
   });
 
   const [name, setName] = useState(draft.name);
-  const [selected, setSelected] = useState<Set<PokerHand>>(() => new Set(draft.hands));
+  const [selectionHistory, setSelectionHistory] = useState(() =>
+    createHandSelectionHistory(draft.hands),
+  );
+  const selected = useMemo(() => new Set(selectionHistory.present), [selectionHistory.present]);
   const [metadata, setMetadata] = useState<RangeMetadata>(draft.metadata);
   const [tags, setTags] = useState<string[]>(draft.tags);
   const [comboDraft, setComboDraft] = useState<Record<PokerHand, ComboSelection>>(() => {
@@ -158,25 +167,29 @@ export function RangeEditor({ id: idParam, prefill, showNotesLink = true }: Rang
   }, [name, selected, metadata, comboDraft, tags, draft]);
 
   const handleSetSelected = useCallback((hand: PokerHand, isSelected: boolean) => {
-    setSelected((prev) => {
+    setSelectionHistory((history) => {
+      const prev = new Set(history.present);
+      if (prev.has(hand) === isSelected) return history;
       const next = new Set(prev);
       if (isSelected) next.add(hand);
       else next.delete(hand);
-      return next;
+      return recordHandSelection(history, next);
     });
   }, []);
 
   const applyShortcut = useCallback((hands: PokerHand[]) => {
-    setSelected((prev) => new Set(mergeShortcutHands([...prev], hands)));
+    setSelectionHistory((history) =>
+      recordHandSelection(history, mergeShortcutHands(history.present, hands)),
+    );
   }, []);
 
   const onReplaceHands = useCallback((hands: PokerHand[]) => {
-    setSelected(new Set(hands));
+    setSelectionHistory((history) => recordHandSelection(history, hands));
   }, []);
 
   const onImportCsv = useCallback((result: { name?: string; hands: PokerHand[] }) => {
     if (result.name !== undefined) setName(result.name);
-    setSelected(new Set(result.hands));
+    setSelectionHistory((history) => recordHandSelection(history, result.hands));
   }, []);
 
   const onToggleCombo = useCallback(
@@ -195,7 +208,11 @@ export function RangeEditor({ id: idParam, prefill, showNotesLink = true }: Rang
   const handleClear = useCallback(() => {
     Alert.alert('Clear range', 'Remove all selected hands?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Clear', style: 'destructive', onPress: () => setSelected(new Set()) },
+      {
+        text: 'Clear',
+        style: 'destructive',
+        onPress: () => setSelectionHistory((history) => recordHandSelection(history, [])),
+      },
     ]);
   }, []);
 
@@ -210,6 +227,28 @@ export function RangeEditor({ id: idParam, prefill, showNotesLink = true }: Rang
         onChangeText={setName}
       />
       <RangeStatsBar hands={[...selected]} />
+      <View style={styles.historyActions}>
+        <Pressable
+          testID="undo-selection"
+          accessibilityRole="button"
+          accessibilityState={{ disabled: selectionHistory.past.length === 0 }}
+          disabled={selectionHistory.past.length === 0}
+          style={[styles.historyButton, selectionHistory.past.length === 0 && styles.disabled]}
+          onPress={() => setSelectionHistory(undoHandSelection)}
+        >
+          <Text style={styles.historyText}>Undo</Text>
+        </Pressable>
+        <Pressable
+          testID="redo-selection"
+          accessibilityRole="button"
+          accessibilityState={{ disabled: selectionHistory.future.length === 0 }}
+          disabled={selectionHistory.future.length === 0}
+          style={[styles.historyButton, selectionHistory.future.length === 0 && styles.disabled]}
+          onPress={() => setSelectionHistory(redoHandSelection)}
+        >
+          <Text style={styles.historyText}>Redo</Text>
+        </Pressable>
+      </View>
       <RangeShortcuts onAddHands={applyShortcut} />
       <HandGrid selected={selected} onSetSelected={handleSetSelected} />
       {selected.size > 0 ? (
@@ -282,6 +321,26 @@ function makeStyles(theme: ThemeColors) {
       fontSize: 16,
       color: theme.ink,
       backgroundColor: theme.card,
+    },
+    historyActions: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    historyButton: {
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line2,
+      borderRadius: 8,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      backgroundColor: theme.card,
+    },
+    historyText: {
+      color: theme.ink,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    disabled: {
+      opacity: 0.4,
     },
     combosSection: {
       gap: 10,

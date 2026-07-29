@@ -57,4 +57,18 @@ describe('EditorScreen', () => {
 
     alertSpy.mockRestore();
   });
+
+  it('undoes and redoes a live-saved hand selection', async () => {
+    const user = userEvent.setup();
+    const { getByTestId } = await render(<RangeEditor />);
+
+    await user.press(getByTestId('hand-cell-AA'));
+    await waitFor(() => expect(loadSavedRanges()[0]?.hands).toEqual(['AA']));
+
+    await user.press(getByTestId('undo-selection'));
+    await waitFor(() => expect(loadSavedRanges()[0]?.hands ?? []).toEqual([]));
+
+    await user.press(getByTestId('redo-selection'));
+    await waitFor(() => expect(loadSavedRanges()[0]?.hands).toEqual(['AA']));
+  });
 });
