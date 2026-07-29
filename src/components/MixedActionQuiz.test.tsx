@@ -80,4 +80,24 @@ describe('MixedActionQuiz', () => {
       within(screen.getByLabelText('Quiz stats')).getByText('Total questions: 1'),
     ).toBeInTheDocument()
   })
+
+  it('advances from feedback with Enter', () => {
+    render(
+      <MixedActionQuiz
+        range={makeRange({ mixedStrategies: MIX_AA })}
+        onExit={vi.fn()}
+        random={() => 0}
+      />,
+    )
+
+    fireEvent.keyDown(window, { key: 'r' })
+    expect(screen.getByRole('button', { name: 'Next hand' })).toHaveAttribute(
+      'aria-keyshortcuts',
+      'Enter',
+    )
+    fireEvent.keyDown(window, { key: 'Enter' })
+
+    expect(screen.queryByText('Correct!')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Raise' })).toBeInTheDocument()
+  })
 })

@@ -124,4 +124,24 @@ describe('ActionQuiz', () => {
       { hand: 'AA', chosen: 'raise', expected: 'raise', correct: true },
     ])
   })
+
+  it('advances from feedback with Enter', () => {
+    render(
+      <ActionQuiz
+        range={makeRange({ handActions: RAISE_AA })}
+        onExit={vi.fn()}
+        random={() => 0}
+      />,
+    )
+
+    fireEvent.keyDown(window, { key: 'r' })
+    expect(screen.getByRole('button', { name: 'Next hand' })).toHaveAttribute(
+      'aria-keyshortcuts',
+      'Enter',
+    )
+    fireEvent.keyDown(window, { key: 'Enter' })
+
+    expect(screen.queryByText('Correct!')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Raise' })).toBeInTheDocument()
+  })
 })

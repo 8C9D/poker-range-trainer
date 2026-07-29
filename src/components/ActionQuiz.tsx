@@ -84,6 +84,11 @@ export function ActionQuiz({ range, onExit, random = Math.random }: ActionQuizPr
       ) {
         return
       }
+      if (event.key === 'Enter' && answered) {
+        event.preventDefault()
+        nextHand()
+        return
+      }
       const action = ACTION_BY_SHORTCUT[event.key.toLowerCase()]
       if (!action) return
       event.preventDefault()
@@ -144,7 +149,12 @@ export function ActionQuiz({ range, onExit, random = Math.random }: ActionQuizPr
           <p className="practice-expected">
             Correct action: {RANGE_ACTION_LABELS[answered.expected]}
           </p>
-          <button type="button" className="primary" onClick={nextHand}>
+          <button
+            type="button"
+            className="primary"
+            aria-keyshortcuts="Enter"
+            onClick={nextHand}
+          >
             Next hand
           </button>
         </div>

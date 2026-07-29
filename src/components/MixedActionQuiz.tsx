@@ -73,6 +73,11 @@ export function MixedActionQuiz({ range, onExit, random = Math.random }: MixedAc
       ) {
         return
       }
+      if (event.key === 'Enter' && answered) {
+        event.preventDefault()
+        nextHand()
+        return
+      }
       const action = ACTION_BY_SHORTCUT[event.key.toLowerCase()]
       if (!action) return
       event.preventDefault()
@@ -133,7 +138,12 @@ export function MixedActionQuiz({ range, onExit, random = Math.random }: MixedAc
           <p className="practice-expected">
             Primary action: {RANGE_ACTION_LABELS[answered.expected]}
           </p>
-          <button type="button" className="primary" onClick={nextHand}>
+          <button
+            type="button"
+            className="primary"
+            aria-keyshortcuts="Enter"
+            onClick={nextHand}
+          >
             Next hand
           </button>
         </div>
