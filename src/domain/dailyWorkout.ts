@@ -91,6 +91,7 @@ export function buildDailyWorkout(input: DailyWorkoutInput): DailyWorkout | null
   const active = ranges.filter((range) => !range.archived)
 
   const due = selectDueRanges(active, reviewStates, now)
+  const reviewRanges = due.slice(0, MAX_REVIEW_RANGES)
   const weak = selectWeakSpots(ranges, spotAccuracy)
   const libraryFormat = inferLibraryContext(ranges)
   const covered = coveredSpots(ranges, libraryFormat.tableSize, libraryFormat.stackDepthBb)
@@ -104,23 +105,24 @@ export function buildDailyWorkout(input: DailyWorkoutInput): DailyWorkout | null
       covered.every((entry) => weak.keys.includes(spotKey(entry.spot)))
     )
 
-  const segmentCount = (due.length > 0 ? 1 : 0) + (weak ? 1 : 0) + (freshIsDistinct ? 1 : 0)
-  if (segmentCount === 0) return null
+  // Each due range is its own recognition drill, so it is one sizing unit even
+  // though the runner groups all review drills under one hand-off. Counting the
+  // review group as a single unit makes a capped three-range review consume up
+  // to three times its intended share of the daily goal.
+  const workoutUnits =
+    reviewRanges.length + (weak ? 1 : 0) + (freshIsDistinct ? 1 : 0)
+  if (workoutUnits === 0) return null
 
   const budget = goalHands > 0 ? goalHands : DEFAULT_GOAL_HANDS
-  const share = Math.max(MIN_SEGMENT_QUESTIONS, Math.round(budget / segmentCount))
+  const share = Math.max(MIN_SEGMENT_QUESTIONS, Math.round(budget / workoutUnits))
 
   const segments: WorkoutSegment[] = []
 
-  if (due.length > 0) {
-    const reviewRanges = due.slice(0, MAX_REVIEW_RANGES)
+  if (reviewRanges.length > 0) {
     segments.push({
       kind: 'review',
       ranges: reviewRanges,
-      questionsPerRange: Math.max(
-        MIN_SEGMENT_QUESTIONS,
-        Math.round(share / reviewRanges.length),
-      ),
+      questionsPerRange: share,
       reason:
         due.length > reviewRanges.length
           ? `${reviewRanges.length} of your ${due.length} due ranges.`

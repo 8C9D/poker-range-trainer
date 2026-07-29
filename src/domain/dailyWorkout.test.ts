@@ -209,6 +209,25 @@ describe('buildDailyWorkout', () => {
     expect(workout?.estimatedMinutes).toBe(2)
   })
 
+  it('budgets each due range as a drill instead of multiplying the review share', () => {
+    const due = [
+      makeRange('r1', {}),
+      makeRange('r2', {}),
+      makeRange('r3', {}),
+    ]
+    const workout = build({
+      ranges: [...due, btnOpen],
+      reviewStates: { 'BTN open': notDue('BTN open') },
+      goalHands: 20,
+    })
+
+    const review = workout?.segments[0] as ReviewSegment
+    expect(review.ranges).toHaveLength(3)
+    expect(review.questionsPerRange).toBe(5)
+    // Three review drills plus one fresh-play drill, five questions each.
+    expect(workout?.totalQuestions).toBe(20)
+  })
+
   it('never plans a segment below the question floor', () => {
     const workout = build({
       ranges: [btnOpen, bbVsCo],
