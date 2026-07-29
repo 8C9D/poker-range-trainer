@@ -177,6 +177,19 @@ export default function LibraryScreen() {
     (tag ? 1 : 0) +
     (favoritesOnly ? 1 : 0) +
     (showArchived ? 1 : 0);
+  const hasViewChanges = query.length > 0 || sort !== undefined || activeFilterCount > 0;
+
+  const clearViewChanges = () => {
+    setQuery('');
+    setPosition(undefined);
+    setActionType(undefined);
+    setStackDepth(undefined);
+    setGameType(undefined);
+    setTag(undefined);
+    setSort(undefined);
+    setFavoritesOnly(false);
+    setShowArchived(false);
+  };
 
   const header = (
     <View style={styles.header}>
@@ -272,6 +285,11 @@ export default function LibraryScreen() {
               Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
             </Text>
           </Pressable>
+          {hasViewChanges ? (
+            <Pressable testID="clear-filters" onPress={clearViewChanges} style={styles.filtersToggle}>
+              <Text style={styles.filtersToggleText}>Clear filters</Text>
+            </Pressable>
+          ) : null}
 
           {filtersOpen ? (
             <View style={styles.filters}>

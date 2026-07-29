@@ -78,6 +78,25 @@ describe('LibraryScreen', () => {
     expect(getByText('BTN Open')).toBeTruthy();
   });
 
+  it('clears search, sort, and metadata filters in one action', async () => {
+    seed({ id: 'r1', name: 'Zebra', metadata: { position: 'utg' } });
+    seed({ id: 'r2', name: 'Alpha', metadata: { position: 'btn' } });
+
+    const { getByTestId, findByTestId, getByText, queryByText } = await render(
+      <LibraryScreen />,
+    );
+    await fireEvent.changeText(getByTestId('library-search'), 'alpha');
+    await fireEvent.press(getByTestId('filters-toggle'));
+    await fireEvent.press(await findByTestId('sort-name'));
+    await fireEvent.press(await findByTestId('filter-position-btn'));
+    await waitFor(() => expect(queryByText('Zebra')).toBeNull());
+
+    await fireEvent.press(getByTestId('clear-filters'));
+    await waitFor(() => expect(getByText('Zebra')).toBeTruthy());
+    expect(getByText('Alpha')).toBeTruthy();
+    expect(getByTestId('library-search').props.value).toBe('');
+  });
+
   it('reorders by the name sort', async () => {
     seed({ id: 'r2', name: 'Bravo' });
     seed({ id: 'r1', name: 'Alpha' });
@@ -180,10 +199,10 @@ describe('LibraryScreen', () => {
     });
 
     const { getByTestId, findByLabelText } = await render(<LibraryScreen />);
-    fireEvent.press(getByTestId('manage-ranges'));
-    fireEvent.press(await findByLabelText('Select Delete me'));
+    await fireEvent.press(getByTestId('manage-ranges'));
+    await fireEvent.press(await findByLabelText('Select Delete me'));
     await findByLabelText('Deselect Delete me');
-    fireEvent.press(getByTestId('delete-selected'));
+    await fireEvent.press(getByTestId('delete-selected'));
 
     await waitFor(() =>
       expect(loadSavedRanges().map((range) => range.name)).toEqual(['Keep']),
