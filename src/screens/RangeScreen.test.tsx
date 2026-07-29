@@ -201,6 +201,33 @@ describe('RangeScreen tabs', () => {
     expect(within(sessions).getByText(/8\/10 · 80%/)).toBeInTheDocument()
   })
 
+  it('links web source references and leaves citations as plain text', () => {
+    saveSavedRange(
+      makeRange({
+        source: { kind: 'solver', reference: 'https://example.com/btn-open' },
+      }),
+    )
+    const { unmount } = render(
+      <RangeScreen id="r1" tab="overview" onPractice={vi.fn()} />,
+    )
+
+    const link = screen.getByRole('link', { name: 'https://example.com/btn-open' })
+    expect(link).toHaveAttribute('href', 'https://example.com/btn-open')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noreferrer')
+
+    unmount()
+    localStorage.clear()
+    saveSavedRange(
+      makeRange({
+        source: { kind: 'solver', reference: 'GTOWizard 6-max' },
+      }),
+    )
+    render(<RangeScreen id="r1" tab="overview" onPractice={vi.fn()} />)
+    expect(screen.getByText(/GTOWizard 6-max/)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'GTOWizard 6-max' })).not.toBeInTheDocument()
+  })
+
   it('edits and saves the range from the Edit tab', async () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange())

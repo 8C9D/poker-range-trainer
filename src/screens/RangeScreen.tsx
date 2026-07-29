@@ -32,6 +32,7 @@ import { handsWithMistakes } from '../domain/practice'
 import { setRangeArchived } from '../domain/rangeArchive'
 import { duplicateRange } from '../domain/rangeDuplication'
 import { setRangeFavorite } from '../domain/rangeFavorite'
+import { sourceReferenceUrl } from '../domain/sourceReference'
 import { calculateRangePercentage, countSelectedCombos } from '../domain/rangeMath'
 import { accuracyPercentage } from '../domain/accuracy'
 import { formatDayDistance } from '../app/format'
@@ -393,6 +394,7 @@ function OverviewTab({ range }: { range: SavedRange }) {
   const lastSession = history.length > 0 ? history[history.length - 1] : null
   const recentSessions = history.slice(-5).reverse()
   const handNoteCount = Object.keys(range.handNotes ?? {}).length
+  const sourceUrl = sourceReferenceUrl(range.source?.reference)
 
   return (
     <div className="range-overview">
@@ -418,7 +420,18 @@ function OverviewTab({ range }: { range: SavedRange }) {
           {range.source && (
             <p>
               Source: {RANGE_SOURCE_KIND_LABELS[range.source.kind]}
-              {range.source.reference ? ` · ${range.source.reference}` : ''}
+              {range.source.reference && (
+                <>
+                  {' · '}
+                  {sourceUrl ? (
+                    <a href={sourceUrl} target="_blank" rel="noreferrer">
+                      {range.source.reference}
+                    </a>
+                  ) : (
+                    range.source.reference
+                  )}
+                </>
+              )}
             </p>
           )}
           {handNoteCount > 0 && (
