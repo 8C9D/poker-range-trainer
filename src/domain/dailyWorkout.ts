@@ -255,5 +255,5 @@ export function summarizeWorkout(workout: DailyWorkout): string {
         ? `${segment.leaks.length} weak spot${segment.leaks.length === 1 ? '' : 's'}`
         : 'free play',
   )
-  return `${parts.join(' · ')} · ~${workout.estimatedMinutes} min`
+  return `${workout.totalQuestions} hands · ${parts.join(' · ')} · ~${workout.estimatedMinutes} min`
 }

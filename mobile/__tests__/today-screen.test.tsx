@@ -174,7 +174,7 @@ describe('TodayScreen daily workout', () => {
 
     const { getByTestId } = await render(<TodayScreen />);
 
-    expect(getByTestId('today-workout')).toHaveTextContent(/1 review · ~\d+ min/);
+    expect(getByTestId('today-workout')).toHaveTextContent(/\d+ hands · 1 review · ~\d+ min/);
     expect(getByTestId('start-workout')).toBeTruthy();
   });
 

@@ -190,7 +190,7 @@ describe('TodayScreen daily workout', () => {
     )
 
     const card = screen.getByRole('region', { name: 'Daily workout' })
-    expect(within(card).getByText(/2 reviews · free play · ~\d+ min/)).toBeInTheDocument()
+    expect(within(card).getByText(/\d+ hands · 2 reviews · free play · ~\d+ min/)).toBeInTheDocument()
     await user.click(within(card).getByRole('button', { name: 'Start workout' }))
 
     expect(onStartWorkout).toHaveBeenCalledTimes(1)

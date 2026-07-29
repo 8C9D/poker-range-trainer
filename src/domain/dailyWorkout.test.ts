@@ -4,6 +4,7 @@ import {
   MAX_WEAK_SPOTS,
   MIN_SEGMENT_QUESTIONS,
   buildDailyWorkout,
+  summarizeWorkout,
   workoutCompletedToday,
   type DailyWorkoutInput,
   type FreshSpotsSegment,
@@ -285,5 +286,13 @@ describe('workoutCompletedToday', () => {
   it('treats a missing or unparseable record as not completed', () => {
     expect(workoutCompletedToday(null, NOW)).toBe(false)
     expect(workoutCompletedToday('not a date', NOW)).toBe(false)
+  })
+})
+
+describe('summarizeWorkout', () => {
+  it('states the exact workload alongside the plan and time estimate', () => {
+    const workout = build({ ranges: [btnOpen], goalHands: 20 })
+
+    expect(summarizeWorkout(workout!)).toBe('20 hands · 1 review · free play · ~2 min')
   })
 })

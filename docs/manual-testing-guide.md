@@ -709,7 +709,8 @@ from a known state (see §2).
 ### 5.37 Daily workout (v9)
 
 - [ ] **Today** leads with a "Daily workout" card summarizing the plan in one line
-      (e.g. "2 reviews · 1 weak spot · free play · ~2 min"); **Start workout** runs it.
+      (e.g. "20 hands · 2 reviews · 1 weak spot · free play · ~2 min");
+      **Start workout** runs it.
 - [ ] The run plays its parts back-to-back with a hand-off screen before each
       ("Part 2 of 3", the segment's reason); reviews come first, then weakest
       spots, then free spot play.
