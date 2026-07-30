@@ -197,6 +197,31 @@ describe('PracticeHost recognition flow', () => {
     expect(Object.keys(loadReviewStates()).sort()).toEqual(['a', 'b'])
   })
 
+  it('takes the summary’s primary action with Enter', () => {
+    const onClose = vi.fn()
+    render(
+      <PracticeHost
+        request={{
+          ranges: [makeRange('a', 'UTG open'), makeRange('b', 'BTN open')],
+          mode: 'recognize',
+          handPool: ['AA'],
+        }}
+        onClose={onClose}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'In range' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close practice' }))
+    // Another range waits: Enter means Next range.
+    fireEvent.keyDown(window, { key: 'Enter' })
+
+    expect(screen.getByText('BTN open · 2/2')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'In range' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close practice' }))
+    // Last range: Enter means Done.
+    fireEvent.keyDown(window, { key: 'Enter' })
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
   it('celebrates an improved session with the points delta', () => {
     // Prior session at 50% -> a perfect 1/1 session is +50 points.
     localStorage.setItem(

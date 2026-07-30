@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { recordFinishedPracticeSession } from '../app/sessionRecording'
 import { accuracyPercentage } from '../domain/accuracy'
 import {
@@ -102,6 +102,35 @@ export function WorkoutHost({ workout, ranges, onClose }: WorkoutHostProps) {
     else showSummary(false)
   }
 
+  // Enter starts the next part, so a keyboard-driven workout flows from
+  // hand-off to drill without the mouse. Only the hand-off listens: the drills
+  // and the summary own their own keys. A focused button keeps its native
+  // Enter click.
+  const onHandoff = phase.kind === 'handoff'
+  useEffect(() => {
+    if (!onHandoff) return
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.repeat || event.altKey || event.ctrlKey || event.metaKey) return
+      if (event.key !== 'Enter') return
+      const target = event.target
+      if (
+        target instanceof HTMLButtonElement ||
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return
+      }
+      event.preventDefault()
+      setPhase({ kind: 'drill' })
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onHandoff])
+
   function advance() {
     if (segmentIndex + 1 < segments.length) {
       setSegmentIndex(segmentIndex + 1)
@@ -165,6 +194,7 @@ export function WorkoutHost({ workout, ranges, onClose }: WorkoutHostProps) {
           <button
             type="button"
             className="coach-btn primary"
+            aria-keyshortcuts="Enter"
             onClick={() => setPhase({ kind: 'drill' })}
           >
             {segmentIndex === 0 ? 'Start' : 'Continue'}

@@ -76,6 +76,16 @@ describe('WorkoutHost', () => {
     expect(screen.getByRole('button', { name: 'In range' })).toBeInTheDocument()
   })
 
+  it('starts the segment from the hand-off with Enter', () => {
+    render(
+      <WorkoutHost workout={makeWorkout()} ranges={[everyHand, btnOpen]} onClose={vi.fn()} />,
+    )
+
+    expect(screen.getByRole('heading', { name: 'Review' })).toBeInTheDocument()
+    fireEvent.keyDown(window, { key: 'Enter' })
+    expect(screen.getByRole('button', { name: 'In range' })).toBeInTheDocument()
+  })
+
   it('abandons without recording when closed before any answer', () => {
     const onClose = vi.fn()
     render(

@@ -37,6 +37,32 @@ export function SessionSummary({ data, hasNext, onNext, onDone }: SessionSummary
     return () => cancelAnimationFrame(frame)
   }, [data.accuracy])
 
+  // Enter takes the primary action so a keyboard-driven session never has to
+  // reach for the mouse at the summary. A focused button keeps its native
+  // Enter click (tabbing to "Done" must not fire "Next range" instead).
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.repeat || event.altKey || event.ctrlKey || event.metaKey) return
+      if (event.key !== 'Enter') return
+      const target = event.target
+      if (
+        target instanceof HTMLButtonElement ||
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return
+      }
+      event.preventDefault()
+      if (hasNext) onNext()
+      else onDone()
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  })
+
   return (
     <div className="session-summary" aria-label="Session summary">
       <div className="session-summary-ring">
@@ -74,7 +100,12 @@ export function SessionSummary({ data, hasNext, onNext, onDone }: SessionSummary
       <div className="session-summary-actions">
         {hasNext ? (
           <>
-            <button type="button" className="coach-btn primary" onClick={onNext}>
+            <button
+              type="button"
+              className="coach-btn primary"
+              aria-keyshortcuts="Enter"
+              onClick={onNext}
+            >
               Next range
             </button>
             <button type="button" className="coach-btn quiet" onClick={onDone}>
@@ -82,7 +113,12 @@ export function SessionSummary({ data, hasNext, onNext, onDone }: SessionSummary
             </button>
           </>
         ) : (
-          <button type="button" className="coach-btn primary" onClick={onDone}>
+          <button
+            type="button"
+            className="coach-btn primary"
+            aria-keyshortcuts="Enter"
+            onClick={onDone}
+          >
             Done
           </button>
         )}
