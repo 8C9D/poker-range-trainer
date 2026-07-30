@@ -75,6 +75,27 @@ describe('SpotDrill', () => {
     expect(screen.getByText(/from “BTN open”/)).toBeInTheDocument()
   })
 
+  it('answers with arrow keys and ignores duplicate input during feedback', () => {
+    const onFinish = renderDrill()
+
+    expect(screen.getByRole('button', { name: 'Open' })).toHaveAttribute(
+      'aria-keyshortcuts',
+      'ArrowRight',
+    )
+    expect(screen.getByRole('button', { name: 'Fold' })).toHaveAttribute(
+      'aria-keyshortcuts',
+      'ArrowLeft',
+    )
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    fireEvent.keyDown(window, { key: 'ArrowLeft' })
+    expect(screen.getByText('Correct — open AA.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close practice' }))
+    expect(onFinish.mock.calls[0][0].bySpot).toEqual([
+      { spotKey: 'sixMax|btn|foldedToYou|-|100', attempts: 1, correct: 1 },
+    ])
+  })
+
   it('groups the finished attempts by the range that graded them', () => {
     vi.useFakeTimers()
     // The very first draw picks the first covered spot; everything after it picks

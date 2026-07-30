@@ -86,6 +86,7 @@ export function SpotDrill({
   const [feedback, setFeedback] = useState<PracticeAttempt | null>(null)
   const answeredRef = useRef(answered)
   const finishedRef = useRef(false)
+  const answeringRef = useRef(false)
   const dwellTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(
@@ -103,7 +104,8 @@ export function SpotDrill({
   }
 
   function answer(userAnsweredInRange: boolean) {
-    if (!prompt || feedback !== null || finishedRef.current) return
+    if (!prompt || answeringRef.current || feedback !== null || finishedRef.current) return
+    answeringRef.current = true
     const attempt = createPracticeAttempt(prompt.hand, prompt.range.hands, userAnsweredInRange)
     const next = [
       ...answered,
@@ -120,12 +122,38 @@ export function SpotDrill({
           finish(next)
           return
         }
+        answeringRef.current = false
         setFeedback(null)
         setPrompt(chain(prompt, attempt) ?? draw())
       },
       attempt.correct ? HIT_DWELL_MS : MISS_DWELL_MS,
     )
   }
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.repeat || event.altKey || event.ctrlKey || event.metaKey) return
+      const target = event.target
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return
+      }
+      if (event.key === 'ArrowRight') {
+        event.preventDefault()
+        answer(true)
+      } else if (event.key === 'ArrowLeft') {
+        event.preventDefault()
+        answer(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  })
 
   const swipe = useSwipe({
     onSwipeRight: () => answer(true),
@@ -176,7 +204,9 @@ export function SpotDrill({
           )}
         </div>
         {!feedback && (
-          <p className="drill-swipe-hint">Swipe right to {verbs.yes.toLowerCase()}, left to fold</p>
+          <p className="drill-swipe-hint">
+            Swipe or use arrow keys: right to {verbs.yes.toLowerCase()}, left to fold
+          </p>
         )}
       </div>
       <div className="drill-answers">
@@ -184,6 +214,7 @@ export function SpotDrill({
           type="button"
           className="drill-answer yes"
           disabled={feedback !== null}
+          aria-keyshortcuts="ArrowRight"
           onClick={() => answer(true)}
         >
           {verbs.yes}
@@ -192,6 +223,7 @@ export function SpotDrill({
           type="button"
           className="drill-answer no"
           disabled={feedback !== null}
+          aria-keyshortcuts="ArrowLeft"
           onClick={() => answer(false)}
         >
           {verbs.no}
