@@ -4,6 +4,7 @@ import {
   STORAGE_KEY,
   loadSavedRanges,
   saveSavedRange,
+  saveSavedRanges,
   deleteSavedRange,
   deleteSavedRanges,
   findSavedRangeById,
@@ -117,6 +118,47 @@ describe('saveSavedRange', () => {
 
     expect(() => saveSavedRange(makeRange({ id: 'bad', hands: ['AA', 'ZZ'] }))).toThrow(/ZZ/)
     expect(loadSavedRanges()).toEqual([good])
+  })
+})
+
+describe('saveSavedRanges', () => {
+  it('updates and appends a batch in stable order with one write', () => {
+    saveSavedRange(makeRange({ id: 'a', name: 'A' }))
+    saveSavedRange(makeRange({ id: 'b', name: 'B' }))
+    const setItem = vi.spyOn(Storage.prototype, 'setItem')
+
+    saveSavedRanges([
+      makeRange({ id: 'b', name: 'Updated B' }),
+      makeRange({ id: 'c', name: 'C' }),
+    ])
+
+    expect(setItem).toHaveBeenCalledTimes(1)
+    expect(loadSavedRanges().map(({ id, name }) => ({ id, name }))).toEqual([
+      { id: 'a', name: 'A' },
+      { id: 'b', name: 'Updated B' },
+      { id: 'c', name: 'C' },
+    ])
+    setItem.mockRestore()
+  })
+
+  it('normalizes the whole batch before writing', () => {
+    const original = makeRange({ id: 'a', name: 'A' })
+    saveSavedRange(original)
+
+    expect(() =>
+      saveSavedRanges([
+        makeRange({ id: 'b', name: 'B' }),
+        makeRange({ id: 'bad', hands: ['ZZ'] }),
+      ]),
+    ).toThrow(/ZZ/)
+    expect(loadSavedRanges()).toEqual([original])
+  })
+
+  it('does not write an empty batch', () => {
+    const setItem = vi.spyOn(Storage.prototype, 'setItem')
+    saveSavedRanges([])
+    expect(setItem).not.toHaveBeenCalled()
+    setItem.mockRestore()
   })
 })
 

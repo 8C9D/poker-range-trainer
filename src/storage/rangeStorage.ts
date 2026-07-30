@@ -270,8 +270,8 @@ export function findSavedRangeById(id: string): SavedRange | undefined {
 /**
  * Normalize + validate a range for storage: metadata/source/hand-actions/combo/
  * mixed/notes are normalized and the hands are validated, so an invalid hand
- * throws HERE (before any write). Shared by {@link saveSavedRange} and
- * {@link replaceSavedRanges}.
+ * throws HERE (before any write). Shared by {@link saveSavedRange},
+ * {@link saveSavedRanges}, and {@link replaceSavedRanges}.
  */
 function normalizeSavedRange(range: SavedRange): SavedRange {
   const {
@@ -318,13 +318,29 @@ function normalizeSavedRange(range: SavedRange): SavedRange {
  * before any write and leaves existing storage untouched.
  */
 export function saveSavedRange(range: SavedRange): void {
-  const normalized = normalizeSavedRange(range)
+  saveSavedRanges([range])
+}
+
+/**
+ * Insert or update several ranges by id in one atomic storage write.
+ *
+ * Every input is normalized before storage is touched, so one malformed range
+ * rejects the whole batch and leaves the existing library unchanged. Existing
+ * ids keep their position; new ids append in input order; repeated ids resolve
+ * to the last input at the first position assigned to that id.
+ */
+export function saveSavedRanges(input: Iterable<SavedRange>): void {
+  const normalizedRanges = Array.from(input, normalizeSavedRange)
+  if (normalizedRanges.length === 0) return
+
   const ranges = loadSavedRanges()
-  const index = ranges.findIndex((existing) => existing.id === normalized.id)
-  if (index === -1) {
-    ranges.push(normalized)
-  } else {
-    ranges[index] = normalized
+  for (const normalized of normalizedRanges) {
+    const index = ranges.findIndex((existing) => existing.id === normalized.id)
+    if (index === -1) {
+      ranges.push(normalized)
+    } else {
+      ranges[index] = normalized
+    }
   }
   writeSavedRanges(ranges)
 }

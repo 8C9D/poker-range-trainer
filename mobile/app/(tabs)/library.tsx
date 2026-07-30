@@ -25,7 +25,7 @@ import { setRangeFavorite } from '@core/domain/rangeFavorite';
 import { selectDueRanges } from '@core/domain/spacedRepetition';
 import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
 import { loadReviewStates } from '@core/storage/reviewStateStorage';
-import { deleteSavedRanges, loadSavedRanges, saveSavedRange } from '@core/storage/rangeStorage';
+import { deleteSavedRanges, loadSavedRanges, saveSavedRanges } from '@core/storage/rangeStorage';
 import {
   ACTION_TYPE_LABELS,
   ACTION_TYPES,
@@ -266,15 +266,14 @@ export default function LibraryScreen() {
                 style={[styles.ghostBtn, visibleSelectedIds.size === 0 && styles.disabled]}
                 onPress={() => {
                   const nextFavorite = !selectedAreFavorite;
-                  setData((current) => ({
-                    ...current,
-                    ranges: current.ranges.map((range) => {
-                      if (!visibleSelectedIds.has(range.id)) return range;
-                      const next = setRangeFavorite(range, nextFavorite);
-                      saveSavedRange(next);
-                      return next;
-                    }),
-                  }));
+                  const nextRanges = ranges.map((range) => {
+                    if (!visibleSelectedIds.has(range.id)) return range;
+                    return setRangeFavorite(range, nextFavorite);
+                  });
+                  saveSavedRanges(
+                    nextRanges.filter((range) => visibleSelectedIds.has(range.id)),
+                  );
+                  setData((current) => ({ ...current, ranges: nextRanges }));
                   setSelectedIds(new Set());
                 }}
               >
@@ -290,15 +289,14 @@ export default function LibraryScreen() {
                 style={[styles.ghostBtn, visibleSelectedIds.size === 0 && styles.disabled]}
                 onPress={() => {
                   const nextArchived = !selectedAreArchived;
-                  setData((current) => ({
-                    ...current,
-                    ranges: current.ranges.map((range) => {
-                      if (!visibleSelectedIds.has(range.id)) return range;
-                      const next = setRangeArchived(range, nextArchived);
-                      saveSavedRange(next);
-                      return next;
-                    }),
-                  }));
+                  const nextRanges = ranges.map((range) => {
+                    if (!visibleSelectedIds.has(range.id)) return range;
+                    return setRangeArchived(range, nextArchived);
+                  });
+                  saveSavedRanges(
+                    nextRanges.filter((range) => visibleSelectedIds.has(range.id)),
+                  );
+                  setData((current) => ({ ...current, ranges: nextRanges }));
                   setSelectedIds(new Set());
                 }}
               >

@@ -26,7 +26,7 @@ import { setRangeFavorite } from '../domain/rangeFavorite'
 import { selectDueRanges } from '../domain/spacedRepetition'
 import { loadPracticeStats } from '../storage/practiceStatsStorage'
 import { loadReviewStates } from '../storage/reviewStateStorage'
-import { deleteSavedRanges, loadSavedRanges, saveSavedRange } from '../storage/rangeStorage'
+import { deleteSavedRanges, loadSavedRanges, saveSavedRanges } from '../storage/rangeStorage'
 import {
   ACTION_TYPE_LABELS,
   ACTION_TYPES,
@@ -244,10 +244,11 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
                   const nextFavorite = !selectedAreFavorite
                   const nextRanges = ranges.map((range) => {
                     if (!visibleSelectedIds.has(range.id)) return range
-                    const next = setRangeFavorite(range, nextFavorite)
-                    saveSavedRange(next)
-                    return next
+                    return setRangeFavorite(range, nextFavorite)
                   })
+                  saveSavedRanges(
+                    nextRanges.filter((range) => visibleSelectedIds.has(range.id)),
+                  )
                   setRanges(nextRanges)
                   setSelectedIds(new Set())
                 }}
@@ -262,10 +263,11 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
                   const nextArchived = !selectedAreArchived
                   const nextRanges = ranges.map((range) => {
                     if (!visibleSelectedIds.has(range.id)) return range
-                    const next = setRangeArchived(range, nextArchived)
-                    saveSavedRange(next)
-                    return next
+                    return setRangeArchived(range, nextArchived)
                   })
+                  saveSavedRanges(
+                    nextRanges.filter((range) => visibleSelectedIds.has(range.id)),
+                  )
                   setRanges(nextRanges)
                   setSelectedIds(new Set())
                 }}
