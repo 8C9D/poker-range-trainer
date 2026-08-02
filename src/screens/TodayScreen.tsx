@@ -8,13 +8,15 @@ import {
   type DailyWorkout,
 } from '../domain/dailyWorkout'
 import { practiceAccuracyPercentage } from '../domain/practiceStats'
+import { buildStarterRanges, STARTER_RANGE_TEMPLATES } from '../domain/starterRanges'
 import { currentStreak, selectDueRanges } from '../domain/spacedRepetition'
 import { buildSpotCoverage, inferLibraryContext } from '../domain/spotCoverage'
 import { GOAL_OPTIONS, evaluateDailyGoal, goalLine } from '../domain/trainingGoal'
 import { summarizeWeek } from '../domain/weeklyStats'
 import { loadPracticeStats } from '../storage/practiceStatsStorage'
 import { loadReviewStates } from '../storage/reviewStateStorage'
-import { loadSavedRanges } from '../storage/rangeStorage'
+import { createRangeId } from '../app/ids'
+import { loadSavedRanges, saveSavedRanges } from '../storage/rangeStorage'
 import { loadSessionHistory } from '../storage/sessionHistoryStorage'
 import { loadSpotAccuracy } from '../storage/spotAccuracyStorage'
 import { loadTrainingGoal, saveTrainingGoal } from '../storage/trainingGoalStorage'
@@ -41,13 +43,27 @@ interface TodayScreenProps {
  */
 export function TodayScreen({ onStartReview, onPlaySpots, onStartWorkout }: TodayScreenProps) {
   const [now] = useState(() => new Date())
-  const [ranges] = useState(() => loadSavedRanges())
+  const [ranges, setRanges] = useState(() => loadSavedRanges())
   const [reviewStates] = useState(() => loadReviewStates())
   const [history] = useState(() => loadSessionHistory())
   const [practiceStats] = useState(() => loadPracticeStats())
   const [spotAccuracy] = useState(() => loadSpotAccuracy())
   const [workoutCompletion] = useState(() => loadWorkoutCompletion())
   const [goal, setGoal] = useState(() => loadTrainingGoal())
+  const [starterError, setStarterError] = useState<string | null>(null)
+
+  // The welcome card's shortcut past an empty library. Only reachable while there
+  // are no ranges, so the whole pack goes in without the Account tab's top-up check.
+  function addStarterRanges() {
+    try {
+      saveSavedRanges(buildStarterRanges(new Date().toISOString(), createRangeId))
+    } catch (error) {
+      setStarterError(error instanceof Error ? error.message : 'Could not add the starter ranges.')
+      return
+    }
+    setStarterError(null)
+    setRanges(loadSavedRanges())
+  }
 
   const nowIso = now.toISOString()
   const due = selectDueRanges(
@@ -104,13 +120,24 @@ export function TodayScreen({ onStartReview, onPlaySpots, onStartWorkout }: Toda
           <div className="today-cta-copy">
             <h2>Welcome</h2>
             <p>
-              You have no ranges yet. Build your first one in the Library, then come back here to
-              train it on a schedule.
+              You have no ranges yet. Start with {STARTER_RANGE_TEMPLATES.length} standard 6-max
+              100bb charts (ordinary ranges you can edit or delete), or build your own in the
+              Library.
             </p>
+            {starterError && (
+              <p className="today-cta-error" role="alert">
+                {starterError}
+              </p>
+            )}
           </div>
-          <a className="coach-btn primary" href="#/library">
-            Open Library
-          </a>
+          <div className="today-cta-actions">
+            <button type="button" className="coach-btn primary" onClick={addStarterRanges}>
+              Add starter ranges
+            </button>
+            <a className="coach-btn" href="#/library">
+              Open Library
+            </a>
+          </div>
         </section>
       ) : (
         <>

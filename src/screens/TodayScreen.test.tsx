@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TodayScreen } from './TodayScreen'
-import { saveSavedRange } from '../storage/rangeStorage'
+import { STARTER_RANGE_TEMPLATES } from '../domain/starterRanges'
+import { loadSavedRanges, saveSavedRange } from '../storage/rangeStorage'
 import { saveReviewState } from '../storage/reviewStateStorage'
 import { recordPracticeSessionHistory } from '../storage/sessionHistoryStorage'
 import { recordPracticeSession } from '../storage/practiceStatsStorage'
@@ -35,6 +36,32 @@ describe('TodayScreen', () => {
       'href',
       '#/library',
     )
+  })
+
+  it('fills an empty library with the starter pack and drops straight into training', async () => {
+    const user = userEvent.setup()
+    render(<TodayScreen onStartReview={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
+
+    await user.click(screen.getByRole('button', { name: 'Add starter ranges' }))
+
+    expect(loadSavedRanges()).toHaveLength(STARTER_RANGE_TEMPLATES.length)
+    // The welcome card gives way to the real dashboard without a reload, so the
+    // pack is immediately trainable rather than "come back after a refresh".
+    expect(screen.queryByRole('region', { name: 'Get started' })).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: "Today's review" })).toBeInTheDocument()
+  })
+
+  it('reports a failed starter save instead of leaving the button dead', async () => {
+    const user = userEvent.setup()
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError')
+    })
+    render(<TodayScreen onStartReview={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
+
+    await user.click(screen.getByRole('button', { name: 'Add starter ranges' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/storage is full or unavailable/)
+    spy.mockRestore()
   })
 
   it('lists due ranges with thumbnails and starts a full review queue', async () => {

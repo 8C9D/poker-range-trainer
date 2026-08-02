@@ -451,6 +451,9 @@ from a known state (see §2).
 
 - [ ] With the library empty, **Add starter ranges** fills it with nine charts, each
       tagged `Starter`, and the empty state disappears.
+- [ ] Today's first-run **Welcome** card offers the same **Add starter ranges** button, and
+      taking it replaces the card with the real dashboard (workout, review queue, spot
+      coverage) without a reload.
 - [ ] The spot-coverage map immediately reports covered spots, and Today offers a
       workout and a review queue.
 - [ ] The charts are ordinary ranges: one can be edited, renamed, and deleted.
