@@ -37,4 +37,18 @@ describe('ActionGrid', () => {
     expect(screen.getByRole('button', { name: 'AA: Raise' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'AKs: unassigned' })).toBeInTheDocument()
   })
+
+  it('holds one tab stop and moves it with the arrow keys', async () => {
+    const user = userEvent.setup()
+    const onAssign = vi.fn()
+    render(<ActionGrid handActions={{}} onAssign={onAssign} />)
+
+    expect(screen.getAllByRole('button').filter((cell) => cell.tabIndex === 0)).toHaveLength(1)
+
+    screen.getByText('AA').focus()
+    await user.keyboard('{ArrowRight}{ArrowDown}{Enter}')
+
+    expect(screen.getByText('KK')).toHaveFocus()
+    expect(onAssign).toHaveBeenCalledExactlyOnceWith('KK')
+  })
 })
