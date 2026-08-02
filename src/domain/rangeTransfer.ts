@@ -2,7 +2,7 @@ import type { SavedRange } from '../types/range'
 import { RANGE_ACTIONS, type RangeAction } from '../types/range'
 import { decodeBase64Url, encodeBase64Url } from './base64url'
 import { generateHandMatrix, isValidHand, type PokerHand } from './pokerHands'
-import { calculateRangePercentage, countSelectedCombos } from './rangeMath'
+import { countRangeCombos, rangeComboPercentage } from './comboSelection'
 
 /**
  * Per-range interchange format (v3.2 import/export ecosystem).
@@ -66,8 +66,8 @@ export function decodeRangeFromHash(hash: string): SavedRange {
  * and dependency-free; values with commas/quotes are CSV-escaped.
  */
 export function formatRangeCsv(range: SavedRange): string {
-  const combos = countSelectedCombos(range.hands)
-  const percentage = calculateRangePercentage(range.hands)
+  const combos = countRangeCombos(range.hands, range.comboSelections)
+  const percentage = rangeComboPercentage(range.hands, range.comboSelections)
   const lines = [
     'field,value',
     `name,${csvEscape(range.name)}`,

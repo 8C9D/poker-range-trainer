@@ -21,7 +21,9 @@ import { publishSharedRange, unpublishSharedRange } from '../cloud/sharedRangesR
 import type { Card } from '../domain/cards'
 import {
   allCombosForHand,
+  countRangeCombos,
   deserializeComboSelection,
+  rangeComboPercentage,
   serializeComboSelection,
   toggleCombo,
   type ComboSelection,
@@ -32,8 +34,9 @@ import { handsWithMistakes } from '../domain/practice'
 import { setRangeArchived } from '../domain/rangeArchive'
 import { duplicateRange } from '../domain/rangeDuplication'
 import { setRangeFavorite } from '../domain/rangeFavorite'
+import { TOTAL_HOLDEM_COMBOS } from '../domain/rangeMath'
 import { sourceReferenceUrl } from '../domain/sourceReference'
-import { calculateRangePercentage, countSelectedCombos } from '../domain/rangeMath'
+
 import { accuracyPercentage } from '../domain/accuracy'
 import { formatDayDistance } from '../app/format'
 import { loadActionAccuracy } from '../storage/actionAccuracyStorage'
@@ -389,8 +392,8 @@ function OverviewTab({ range }: { range: SavedRange }) {
   const [reviewState] = useState(() => loadReviewStates()[range.id])
   const [nowIso] = useState(() => new Date().toISOString())
 
-  const combos = countSelectedCombos(range.hands)
-  const percentage = calculateRangePercentage(range.hands)
+  const combos = countRangeCombos(range.hands, range.comboSelections)
+  const percentage = rangeComboPercentage(range.hands, range.comboSelections)
   const lastSession = history.length > 0 ? history[history.length - 1] : null
   const recentSessions = history.slice(-5).reverse()
   const handNoteCount = Object.keys(range.handNotes ?? {}).length
@@ -544,6 +547,14 @@ function CombosTab({ range, onSaved }: { range: SavedRange; onSaved: () => void 
     setSaved(true)
   }
 
+  // Hand classes never share a combo, so the per-hand sizes add up to the range
+  // total without deduplication.
+  const selectedCombos = range.hands.reduce(
+    (total, hand) => total + (draft[hand] ?? allCombosForHand(hand)).size,
+    0,
+  )
+  const totalCombos = countRangeCombos(range.hands)
+
   return (
     <div className="range-tab-stack">
       <div className="range-tab-actions">
@@ -556,6 +567,10 @@ function CombosTab({ range, onSaved }: { range: SavedRange; onSaved: () => void 
           </p>
         )}
       </div>
+      <p className="range-combo-total coach-tabular">
+        {selectedCombos} of {totalCombos} combos ·{' '}
+        {((selectedCombos / TOTAL_HOLDEM_COMBOS) * 100).toFixed(1)}% of all hands
+      </p>
       {range.hands.map((hand) => (
         <div key={hand} className="coach-card range-combo-hand">
           <h3>{hand}</h3>

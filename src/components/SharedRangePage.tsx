@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getSharedRange } from '../cloud/sharedRangesRepo'
-import { calculateRangePercentage, countSelectedCombos } from '../domain/rangeMath'
+import { countRangeCombos, rangeComboPercentage } from '../domain/comboSelection'
 import { areValidHands, type PokerHand } from '../domain/pokerHands'
 import { isCloudConfigured } from '../cloud/cloudConfig'
 import type { SavedRange } from '../types/range'
@@ -111,8 +111,8 @@ export function SharedRangePage({
   }
 
   const { range } = state
-  const combos = countSelectedCombos(range.hands)
-  const percentage = calculateRangePercentage(range.hands)
+  const combos = countRangeCombos(range.hands, range.comboSelections)
+  const percentage = rangeComboPercentage(range.hands, range.comboSelections)
   const handActions = range.handActions
 
   return (

@@ -268,6 +268,27 @@ describe('RangeScreen tabs', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
+  it('counts the selected combos on the Combos tab as they are toggled', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange({ hands: ['AA', 'AKs'] }))
+    render(<RangeScreen id="r1" tab="combos" onPractice={vi.fn()} />)
+
+    expect(screen.getByText(/10 of 10 combos · 0\.8% of all hands/)).toBeInTheDocument()
+
+    const toggles = within(screen.getByLabelText('Combos for AA')).getAllByRole('button')
+    await user.click(toggles[0])
+
+    expect(screen.getByText(/9 of 10 combos · 0\.7% of all hands/)).toBeInTheDocument()
+  })
+
+  it('reports a narrowed range at its real size, not its hand-class size', () => {
+    saveSavedRange(makeRange({ hands: ['AA', 'AKs'], comboSelections: { AA: ['AhAs'] } }))
+    render(<RangeScreen id="r1" tab="overview" onPractice={vi.fn()} />)
+
+    // AA is down to one combo, so the range holds 5, not the full 10.
+    expect(screen.getByText(/2 hands · 5 combos · 0\.4% of all hands/)).toBeInTheDocument()
+  })
+
   it('confirms frequency saves until the strategy changes again', async () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange({ hands: ['AA'] }))

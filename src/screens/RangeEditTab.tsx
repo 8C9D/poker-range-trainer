@@ -14,12 +14,9 @@ import {
   redoHandSelection,
   undoHandSelection,
 } from '../domain/handSelectionHistory'
+import { countRangeCombos, rangeComboPercentage } from '../domain/comboSelection'
 import { normalizeTags } from '../domain/rangeLibrary'
-import {
-  calculateRangePercentage,
-  countSelectedCombos,
-  normalizeRangeHands,
-} from '../domain/rangeMath'
+import { normalizeRangeHands } from '../domain/rangeMath'
 import { mergeShortcutHands } from '../domain/rangeShortcuts'
 import { saveSavedRange } from '../storage/rangeStorage'
 import type {
@@ -90,8 +87,25 @@ export function RangeEditTab({ range, prefill, onSaved }: RangeEditTabProps) {
   // Derived from `selected` only, so memoize to skip the hand-set math on every
   // unrelated re-render (e.g. each keystroke in the name field).
   const selectedHands = useMemo(() => normalizeRangeHands(Array.from(selected)), [selected])
-  const combos = useMemo(() => countSelectedCombos(selectedHands), [selectedHands])
-  const percentage = useMemo(() => calculateRangePercentage(selectedHands), [selectedHands])
+  // The combo overlay narrowed on the Combos tab counts toward the range's size,
+  // so the live figures here have to read it too, pruned to the hands still
+  // selected exactly as `handleSave` will persist it.
+  const draftCombos = useMemo(() => {
+    const pruned: Record<PokerHand, string[]> = {}
+    for (const hand of selectedHands) {
+      const combos = combosSnapshot[hand]
+      if (combos && combos.length > 0) pruned[hand] = combos
+    }
+    return pruned
+  }, [selectedHands, combosSnapshot])
+  const combos = useMemo(
+    () => countRangeCombos(selectedHands, draftCombos),
+    [selectedHands, draftCombos],
+  )
+  const percentage = useMemo(
+    () => rangeComboPercentage(selectedHands, draftCombos),
+    [selectedHands, draftCombos],
+  )
 
   function setHandSelected(hand: PokerHand, shouldSelect: boolean) {
     setSavedName(null)
@@ -222,16 +236,14 @@ export function RangeEditTab({ range, prefill, onSaved }: RangeEditTabProps) {
     // a hand that left the range is unreachable in its editor (both list only the
     // range's hands) yet would still drive the frequency quiz and the grids.
     const prunedMixed: Record<PokerHand, HandMixedStrategy> = {}
-    const prunedCombos: Record<PokerHand, string[]> = {}
     for (const hand of selectedHands) {
       const strategy = mixedSnapshot[hand]
       if (strategy && strategy.length > 0) prunedMixed[hand] = strategy
-      const combos = combosSnapshot[hand]
-      if (combos && combos.length > 0) prunedCombos[hand] = combos
     }
     if (Object.keys(prunedMixed).length > 0) saved.mixedStrategies = prunedMixed
     else delete saved.mixedStrategies
-    if (Object.keys(prunedCombos).length > 0) saved.comboSelections = prunedCombos
+    // Already pruned to the selected hands for the live combo count above.
+    if (Object.keys(draftCombos).length > 0) saved.comboSelections = draftCombos
     else delete saved.comboSelections
     // Persist cleaned tags, or drop the field entirely when none remain.
     const savedTags = normalizeTags(tagsDraft)

@@ -1,5 +1,6 @@
 import type { PokerHand } from './pokerHands'
 import { comboKey, handClassCombos, rangeCombos } from './combos'
+import { TOTAL_HOLDEM_COMBOS } from './rangeMath'
 import type { Card } from './cards'
 
 /**
@@ -75,4 +76,27 @@ export function selectionForRange(
     for (const key of selection) result.add(key)
   }
   return result
+}
+
+/**
+ * How many combos a range actually holds, after per-hand combo narrowing.
+ *
+ * `countSelectedCombos` answers the hand-class question ("six combos per pair"),
+ * which is the same number until the user turns individual combos off. Anything
+ * describing the SIZE of a saved range has to use this instead, or a range whose
+ * AA is down to one combo still reports all six.
+ */
+export function countRangeCombos(
+  hands: PokerHand[],
+  comboSelections?: Record<PokerHand, string[]>,
+): number {
+  return selectionForRange(hands, comboSelections).size
+}
+
+/** {@link countRangeCombos} as a share of all 1,326 Hold'em combos. */
+export function rangeComboPercentage(
+  hands: PokerHand[],
+  comboSelections?: Record<PokerHand, string[]>,
+): number {
+  return (countRangeCombos(hands, comboSelections) / TOTAL_HOLDEM_COMBOS) * 100
 }

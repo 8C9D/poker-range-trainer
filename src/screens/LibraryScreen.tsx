@@ -20,7 +20,7 @@ import {
   sortRangesByName,
   sortRangesByUpdatedAt,
 } from '../domain/rangeLibrary'
-import { calculateRangePercentage } from '../domain/rangeMath'
+import { rangeComboPercentage } from '../domain/comboSelection'
 import { practiceAccuracyPercentage } from '../domain/practiceStats'
 import { setRangeArchived } from '../domain/rangeArchive'
 import { setRangeFavorite } from '../domain/rangeFavorite'
@@ -414,7 +414,7 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
             <ul className="library-list" aria-label="Saved ranges">
               {visibleRanges.map((range) => {
                 const stats = practiceStats[range.id]
-                const percentage = calculateRangePercentage(range.hands)
+                const percentage = rangeComboPercentage(range.hands, range.comboSelections)
                 const meta = range.metadata
                 return (
                   <li key={range.id} className="library-list-item">

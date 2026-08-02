@@ -3,13 +3,16 @@ import { parseCard } from './cards'
 import {
   allCombosForHand,
   allCombosSelected,
+  countRangeCombos,
   deserializeComboSelection,
   isComboSelected,
+  rangeComboPercentage,
   selectedComboCount,
   selectionForRange,
   serializeComboSelection,
   toggleCombo,
 } from './comboSelection'
+import { countSelectedCombos } from './rangeMath'
 import { comboKey } from './combos'
 
 const ahkh = [parseCard('Ah'), parseCard('Kh')]
@@ -75,5 +78,31 @@ describe('serialize/deserialize', () => {
     expect(selectedComboCount(restored)).toBe(selectedComboCount(selection))
     expect(isComboSelected(restored, ahkh)).toBe(false)
     expect(isComboSelected(restored, ackc)).toBe(true)
+  })
+})
+
+describe('countRangeCombos / rangeComboPercentage', () => {
+  it('matches the hand-class count when nothing is narrowed', () => {
+    // AA (6) + AKs (4) + AKo (12).
+    expect(countRangeCombos(['AA', 'AKs', 'AKo'])).toBe(22)
+    expect(countSelectedCombos(['AA', 'AKs', 'AKo'])).toBe(22)
+  })
+
+  it('drops the combos a hand class has turned off', () => {
+    expect(countRangeCombos(['AA', 'AKs'], { AKs: ['AhKh'] })).toBe(6 + 1)
+  })
+
+  it('ignores stored entries for hands that are not in the range', () => {
+    expect(countRangeCombos(['AA'], { AKs: ['AhKh'] })).toBe(6)
+  })
+
+  it('scores the percentage off the narrowed count', () => {
+    expect(rangeComboPercentage(['AA'])).toBeCloseTo((6 / 1326) * 100, 10)
+    expect(rangeComboPercentage(['AA'], { AA: ['AhAs'] })).toBeCloseTo((1 / 1326) * 100, 10)
+  })
+
+  it('is zero for an empty range', () => {
+    expect(countRangeCombos([])).toBe(0)
+    expect(rangeComboPercentage([])).toBe(0)
   })
 })
