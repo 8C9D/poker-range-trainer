@@ -5,13 +5,15 @@ import { BackupPanel } from '../../components/BackupPanel';
 import { RangeFilesPanel } from '../../components/RangeFilesPanel';
 import { SharePackPanel } from '../../components/SharePackPanel';
 import { Screen } from '../../components/Screen';
+import { StarterRangesPanel } from '../../components/StarterRangesPanel';
 import { fonts } from '../../theme/fonts';
 import { useTheme } from '../../theme/colors';
 
 /**
- * Account tab: sign-in + cloud sync (push/pull with confirm-before-overwrite, delete cloud data)
- * and offline file backup, plus the local-only note when Supabase env is unset. All logic lives
- * in the reused `@core/cloud` + `@core/storage/backup` via the AuthPanel / BackupPanel components.
+ * Account tab: sign-in + cloud sync (push/pull with confirm-before-overwrite, delete cloud data),
+ * offline file backup, range files, and the built-in starter charts, plus the local-only note when
+ * Supabase env is unset. All logic lives in the reused `@core/cloud` + `@core/storage` behind the
+ * AuthPanel / BackupPanel / RangeFilesPanel / StarterRangesPanel components.
  */
 export default function AccountScreen() {
   const theme = useTheme();
@@ -25,6 +27,8 @@ export default function AccountScreen() {
         <BackupPanel />
         <View style={[styles.divider, { backgroundColor: theme.line }]} />
         <RangeFilesPanel />
+        <View style={[styles.divider, { backgroundColor: theme.line }]} />
+        <StarterRangesPanel />
       </ScrollView>
     </Screen>
   );
