@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { recordFinishedPracticeSession } from '../app/sessionRecording'
+import { captureRecordingFailure, recordFinishedPracticeSession } from '../app/sessionRecording'
 import { ActionQuiz } from '../components/ActionQuiz'
 import { BuildFromMemoryPractice } from '../components/BuildFromMemoryPractice'
 import { ComboBlockerDrill } from '../components/ComboBlockerDrill'
@@ -95,7 +95,9 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     const prevAccuracy = last
       ? accuracyPercentage(last.correctAnswers, last.totalQuestions)
       : null
-    recordFinishedPracticeSession(range.id, attempts)
+    const saveError = captureRecordingFailure(() =>
+      recordFinishedPracticeSession(range.id, attempts),
+    )
     const summary = summarizePracticeAttempts(attempts)
     const misses = attempts.filter((attempt) => !attempt.correct).length
     const playedAt = Object.values(loadSessionHistory())
@@ -111,6 +113,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
         deltaLine: deltaLineFor(summary.accuracyPercentage, prevAccuracy, misses),
         streakLine:
           streak > 0 ? `${streak}-day streak — see you tomorrow to keep it going.` : null,
+        saveError,
       },
     })
   }
@@ -120,7 +123,9 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
       onClose()
       return
     }
-    recordActionAccuracy(range.id, summarizeActionAccuracy(attempts))
+    const saveError = captureRecordingFailure(() =>
+      recordActionAccuracy(range.id, summarizeActionAccuracy(attempts)),
+    )
     const correct = attempts.filter((attempt) => attempt.correct).length
     setPhase({
       kind: 'summary',
@@ -130,6 +135,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
         accuracy: accuracyPercentage(correct, attempts.length),
         deltaLine: null,
         streakLine: null,
+        saveError,
       },
     })
   }
@@ -144,10 +150,12 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
       onClose()
       return
     }
-    for (const [rangeId, attempts] of Object.entries(byRange)) {
-      recordFinishedPracticeSession(rangeId, attempts)
-    }
-    recordSpotAccuracy(bySpot)
+    const saveError = captureRecordingFailure(() => {
+      for (const [rangeId, attempts] of Object.entries(byRange)) {
+        recordFinishedPracticeSession(rangeId, attempts)
+      }
+      recordSpotAccuracy(bySpot)
+    })
     const summary = summarizePracticeAttempts(all)
     const rangeCount = Object.keys(byRange).length
     const playedAt = Object.values(loadSessionHistory())
@@ -163,6 +171,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
         deltaLine: `Across ${rangeCount} range${rangeCount === 1 ? '' : 's'} of your library.`,
         streakLine:
           streak > 0 ? `${streak}-day streak — see you tomorrow to keep it going.` : null,
+        saveError,
       },
     })
   }

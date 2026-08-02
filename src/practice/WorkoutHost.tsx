@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { recordFinishedPracticeSession } from '../app/sessionRecording'
+import { captureRecordingFailure, recordFinishedPracticeSession } from '../app/sessionRecording'
 import { accuracyPercentage } from '../domain/accuracy'
 import {
   segmentTitle,
@@ -53,8 +53,18 @@ export function WorkoutHost({ workout, ranges, onClose }: WorkoutHostProps) {
   // (record -> maybe show summary), and the summary snapshot is taken there
   // too, so render never touches the ref.
   const talliesRef = useRef<SegmentTally[]>(segments.map(() => ({ total: 0, correct: 0 })))
+  // The first segment save that failed, held for the end-of-run summary. A
+  // workout records segment by segment, so the failure has to survive the parts
+  // that came after it rather than being reported where it happened.
+  const saveErrorRef = useRef<string | null>(null)
 
   const answeredSoFar = () => talliesRef.current.reduce((sum, tally) => sum + tally.total, 0)
+
+  /** Record a segment, keeping the first failure instead of losing the run to it. */
+  function record(persist: () => void) {
+    const failure = captureRecordingFailure(persist)
+    if (failure && saveErrorRef.current === null) saveErrorRef.current = failure
+  }
 
   function addTally(attempts: PracticeAttempt[]) {
     const tally = talliesRef.current[segmentIndex]
@@ -66,7 +76,7 @@ export function WorkoutHost({ workout, ranges, onClose }: WorkoutHostProps) {
     const now = new Date().toISOString()
     // Only a run that made it through every segment counts as today's workout;
     // an early exit keeps its answers but leaves the card offering the plan.
-    if (completed) recordWorkoutCompletion(now)
+    if (completed) record(() => recordWorkoutCompletion(now))
     const total = answeredSoFar()
     const correct = talliesRef.current.reduce((sum, tally) => sum + tally.correct, 0)
     const contributions = segments
@@ -92,6 +102,7 @@ export function WorkoutHost({ workout, ranges, onClose }: WorkoutHostProps) {
         goalLine: goalProgress.target > 0 ? goalLine(goalProgress) : null,
         streakLine:
           streak > 0 ? `${streak}-day streak — see you tomorrow to keep it going.` : null,
+        saveError: saveErrorRef.current,
       },
     })
   }
@@ -143,7 +154,7 @@ export function WorkoutHost({ workout, ranges, onClose }: WorkoutHostProps) {
 
   function finishReviewRange(segment: ReviewSegment, attempts: PracticeAttempt[]) {
     if (attempts.length > 0) {
-      recordFinishedPracticeSession(segment.ranges[rangeIndex].id, attempts)
+      record(() => recordFinishedPracticeSession(segment.ranges[rangeIndex].id, attempts))
       addTally(attempts)
     }
     if (attempts.length < segment.questionsPerRange) {
@@ -160,10 +171,12 @@ export function WorkoutHost({ workout, ranges, onClose }: WorkoutHostProps) {
   ) {
     const all = Object.values(result.byRange).flat()
     if (all.length > 0) {
-      for (const [rangeId, attempts] of Object.entries(result.byRange)) {
-        recordFinishedPracticeSession(rangeId, attempts)
-      }
-      recordSpotAccuracy(result.bySpot)
+      record(() => {
+        for (const [rangeId, attempts] of Object.entries(result.byRange)) {
+          recordFinishedPracticeSession(rangeId, attempts)
+        }
+        recordSpotAccuracy(result.bySpot)
+      })
       addTally(all)
     }
     if (all.length < segment.questionCount) exit()

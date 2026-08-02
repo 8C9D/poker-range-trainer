@@ -11,6 +11,8 @@ export interface SessionSummaryData {
   goalLine?: string | null
   /** Streak confirmation line, or null when no streak is active. */
   streakLine: string | null
+  /** Why the run could not be persisted, or null when it saved. */
+  saveError?: string | null
 }
 
 interface SessionSummaryProps {
@@ -97,6 +99,11 @@ export function SessionSummary({ data, hasNext, onNext, onDone }: SessionSummary
       {data.deltaLine && <p className="session-summary-delta">{data.deltaLine}</p>}
       {data.goalLine && <p className="session-summary-goal">{data.goalLine}</p>}
       {data.streakLine && <p className="session-summary-streak">{data.streakLine}</p>}
+      {data.saveError && (
+        <p className="session-summary-error" role="alert">
+          {data.saveError}
+        </p>
+      )}
       <div className="session-summary-actions">
         {hasNext ? (
           <>

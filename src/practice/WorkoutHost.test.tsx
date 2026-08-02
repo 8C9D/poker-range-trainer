@@ -100,6 +100,42 @@ describe('WorkoutHost', () => {
     expect(loadReviewStates()).toEqual({})
   })
 
+  it('carries a failed segment save through to the end-of-run summary', () => {
+    render(
+      <WorkoutHost
+        workout={makeWorkout({
+          segments: [
+            {
+              kind: 'review',
+              ranges: [everyHand],
+              questionsPerRange: 5,
+              reason: '1 range due for review.',
+            },
+          ],
+        })}
+        ranges={[everyHand, btnOpen]}
+        onClose={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+    // A workout records segment by segment, so the failure has to outlive the
+    // handler it happened in rather than tearing the run down where it occurs.
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError')
+    })
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'In range' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Close practice' }))
+
+      expect(screen.getByLabelText('Session summary')).toBeInTheDocument()
+      expect(screen.getByText('1 of 1 correct')).toBeInTheDocument()
+      expect(screen.getByRole('alert')).toHaveTextContent(/storage is full or unavailable/)
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
   it('keeps what was answered and jumps to the summary on an early close', () => {
     vi.useFakeTimers()
     render(

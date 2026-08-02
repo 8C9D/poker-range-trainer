@@ -155,6 +155,33 @@ describe('PracticeHost recognition flow', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
+  it('still shows the summary when the session cannot be saved', () => {
+    const onClose = vi.fn()
+    render(
+      <PracticeHost
+        request={{ ranges: [makeRange('a', 'UTG open')], mode: 'recognize', handPool: ['AA'] }}
+        onClose={onClose}
+      />,
+    )
+    // A full store from here on: the recorded run is lost, but the numbers are
+    // in memory, so the user must still see how they did and why nothing saved.
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError')
+    })
+    // Restored even on failure — a leaked throwing setItem would break every
+    // test after this one and hide the real cause.
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'In range' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Close practice' }))
+
+      expect(screen.getByLabelText('Session summary')).toBeInTheDocument()
+      expect(screen.getByText('1 of 1 correct')).toBeInTheDocument()
+      expect(screen.getByRole('alert')).toHaveTextContent(/storage is full or unavailable/)
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
   it('abandons without recording when closed before any answer', () => {
     const onClose = vi.fn()
     render(
