@@ -126,11 +126,17 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
                 className={isToday ? 'progress-chart-day today' : 'progress-chart-day'}
                 aria-label={`${weekday}: ${day.handsAnswered} hands`}
               >
-                <span
-                  className="progress-chart-bar"
-                  title={`${day.handsAnswered} hands`}
-                  style={{ height: `${Math.round((day.handsAnswered / maxDay) * 100)}%` }}
-                />
+                {/* A bar with no number reads as decoration: 20 hands and 200
+                    draw the same full-height column. */}
+                <span className="progress-chart-value coach-tabular">
+                  {day.handsAnswered > 0 ? day.handsAnswered : ''}
+                </span>
+                <span className="progress-chart-track">
+                  <span
+                    className="progress-chart-bar"
+                    style={{ height: `${Math.round((day.handsAnswered / maxDay) * 100)}%` }}
+                  />
+                </span>
                 <span className="progress-chart-label">{weekday}</span>
               </li>
             )

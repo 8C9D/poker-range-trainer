@@ -49,6 +49,11 @@ describe('ProgressScreen', () => {
     expect(days).toHaveLength(7)
     expect(days[6]).toHaveClass('today')
     expect(days[6]).toHaveAccessibleName(/12 hands/)
+    // The count is on the chart, not just in the accessible name: a bare bar
+    // gives no scale to read the week against.
+    expect(within(days[6]).getByText('12')).toBeInTheDocument()
+    // Days with nothing recorded stay unlabelled rather than showing a row of zeros.
+    expect(within(days[0]).queryByText('0')).toBeNull()
   })
 
   it('summarizes library-wide analytics', () => {

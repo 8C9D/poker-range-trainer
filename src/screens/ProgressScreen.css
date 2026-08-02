@@ -59,13 +59,29 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  gap: 6px;
+  gap: 4px;
   height: 100%;
+}
+
+.progress-chart-value {
+  font-size: 11.5px;
+  color: var(--ink-2);
+  /* Reserved even when empty, so bars across the week share one baseline. */
+  min-height: 14px;
+}
+
+/* The bar scales against this, not the whole column, so the labels above and
+   below never eat into the scale. */
+.progress-chart-track {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  max-width: 44px;
 }
 
 .progress-chart-bar {
   width: 100%;
-  max-width: 44px;
   min-height: 2px;
   border-radius: 6px 6px 2px 2px;
   background: var(--gold-fill);
