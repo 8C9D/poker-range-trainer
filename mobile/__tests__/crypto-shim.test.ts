@@ -22,7 +22,9 @@ describe('crypto.randomUUID polyfill', () => {
 
     const { crypto } = globalThis as { crypto: { randomUUID: () => string } };
     expect(typeof crypto.randomUUID).toBe('function');
-    expect(crypto.randomUUID()).toBe(randomUUID());
+    // Identity, not value: ids differ per call, so what matters is that the
+    // polyfill installed expo-crypto's generator rather than something weaker.
+    expect(crypto.randomUUID).toBe(randomUUID);
   });
 
   it('adds randomUUID to an existing crypto that lacks one', () => {
@@ -31,7 +33,7 @@ describe('crypto.randomUUID polyfill', () => {
     installCryptoRandomUUID();
 
     const { crypto } = globalThis as { crypto: { randomUUID: () => string } };
-    expect(crypto.randomUUID()).toBe(randomUUID());
+    expect(crypto.randomUUID).toBe(randomUUID);
   });
 
   it('does not overwrite an existing crypto.randomUUID (no-op on web)', () => {

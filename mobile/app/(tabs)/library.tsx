@@ -23,6 +23,7 @@ import { practiceAccuracyPercentage } from '@core/domain/practiceStats';
 import { setRangeArchived } from '@core/domain/rangeArchive';
 import { setRangeFavorite } from '@core/domain/rangeFavorite';
 import { selectDueRanges } from '@core/domain/spacedRepetition';
+import { buildStarterRanges, STARTER_RANGE_TEMPLATES } from '@core/domain/starterRanges';
 import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
 import { loadReviewStates } from '@core/storage/reviewStateStorage';
 import { deleteSavedRanges, loadSavedRanges, saveSavedRanges } from '@core/storage/rangeStorage';
@@ -45,6 +46,7 @@ import { SpotCoverage } from '../../components/SpotCoverage';
 import { Chip, Segmented } from '../../components/ui';
 import type { SegmentedOption } from '../../components/ui';
 import { formatDayDistance } from '../../lib/format';
+import { createRangeId } from '../../platform/createRangeId';
 import { fonts } from '../../theme/fonts';
 import { useTheme } from '../../theme/colors';
 import type { ThemeColors } from '../../theme/colors';
@@ -189,6 +191,11 @@ export default function LibraryScreen() {
     (favoritesOnly ? 1 : 0) +
     (showArchived ? 1 : 0);
   const hasViewChanges = query.length > 0 || sort !== undefined || activeFilterCount > 0;
+
+  const addStarterRanges = () => {
+    saveSavedRanges(buildStarterRanges(new Date().toISOString(), createRangeId));
+    setData(loadLibraryState());
+  };
 
   const clearViewChanges = () => {
     setQuery('');
@@ -477,6 +484,18 @@ export default function LibraryScreen() {
               <Text style={styles.emptyBody}>
                 Create your first range and it will show up here, ready to train.
               </Text>
+              <Text style={styles.emptyBody}>
+                In a hurry? Add {STARTER_RANGE_TEMPLATES.length} standard 6-max 100bb charts
+                (opens for every seat, big-blind defences, and 3-bets) and start training now.
+                They are ordinary ranges: edit or delete any of them.
+              </Text>
+              <Pressable
+                testID="add-starter-ranges"
+                style={styles.emptyPrimaryBtn}
+                onPress={addStarterRanges}
+              >
+                <Text style={styles.primaryBtnText}>Add starter ranges</Text>
+              </Pressable>
             </View>
           ) : (
             <Text testID="no-match" style={styles.noMatch}>
@@ -713,6 +732,16 @@ function makeStyles(theme: ThemeColors) {
     },
     emptyTitle: { fontFamily: fonts.displaySemibold, fontSize: 18, color: theme.ink },
     emptyBody: { fontFamily: fonts.body, fontSize: 15, color: theme.ink2 },
+    // Same fill as the header's primary button, but sized to sit on its own row
+    // rather than stretch across the card.
+    emptyPrimaryBtn: {
+      alignSelf: 'flex-start',
+      marginTop: 4,
+      backgroundColor: theme.goldFill,
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+    },
     noMatch: { fontFamily: fonts.body, fontSize: 15, color: theme.ink2, padding: 16 },
   });
 }

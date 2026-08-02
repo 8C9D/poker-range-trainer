@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { recordPracticeSession } from '@core/storage/practiceStatsStorage';
 import { saveReviewState } from '@core/storage/reviewStateStorage';
 import { loadSavedRanges, saveSavedRange } from '@core/storage/rangeStorage';
+import { STARTER_RANGE_TEMPLATES } from '@core/domain/starterRanges';
 import type { SavedRange } from '@core/types/range';
 
 import LibraryScreen from '../app/(tabs)/library';
@@ -59,6 +60,18 @@ describe('LibraryScreen', () => {
     const { getByTestId } = await render(<LibraryScreen />);
 
     expect(getByTestId('library-empty')).toBeTruthy();
+  });
+
+  it('fills an empty library with the starter pack in one action', async () => {
+    const { getByTestId, getByText, queryByTestId } = await render(<LibraryScreen />);
+
+    await act(async () => {
+      fireEvent.press(getByTestId('add-starter-ranges'));
+    });
+
+    expect(loadSavedRanges()).toHaveLength(STARTER_RANGE_TEMPLATES.length);
+    await waitFor(() => expect(queryByTestId('library-empty')).toBeNull());
+    expect(getByText('BTN open (6-max 100bb)')).toBeTruthy();
   });
 
   it('filters the list by the search query', async () => {
