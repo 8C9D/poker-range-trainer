@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, act, fireEvent } from '@testing-library/react'
 import { WorkoutHost } from './WorkoutHost'
-import { HIT_DWELL_MS } from './RecognitionDrill'
+import { HIT_DWELL_MS } from './drillPacing'
 import type { DailyWorkout } from '../domain/dailyWorkout'
 import { ALL_HANDS } from '../domain/pokerHands'
 import { loadPracticeStats } from '../storage/practiceStatsStorage'

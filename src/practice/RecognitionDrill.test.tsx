@@ -1,11 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, act, fireEvent } from '@testing-library/react'
-import {
-  RecognitionDrill,
-  DRILL_QUESTION_COUNT,
-  HIT_DWELL_MS,
-  MISS_DWELL_MS,
-} from './RecognitionDrill'
+import { RecognitionDrill } from './RecognitionDrill'
+import { DRILL_QUESTION_COUNT, HIT_DWELL_MS } from './drillPacing'
 import type { SavedRange } from '../types/range'
 
 beforeEach(() => {
@@ -50,26 +46,50 @@ describe('RecognitionDrill', () => {
     // With no prior attempts the weighted draw still deals a real hand.
     expect(currentHand()).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Open' }))
-    // The answer scored: buttons lock for the feedback dwell.
-    expect(screen.getByRole('button', { name: 'Open' })).toBeDisabled()
+    // The answer scored: 88 is out of this range, so the miss hands over to Next.
+    expect(screen.getByRole('button', { name: 'Next' })).toBeInTheDocument()
   })
 
-  it('scores instantly with explanatory feedback and a longer dwell on misses', () => {
+  it('holds a miss until the user continues, however long the dwell would have been', () => {
     render(
       <RecognitionDrill range={RANGE} variant="standard" handPool={['AA']} onFinish={vi.fn()} />,
     )
     // AA is in range; answering Fold is a miss with an explanation.
     fireEvent.click(screen.getByRole('button', { name: 'Fold' }))
     expect(screen.getByText('AA is in this range — open it.')).toBeInTheDocument()
-    // Buttons lock (but stay in place) during the dwell.
-    expect(screen.getByRole('button', { name: 'Open' })).toBeDisabled()
-    // Still showing after the hit dwell would have elapsed...
-    act(() => vi.advanceTimersByTime(HIT_DWELL_MS))
+    // The answers give way to a single Next; no timer will move this on.
+    expect(screen.queryByRole('button', { name: 'Open' })).toBeNull()
+    act(() => vi.advanceTimersByTime(60_000))
     expect(screen.getByText('AA is in this range — open it.')).toBeInTheDocument()
-    // ...gone once the miss dwell finishes.
-    act(() => vi.advanceTimersByTime(MISS_DWELL_MS - HIT_DWELL_MS))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+
     expect(screen.queryByText('AA is in this range — open it.')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Open' })).toBeEnabled()
+  })
+
+  it('continues a held miss on Enter', () => {
+    render(
+      <RecognitionDrill range={RANGE} variant="standard" handPool={['AA']} onFinish={vi.fn()} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Fold' }))
+
+    fireEvent.keyDown(window, { key: 'Enter' })
+
+    expect(screen.queryByText('AA is in this range — open it.')).not.toBeInTheDocument()
+  })
+
+  it('keeps the arrow keys as answers while a miss is held', () => {
+    render(
+      <RecognitionDrill range={RANGE} variant="standard" handPool={['AA']} onFinish={vi.fn()} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Fold' }))
+
+    // A fast run of answer presses must not blow past the explanation.
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    fireEvent.keyDown(window, { key: 'ArrowLeft' })
+
+    expect(screen.getByText('AA is in this range — open it.')).toBeInTheDocument()
   })
 
   it('explains where a missed hand sits in the range, but not after a hit', () => {
@@ -82,7 +102,7 @@ describe('RecognitionDrill', () => {
       screen.getByText(/AA is in: this range plays 2 of 4 premium pairs/),
     ).toBeInTheDocument()
 
-    act(() => vi.advanceTimersByTime(MISS_DWELL_MS))
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     fireEvent.click(screen.getByRole('button', { name: 'Open' }))
     expect(screen.queryByText(/premium pairs/)).not.toBeInTheDocument()
   })

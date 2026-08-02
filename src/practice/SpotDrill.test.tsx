@@ -51,6 +51,23 @@ describe('SpotDrill', () => {
     expect(screen.getByRole('button', { name: 'Fold' })).toBeInTheDocument()
   })
 
+  it('holds a missed spot on screen until the user continues', () => {
+    vi.useFakeTimers()
+    // random 0 deals AA in the BTN open spot, so folding it is a miss.
+    renderDrill()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fold' }))
+    expect(screen.getByText(/from “BTN open”/)).toBeInTheDocument()
+    act(() => vi.advanceTimersByTime(60_000))
+    expect(screen.getByText(/from “BTN open”/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+
+    expect(screen.queryByText(/from “BTN open”/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Fold' })).toBeEnabled()
+    vi.useRealTimers()
+  })
+
   it('explains the empty state when the library covers no spot at this format', () => {
     renderDrill({ ranges: [], stackDepthBb: 100 })
 
@@ -112,10 +129,11 @@ describe('SpotDrill', () => {
       },
     })
 
+    // Both answers are misses, so each holds its explanation until Next.
     fireEvent.click(screen.getByRole('button', { name: 'Open' }))
-    act(() => vi.runAllTimers())
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     fireEvent.click(screen.getByRole('button', { name: 'Defend' }))
-    act(() => vi.runAllTimers())
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
 
     expect(onFinish).toHaveBeenCalledTimes(1)
     const { byRange, bySpot } = onFinish.mock.calls[0][0]

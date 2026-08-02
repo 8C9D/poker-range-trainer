@@ -13,18 +13,16 @@ import { DEFAULT_DRILL_SECONDS, getRemainingSeconds, isDrillOver } from '../doma
 import { getWeaknessFocusedHand } from '../domain/weaknessDrill'
 import type { PracticeAttempt } from '../types/practice'
 import type { SavedRange } from '../types/range'
+import {
+  DRILL_QUESTION_COUNT,
+  HIT_DWELL_MS,
+  TIMED_HIT_DWELL_MS,
+  TIMED_MISS_DWELL_MS,
+  holdsForAcknowledgement,
+} from './drillPacing'
 import { OverlayFrame } from './OverlayFrame'
 import { PlayingCards } from './PlayingCards'
 import { answerVerbs, feedbackLine, scenarioLine } from './scenario'
-
-/** Questions per (non-timed) drill: short sessions with a visible end. */
-export const DRILL_QUESTION_COUNT = 20
-/** Correct answers advance quickly; misses hold so the explanation is read. */
-export const HIT_DWELL_MS = 900
-export const MISS_DWELL_MS = 1600
-/** Under the clock, feedback flashes faster. */
-export const TIMED_HIT_DWELL_MS = 500
-export const TIMED_MISS_DWELL_MS = 1000
 
 interface Prompt {
   hand: PokerHand
@@ -52,8 +50,8 @@ interface RecognitionDrillProps {
 /**
  * The full-screen recognition drill: concrete playing cards, a scenario line,
  * and two fixed-position answer buttons using the range's action verb. Every
- * answer scores instantly with explanatory feedback; misses dwell longer than
- * hits before auto-advancing.
+ * answer scores instantly with explanatory feedback; a hit auto-advances, while
+ * an untimed miss holds its explanation until the user presses Next.
  */
 export function RecognitionDrill({
   range,
@@ -118,6 +116,25 @@ export function RecognitionDrill({
     [],
   )
 
+  /** Clear the feedback and deal the next hand, or end a finished session. */
+  function advance() {
+    // Only ever moves on from a scored answer, so a stray activation (a click
+    // landing as the Next button unmounts) cannot skip a hand.
+    if (!answeringRef.current || finishedRef.current) return
+    if (dwellTimeoutRef.current !== null) {
+      clearTimeout(dwellTimeoutRef.current)
+      dwellTimeoutRef.current = null
+    }
+    const answered = attemptsRef.current
+    if (variant !== 'timed' && answered.length >= questionCount) {
+      finish(answered)
+      return
+    }
+    answeringRef.current = false
+    setFeedback(null)
+    setPrompt(drawPrompt(answered))
+  }
+
   function answer(userAnsweredInRange: boolean) {
     if (answeringRef.current || feedback !== null || finishedRef.current) return
     answeringRef.current = true
@@ -126,26 +143,19 @@ export function RecognitionDrill({
     setAttempts(nextAttempts)
     attemptsRef.current = nextAttempts
     setFeedback(attempt)
+    // An untimed miss stays up until the user continues; everything else moves on.
+    if (holdsForAcknowledgement(variant === 'timed', attempt.correct)) return
     const dwell =
       variant === 'timed'
         ? attempt.correct
           ? TIMED_HIT_DWELL_MS
           : TIMED_MISS_DWELL_MS
-        : attempt.correct
-          ? HIT_DWELL_MS
-          : MISS_DWELL_MS
-    dwellTimeoutRef.current = setTimeout(() => {
-      dwellTimeoutRef.current = null
-      if (finishedRef.current) return
-      if (variant !== 'timed' && nextAttempts.length >= questionCount) {
-        finish(nextAttempts)
-        return
-      }
-      answeringRef.current = false
-      setFeedback(null)
-      setPrompt(drawPrompt(nextAttempts))
-    }, dwell)
+        : HIT_DWELL_MS
+    dwellTimeoutRef.current = setTimeout(advance, dwell)
   }
+
+  const holding =
+    feedback !== null && holdsForAcknowledgement(variant === 'timed', feedback.correct)
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -157,6 +167,15 @@ export function RecognitionDrill({
         target instanceof HTMLSelectElement ||
         (target instanceof HTMLElement && target.isContentEditable)
       ) {
+        return
+      }
+      // While a miss is held, the arrow keys stay answers so a fast run of them
+      // cannot skip past the explanation; only an explicit Enter continues.
+      if (holding) {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          advance()
+        }
         return
       }
       if (event.key === 'ArrowRight') {
@@ -222,24 +241,37 @@ export function RecognitionDrill({
         )}
       </div>
       <div className="drill-answers">
-        <button
-          type="button"
-          className="drill-answer yes"
-          disabled={feedback !== null}
-          aria-keyshortcuts="ArrowRight"
-          onClick={() => answer(true)}
-        >
-          {verbs.yes}
-        </button>
-        <button
-          type="button"
-          className="drill-answer no"
-          disabled={feedback !== null}
-          aria-keyshortcuts="ArrowLeft"
-          onClick={() => answer(false)}
-        >
-          {verbs.no}
-        </button>
+        {holding ? (
+          <button
+            type="button"
+            className="drill-answer next"
+            aria-keyshortcuts="Enter"
+            onClick={advance}
+          >
+            Next
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="drill-answer yes"
+              disabled={feedback !== null}
+              aria-keyshortcuts="ArrowRight"
+              onClick={() => answer(true)}
+            >
+              {verbs.yes}
+            </button>
+            <button
+              type="button"
+              className="drill-answer no"
+              disabled={feedback !== null}
+              aria-keyshortcuts="ArrowLeft"
+              onClick={() => answer(false)}
+            >
+              {verbs.no}
+            </button>
+          </>
+        )}
       </div>
     </OverlayFrame>
   )

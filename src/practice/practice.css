@@ -202,6 +202,14 @@
   color: var(--on-accent);
 }
 
+/* Shown alone in place of the two answers while a miss waits to be read. */
+.drill-answer.next {
+  grid-column: 1 / -1;
+  background: var(--gold-fill);
+  border-color: var(--gold-fill);
+  color: var(--on-accent);
+}
+
 .drill-answer:hover:not(:disabled) {
   border-color: var(--accent);
 }

@@ -16,7 +16,7 @@ import {
 } from '../domain/spotDrill'
 import type { PracticeAttempt } from '../types/practice'
 import type { SavedRange, TableSize } from '../types/range'
-import { DRILL_QUESTION_COUNT, HIT_DWELL_MS, MISS_DWELL_MS } from './RecognitionDrill'
+import { DRILL_QUESTION_COUNT, HIT_DWELL_MS, holdsForAcknowledgement } from './drillPacing'
 import { OverlayFrame } from './OverlayFrame'
 import { PlayingCards } from './PlayingCards'
 import { answerVerbs, feedbackLine } from './scenario'
@@ -103,6 +103,25 @@ export function SpotDrill({
     onFinish(summarizeSpotSession(final))
   }
 
+  /** Move to the follow-up spot (or a fresh deal), or end a finished session. */
+  function advance(from: Question, attempt: PracticeAttempt) {
+    // Only ever moves on from a scored answer, so a stray activation (a click
+    // landing as the Next button unmounts) cannot skip a spot.
+    if (!answeringRef.current || finishedRef.current) return
+    if (dwellTimeoutRef.current !== null) {
+      clearTimeout(dwellTimeoutRef.current)
+      dwellTimeoutRef.current = null
+    }
+    const played = answeredRef.current
+    if (played.length >= questionCount) {
+      finish(played)
+      return
+    }
+    answeringRef.current = false
+    setFeedback(null)
+    setPrompt(chain(from, attempt) ?? draw())
+  }
+
   function answer(userAnsweredInRange: boolean) {
     if (!prompt || answeringRef.current || feedback !== null || finishedRef.current) return
     answeringRef.current = true
@@ -114,21 +133,12 @@ export function SpotDrill({
     setAnswered(next)
     answeredRef.current = next
     setFeedback(attempt)
-    dwellTimeoutRef.current = setTimeout(
-      () => {
-        dwellTimeoutRef.current = null
-        if (finishedRef.current) return
-        if (next.length >= questionCount) {
-          finish(next)
-          return
-        }
-        answeringRef.current = false
-        setFeedback(null)
-        setPrompt(chain(prompt, attempt) ?? draw())
-      },
-      attempt.correct ? HIT_DWELL_MS : MISS_DWELL_MS,
-    )
+    // A miss stays up until the user continues; the explanation is the lesson.
+    if (holdsForAcknowledgement(false, attempt.correct)) return
+    dwellTimeoutRef.current = setTimeout(() => advance(prompt, attempt), HIT_DWELL_MS)
   }
+
+  const holding = feedback !== null && holdsForAcknowledgement(false, feedback.correct)
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -140,6 +150,15 @@ export function SpotDrill({
         target instanceof HTMLSelectElement ||
         (target instanceof HTMLElement && target.isContentEditable)
       ) {
+        return
+      }
+      // While a miss is held, the arrow keys stay answers so a fast run of them
+      // cannot skip past the explanation; only an explicit Enter continues.
+      if (holding) {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          if (prompt && feedback) advance(prompt, feedback)
+        }
         return
       }
       if (event.key === 'ArrowRight') {
@@ -210,24 +229,37 @@ export function SpotDrill({
         )}
       </div>
       <div className="drill-answers">
-        <button
-          type="button"
-          className="drill-answer yes"
-          disabled={feedback !== null}
-          aria-keyshortcuts="ArrowRight"
-          onClick={() => answer(true)}
-        >
-          {verbs.yes}
-        </button>
-        <button
-          type="button"
-          className="drill-answer no"
-          disabled={feedback !== null}
-          aria-keyshortcuts="ArrowLeft"
-          onClick={() => answer(false)}
-        >
-          {verbs.no}
-        </button>
+        {holding && feedback ? (
+          <button
+            type="button"
+            className="drill-answer next"
+            aria-keyshortcuts="Enter"
+            onClick={() => advance(prompt, feedback)}
+          >
+            Next
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="drill-answer yes"
+              disabled={feedback !== null}
+              aria-keyshortcuts="ArrowRight"
+              onClick={() => answer(true)}
+            >
+              {verbs.yes}
+            </button>
+            <button
+              type="button"
+              className="drill-answer no"
+              disabled={feedback !== null}
+              aria-keyshortcuts="ArrowLeft"
+              onClick={() => answer(false)}
+            >
+              {verbs.no}
+            </button>
+          </>
+        )}
       </div>
     </OverlayFrame>
   )
