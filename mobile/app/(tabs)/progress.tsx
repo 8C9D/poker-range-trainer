@@ -14,7 +14,11 @@ import {
   type AccuracyGroup,
 } from '@core/domain/seatAccuracy';
 import { rankWeakHands, weakHandPools } from '@core/domain/weakHands';
-import { dailyHandCounts, summarizeWeek } from '@core/domain/weeklyStats';
+import {
+  dailyHandCounts,
+  summarizeWeek,
+  weeklyAccuracyTrend,
+} from '@core/domain/weeklyStats';
 import { loadHandAccuracy } from '@core/storage/handAccuracyStorage';
 import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
 import { loadSavedRanges } from '@core/storage/rangeStorage';
@@ -28,6 +32,20 @@ import { useTheme } from '../../theme/colors';
 import type { ThemeColors } from '../../theme/colors';
 
 const WEEKDAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+const MONTHS_SHORT = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const;
 
 function loadProgressState() {
   const ranges = loadSavedRanges();
@@ -45,6 +63,7 @@ function loadProgressState() {
     Object.values(practiceStats).filter((stat) => liveRangeIds.has(stat.rangeId)),
   );
   const days = dailyHandCounts(history, nowIso);
+  const trend = weeklyAccuracyTrend(history, nowIso);
   const weakHands = rankWeakHands(handAccuracy).filter((entry) =>
     ranges.some((range) => range.id === entry.rangeId),
   );
@@ -64,6 +83,7 @@ function loadProgressState() {
     month,
     analytics,
     days,
+    trend,
     weakHands,
     leaks,
     seatGroups,
@@ -89,6 +109,7 @@ export default function ProgressScreen() {
     month,
     analytics,
     days,
+    trend,
     weakHands,
     leaks,
     seatGroups,
@@ -96,6 +117,7 @@ export default function ProgressScreen() {
     spotLeaks,
   } = state;
   const maxDay = Math.max(1, ...days.map((day) => day.handsAnswered));
+  const trendHasData = trend.some((point) => point.handsAnswered > 0);
   const rangeName = (rangeId: string) =>
     ranges.find((range) => range.id === rangeId)?.name ?? 'Deleted range';
 
@@ -169,6 +191,52 @@ export default function ProgressScreen() {
               );
             })}
           </View>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Accuracy by week</Text>
+          {trendHasData ? (
+            <View style={styles.chart}>
+              {trend.map((point, index) => {
+                const isThisWeek = index === trend.length - 1;
+                const weekStart = new Date(point.weekStart);
+                const weekLabel = `${MONTHS_SHORT[weekStart.getMonth()]} ${weekStart.getDate()}`;
+                return (
+                  <View
+                    key={point.weekStart}
+                    style={styles.chartCol}
+                    accessibilityLabel={
+                      point.handsAnswered > 0
+                        ? `Week of ${weekLabel}: ${point.accuracy.toFixed(0)}% over ${point.handsAnswered} hands`
+                        : `Week of ${weekLabel}: no practice`
+                    }
+                  >
+                    <Text testID={`trend-value-${index}`} style={styles.chartValue}>
+                      {point.handsAnswered > 0 ? `${point.accuracy.toFixed(0)}%` : ''}
+                    </Text>
+                    <View style={styles.chartBarTrack}>
+                      <View
+                        style={[
+                          styles.chartBar,
+                          {
+                            height: `${Math.max(2, Math.round(point.accuracy))}%`,
+                            backgroundColor: isThisWeek ? theme.goldFill : theme.line2,
+                          },
+                        ]}
+                      />
+                    </View>
+                    <Text style={[styles.chartLabel, isThisWeek && { color: theme.ink }]}>
+                      {weekLabel}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          ) : (
+            <Text style={styles.empty}>
+              Practice over a couple of weeks and your accuracy trend will show up here.
+            </Text>
+          )}
         </View>
 
         <View style={styles.card}>

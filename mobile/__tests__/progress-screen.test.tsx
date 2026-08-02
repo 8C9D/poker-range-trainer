@@ -67,6 +67,29 @@ describe('ProgressScreen', () => {
     expect(getByTestId('drill-weak-hands')).toBeTruthy();
   });
 
+  it('charts accuracy by week once there is practice to chart', async () => {
+    seed('r1', 'UTG Open');
+    recordPracticeSessionHistory(
+      'r1',
+      { totalQuestions: 10, correctAnswers: 7 },
+      new Date().toISOString(),
+    );
+
+    const { getByTestId, getByText } = await render(<ProgressScreen />);
+
+    expect(getByText('Accuracy by week')).toBeTruthy();
+    expect(getByTestId('trend-value-7')).toHaveTextContent('70%');
+    // A week with no practice keeps its slot but carries no percentage.
+    expect(getByTestId('trend-value-0')).toHaveTextContent('');
+  });
+
+  it('explains the accuracy trend before there is any practice', async () => {
+    const { getByText, queryByTestId } = await render(<ProgressScreen />);
+
+    expect(getByText(/your accuracy trend will show up here/)).toBeTruthy();
+    expect(queryByTestId('trend-value-7')).toBeNull();
+  });
+
   it('leaves deleted ranges out of library analytics', async () => {
     seed('live', 'UTG Open');
     recordPracticeSession('live', { totalQuestions: 10, correctAnswers: 8 });
