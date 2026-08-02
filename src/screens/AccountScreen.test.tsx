@@ -5,6 +5,8 @@ import { AccountScreen } from './AccountScreen'
 import { loadSavedRanges, saveSavedRange } from '../storage/rangeStorage'
 import { buildBackup, serializeBackup } from '../storage/backup'
 import { serializeRangeExport, serializeRangePack } from '../domain/rangeTransfer'
+import { buildStarterRanges, STARTER_RANGE_TEMPLATES } from '../domain/starterRanges'
+import { createRangeId } from '../app/ids'
 import type { SavedRange } from '../types/range'
 
 beforeEach(() => {
@@ -124,5 +126,43 @@ describe('AccountScreen', () => {
     )
     expect(alert).toHaveBeenCalled()
     expect(loadSavedRanges()).toHaveLength(0)
+  })
+})
+
+describe('AccountScreen starter ranges', () => {
+  it('adds the whole pack to a library that has other ranges', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange('mine', 'My own chart'))
+    render(<AccountScreen />)
+
+    await user.click(screen.getByRole('button', { name: 'Add starter ranges' }))
+
+    expect(loadSavedRanges()).toHaveLength(STARTER_RANGE_TEMPLATES.length + 1)
+    expect(screen.getByRole('status')).toHaveTextContent(
+      `Added ${STARTER_RANGE_TEMPLATES.length} starter charts.`,
+    )
+  })
+
+  it('adds nothing a second time instead of duplicating the pack', async () => {
+    const user = userEvent.setup()
+    render(<AccountScreen />)
+
+    await user.click(screen.getByRole('button', { name: 'Add starter ranges' }))
+    await user.click(screen.getByRole('button', { name: 'Add starter ranges' }))
+
+    expect(loadSavedRanges()).toHaveLength(STARTER_RANGE_TEMPLATES.length)
+    expect(screen.getByRole('status')).toHaveTextContent(/already in your library/)
+  })
+
+  it('tops up only the charts that are missing', async () => {
+    const user = userEvent.setup()
+    for (const range of buildStarterRanges('2026-01-01T00:00:00.000Z', createRangeId).slice(0, 4)) {
+      saveSavedRange(range)
+    }
+    render(<AccountScreen />)
+
+    await user.click(screen.getByRole('button', { name: 'Add starter ranges' }))
+
+    expect(loadSavedRanges()).toHaveLength(STARTER_RANGE_TEMPLATES.length)
   })
 })

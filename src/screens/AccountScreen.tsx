@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { createRangeId } from '../app/ids'
+import { buildStarterRanges, starterRangesMissingFrom } from '../domain/starterRanges'
 import { downloadTextFile } from '../app/rangeFiles'
 import { AuthPanel } from '../components/AuthPanel'
 import { deleteBackup, pullBackup, pushBackup } from '../cloud/backupRepo'
@@ -18,7 +19,7 @@ import {
   serializeRangePack,
 } from '../domain/rangeTransfer'
 import { buildBackup, parseBackup, restoreBackup, serializeBackup } from '../storage/backup'
-import { loadSavedRanges, saveSavedRange } from '../storage/rangeStorage'
+import { loadSavedRanges, saveSavedRange, saveSavedRanges } from '../storage/rangeStorage'
 import type { PokerHand } from '../domain/pokerHands'
 import type { SavedRange } from '../types/range'
 import './AccountScreen.css'
@@ -130,6 +131,21 @@ export function AccountScreen() {
     } catch (error) {
       setSyncStatus(error instanceof Error ? error.message : 'Unpublish failed.')
     }
+  }
+
+  function handleAddStarterRanges() {
+    const missing = starterRangesMissingFrom(loadSavedRanges())
+    if (missing.length === 0) {
+      setDataStatus('Every starter chart is already in your library.')
+      return
+    }
+    try {
+      saveSavedRanges(buildStarterRanges(new Date().toISOString(), createRangeId, missing))
+    } catch (error) {
+      setDataStatus(error instanceof Error ? error.message : 'Could not add the starter ranges.')
+      return
+    }
+    setDataStatus(`Added ${missing.length} starter chart${missing.length === 1 ? '' : 's'}.`)
   }
 
   function handleExportBackup() {
@@ -306,6 +322,9 @@ export function AccountScreen() {
             Import pack
             <input type="file" accept="application/json,.json" onChange={handleImportPack} />
           </label>
+          <button type="button" className="coach-btn" onClick={handleAddStarterRanges}>
+            Add starter ranges
+          </button>
         </div>
         {dataStatus && (
           <p className="account-status" role="status">

@@ -454,6 +454,9 @@ from a known state (see §2).
 - [ ] The spot-coverage map immediately reports covered spots, and Today offers a
       workout and a review queue.
 - [ ] The charts are ordinary ranges: one can be edited, renamed, and deleted.
+- [ ] The Account screen's **Data** section also has **Add starter ranges**, so the pack
+      is still reachable once the library has something in it. Running it twice adds
+      nothing the second time; deleting a few and running it again tops up only those.
 
 ### 5.7 Library: search / filter / sort (v1.4)
 

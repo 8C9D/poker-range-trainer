@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildStarterRanges,
   starterRangeHands,
+  starterRangesMissingFrom,
   STARTER_RANGE_TAG,
   STARTER_RANGE_TEMPLATES,
 } from './starterRanges'
@@ -133,5 +134,59 @@ describe('buildStarterRanges', () => {
       stackDepthBb: 100,
     })
     expect(match?.range.metadata?.position).toBe('co')
+  })
+})
+
+describe('starterRangesMissingFrom', () => {
+  it('offers the whole pack to an empty library', () => {
+    expect(starterRangesMissingFrom([])).toHaveLength(STARTER_RANGE_TEMPLATES.length)
+  })
+
+  it('skips a chart the library already holds, whatever its case or padding', () => {
+    const saved = buildStarterRanges('2026-01-01T00:00:00.000Z', ids())
+    const renamed = saved.map((range, index) =>
+      index === 0 ? { ...range, name: `  ${range.name.toUpperCase()} ` } : range,
+    )
+
+    expect(starterRangesMissingFrom(renamed)).toHaveLength(0)
+  })
+
+  it('offers only what is missing after a partial add', () => {
+    const partial = buildStarterRanges(
+      '2026-01-01T00:00:00.000Z',
+      ids(),
+      STARTER_RANGE_TEMPLATES.slice(0, 3),
+    )
+
+    const missing = starterRangesMissingFrom(partial)
+
+    expect(missing).toHaveLength(STARTER_RANGE_TEMPLATES.length - 3)
+    expect(missing.map((template) => template.name)).not.toContain(
+      STARTER_RANGE_TEMPLATES[0].name,
+    )
+  })
+
+  it('ignores unrelated ranges', () => {
+    const other = buildStarterRanges('2026-01-01T00:00:00.000Z', ids()).map((range) => ({
+      ...range,
+      name: `My ${range.name}`,
+    }))
+
+    expect(starterRangesMissingFrom(other)).toHaveLength(STARTER_RANGE_TEMPLATES.length)
+  })
+})
+
+describe('buildStarterRanges with a subset', () => {
+  it('builds only the templates it is given', () => {
+    const built = buildStarterRanges(
+      '2026-01-01T00:00:00.000Z',
+      ids(),
+      STARTER_RANGE_TEMPLATES.slice(0, 2),
+    )
+
+    expect(built.map((range) => range.name)).toEqual([
+      STARTER_RANGE_TEMPLATES[0].name,
+      STARTER_RANGE_TEMPLATES[1].name,
+    ])
   })
 })

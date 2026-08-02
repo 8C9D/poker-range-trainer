@@ -102,13 +102,33 @@ export function starterRangeHands(template: StarterRangeTemplate): PokerHand[] {
 }
 
 /**
- * Build the whole pack as saved ranges, ready to hand to the storage layer.
+ * The templates the library does not already hold, matched by name.
+ *
+ * Adding the pack is offered in more than one place, so it has to be safe to run
+ * twice: a chart the user already has (even renamed-then-re-added, or edited
+ * beyond recognition) is left alone rather than duplicated. Names are compared
+ * case-insensitively and trimmed, the same way the library treats them.
+ */
+export function starterRangesMissingFrom(ranges: SavedRange[]): StarterRangeTemplate[] {
+  const taken = new Set(ranges.map((range) => range.name.trim().toLowerCase()))
+  return STARTER_RANGE_TEMPLATES.filter(
+    (template) => !taken.has(template.name.trim().toLowerCase()),
+  )
+}
+
+/**
+ * Build the pack as saved ranges, ready to hand to the storage layer.
  *
  * `nowIso` timestamps every range identically (they were all added in one
- * action), and `createId` mints the ids so this stays pure and testable.
+ * action), and `createId` mints the ids so this stays pure and testable. Pass
+ * `templates` to add only part of the pack (see {@link starterRangesMissingFrom}).
  */
-export function buildStarterRanges(nowIso: string, createId: () => string): SavedRange[] {
-  return STARTER_RANGE_TEMPLATES.map((template) => ({
+export function buildStarterRanges(
+  nowIso: string,
+  createId: () => string,
+  templates: readonly StarterRangeTemplate[] = STARTER_RANGE_TEMPLATES,
+): SavedRange[] {
+  return templates.map((template) => ({
     id: createId(),
     name: template.name,
     hands: starterRangeHands(template),
