@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { generateHandMatrix } from '../domain/pokerHands'
 import type { PokerHand } from '../domain/pokerHands'
 import { HandCell } from './HandCell'
+import { useHandGridKeys } from './useHandGridKeys'
 import './HandGrid.css'
 
 /**
@@ -23,10 +24,14 @@ interface HandGridProps {
  * unselected hand to select, a selected hand to deselect. Every hand crossed
  * during the drag is set to that one target state (an idempotent set, not a
  * toggle), so re-entering a hand mid-drag never flips it back and forth.
+ *
+ * Keyboard model: one roving tab stop, moved with the arrow keys (see
+ * {@link useHandGridKeys}); Enter/Space toggles the focused hand.
  */
 export function HandGrid({ selected, onSetSelected }: HandGridProps) {
   const draggingRef = useRef(false)
   const paintModeRef = useRef<'select' | 'deselect'>('select')
+  const { gridRef, focusedIndex, onKeyDown, onFocus } = useHandGridKeys()
 
   // A drag can end with the button released anywhere, so end it on a window-level
   // mouseup rather than relying on a mouseup landing on a specific cell.
@@ -69,12 +74,18 @@ export function HandGrid({ selected, onSetSelected }: HandGridProps) {
   }
 
   return (
-    <div className="hand-grid">
-      {HANDS.map((hand) => (
+    <div
+      className="hand-grid"
+      ref={gridRef}
+      onKeyDown={onKeyDown}
+      onFocus={onFocus}
+    >
+      {HANDS.map((hand, index) => (
         <HandCell
           key={hand}
           hand={hand}
           selected={selected.has(hand)}
+          tabIndex={index === focusedIndex ? 0 : -1}
           onMouseDown={handleMouseDown}
           onMouseEnter={handleMouseEnter}
           onClick={handleClick}

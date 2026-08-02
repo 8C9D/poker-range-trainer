@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { useState } from 'react'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { act, render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { HandGrid } from './HandGrid'
 import App from '../App'
@@ -53,6 +53,90 @@ describe('HandGrid rendering', () => {
     render(<HandGrid selected={new Set<PokerHand>(['AA'])} onSetSelected={vi.fn()} />)
     expect(screen.getByRole('button', { name: 'AA' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'KK' })).toHaveAttribute('aria-pressed', 'false')
+  })
+})
+
+describe('HandGrid keyboard navigation', () => {
+  it('holds a single tab stop that follows focus', async () => {
+    const user = userEvent.setup()
+    render(<Harness />)
+    const cells = screen.getAllByRole('button')
+
+    expect(cells.filter((cell) => cell.tabIndex === 0)).toEqual([
+      screen.getByRole('button', { name: 'AA' }),
+    ])
+
+    await user.click(screen.getByRole('button', { name: 'JTs' }))
+
+    expect(screen.getAllByRole('button').filter((cell) => cell.tabIndex === 0)).toEqual([
+      screen.getByRole('button', { name: 'JTs' }),
+    ])
+  })
+
+  it('moves focus one hand at a time with the arrow keys', async () => {
+    const user = userEvent.setup()
+    render(<Harness />)
+    screen.getByRole('button', { name: 'AA' }).focus()
+
+    await user.keyboard('{ArrowRight}')
+    expect(screen.getByRole('button', { name: 'AKs' })).toHaveFocus()
+    await user.keyboard('{ArrowDown}')
+    expect(screen.getByRole('button', { name: 'KK' })).toHaveFocus()
+    await user.keyboard('{ArrowLeft}')
+    expect(screen.getByRole('button', { name: 'AKo' })).toHaveFocus()
+    await user.keyboard('{ArrowUp}')
+    expect(screen.getByRole('button', { name: 'AA' })).toHaveFocus()
+  })
+
+  it('stops at the edge rather than wrapping onto the next row', async () => {
+    const user = userEvent.setup()
+    render(<Harness />)
+    screen.getByRole('button', { name: 'AA' }).focus()
+
+    await user.keyboard('{ArrowLeft}{ArrowUp}')
+    expect(screen.getByRole('button', { name: 'AA' })).toHaveFocus()
+  })
+
+  it('jumps across the row with Home and End, and to the corners with Ctrl', async () => {
+    const user = userEvent.setup()
+    render(<Harness />)
+    screen.getByRole('button', { name: 'KQs' }).focus()
+
+    await user.keyboard('{End}')
+    expect(screen.getByRole('button', { name: 'K2s' })).toHaveFocus()
+    await user.keyboard('{Home}')
+    expect(screen.getByRole('button', { name: 'AKo' })).toHaveFocus()
+    await user.keyboard('{Control>}{End}{/Control}')
+    expect(screen.getByRole('button', { name: '22' })).toHaveFocus()
+    await user.keyboard('{Control>}{Home}{/Control}')
+    expect(screen.getByRole('button', { name: 'AA' })).toHaveFocus()
+  })
+
+  it('keeps moving when a held arrow key outruns a re-render', () => {
+    render(<Harness />)
+    screen.getByRole('button', { name: 'AA' }).focus()
+
+    // One act block, so React flushes only at the end: both presses land before
+    // the roving tab stop re-renders, the way key autorepeat behaves.
+    act(() => {
+      for (let press = 0; press < 2; press += 1) {
+        document.activeElement?.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }),
+        )
+      }
+    })
+
+    expect(screen.getByRole('button', { name: 'AQs' })).toHaveFocus()
+  })
+
+  it('still toggles the hand the arrows landed on', async () => {
+    const user = userEvent.setup()
+    render(<Harness />)
+    screen.getByRole('button', { name: 'AA' }).focus()
+
+    await user.keyboard('{ArrowDown}{ArrowRight}{Enter}')
+
+    expect(screen.getByRole('button', { name: 'KK' })).toHaveAttribute('aria-pressed', 'true')
   })
 })
 
