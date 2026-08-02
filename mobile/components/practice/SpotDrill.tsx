@@ -23,7 +23,11 @@ import type { SavedRange, TableSize } from '@core/types/range';
 import { resolveSwipeAnswer } from '../swipeAnswer';
 import { OverlayFrame } from './OverlayFrame';
 import { PlayingCards } from './PlayingCards';
-import { DRILL_QUESTION_COUNT, HIT_DWELL_MS, MISS_DWELL_MS } from './RecognitionDrill';
+import {
+  DRILL_QUESTION_COUNT,
+  HIT_DWELL_MS,
+  holdsForAcknowledgement,
+} from '../../lib/drillPacing';
 import { answerVerbs, feedbackLine } from '../../lib/scenario';
 import { fonts } from '../../theme/fonts';
 import { useTheme } from '../../theme/colors';
@@ -111,6 +115,22 @@ export function SpotDrill({
     onFinish(summarizeSpotSession(final));
   }
 
+  /** Move to the follow-up spot (or a fresh deal), or end a finished session. */
+  function advance(from: Question, attempt: PracticeAttempt) {
+    if (finishedRef.current) return;
+    if (dwellTimeoutRef.current !== null) {
+      clearTimeout(dwellTimeoutRef.current);
+      dwellTimeoutRef.current = null;
+    }
+    const played = answeredRef.current;
+    if (played.length >= questionCount) {
+      finish(played);
+      return;
+    }
+    setFeedback(null);
+    setPrompt(chain(from, attempt) ?? draw());
+  }
+
   function answer(userAnsweredInRange: boolean) {
     if (!prompt || feedback !== null || finishedRef.current) return;
     const attempt = createPracticeAttempt(prompt.hand, prompt.range.hands, userAnsweredInRange);
@@ -121,20 +141,12 @@ export function SpotDrill({
     setAnswered(next);
     answeredRef.current = next;
     setFeedback(attempt);
-    dwellTimeoutRef.current = setTimeout(
-      () => {
-        dwellTimeoutRef.current = null;
-        if (finishedRef.current) return;
-        if (next.length >= questionCount) {
-          finish(next);
-          return;
-        }
-        setFeedback(null);
-        setPrompt(chain(prompt, attempt) ?? draw());
-      },
-      attempt.correct ? HIT_DWELL_MS : MISS_DWELL_MS,
-    );
+    // A miss stays up until the user continues; the explanation is the lesson.
+    if (holdsForAcknowledgement(false, attempt.correct)) return;
+    dwellTimeoutRef.current = setTimeout(() => advance(prompt, attempt), HIT_DWELL_MS);
   }
+
+  const holding = feedback !== null && holdsForAcknowledgement(false, feedback.correct);
 
   // Keep the latest answer handler in a ref so the long-lived swipe gesture reads it
   // without being rebuilt each render (mirrors RecognitionDrill's pattern).
@@ -222,22 +234,39 @@ export function SpotDrill({
           </View>
         </GestureDetector>
         <View style={styles.answers}>
-          <Pressable
-            testID="answer-yes"
-            disabled={feedback !== null}
-            style={[styles.answer, styles.answerYes, feedback !== null && styles.answerDisabled]}
-            onPress={() => answer(true)}
-          >
-            <Text style={styles.answerYesText}>{verbs.yes}</Text>
-          </Pressable>
-          <Pressable
-            testID="answer-no"
-            disabled={feedback !== null}
-            style={[styles.answer, styles.answerNo, feedback !== null && styles.answerDisabled]}
-            onPress={() => answer(false)}
-          >
-            <Text style={styles.answerNoText}>{verbs.no}</Text>
-          </Pressable>
+          {holding && feedback ? (
+            <Pressable
+              testID="drill-next"
+              accessibilityRole="button"
+              style={[styles.answer, styles.answerYes]}
+              onPress={() => advance(prompt, feedback)}
+            >
+              <Text style={styles.answerYesText}>Next</Text>
+            </Pressable>
+          ) : (
+            <>
+              <Pressable
+                testID="answer-yes"
+                disabled={feedback !== null}
+                style={[
+                  styles.answer,
+                  styles.answerYes,
+                  feedback !== null && styles.answerDisabled,
+                ]}
+                onPress={() => answer(true)}
+              >
+                <Text style={styles.answerYesText}>{verbs.yes}</Text>
+              </Pressable>
+              <Pressable
+                testID="answer-no"
+                disabled={feedback !== null}
+                style={[styles.answer, styles.answerNo, feedback !== null && styles.answerDisabled]}
+                onPress={() => answer(false)}
+              >
+                <Text style={styles.answerNoText}>{verbs.no}</Text>
+              </Pressable>
+            </>
+          )}
         </View>
       </View>
     </OverlayFrame>

@@ -82,6 +82,24 @@ describe('PracticeScreen (overlay host)', () => {
     expect(await findByTestId('drill-why')).toHaveTextContent(/this range plays \d+ of \d+/);
   });
 
+  it('holds a missed hand until the user taps Next', async () => {
+    // Every hand is in range, so answering "fold" is always a miss.
+    seedAllHandsRange();
+    const { getByTestId, findByTestId, queryByTestId } = await render(<PracticeScreen />);
+
+    fireEvent.press(getByTestId('answer-no'));
+    await findByTestId('drill-next');
+
+    // Well past any dwell the drill used to auto-advance on.
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+    expect(queryByTestId('drill-why')).not.toBeNull();
+
+    fireEvent.press(getByTestId('drill-next'));
+
+    await waitFor(() => expect(queryByTestId('drill-why')).toBeNull());
+    expect(getByTestId('answer-no')).toBeTruthy();
+  });
+
   it('does not explain a hand the user got right', async () => {
     seedAllHandsRange();
     const { getByTestId, findByTestId, queryByTestId } = await render(<PracticeScreen />);

@@ -87,14 +87,18 @@ describe('SpotDrill', () => {
       },
     });
 
+    // Both hands are drawn from the far end of the grid, so both "play" answers
+    // are misses and each holds its explanation until Next.
     fireEvent.press(getByTestId('answer-yes'));
     await findByTestId('drill-feedback');
-    // The second question arrives once the feedback dwell elapses.
+    fireEvent.press(getByTestId('drill-next'));
     await waitFor(
       () => expect(getByTestId('spot-scenario')).toHaveTextContent(/facing an open from the CO/),
       { timeout: 3000 },
     );
     fireEvent.press(getByTestId('answer-yes'));
+    await findByTestId('drill-next');
+    fireEvent.press(getByTestId('drill-next'));
 
     await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1), { timeout: 3000 });
     const { byRange, bySpot } = onFinish.mock.calls[0][0];
@@ -148,8 +152,10 @@ describe('SpotDrill chained spots', () => {
       random: () => 0,
     });
 
+    // Folding AA is a miss, so the explanation holds until the user continues.
     fireEvent.press(getByTestId('answer-no'));
     await findByTestId('drill-feedback');
+    fireEvent.press(getByTestId('drill-next'));
     await waitFor(() => expect(queryByTestId('drill-feedback')).toBeNull(), { timeout: 3000 });
 
     expect(queryByTestId('spot-chain')).toBeNull();
