@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { RangeThumbnail } from '../components/RangeThumbnail'
 import { SpotCoverage } from '../components/SpotCoverage'
 import { formatDayDistance } from '../app/format'
+import { createRangeId } from '../app/ids'
 import { routeHash } from '../app/routes'
 import {
   collectRangeTags,
@@ -24,6 +25,7 @@ import { practiceAccuracyPercentage } from '../domain/practiceStats'
 import { setRangeArchived } from '../domain/rangeArchive'
 import { setRangeFavorite } from '../domain/rangeFavorite'
 import { selectDueRanges } from '../domain/spacedRepetition'
+import { buildStarterRanges, STARTER_RANGE_TEMPLATES } from '../domain/starterRanges'
 import { loadPracticeStats } from '../storage/practiceStatsStorage'
 import { loadReviewStates } from '../storage/reviewStateStorage'
 import { deleteSavedRanges, loadSavedRanges, saveSavedRanges } from '../storage/rangeStorage'
@@ -137,6 +139,12 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
     (showArchived ? 1 : 0)
   const hasViewChanges = query.length > 0 || sort !== '' || activeFilterCount > 0
 
+  function addStarterRanges() {
+    const starters = buildStarterRanges(new Date().toISOString(), createRangeId)
+    saveSavedRanges(starters)
+    setRanges(loadSavedRanges())
+  }
+
   function clearViewChanges() {
     setQuery('')
     setPosition('')
@@ -177,6 +185,14 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
         <section className="coach-card library-empty" aria-label="Empty library">
           <h2>No ranges yet</h2>
           <p>Create your first range and it will show up here, ready to train.</p>
+          <p>
+            In a hurry? Add {STARTER_RANGE_TEMPLATES.length} standard 6-max 100bb charts (opens
+            for every seat, big-blind defences, and 3-bets) and start training now. They are
+            ordinary ranges: edit or delete any of them.
+          </p>
+          <button type="button" className="coach-btn primary" onClick={addStarterRanges}>
+            Add starter ranges
+          </button>
         </section>
       ) : (
         <>

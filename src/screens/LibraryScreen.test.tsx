@@ -5,6 +5,7 @@ import { LibraryScreen } from './LibraryScreen'
 import { loadSavedRanges, saveSavedRange } from '../storage/rangeStorage'
 import { recordPracticeSession } from '../storage/practiceStatsStorage'
 import { saveReviewState } from '../storage/reviewStateStorage'
+import { STARTER_RANGE_TEMPLATES } from '../domain/starterRanges'
 import type { SavedRange } from '../types/range'
 
 beforeEach(() => {
@@ -48,6 +49,21 @@ describe('LibraryScreen', () => {
       'href',
       '#/library/new',
     )
+  })
+
+  it('fills an empty library with the starter pack in one action', async () => {
+    const user = userEvent.setup()
+    render(<LibraryScreen onPlaySpots={vi.fn()} />)
+
+    await user.click(screen.getByRole('button', { name: 'Add starter ranges' }))
+
+    const saved = loadSavedRanges()
+    expect(saved).toHaveLength(STARTER_RANGE_TEMPLATES.length)
+    expect(screen.queryByRole('region', { name: 'Empty library' })).toBeNull()
+    expect(rowNames()).toContain('BTN open (6-max 100bb)')
+    // The pack exists to make the rest of the app usable, so the spot map has to
+    // see it immediately.
+    expect(screen.getByRole('region', { name: 'Spot coverage' })).toBeVisible()
   })
 
   it('renders rows with thumbnails, chips, and links to the range page', () => {

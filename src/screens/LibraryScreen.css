@@ -63,6 +63,14 @@
   color: var(--ink-2);
 }
 
+.library-empty p + p {
+  margin-top: 12px;
+}
+
+.library-empty button {
+  margin-top: 12px;
+}
+
 .library-no-match {
   margin: 0;
   color: var(--ink-2);
