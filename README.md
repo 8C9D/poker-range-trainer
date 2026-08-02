@@ -15,11 +15,15 @@ the UI (see [Project structure](#project-structure)).
 
 The app implements the full roadmap (**v1–v9**). At a glance:
 
-- **Range editor** — 13×13 grid with click-to-toggle and drag-to-paint
-  selection, range shortcut buttons, live combo count and percentage, range
+- **Range editor** — 13×13 grid with click-to-toggle, drag-to-paint, and
+  arrow-key selection (the grid is one tab stop, not 169), range shortcut
+  buttons, live combo count and percentage, range
   notation import/export (e.g. `22+, A2s+, ATo+`), optional scenario metadata
   (game type, table size, stack depth, position, action type, notes), an optional
   source/reference, organization tags, and per-hand notes.
+- **Starter ranges** — an empty library fills itself with nine standard 6-max
+  100bb charts in one tap, so every drill, spot, and workout works on day one.
+  They are ordinary editable ranges, tagged `Starter`.
 - **Range library** — saved ranges as cards with search, filtering
   (position / action / stack depth / game type / tag), sorting, favorite, archive, and
   duplicate; each card summarizes combos, scenario, source, hand-notes, and
@@ -28,9 +32,11 @@ The app implements the full roadmap (**v1–v9**). At a glance:
   build-from-memory, timed drill, weakness-focused drill, an edge drill (only the
   hands on the range boundary), a "pick the correct action" quiz (for action
   charts), and a primary-action quiz (for mixed-frequency charts);
-  swipe-to-answer on touch devices. A miss is explained: where the hand sits in
+  swipe-to-answer on touch devices. A miss is explained — where the hand sits in
   the chart, how much of its hand type the range plays, and whether it is on the
-  range edge.
+  range edge — and holds on screen until you continue, so the explanation is
+  actually readable (correct answers advance on their own; the timed drill never
+  stops).
 - **Play the spot** — train the preflop game rather than one range at a time: the
   app deals a table situation (seat, action in front of you, stack depth), finds
   the range in your library that covers it, and grades your decision — naming the
@@ -57,7 +63,8 @@ The app implements the full roadmap (**v1–v9**). At a glance:
   import/export action-grouped notation.
 - **Combo-level precision** — expand hand classes to exact combos, select specific
   combos per hand, see blocker-aware combo counts against a board, and drill
-  un-blocked combos.
+  un-blocked combos. Narrowed combos count toward the range's reported size
+  everywhere it is summarized.
 - **Mixed-frequency strategies** — assign per-hand action frequencies with
   sliders, view a primary-action grid, and import/export frequency notation.
 - **Postflop training** — flop texture tagging, a range-vs-board made-hand/draw

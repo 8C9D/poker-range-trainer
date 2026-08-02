@@ -113,7 +113,10 @@ is the easiest fully-clean environment.
 - **Click to toggle** a hand in/out of the range.
 - **Drag to paint** — press an unselected hand and drag to add; press a selected hand
   and drag to remove. The first cell sets the paint mode for the whole drag.
-- **Keyboard toggle** — Tab to a cell, press Enter/Space to toggle.
+- **Keyboard toggle** — Tab to the grid (one tab stop, not 169), move with the arrow
+  keys, and press Enter/Space to toggle. Home/End jump to the ends of the row,
+  Ctrl/Cmd+Home/End to the grid's corners, and PageUp/PageDown to the ends of the
+  column. The multi-action grid navigates the same way.
 - **Clear Selection** — empties the grid (keeps name + metadata).
 - **New range** — the Library header's "New range" button opens a blank editor screen (`#/library/new`) for composing a fresh range.
 - **Range shortcuts** — Add all pairs, Add 77+, Add suited broadways, Add offsuit
@@ -122,7 +125,8 @@ is the easiest fully-clean environment.
   `QJs`, dash ranges like `A5s-A2s`, comma lists) to set the grid; read-only "Current
   range" field shows live notation; invalid notation shows an error and leaves the
   selection unchanged.
-- **Live range summary** — hands selected, combo count, % of all hands.
+- **Live range summary** — hands selected, combo count, % of all hands. Combos turned
+  off on the Combos tab count as off, so a narrowed range reports its real size.
 - **Scenario metadata** (all optional) — game type, table size, stack depth (bb),
   hero position, versus position, action type, free-form notes.
 - **Tags** (optional) — free-form organization tags (e.g. "MTT") added via a text
@@ -134,6 +138,9 @@ is the easiest fully-clean environment.
 
 ### Range library (v1.4)
 
+- **Starter ranges** — an empty library offers to add nine standard 6-max 100bb charts
+  (an open for each seat, two big-blind defences, two 3-bets) in one action. They are
+  ordinary editable ranges, tagged `Starter`.
 - **List of saved ranges** as rows: a range thumbnail, name (★ when favorited),
   metadata chips (position, action, % of hands, plus **Due** / **Archived** and any
   tags when they apply), and a practice line (accuracy · last practiced, or "Not
@@ -438,6 +445,14 @@ from a known state (see §2).
 - [ ] Delete (range page **⋯** menu) removes the range and returns to the Library.
 - [ ] Reload the page — saved ranges persist.
 
+### 5.6a Starter ranges
+
+- [ ] With the library empty, **Add starter ranges** fills it with nine charts, each
+      tagged `Starter`, and the empty state disappears.
+- [ ] The spot-coverage map immediately reports covered spots, and Today offers a
+      workout and a review queue.
+- [ ] The charts are ordinary ranges: one can be edited, renamed, and deleted.
+
 ### 5.7 Library: search / filter / sort (v1.4)
 
 - [ ] Search narrows by name; a no-match shows the "No ranges match …" message.
@@ -587,6 +602,8 @@ from a known state (see §2).
       installable and loads offline after the first visit.
 - [ ] In recognition, swipe right = in range, swipe left = out of range; buttons still
       work.
+- [ ] The browser Back button leaves an open drill or workout and returns to the screen
+      underneath it (same URL), instead of navigating the app while the drill stays up.
 
 ### 5.23 Postflop & range-vs-board (v4)
 
@@ -599,6 +616,9 @@ from a known state (see §2).
 
 - [ ] The **Combos** tab expands hand classes into combos; toggling persists per range
       and survives reload (absence = all combos).
+- [ ] The tab reports "N of M combos · X% of all hands", and the figure drops as combos
+      are turned off. After saving, the Library row, the Overview tab, the Edit tab's
+      live summary, and an exported CSV all report that same narrowed size.
 - [ ] The "Combo drill" practice mode deals un-blocked, blocker-aware combos vs a board
       (self-graded; records nothing) and honors the range's saved combo selections.
 - [ ] Blocker-aware combo counts vs a board look right (a board card removes the
@@ -643,6 +663,11 @@ from a known state (see §2).
       feedback — the hand's class, how much of that class the range plays, and whether
       it sits on the range edge.
 - [ ] A correct answer does not add the line, and the cards do not shift either way.
+- [ ] A wrong answer replaces the two answer buttons with a single **Next** and stays on
+      screen indefinitely; Next (or Enter) deals the following hand. The same holds in
+      the spot drill.
+- [ ] A correct answer still advances on its own, and the **timed** drill auto-advances
+      through misses too (the clock does not stop for you).
 
 ### 5.30 Edge drill (v7.2)
 
