@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useCallback, useState } from 'react'
 import { SharedRangePage } from './components/SharedRangePage'
 import { SharedPackPage } from './components/SharedPackPage'
 import { parsePackShareRoute, parseShareRoute } from './domain/shareRoute'
@@ -7,6 +7,7 @@ import { loadSavedRanges, saveSavedRange } from './storage/rangeStorage'
 import { AppShell } from './app/AppShell'
 import { createRangeId } from './app/ids'
 import { routeHash, useHashRoute } from './app/routes'
+import { useBackToClose } from './app/useBackToClose'
 import type { PracticeRequest } from './practice/PracticeHost'
 
 // The practice/drill/postflop subtree is large and only rendered once a user
@@ -101,6 +102,11 @@ function CoachApp() {
   const [practice, setPractice] = useState<PracticeRequest | null>(null)
   const [workout, setWorkout] = useState<DailyWorkout | null>(null)
 
+  const closePractice = useCallback(() => setPractice(null), [])
+  const closeWorkout = useCallback(() => setWorkout(null), [])
+  useBackToClose(workout !== null, closeWorkout)
+  useBackToClose(workout === null && practice !== null, closePractice)
+
   function startReview(queue: SavedRange[]) {
     if (queue.length === 0) return
     // The review queue drills recognition straight through, no picker.
@@ -121,7 +127,7 @@ function CoachApp() {
         <WorkoutHost
           workout={workout}
           ranges={loadSavedRanges()}
-          onClose={() => setWorkout(null)}
+          onClose={closeWorkout}
         />
       </Suspense>
     )
@@ -132,7 +138,7 @@ function CoachApp() {
       <Suspense
         fallback={<div style={{ position: 'fixed', inset: 0, background: 'var(--bg)' }} aria-busy="true" />}
       >
-        <PracticeHost request={practice} onClose={() => setPractice(null)} />
+        <PracticeHost request={practice} onClose={closePractice} />
       </Suspense>
     )
   }

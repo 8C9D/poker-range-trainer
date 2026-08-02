@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
 import { encodeRangeToHash } from './domain/rangeTransfer'
@@ -144,6 +144,26 @@ describe('Practice overlay', () => {
     await user.click(screen.getAllByRole('button', { name: 'Review' })[1])
     expect(await screen.findByRole('dialog', { name: 'BTN open' })).toBeInTheDocument()
     expect(screen.queryByText(/1\/2/)).not.toBeInTheDocument()
+  })
+
+  it('leaves the drill when the browser Back button is pressed', async () => {
+    const user = userEvent.setup()
+    seedRange('a', 'UTG open')
+    window.location.hash = '#/today'
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Start review' }))
+    expect(await screen.findByRole('button', { name: 'Close practice' })).toBeInTheDocument()
+
+    // The session pushed a duplicate entry; popping it is what Back does.
+    await act(async () => {
+      window.dispatchEvent(new PopStateEvent('popstate', { state: null }))
+    })
+
+    expect(screen.queryByRole('button', { name: 'Close practice' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Start review' })).toBeInTheDocument()
+    // Back exits the session without moving the app off the screen underneath.
+    expect(window.location.hash).toBe('#/today')
   })
 
   it('opens the mode picker from the range page Practice button', async () => {
