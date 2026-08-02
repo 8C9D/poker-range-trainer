@@ -30,12 +30,12 @@ export function useLiveSave(): [string | null, (save: () => void) => void] {
 }
 
 interface SaveErrorBannerProps {
-  /** The message from {@link useLiveSave}; nothing renders while it is null. */
+  /** The message from {@link useLiveSave} or a caught save; null renders nothing. */
   error: string | null;
   testID?: string;
 }
 
-/** Inline "the last edit did not land" line for a live-saving editor. */
+/** Inline "that save did not land" line, in the shared error treatment. */
 export function SaveErrorBanner({ error, testID = 'save-error' }: SaveErrorBannerProps) {
   const theme = useTheme();
   if (!error) return null;

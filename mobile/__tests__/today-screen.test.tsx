@@ -4,7 +4,8 @@ import type { ReactNode } from 'react';
 import { recordPracticeSession } from '@core/storage/practiceStatsStorage';
 import { saveReviewState } from '@core/storage/reviewStateStorage';
 import { recordPracticeSessionHistory } from '@core/storage/sessionHistoryStorage';
-import { saveSavedRange } from '@core/storage/rangeStorage';
+import { STARTER_RANGE_TEMPLATES } from '@core/domain/starterRanges';
+import { loadSavedRanges, saveSavedRange } from '@core/storage/rangeStorage';
 import { loadTrainingGoal, saveTrainingGoal } from '@core/storage/trainingGoalStorage';
 import { recordWorkoutCompletion } from '@core/storage/workoutStorage';
 import type { SavedRange } from '@core/types/range';
@@ -46,6 +47,32 @@ describe('TodayScreen', () => {
 
     expect(getByTestId('today-onboarding')).toBeTruthy();
     expect(queryByTestId('start-review')).toBeNull();
+  });
+
+  it('fills an empty library with the starter pack and drops straight into training', async () => {
+    const user = userEvent.setup();
+    const { getByTestId, queryByTestId } = await render(<TodayScreen />);
+
+    await user.press(getByTestId('add-starter-ranges'));
+
+    expect(loadSavedRanges()).toHaveLength(STARTER_RANGE_TEMPLATES.length);
+    // The welcome card gives way to the real dashboard without leaving the tab.
+    expect(queryByTestId('today-onboarding')).toBeNull();
+    expect(getByTestId('start-review')).toBeTruthy();
+  });
+
+  it('reports a failed starter save instead of leaving the button dead', async () => {
+    const user = userEvent.setup();
+    const failing = jest.spyOn(localStorageShim, 'setItem').mockImplementation(() => {
+      throw new Error('mmkv: no space left on device');
+    });
+    const { getByTestId } = await render(<TodayScreen />);
+
+    await user.press(getByTestId('add-starter-ranges'));
+
+    expect(getByTestId('starter-error')).toHaveTextContent(/storage is full or unavailable/);
+    expect(getByTestId('today-onboarding')).toBeTruthy();
+    failing.mockRestore();
   });
 
   it('surfaces the due queue and start-review CTA for never-practiced ranges', async () => {

@@ -10,6 +10,7 @@ import {
 import { practiceAccuracyPercentage } from '@core/domain/practiceStats';
 import { currentStreak, selectDueRanges } from '@core/domain/spacedRepetition';
 import { buildSpotCoverage, inferLibraryContext } from '@core/domain/spotCoverage';
+import { buildStarterRanges, STARTER_RANGE_TEMPLATES } from '@core/domain/starterRanges';
 import {
   GOAL_OPTIONS,
   evaluateDailyGoal,
@@ -18,14 +19,16 @@ import {
 import { summarizeWeek } from '@core/domain/weeklyStats';
 import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
 import { loadReviewStates } from '@core/storage/reviewStateStorage';
-import { loadSavedRanges } from '@core/storage/rangeStorage';
+import { loadSavedRanges, saveSavedRanges } from '@core/storage/rangeStorage';
 import { loadSessionHistory } from '@core/storage/sessionHistoryStorage';
 import { loadSpotAccuracy } from '@core/storage/spotAccuracyStorage';
 import { loadTrainingGoal, saveTrainingGoal } from '@core/storage/trainingGoalStorage';
 import { loadWorkoutCompletion } from '@core/storage/workoutStorage';
 
+import { SaveErrorBanner } from '../../components/liveSave';
 import { RangeThumbnail } from '../../components/RangeThumbnail';
 import { Screen } from '../../components/Screen';
+import { createRangeId } from '../../platform/createRangeId';
 import { formatDateLine, formatDayDistance, greetingFor } from '../../lib/format';
 import { fonts } from '../../theme/fonts';
 import { useTheme } from '../../theme/colors';
@@ -97,6 +100,7 @@ export default function TodayScreen() {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const [state, setState] = useState(loadTodayState);
+  const [starterError, setStarterError] = useState<string | null>(null);
   useFocusEffect(
     useCallback(() => {
       setState(loadTodayState());
@@ -121,6 +125,21 @@ export default function TodayScreen() {
   } = state;
   const estimatedMinutes = Math.max(1, Math.ceil(due.length * MINUTES_PER_RANGE));
   const goalProgress = evaluateDailyGoal(history, nowIso, goal);
+
+  // The welcome card's shortcut past an empty library. Only reachable while there are
+  // no ranges, so the whole pack goes in without the Account tab's top-up check.
+  const addStarterRanges = () => {
+    try {
+      saveSavedRanges(buildStarterRanges(new Date().toISOString(), createRangeId));
+    } catch (error) {
+      setStarterError(
+        error instanceof Error ? error.message : 'Could not add the starter ranges.',
+      );
+      return;
+    }
+    setStarterError(null);
+    setState(loadTodayState());
+  };
 
   const pickGoal = (target: number) => {
     saveTrainingGoal(target);
@@ -162,12 +181,22 @@ export default function TodayScreen() {
           <View testID="today-onboarding" style={styles.card}>
             <Text style={styles.cardTitle}>Welcome</Text>
             <Text style={styles.cardBody}>
-              You have no ranges yet. Build your first one in the Library, then come back here to
-              train it on a schedule.
+              You have no ranges yet. Start with {STARTER_RANGE_TEMPLATES.length} standard 6-max
+              100bb charts (ordinary ranges you can edit or delete), or build your own in the
+              Library.
             </Text>
+            <SaveErrorBanner error={starterError} testID="starter-error" />
+            <Pressable
+              testID="add-starter-ranges"
+              accessibilityRole="button"
+              style={styles.primaryBtn}
+              onPress={addStarterRanges}
+            >
+              <Text style={styles.primaryBtnText}>Add starter ranges</Text>
+            </Pressable>
             <Link href="/library" asChild>
-              <Pressable style={styles.primaryBtn}>
-                <Text style={styles.primaryBtnText}>Open Library</Text>
+              <Pressable accessibilityRole="button" style={styles.ghostBtn}>
+                <Text style={styles.ghostBtnText}>Open Library</Text>
               </Pressable>
             </Link>
           </View>
