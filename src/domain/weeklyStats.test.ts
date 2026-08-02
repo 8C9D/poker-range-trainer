@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { dailyHandCounts, summarizeWeek } from './weeklyStats'
+import { dailyHandCounts, summarizeWeek, weeklyAccuracyTrend } from './weeklyStats'
 import type { PracticeSessionRecord } from '../types/practice'
 
 const NOW = '2026-07-11T12:00:00.000Z'
@@ -167,5 +167,74 @@ describe('dailyHandCounts', () => {
       NOW,
     )
     expect(days.every((day) => day.handsAnswered === 0)).toBe(true)
+  })
+})
+
+describe('weeklyAccuracyTrend', () => {
+  it('returns one empty bucket per week for empty history', () => {
+    const trend = weeklyAccuracyTrend({}, NOW, 4)
+
+    expect(trend).toHaveLength(4)
+    expect(trend.every((point) => point.handsAnswered === 0 && point.accuracy === 0)).toBe(true)
+  })
+
+  it('is empty for a non-positive window or an unreadable now', () => {
+    expect(weeklyAccuracyTrend({}, NOW, 0)).toEqual([])
+    expect(weeklyAccuracyTrend({}, 'not-a-date')).toEqual([])
+  })
+
+  it('buckets sessions into trailing weeks, oldest first', () => {
+    // This week 8/10, last week 4/10.
+    const trend = weeklyAccuracyTrend(
+      {
+        a: [
+          session('a', '2026-07-10T12:00:00.000Z', 10, 8),
+          session('a', '2026-07-03T12:00:00.000Z', 10, 4),
+        ],
+      },
+      NOW,
+      2,
+    )
+
+    expect(trend.map((point) => point.accuracy)).toEqual([40, 80])
+    expect(trend.map((point) => point.handsAnswered)).toEqual([10, 10])
+  })
+
+  it('pools every range answered in a week into one accuracy', () => {
+    const trend = weeklyAccuracyTrend(
+      {
+        a: [session('a', NOW, 10, 10)],
+        b: [session('b', NOW, 10, 0)],
+      },
+      NOW,
+      1,
+    )
+
+    expect(trend[0]).toMatchObject({ handsAnswered: 20, correctAnswers: 10, accuracy: 50 })
+  })
+
+  it('keeps a week with no practice in the series rather than dropping it', () => {
+    const trend = weeklyAccuracyTrend({ a: [session('a', NOW, 10, 7)] }, NOW, 3)
+
+    expect(trend.map((point) => point.handsAnswered)).toEqual([0, 0, 10])
+    expect(trend[2].accuracy).toBe(70)
+  })
+
+  it('ignores sessions older than the window', () => {
+    const trend = weeklyAccuracyTrend(
+      { a: [session('a', '2026-01-01T12:00:00.000Z', 10, 10)] },
+      NOW,
+      2,
+    )
+
+    expect(trend.every((point) => point.handsAnswered === 0)).toBe(true)
+  })
+
+  it('starts each bucket seven days before the next one', () => {
+    const trend = weeklyAccuracyTrend({}, NOW, 3)
+    const starts = trend.map((point) => new Date(point.weekStart).getTime())
+
+    expect(starts[1] - starts[0]).toBe(7 * 86_400_000)
+    expect(starts[2] - starts[1]).toBe(7 * 86_400_000)
   })
 })

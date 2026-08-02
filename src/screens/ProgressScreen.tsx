@@ -11,7 +11,7 @@ import {
 import { describeSpot, matchRangeToSpot, spotKey, type Spot } from '../domain/spot'
 import { rankSpotLeaks } from '../domain/spotLeaks'
 import { rankWeakHands, weakHandPools } from '../domain/weakHands'
-import { dailyHandCounts, summarizeWeek } from '../domain/weeklyStats'
+import { dailyHandCounts, summarizeWeek, weeklyAccuracyTrend } from '../domain/weeklyStats'
 import type { PokerHand } from '../domain/pokerHands'
 import { loadHandAccuracy } from '../storage/handAccuracyStorage'
 import { loadPracticeStats } from '../storage/practiceStatsStorage'
@@ -53,6 +53,8 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
   )
   const days = dailyHandCounts(history, nowIso)
   const maxDay = Math.max(1, ...days.map((day) => day.handsAnswered))
+  const trend = weeklyAccuracyTrend(history, nowIso)
+  const trendHasData = trend.some((point) => point.handsAnswered > 0)
   const weakHands = rankWeakHands(handAccuracy).filter((entry) =>
     ranges.some((range) => range.id === entry.rangeId),
   )
@@ -142,6 +144,47 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
             )
           })}
         </ul>
+      </section>
+
+      <section className="coach-card" aria-label="Accuracy by week">
+        <h3>Accuracy by week</h3>
+        {trendHasData ? (
+          <ul className="progress-chart">
+            {trend.map((point, index) => {
+              const weekLabel = new Date(point.weekStart).toLocaleDateString(undefined, {
+                month: 'short',
+                day: 'numeric',
+              })
+              const isThisWeek = index === trend.length - 1
+              return (
+                <li
+                  key={point.weekStart}
+                  className={isThisWeek ? 'progress-chart-day today' : 'progress-chart-day'}
+                  aria-label={
+                    point.handsAnswered > 0
+                      ? `Week of ${weekLabel}: ${point.accuracy.toFixed(0)}% over ${point.handsAnswered} hands`
+                      : `Week of ${weekLabel}: no practice`
+                  }
+                >
+                  <span className="progress-chart-value coach-tabular">
+                    {point.handsAnswered > 0 ? `${point.accuracy.toFixed(0)}%` : ''}
+                  </span>
+                  <span className="progress-chart-track">
+                    <span
+                      className="progress-chart-bar"
+                      style={{ height: `${Math.round(point.accuracy)}%` }}
+                    />
+                  </span>
+                  <span className="progress-chart-label">{weekLabel}</span>
+                </li>
+              )
+            })}
+          </ul>
+        ) : (
+          <p className="progress-empty">
+            Practice over a couple of weeks and your accuracy trend will show up here.
+          </p>
+        )}
       </section>
 
       <section className="coach-card" aria-label="Library analytics">

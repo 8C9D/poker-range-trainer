@@ -48,7 +48,9 @@
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  /* Auto columns, so the same chart serves seven days and eight weeks. */
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
   gap: 10px;
   align-items: end;
   height: 140px;

@@ -56,6 +56,29 @@ describe('ProgressScreen', () => {
     expect(within(days[0]).queryByText('0')).toBeNull()
   })
 
+  it('charts accuracy by week once there is practice to chart', () => {
+    saveSavedRange(makeRange('a', 'UTG open'))
+    recordPracticeSessionHistory('a', { totalQuestions: 10, correctAnswers: 7 }, TODAY)
+    render(<ProgressScreen onDrillWeakHands={vi.fn()} onDrillSpot={vi.fn()} />)
+
+    const chart = screen.getByRole('region', { name: 'Accuracy by week' })
+    const weeks = within(chart).getAllByRole('listitem')
+    expect(weeks).toHaveLength(8)
+    expect(weeks[7]).toHaveClass('today')
+    expect(weeks[7]).toHaveAccessibleName(/70% over 10 hands/)
+    expect(within(weeks[7]).getByText('70%')).toBeInTheDocument()
+    // A week with no practice stays in the series, unlabelled.
+    expect(weeks[0]).toHaveAccessibleName(/no practice/)
+  })
+
+  it('explains the accuracy trend before there is any practice', () => {
+    render(<ProgressScreen onDrillWeakHands={vi.fn()} onDrillSpot={vi.fn()} />)
+
+    const chart = screen.getByRole('region', { name: 'Accuracy by week' })
+    expect(within(chart).getByText(/your accuracy trend will show up here/)).toBeInTheDocument()
+    expect(within(chart).queryAllByRole('listitem')).toHaveLength(0)
+  })
+
   it('summarizes library-wide analytics', () => {
     saveSavedRange(makeRange('a', 'UTG open'))
     saveSavedRange(makeRange('b', 'BTN open'))

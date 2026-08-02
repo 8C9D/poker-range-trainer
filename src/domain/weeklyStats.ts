@@ -116,3 +116,59 @@ export function dailyHandCounts(
     return { dayStart: dayStart.toISOString(), handsAnswered }
   })
 }
+
+/** One 7-day bucket of the accuracy trend. */
+export interface WeeklyAccuracyPoint {
+  /** Start of the bucket's first local calendar day, as an ISO timestamp. */
+  weekStart: string
+  handsAnswered: number
+  correctAnswers: number
+  /** 0 when nothing was answered in the bucket. */
+  accuracy: number
+}
+
+/**
+ * Accuracy per trailing 7-day bucket, oldest first, ending with the bucket that
+ * contains `now`.
+ *
+ * "How much did I train" is already answered by {@link dailyHandCounts}; this
+ * answers the other half — whether the answers are getting better. Bucketed by
+ * week rather than by day because a day can hold five hands, and a 40% day off
+ * five hands says nothing. Weeks with no practice are kept in the series (as
+ * zero hands) so the gaps in a training habit stay visible.
+ */
+export function weeklyAccuracyTrend(
+  history: Record<string, PracticeSessionRecord[]>,
+  now: string,
+  weeks = 8,
+): WeeklyAccuracyPoint[] {
+  const todayNum = localCalendarDay(now)
+  const todayStart = localDayStart(now)
+  if (todayNum === null || todayStart === null || weeks <= 0) return []
+
+  const totals = Array.from({ length: weeks }, () => ({ total: 0, correct: 0 }))
+  const firstNum = todayNum - (weeks * 7 - 1)
+  for (const sessions of Object.values(history)) {
+    for (const session of sessions) {
+      const dayNum = localCalendarDay(session.playedAt)
+      if (dayNum === null || dayNum < firstNum || dayNum > todayNum) continue
+      // Bucket 0 is the newest week, so read the series back to front below.
+      const bucket = Math.floor((todayNum - dayNum) / 7)
+      totals[bucket].total += session.totalQuestions
+      totals[bucket].correct += session.correctAnswers
+    }
+  }
+
+  return totals
+    .map((bucket, index) => {
+      const weekStart = new Date(todayStart)
+      weekStart.setDate(weekStart.getDate() - (index * 7 + 6))
+      return {
+        weekStart: weekStart.toISOString(),
+        handsAnswered: bucket.total,
+        correctAnswers: bucket.correct,
+        accuracy: accuracyPercentage(bucket.correct, bucket.total),
+      }
+    })
+    .reverse()
+}

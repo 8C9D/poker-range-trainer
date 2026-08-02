@@ -652,6 +652,14 @@ from a known state (see §2).
 - [ ] The **Progress** screen reflects aggregate practice stats — streak / 30-day /
       all-time tiles, a 7-day bar chart, and an "Across your library" summary.
 
+### 5.27a Accuracy trend
+
+- [ ] Progress shows an **Accuracy by week** card once anything has been practised:
+      eight trailing 7-day buckets, oldest first, each labelled with its accuracy.
+- [ ] A week with no practice keeps its slot and carries no percentage.
+- [ ] With nothing practised at all, the card explains itself instead of drawing an
+      empty chart.
+
 ### 5.28 Leak report by hand type (v7.0)
 
 - [ ] **Progress** shows a "Leaks by hand type" card ranking the hand classes you miss

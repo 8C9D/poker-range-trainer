@@ -49,7 +49,8 @@ The app implements the full roadmap (**v1–v9**). At a glance:
   (suited connectors, offsuit broadway, …) with a one-tap drill, an accuracy
   breakdown by seat and by action ("you leak from the big blind"), a weakest-spots
   list naming the exact situations you play worst (each drillable on its own),
-  "practice mistakes only", session history, and a library-wide practice summary.
+  "practice mistakes only", session history, a library-wide practice summary, and
+  an accuracy-by-week trend answering whether you are actually improving.
 - **Spaced repetition & goals** — a "due for review" queue, a review streak, and an
   optional daily hands goal with progress on Today. Each session advances the
   range's review schedule by accuracy, pulled closer when its per-hand record
