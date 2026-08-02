@@ -57,7 +57,11 @@ describe('ProgressScreen', () => {
     const { getByText, getByTestId } = await render(<ProgressScreen />);
 
     // All-time hands tile reflects the recorded attempts.
-    expect(getByText('10')).toBeTruthy();
+    expect(getByTestId('hands-all-time')).toHaveTextContent('10');
+    // …and so does today's bar on the weekly chart.
+    expect(getByTestId('chart-value-6')).toHaveTextContent('10');
+    // Days with nothing recorded stay unlabelled rather than showing a row of zeros.
+    expect(getByTestId('chart-value-0')).toHaveTextContent('');
     // Weak hand AA is listed with a Drill-these shortcut.
     expect(getByText('AA')).toBeTruthy();
     expect(getByTestId('drill-weak-hands')).toBeTruthy();

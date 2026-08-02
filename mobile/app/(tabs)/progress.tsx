@@ -128,7 +128,9 @@ export default function ProgressScreen() {
             <Text style={styles.tileLabel}>30-day accuracy</Text>
           </View>
           <View style={styles.tile}>
-            <Text style={styles.tileValue}>{analytics.totalAttempts}</Text>
+            <Text testID="hands-all-time" style={styles.tileValue}>
+              {analytics.totalAttempts}
+            </Text>
             <Text style={styles.tileLabel}>Hands all-time</Text>
           </View>
         </View>
@@ -146,6 +148,11 @@ export default function ProgressScreen() {
                   style={styles.chartCol}
                   accessibilityLabel={`${weekday}: ${day.handsAnswered} hands`}
                 >
+                  {/* A bar with no number reads as decoration: 20 hands and 200
+                      draw the same full-height column. */}
+                  <Text testID={`chart-value-${index}`} style={styles.chartValue}>
+                    {day.handsAnswered > 0 ? String(day.handsAnswered) : ''}
+                  </Text>
                   <View style={styles.chartBarTrack}>
                     <View
                       style={[
@@ -385,7 +392,16 @@ function makeStyles(theme: ThemeColors) {
     },
     sectionTitle: { fontFamily: fonts.bodySemibold, fontSize: 14, color: theme.ink },
     chart: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, height: 130 },
-    chartCol: { flex: 1, alignItems: 'center', gap: 6 },
+    chartCol: { flex: 1, alignItems: 'center', gap: 4 },
+    // Height reserved even when empty, so bars across the week share one baseline.
+    chartValue: {
+      fontFamily: fonts.body,
+      fontSize: 11,
+      lineHeight: 14,
+      minHeight: 14,
+      color: theme.ink2,
+      fontVariant: ['tabular-nums'],
+    },
     chartBarTrack: { flex: 1, width: '100%', justifyContent: 'flex-end', alignItems: 'center' },
     chartBar: { width: '70%', borderRadius: 4, minHeight: 3 },
     chartLabel: { fontFamily: fonts.body, fontSize: 11, color: theme.ink3 },
