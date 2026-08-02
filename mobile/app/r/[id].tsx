@@ -4,7 +4,7 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 
 import { getSharedRange } from '@core/cloud/sharedRangesRepo';
 import { areValidHands } from '@core/domain/pokerHands';
-import { calculateRangePercentage } from '@core/domain/rangeMath';
+import { rangeComboPercentage } from '@core/domain/comboSelection';
 import { saveSavedRange } from '@core/storage/rangeStorage';
 import type { SavedRange } from '@core/types/range';
 
@@ -94,7 +94,7 @@ export default function SharedRangeScreen() {
               {range.name || 'Untitled range'}
             </Text>
             <Text style={styles.meta}>
-              {range.hands.length} hands · {calculateRangePercentage(range.hands).toFixed(1)}%
+              {range.hands.length} hands · {rangeComboPercentage(range.hands, range.comboSelections).toFixed(1)}%
             </Text>
             <Pressable
               testID="shared-add"

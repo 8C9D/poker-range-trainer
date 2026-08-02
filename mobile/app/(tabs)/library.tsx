@@ -18,7 +18,7 @@ import {
   sortRangesByName,
   sortRangesByUpdatedAt,
 } from '@core/domain/rangeLibrary';
-import { calculateRangePercentage } from '@core/domain/rangeMath';
+import { rangeComboPercentage } from '@core/domain/comboSelection';
 import { practiceAccuracyPercentage } from '@core/domain/practiceStats';
 import { setRangeArchived } from '@core/domain/rangeArchive';
 import { setRangeFavorite } from '@core/domain/rangeFavorite';
@@ -584,7 +584,7 @@ function RangeRow({
   onToggle: () => void;
 }) {
   const meta = range.metadata;
-  const percentage = calculateRangePercentage(range.hands);
+  const percentage = rangeComboPercentage(range.hands, range.comboSelections);
   const row = (
     <Pressable
         testID={`range-row-${range.id}`}

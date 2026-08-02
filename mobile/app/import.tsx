@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { Stack, useLocalSearchParams } from 'expo-router';
 
 import { areValidHands } from '@core/domain/pokerHands';
-import { calculateRangePercentage } from '@core/domain/rangeMath';
+import { rangeComboPercentage } from '@core/domain/comboSelection';
 import { decodeRangeFromHash } from '@core/domain/rangeTransfer';
 import { saveSavedRange } from '@core/storage/rangeStorage';
 import type { SavedRange } from '@core/types/range';
@@ -104,7 +104,7 @@ export default function ImportScreen() {
                 {range.name || 'Untitled'}
               </Text>
               <Text style={styles.previewMeta}>
-                {range.hands.length} hands · {calculateRangePercentage(range.hands).toFixed(1)}%
+                {range.hands.length} hands · {rangeComboPercentage(range.hands, range.comboSelections).toFixed(1)}%
               </Text>
             </View>
           </View>

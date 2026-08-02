@@ -14,7 +14,8 @@ import {
   formatRangeCsv,
   serializeRangeExport,
 } from '@core/domain/rangeTransfer';
-import { calculateRangePercentage, countSelectedCombos } from '@core/domain/rangeMath';
+
+import { countRangeCombos, rangeComboPercentage } from '@core/domain/comboSelection';
 import { duplicateRange } from '@core/domain/rangeDuplication';
 import { setRangeArchived } from '@core/domain/rangeArchive';
 import { setRangeFavorite } from '@core/domain/rangeFavorite';
@@ -425,8 +426,8 @@ function OverviewTab({
     }, [range.id]),
   );
 
-  const combos = countSelectedCombos(range.hands);
-  const percentage = calculateRangePercentage(range.hands);
+  const combos = countRangeCombos(range.hands, range.comboSelections);
+  const percentage = rangeComboPercentage(range.hands, range.comboSelections);
   const lastSession = history.length > 0 ? history[history.length - 1] : null;
   const recentSessions = history.slice(-5).reverse();
   const handNoteCount = Object.keys(range.handNotes ?? {}).length;

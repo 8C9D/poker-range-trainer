@@ -101,6 +101,20 @@ export function RangeEditor({ id: idParam, prefill, showNotesLink = true }: Rang
   });
   const [activeComboHand, setActiveComboHand] = useState<PokerHand | null>(null);
 
+  // The narrowed-combo overlay, in stored form: what live-save persists, and what
+  // the stats bar has to read so a refined range is not reported at its full size.
+  // Only hand classes narrowed below full are recorded (absence = all combos on).
+  const comboSelections = useMemo(() => {
+    const result: Record<PokerHand, string[]> = {};
+    for (const hand of selected) {
+      const selection = comboDraft[hand] ?? allCombosForHand(hand);
+      if (selection.size < allCombosForHand(hand).size) {
+        result[hand] = serializeComboSelection(selection);
+      }
+    }
+    return result;
+  }, [selected, comboDraft]);
+
   // Skip the first effect run so merely opening an existing range does not rewrite its
   // updatedAt; every later change live-saves.
   const hydratedRef = useRef(false);
@@ -118,13 +132,6 @@ export function RangeEditor({ id: idParam, prefill, showNotesLink = true }: Rang
     // overlay fields this screen doesn't edit — handActions, favorite, archived, source,
     // mixedStrategies — are preserved.
     const existing = findSavedRangeById(draft.id);
-    const comboSelections: Record<PokerHand, string[]> = {};
-    for (const hand of selected) {
-      const selection = comboDraft[hand] ?? allCombosForHand(hand);
-      if (selection.size < allCombosForHand(hand).size) {
-        comboSelections[hand] = serializeComboSelection(selection);
-      }
-    }
     // Keep only notes for hands still in the range so deselecting a hand does not
     // leave an orphaned, unreachable note behind (mirrors the web editor's prune).
     const existingNotes = existing?.handNotes ?? ({} as Record<PokerHand, string>);
@@ -164,7 +171,7 @@ export function RangeEditor({ id: idParam, prefill, showNotesLink = true }: Rang
       // Overrides the spread's stored tags; storage drops the field when empty.
       tags,
     });
-  }, [name, selected, metadata, comboDraft, tags, draft]);
+  }, [name, selected, metadata, comboSelections, tags, draft]);
 
   const handleSetSelected = useCallback((hand: PokerHand, isSelected: boolean) => {
     setSelectionHistory((history) => {
@@ -226,7 +233,7 @@ export function RangeEditor({ id: idParam, prefill, showNotesLink = true }: Rang
         value={name}
         onChangeText={setName}
       />
-      <RangeStatsBar hands={[...selected]} />
+      <RangeStatsBar hands={[...selected]} comboSelections={comboSelections} />
       <View style={styles.historyActions}>
         <Pressable
           testID="undo-selection"
