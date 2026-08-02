@@ -1,4 +1,4 @@
-import { readJson } from './storageHelpers'
+import { readJson, writeJson } from './storageHelpers'
 
 /**
  * Local persistence for the daily workout's completion (v9.2), backed by
@@ -23,5 +23,5 @@ export function loadWorkoutCompletion(): string | null {
 
 /** Persist the completion of a workout finished at `completedAt`. */
 export function recordWorkoutCompletion(completedAt: string): void {
-  localStorage.setItem(WORKOUT_STORAGE_KEY, JSON.stringify({ lastCompletedAt: completedAt }))
+  writeJson(WORKOUT_STORAGE_KEY, { lastCompletedAt: completedAt })
 }

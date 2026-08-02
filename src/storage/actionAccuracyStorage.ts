@@ -1,6 +1,6 @@
 import type { ActionAccuracyStat, RangeActionAccuracy } from '../domain/actionRange'
 import { RANGE_ACTIONS, type RangeAction } from '../types/range'
-import { asMember, isNonNegativeFinite, readJson } from './storageHelpers'
+import { asMember, isNonNegativeFinite, readJson, writeJson } from './storageHelpers'
 
 /**
  * Local persistence for cumulative per-action accuracy stats, per range, backed
@@ -50,7 +50,7 @@ function parseRangeActionAccuracy(value: unknown): RangeActionAccuracy | null {
 
 /** Persist the full stats map, serialized under the single storage key. */
 function writeActionAccuracy(stats: Record<string, RangeActionAccuracy>): void {
-  localStorage.setItem(ACTION_ACCURACY_STORAGE_KEY, JSON.stringify(stats))
+  writeJson(ACTION_ACCURACY_STORAGE_KEY, stats)
 }
 
 /**

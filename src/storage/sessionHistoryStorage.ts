@@ -1,5 +1,5 @@
 import type { PracticeSessionRecord, PracticeSessionSummary } from '../types/practice'
-import { isNonNegativeFinite, readJson } from './storageHelpers'
+import { isNonNegativeFinite, readJson, writeJson } from './storageHelpers'
 
 /**
  * Local persistence for the practice session history — an append-only log of
@@ -30,7 +30,7 @@ function parsePracticeSessionRecord(value: unknown): PracticeSessionRecord | nul
 
 /** Persist the full history map, serialized under the single storage key. */
 function writeSessionHistory(history: Record<string, PracticeSessionRecord[]>): void {
-  localStorage.setItem(SESSION_HISTORY_STORAGE_KEY, JSON.stringify(history))
+  writeJson(SESSION_HISTORY_STORAGE_KEY, history)
 }
 
 /**

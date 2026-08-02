@@ -257,3 +257,38 @@ describe('RangeEditTab scenario pre-fill', () => {
     expect(screen.getByLabelText('Action type')).toHaveValue('open')
   })
 })
+
+describe('RangeEditTab save failures', () => {
+  it('reports a full or unavailable store instead of appearing to do nothing', async () => {
+    const user = userEvent.setup()
+    const onSaved = vi.fn()
+    render(<RangeEditTab range={makeRange()} onSaved={onSaved} />)
+
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError')
+    })
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }))
+    spy.mockRestore()
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/storage is full or unavailable/)
+    // The failed save is never reported as a success.
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(onSaved).not.toHaveBeenCalled()
+  })
+
+  it('clears the failure once a save succeeds', async () => {
+    const user = userEvent.setup()
+    render(<RangeEditTab range={makeRange()} onSaved={vi.fn()} />)
+
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError')
+    })
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }))
+    spy.mockRestore()
+
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Saved “BTN open”.')
+  })
+})

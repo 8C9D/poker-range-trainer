@@ -1,5 +1,5 @@
 import type { SpotAccuracyStat } from '../types/practice'
-import { isNonNegativeFinite, readJson } from './storageHelpers'
+import { isNonNegativeFinite, readJson, writeJson } from './storageHelpers'
 
 /**
  * Local persistence for cumulative per-spot accuracy (v8.6), backed by
@@ -65,5 +65,5 @@ export function recordSpotAccuracy(sessionStats: SpotAccuracyStat[]): void {
       correct: prior.correct + stat.correct,
     }
   }
-  localStorage.setItem(SPOT_ACCURACY_STORAGE_KEY, JSON.stringify(stats))
+  writeJson(SPOT_ACCURACY_STORAGE_KEY, stats)
 }

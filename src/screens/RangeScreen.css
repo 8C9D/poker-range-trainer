@@ -145,6 +145,13 @@
   color: var(--ink-2);
 }
 
+.range-edit-error {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--bad);
+}
+
 .range-edit-summary {
   display: flex;
   flex-wrap: wrap;

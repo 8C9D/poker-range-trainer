@@ -1,4 +1,4 @@
-import { readJson } from './storageHelpers'
+import { readJson, writeJson } from './storageHelpers'
 
 /**
  * Local persistence for the daily training goal (v7.3), backed by
@@ -24,5 +24,5 @@ export function saveTrainingGoal(target: number): void {
     localStorage.removeItem(TRAINING_GOAL_STORAGE_KEY)
     return
   }
-  localStorage.setItem(TRAINING_GOAL_STORAGE_KEY, JSON.stringify(Math.floor(target)))
+  writeJson(TRAINING_GOAL_STORAGE_KEY, Math.floor(target))
 }

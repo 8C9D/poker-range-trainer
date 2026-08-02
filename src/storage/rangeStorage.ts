@@ -14,7 +14,7 @@ import {
   type RangeSource,
   type SavedRange,
 } from '../types/range'
-import { asMember, readJson } from './storageHelpers'
+import { asMember, readJson, writeJson } from './storageHelpers'
 
 /**
  * Local persistence for saved preflop ranges, backed by `localStorage`.
@@ -240,7 +240,7 @@ function parseSavedRange(value: unknown): SavedRange | null {
 
 /** Persist the full list, serialized under the single storage key. */
 function writeSavedRanges(ranges: SavedRange[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(ranges))
+  writeJson(STORAGE_KEY, ranges)
 }
 
 /**

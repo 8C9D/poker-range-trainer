@@ -32,3 +32,23 @@ export function readJson(key: string): unknown {
     return undefined
   }
 }
+
+/**
+ * JSON-serialize `value` and write it at `key`.
+ *
+ * `localStorage.setItem` throws when the origin's quota is exhausted, and in
+ * browsers where storage is disabled outright. Raw, that throw escapes from a
+ * click handler, where React error boundaries cannot see it, so a save just
+ * appears to do nothing. Rethrowing something a person can read lets the caller
+ * put the failure on screen; the original is kept as `cause`.
+ */
+export function writeJson(key: string, value: unknown): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch (error) {
+    throw new Error(
+      'Could not save: this browser’s storage is full or unavailable. Export a backup, then delete some ranges to free space.',
+      { cause: error },
+    )
+  }
+}

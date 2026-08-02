@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { asMember, isNonNegativeFinite, readJson } from './storageHelpers'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { asMember, isNonNegativeFinite, readJson, writeJson } from './storageHelpers'
 
 describe('isNonNegativeFinite', () => {
   it('accepts zero and positive finite numbers', () => {
@@ -70,5 +70,34 @@ describe('readJson', () => {
     expect(readJson(KEY)).toEqual([1, 2, 3])
     localStorage.setItem(KEY, JSON.stringify('hi'))
     expect(readJson(KEY)).toBe('hi')
+  })
+})
+
+describe('writeJson', () => {
+  it('serializes the value under the key', () => {
+    writeJson('helpers-test', { a: 1 })
+
+    expect(localStorage.getItem('helpers-test')).toBe('{"a":1}')
+  })
+
+  it('turns a full or unavailable store into a message a person can act on', () => {
+    const quota = new Error('QuotaExceededError')
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw quota
+    })
+
+    try {
+      expect(() => writeJson('helpers-test', { a: 1 })).toThrow(/storage is full or unavailable/)
+      // The browser's own error is kept for debugging rather than swallowed.
+      let thrown: unknown
+      try {
+        writeJson('helpers-test', { a: 1 })
+      } catch (error) {
+        thrown = error
+      }
+      expect((thrown as Error).cause).toBe(quota)
+    } finally {
+      spy.mockRestore()
+    }
   })
 })

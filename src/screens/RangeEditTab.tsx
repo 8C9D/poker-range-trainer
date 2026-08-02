@@ -83,6 +83,10 @@ export function RangeEditTab({ range, prefill, onSaved }: RangeEditTabProps) {
   }))
   // Status line confirming the last save, cleared on the next change.
   const [savedName, setSavedName] = useState<string | null>(null)
+  // Why the last save did not land (a full or unavailable browser store). Without
+  // this the throw escapes the click handler, where no error boundary sees it, and
+  // the button just appears to do nothing.
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   // Derived from `selected` only, so memoize to skip the hand-set math on every
   // unrelated re-render (e.g. each keystroke in the name field).
@@ -249,7 +253,14 @@ export function RangeEditTab({ range, prefill, onSaved }: RangeEditTabProps) {
     const savedTags = normalizeTags(tagsDraft)
     if (savedTags.length > 0) saved.tags = savedTags
     else delete saved.tags
-    saveSavedRange(saved)
+    try {
+      saveSavedRange(saved)
+    } catch (error) {
+      setSavedName(null)
+      setSaveError(error instanceof Error ? error.message : 'Could not save this range.')
+      return
+    }
+    setSaveError(null)
     setSavedName(saved.name)
     onSaved(saved)
   }
@@ -315,6 +326,11 @@ export function RangeEditTab({ range, prefill, onSaved }: RangeEditTabProps) {
         {savedName && (
           <p className="range-edit-hint" role="status">
             Saved “{savedName}”.
+          </p>
+        )}
+        {saveError && (
+          <p className="range-edit-error" role="alert">
+            {saveError}
           </p>
         )}
       </section>
