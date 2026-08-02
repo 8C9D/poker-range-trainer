@@ -229,9 +229,11 @@ Open via the range page's **Actions** tab:
 Split between the **Account** screen's **Data** section and the range page's **⋯** menu:
 
 - **Export backup / Import backup** — "Export backup" downloads one dated JSON file
-  holding every persisted slice (ranges, practice stats, per-hand & per-action
-  accuracy, session history, review state). "Import backup" reads such a file and —
-  behind a confirm — **replaces all local data** with it.
+  holding every persisted slice (ranges, practice stats, per-hand, per-action &
+  per-spot accuracy, session history, review state). "Import backup" reads such a file
+  and — behind a confirm — **replaces all local data** with it. The daily-goal target
+  and the day-scoped workout-completion flag are deliberately left out; they are device
+  settings, not library data.
 - **Per-range JSON** — the range page **⋯** menu has **Export JSON** (a versioned
   single-range envelope); the Account **Data** section has **Import range** (adds the
   file as a **new** range, never overwriting an existing one).
@@ -569,6 +571,8 @@ from a known state (see §2).
       Import range, Import CSV, Export pack, Import pack.
 - [ ] "Export backup" downloads a dated JSON; "Import backup" confirms, then
       **replaces** all local data with the file's contents.
+- [ ] Practise a few spots, export, clear site data, then import: the Progress screen's
+      **Weakest spots** card comes back with the same numbers.
 - [ ] The range page **⋯** menu's Export JSON / Export CSV / Export SVG each download a
       file; the Account **Data** section's "Import range" adds the JSON as a **new**
       range (no overwrite), and "Import CSV" adds a new range from a hand list.

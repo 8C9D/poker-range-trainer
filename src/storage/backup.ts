@@ -3,6 +3,7 @@ import type {
   RangeHandAccuracy,
   RangePracticeStats,
   RangeReviewState,
+  SpotAccuracyStat,
 } from '../types/practice'
 import type { SavedRange } from '../types/range'
 import type { RangeActionAccuracy } from '../domain/actionRange'
@@ -12,6 +13,7 @@ import { HAND_ACCURACY_STORAGE_KEY, loadHandAccuracy } from './handAccuracyStora
 import { ACTION_ACCURACY_STORAGE_KEY, loadActionAccuracy } from './actionAccuracyStorage'
 import { SESSION_HISTORY_STORAGE_KEY, loadSessionHistory } from './sessionHistoryStorage'
 import { REVIEW_STATE_STORAGE_KEY, loadReviewStates } from './reviewStateStorage'
+import { SPOT_ACCURACY_STORAGE_KEY, loadSpotAccuracy } from './spotAccuracyStorage'
 
 /** Current backup-file schema version. Bump when the shape changes incompatibly. */
 export const BACKUP_VERSION = 1
@@ -30,6 +32,13 @@ export interface Backup {
   actionAccuracy: Record<string, RangeActionAccuracy>
   sessionHistory: Record<string, PracticeSessionRecord[]>
   reviewStates: Record<string, RangeReviewState>
+  /**
+   * Cumulative per-spot accuracy, keyed by `spotKey`. OPTIONAL because backup
+   * files written before per-spot accuracy existed have no such field, and they
+   * still have to import; absence restores as "no spot record", exactly like the
+   * empty map a fresh install has.
+   */
+  spotAccuracy?: Record<string, SpotAccuracyStat>
 }
 
 /**
@@ -46,6 +55,7 @@ export function buildBackup(exportedAt: string = new Date().toISOString()): Back
     actionAccuracy: loadActionAccuracy(),
     sessionHistory: loadSessionHistory(),
     reviewStates: loadReviewStates(),
+    spotAccuracy: loadSpotAccuracy(),
   }
 }
 
@@ -91,6 +101,10 @@ export function parseBackup(json: string): Backup {
       throw new Error(`Backup file is missing its ${field} data.`)
     }
   }
+  // Optional, so only its shape is checked when the file carries it at all.
+  if (parsed.spotAccuracy !== undefined && !isPlainObject(parsed.spotAccuracy)) {
+    throw new Error('Backup file is missing its spotAccuracy data.')
+  }
   return parsed as unknown as Backup
 }
 
@@ -113,6 +127,9 @@ export function restoreBackup(backup: Backup): void {
     [ACTION_ACCURACY_STORAGE_KEY, JSON.stringify(backup.actionAccuracy)],
     [SESSION_HISTORY_STORAGE_KEY, JSON.stringify(backup.sessionHistory)],
     [REVIEW_STATE_STORAGE_KEY, JSON.stringify(backup.reviewStates)],
+    // A file without the field replaces the local record with nothing, the same
+    // as every other slice: a restore is the whole library, not a merge.
+    [SPOT_ACCURACY_STORAGE_KEY, JSON.stringify(backup.spotAccuracy ?? {})],
   ]
   const previous = entries.map(([key]) => [key, localStorage.getItem(key)] as const)
   try {

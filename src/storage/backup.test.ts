@@ -3,6 +3,7 @@ import type { SavedRange } from '../types/range'
 import { saveSavedRange } from './rangeStorage'
 import { loadSavedRanges } from './rangeStorage'
 import { ACTION_ACCURACY_STORAGE_KEY } from './actionAccuracyStorage'
+import { loadSpotAccuracy, recordSpotAccuracy } from './spotAccuracyStorage'
 import {
   BACKUP_VERSION,
   type Backup,
@@ -40,6 +41,7 @@ describe('buildBackup', () => {
       actionAccuracy: {},
       sessionHistory: {},
       reviewStates: {},
+      spotAccuracy: {},
     })
   })
 
@@ -152,5 +154,63 @@ describe('restoreBackup', () => {
     const restored = loadSavedRanges()
     expect(restored).toHaveLength(1)
     expect(restored[0].id).toBe('original')
+  })
+})
+
+describe('per-spot accuracy in a backup', () => {
+  const stat = { spotKey: 'sixMax|btn|foldedToYou|-|100', attempts: 10, correct: 7 }
+
+  it('carries the record that drives weakest spots', () => {
+    recordSpotAccuracy([stat])
+
+    const backup = buildBackup('2026-06-08T00:00:00.000Z')
+
+    expect(backup.spotAccuracy).toEqual({ [stat.spotKey]: stat })
+  })
+
+  it('restores it, so exporting and re-importing does not lose the leak history', () => {
+    recordSpotAccuracy([stat])
+    const snapshot = parseBackup(serializeBackup(buildBackup('2026-06-08T00:00:00.000Z')))
+    localStorage.clear()
+
+    restoreBackup(snapshot)
+
+    expect(loadSpotAccuracy()).toEqual({ [stat.spotKey]: stat })
+  })
+
+  it('still imports a backup file written before the field existed', () => {
+    recordSpotAccuracy([stat])
+    const older = {
+      version: BACKUP_VERSION,
+      exportedAt: '2026-06-08T00:00:00.000Z',
+      ranges: [],
+      practiceStats: {},
+      handAccuracy: {},
+      actionAccuracy: {},
+      sessionHistory: {},
+      reviewStates: {},
+    }
+
+    restoreBackup(parseBackup(JSON.stringify(older)))
+
+    // A restore replaces the library wholesale, so an older file leaves no
+    // stale spot record pointing at a library that is no longer there.
+    expect(loadSpotAccuracy()).toEqual({})
+  })
+
+  it('rejects a file whose spotAccuracy is not an object', () => {
+    const broken = {
+      version: BACKUP_VERSION,
+      exportedAt: '2026-06-08T00:00:00.000Z',
+      ranges: [],
+      practiceStats: {},
+      handAccuracy: {},
+      actionAccuracy: {},
+      sessionHistory: {},
+      reviewStates: {},
+      spotAccuracy: [],
+    }
+
+    expect(() => parseBackup(JSON.stringify(broken))).toThrow(/spotAccuracy/)
   })
 })
