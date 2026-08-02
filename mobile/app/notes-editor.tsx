@@ -5,6 +5,7 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { ALL_HANDS, type PokerHand } from '@core/domain/pokerHands';
 import { findSavedRangeById, saveSavedRange } from '@core/storage/rangeStorage';
 
+import { SaveErrorBanner, useLiveSave } from '../components/liveSave';
 import { useTheme } from '../theme/colors';
 import type { ThemeColors } from '../theme/colors';
 
@@ -32,6 +33,7 @@ export default function NotesEditorScreen() {
     () => range?.handNotes ?? ({} as Record<PokerHand, string>),
   );
   const [activeHand, setActiveHand] = useState<PokerHand | null>(() => orderedHands[0] ?? null);
+  const [saveError, runSave] = useLiveSave();
 
   // Live-save the notes overlay, skipping the first run so merely opening the screen does not
   // rewrite updatedAt. Spreads the loaded range so other overlays (handActions, mixedStrategies,
@@ -43,8 +45,8 @@ export default function NotesEditorScreen() {
       hydratedRef.current = true;
       return;
     }
-    saveSavedRange({ ...range, handNotes, updatedAt: new Date().toISOString() });
-  }, [handNotes, range]);
+    runSave(() => saveSavedRange({ ...range, handNotes, updatedAt: new Date().toISOString() }));
+  }, [handNotes, range, runSave]);
 
   const setNote = useCallback(
     (text: string) => {
@@ -74,6 +76,7 @@ export default function NotesEditorScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Stack.Screen options={{ title: 'Edit notes' }} />
       <Text style={styles.rangeName}>{range.name || 'Untitled'}</Text>
+      <SaveErrorBanner error={saveError} />
 
       {orderedHands.length === 0 ? (
         <Text testID="no-hands" style={styles.notFound}>

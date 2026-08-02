@@ -9,6 +9,7 @@ import type { RangeAction } from '@core/types/range';
 import { ActionGrid } from './ActionGrid';
 import { ActionNotation } from './ActionNotation';
 import { ActionPalette } from './ActionPalette';
+import { SaveErrorBanner, useLiveSave } from './liveSave';
 import { useTheme } from '../theme/colors';
 import type { ThemeColors } from '../theme/colors';
 
@@ -26,6 +27,7 @@ export function ActionsEditor({ id }: { id?: string }) {
     () => range?.handActions ?? ({} as Record<PokerHand, RangeAction>),
   );
   const [activeAction, setActiveAction] = useState<RangeAction>('raise');
+  const [saveError, runSave] = useLiveSave();
 
   const hydratedRef = useRef(false);
   useEffect(() => {
@@ -34,8 +36,10 @@ export function ActionsEditor({ id }: { id?: string }) {
       hydratedRef.current = true;
       return;
     }
-    saveSavedRange({ ...range, handActions, updatedAt: new Date().toISOString() });
-  }, [handActions, range]);
+    runSave(() =>
+      saveSavedRange({ ...range, handActions, updatedAt: new Date().toISOString() }),
+    );
+  }, [handActions, range, runSave]);
 
   const assign = useCallback((hand: PokerHand, action: RangeAction | null) => {
     setHandActions((prev) => {
@@ -52,6 +56,7 @@ export function ActionsEditor({ id }: { id?: string }) {
 
   return (
     <View style={styles.content}>
+      <SaveErrorBanner error={saveError} />
       <ActionPalette active={activeAction} onSelect={setActiveAction} />
       <ActionGrid handActions={handActions} activeAction={activeAction} onAssign={assign} />
       <Text testID="assigned-count" style={styles.count}>

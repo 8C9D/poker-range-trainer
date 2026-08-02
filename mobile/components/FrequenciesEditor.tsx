@@ -7,6 +7,7 @@ import { findSavedRangeById, saveSavedRange } from '@core/storage/rangeStorage';
 
 import { MixedNotation } from './MixedNotation';
 import { MixedStrategyEditor } from './MixedStrategyEditor';
+import { SaveErrorBanner, useLiveSave } from './liveSave';
 import { actionColors } from '../theme/actionColors';
 import { useTheme } from '../theme/colors';
 import type { ThemeColors } from '../theme/colors';
@@ -26,6 +27,7 @@ export function FrequenciesEditor({ id }: { id?: string }) {
     () => range?.mixedStrategies ?? {},
   );
   const [activeHand, setActiveHand] = useState<PokerHand | null>(() => range?.hands[0] ?? null);
+  const [saveError, runSave] = useLiveSave();
 
   const hydratedRef = useRef(false);
   useEffect(() => {
@@ -34,8 +36,10 @@ export function FrequenciesEditor({ id }: { id?: string }) {
       hydratedRef.current = true;
       return;
     }
-    saveSavedRange({ ...range, mixedStrategies, updatedAt: new Date().toISOString() });
-  }, [mixedStrategies, range]);
+    runSave(() =>
+      saveSavedRange({ ...range, mixedStrategies, updatedAt: new Date().toISOString() }),
+    );
+  }, [mixedStrategies, range, runSave]);
 
   const setStrategy = useCallback((hand: PokerHand, next: HandMixedStrategy) => {
     setMixedStrategies((prev) => ({ ...prev, [hand]: next }));
@@ -55,6 +59,7 @@ export function FrequenciesEditor({ id }: { id?: string }) {
 
   return (
     <View style={styles.content}>
+      <SaveErrorBanner error={saveError} />
       <Text style={styles.hint}>Pick a hand, then set how often it takes each action.</Text>
       <View style={styles.chips}>
         {range.hands.map((hand) => {

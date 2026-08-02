@@ -24,6 +24,7 @@ import type { RangeMetadata } from '@core/types/range';
 
 import { ComboSelector } from './ComboSelector';
 import { HandGrid } from './HandGrid';
+import { SaveErrorBanner, useLiveSave } from './liveSave';
 import { RangeCsv } from './RangeCsv';
 import { RangeMetadataEditor } from './RangeMetadataEditor';
 import { RangeNotation } from './RangeNotation';
@@ -100,6 +101,7 @@ export function RangeEditor({ id: idParam, prefill, showNotesLink = true }: Rang
     return seed;
   });
   const [activeComboHand, setActiveComboHand] = useState<PokerHand | null>(null);
+  const [saveError, runSave] = useLiveSave();
 
   // The narrowed-combo overlay, in stored form: what live-save persists, and what
   // the stats bar has to read so a refined range is not reported at its full size.
@@ -157,21 +159,23 @@ export function RangeEditor({ id: idParam, prefill, showNotesLink = true }: Rang
         prunedStrategiesRef.current[hand as PokerHand] = strategy;
       }
     }
-    saveSavedRange({
-      ...(existing ?? {}),
-      id: draft.id,
-      name,
-      hands: [...selected],
-      createdAt: draft.createdAt,
-      updatedAt: new Date().toISOString(),
-      metadata,
-      comboSelections: Object.keys(comboSelections).length > 0 ? comboSelections : undefined,
-      handNotes: Object.keys(handNotes).length > 0 ? handNotes : undefined,
-      mixedStrategies: Object.keys(mixedStrategies).length > 0 ? mixedStrategies : undefined,
-      // Overrides the spread's stored tags; storage drops the field when empty.
-      tags,
-    });
-  }, [name, selected, metadata, comboSelections, tags, draft]);
+    runSave(() =>
+      saveSavedRange({
+        ...(existing ?? {}),
+        id: draft.id,
+        name,
+        hands: [...selected],
+        createdAt: draft.createdAt,
+        updatedAt: new Date().toISOString(),
+        metadata,
+        comboSelections: Object.keys(comboSelections).length > 0 ? comboSelections : undefined,
+        handNotes: Object.keys(handNotes).length > 0 ? handNotes : undefined,
+        mixedStrategies: Object.keys(mixedStrategies).length > 0 ? mixedStrategies : undefined,
+        // Overrides the spread's stored tags; storage drops the field when empty.
+        tags,
+      }),
+    );
+  }, [name, selected, metadata, comboSelections, tags, draft, runSave]);
 
   const handleSetSelected = useCallback((hand: PokerHand, isSelected: boolean) => {
     setSelectionHistory((history) => {
@@ -233,6 +237,7 @@ export function RangeEditor({ id: idParam, prefill, showNotesLink = true }: Rang
         value={name}
         onChangeText={setName}
       />
+      <SaveErrorBanner error={saveError} />
       <RangeStatsBar hands={[...selected]} comboSelections={comboSelections} />
       <View style={styles.historyActions}>
         <Pressable

@@ -41,13 +41,16 @@ export function readJson(key: string): unknown {
  * click handler, where React error boundaries cannot see it, so a save just
  * appears to do nothing. Rethrowing something a person can read lets the caller
  * put the failure on screen; the original is kept as `cause`.
+ *
+ * The message avoids naming the browser: the iOS app runs this same module over
+ * an MMKV-backed `localStorage` shim, where the failure is a full device instead.
  */
 export function writeJson(key: string, value: unknown): void {
   try {
     localStorage.setItem(key, JSON.stringify(value))
   } catch (error) {
     throw new Error(
-      'Could not save: this browser’s storage is full or unavailable. Export a backup, then delete some ranges to free space.',
+      'Could not save: storage is full or unavailable. Export a backup, then delete some ranges to free space.',
       { cause: error },
     )
   }
