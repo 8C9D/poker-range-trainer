@@ -22,7 +22,7 @@ import { OverlayFrame } from './OverlayFrame';
 import { RecognitionDrill } from './RecognitionDrill';
 import { SpotDrill } from './SpotDrill';
 import { SessionSummary, type SessionSummaryData } from './SessionSummary';
-import { recordFinishedPracticeSession } from '../../lib/sessionRecording';
+import { captureRecordingFailure, recordFinishedPracticeSession } from '../../lib/sessionRecording';
 
 export interface PracticeRequest {
   /** The queue of ranges to drill (usually one; the review queue passes many). */
@@ -132,7 +132,9 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     const prevSessions = loadSessionHistory()[range.id] ?? [];
     const last = prevSessions[prevSessions.length - 1];
     const prevAccuracy = last ? accuracyPercentage(last.correctAnswers, last.totalQuestions) : null;
-    recordFinishedPracticeSession(range.id, attempts);
+    const saveError = captureRecordingFailure(() =>
+      recordFinishedPracticeSession(range.id, attempts),
+    );
     const summary = summarizePracticeAttempts(attempts);
     const misses = attempts.filter((attempt) => !attempt.correct).length;
     const playedAt = Object.values(loadSessionHistory())
@@ -147,6 +149,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
         accuracy: summary.accuracyPercentage,
         deltaLine: deltaLineFor(summary.accuracyPercentage, prevAccuracy, misses),
         streakLine: streak > 0 ? `${streak}-day streak — see you tomorrow to keep it going.` : null,
+        saveError,
       },
     });
   };
@@ -161,10 +164,12 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
       onClose();
       return;
     }
-    for (const [rangeId, attempts] of Object.entries(byRange)) {
-      recordFinishedPracticeSession(rangeId, attempts);
-    }
-    recordSpotAccuracy(bySpot);
+    const saveError = captureRecordingFailure(() => {
+      for (const [rangeId, attempts] of Object.entries(byRange)) {
+        recordFinishedPracticeSession(rangeId, attempts);
+      }
+      recordSpotAccuracy(bySpot);
+    });
     const summary = summarizePracticeAttempts(all);
     const rangeCount = Object.keys(byRange).length;
     const playedAt = Object.values(loadSessionHistory())
@@ -179,6 +184,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
         accuracy: summary.accuracyPercentage,
         deltaLine: `Across ${rangeCount} range${rangeCount === 1 ? '' : 's'} of your library.`,
         streakLine: streak > 0 ? `${streak}-day streak — see you tomorrow to keep it going.` : null,
+        saveError,
       },
     });
   };

@@ -187,6 +187,30 @@ describe('PracticeScreen (overlay host)', () => {
     expect(loadReviewStates().r1).toBeDefined();
   });
 
+  it('still shows the summary when the session cannot be saved', async () => {
+    seedAllHandsRange();
+    const { getByTestId, getByText, findByTestId } = await render(<PracticeScreen />);
+
+    // A full device store from here on: the run is lost, but the numbers are in
+    // memory, so the user must still see how they did and why nothing saved.
+    const failing = jest.spyOn(localStorageShim, 'setItem').mockImplementation(() => {
+      throw new Error('mmkv: no space left on device');
+    });
+    try {
+      fireEvent.press(getByTestId('answer-yes'));
+      await findByTestId('drill-feedback');
+      fireEvent.press(getByTestId('overlay-close'));
+
+      await findByTestId('summary-done');
+      expect(getByText('1 of 1 correct')).toBeTruthy();
+      expect(getByTestId('summary-save-error')).toHaveTextContent(
+        /storage is full or unavailable/,
+      );
+    } finally {
+      failing.mockRestore();
+    }
+  });
+
   it('frames an improved session as points up from the last one', async () => {
     seedAllHandsRange();
     seedPriorSession(10, 5);

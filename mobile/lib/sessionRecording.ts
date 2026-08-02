@@ -16,6 +16,26 @@ import type { PracticeAttempt } from '@core/types/practice';
  * place session results are recorded so every practice surface persists identically.
  * The mobile port of the web app's src/app/sessionRecording.ts.
  */
+/**
+ * Run `record`, returning the message to show when the write failed and null when it
+ * landed.
+ *
+ * Recording happens once, at the end of a session. Raw, a full device store throws out
+ * of the finish handler, the summary never renders, and the user is left on the last
+ * question with the whole session gone and nothing explaining it. The numbers come from
+ * the in-memory attempts, so the summary can still be shown — it just has to say the run
+ * was not saved. A write that fails part-way still leaves what it already wrote; the
+ * message reports a failed save, not a clean rollback.
+ */
+export function captureRecordingFailure(record: () => void): string | null {
+  try {
+    record();
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message : 'Could not save this session.';
+  }
+}
+
 export function recordFinishedPracticeSession(rangeId: string, attempts: PracticeAttempt[]): void {
   const summary = summarizePracticeAttempts(attempts);
   recordPracticeSession(rangeId, summary);

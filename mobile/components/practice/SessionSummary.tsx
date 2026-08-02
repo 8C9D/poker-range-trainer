@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AccessibilityInfo, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { SaveErrorBanner } from '../liveSave';
 import { fonts } from '../../theme/fonts';
 import { useTheme } from '../../theme/colors';
 import type { ThemeColors } from '../../theme/colors';
@@ -16,6 +17,8 @@ export interface SessionSummaryData {
   goalLine?: string | null;
   /** Streak confirmation line, or null when no streak is active. */
   streakLine: string | null;
+  /** Why the run could not be persisted, or null when it saved. */
+  saveError?: string | null;
 }
 
 interface SessionSummaryProps {
@@ -63,6 +66,7 @@ export function SessionSummary({ data, hasNext, onNext, onDone }: SessionSummary
       {data.deltaLine ? <Text style={styles.delta}>{data.deltaLine}</Text> : null}
       {data.goalLine ? <Text style={styles.goal}>{data.goalLine}</Text> : null}
       {data.streakLine ? <Text style={styles.streak}>{data.streakLine}</Text> : null}
+      <SaveErrorBanner error={data.saveError ?? null} testID="summary-save-error" />
       <View style={styles.actions}>
         {hasNext ? (
           <>

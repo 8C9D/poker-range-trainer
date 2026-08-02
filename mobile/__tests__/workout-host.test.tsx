@@ -127,6 +127,45 @@ describe('WorkoutHost', () => {
     expect(loadWorkoutCompletion()).toBeNull();
   });
 
+  it('carries a failed segment save through to the end-of-run summary', async () => {
+    const user = userEvent.setup();
+    const { getByTestId, getByText, findByTestId } = await render(
+      <WorkoutHost
+        workout={makeWorkout({
+          segments: [
+            {
+              kind: 'review',
+              ranges: [everyHand],
+              questionsPerRange: 5,
+              reason: '1 range due for review.',
+            },
+          ],
+        })}
+        ranges={[everyHand, btnOpen]}
+        onClose={jest.fn()}
+      />,
+    );
+
+    await user.press(getByTestId('workout-continue'));
+    // A workout records segment by segment, so the failure has to outlive the
+    // handler it happened in rather than tearing the run down where it occurs.
+    const failing = jest.spyOn(localStorageShim, 'setItem').mockImplementation(() => {
+      throw new Error('mmkv: no space left on device');
+    });
+    try {
+      await user.press(getByTestId('answer-yes'));
+      await findByTestId('drill-feedback');
+      await user.press(getByTestId('overlay-close'));
+
+      expect(getByText('1 of 1 correct')).toBeTruthy();
+      expect(getByTestId('summary-save-error')).toHaveTextContent(
+        /storage is full or unavailable/,
+      );
+    } finally {
+      failing.mockRestore();
+    }
+  });
+
   it('runs the segments back-to-back and sums them in one summary', async () => {
     const user = userEvent.setup();
     saveTrainingGoal(20);
