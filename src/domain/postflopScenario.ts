@@ -76,6 +76,8 @@ export function describeHeroHand(scenario: PostflopScenario): HandCategory[] {
 
 /** Strong made hands worth betting/raising for value. */
 const STRONG_MADE: HandCategory[] = [
+  'quads',
+  'fullHouse',
   'flush',
   'straight',
   'set',

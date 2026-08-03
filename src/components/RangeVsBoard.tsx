@@ -9,6 +9,8 @@ import './RangeVsBoard.css'
 
 /** Display labels for the hand categories shown in the breakdown. */
 const CATEGORY_LABELS: Record<HandCategory, string> = {
+  quads: 'Quads',
+  fullHouse: 'Full house',
   flush: 'Flush',
   straight: 'Straight',
   set: 'Set',

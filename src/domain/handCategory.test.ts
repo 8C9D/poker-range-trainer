@@ -40,6 +40,26 @@ describe('categorizeHand', () => {
     expect(categorize('AhKh', 'Qh7h2c')).toEqual(['flushDraw'])
   })
 
+  it('tags a full house instead of the pair it is built on', () => {
+    // A pocket pair filling a trips board read as a bare `pair` before, so the
+    // postflop heuristic played the boat for a cheap showdown.
+    expect(categorize('2s2d', '7c7h7d')).toEqual(['fullHouse'])
+    // The same structure the other way round: one hole card trips a paired
+    // board while the other pairs its kicker. Both read as `trips` before.
+    expect(categorize('Ks7d', 'KdKc7h')).toEqual(['fullHouse'])
+    expect(categorize('Kh7d', 'Kc7h7s')).toEqual(['fullHouse'])
+  })
+
+  it('tags quads rather than the set inside them', () => {
+    expect(categorize('KsKh', 'KdKc2h')).toEqual(['quads'])
+  })
+
+  it('leaves an unpaired board on the pair tiers', () => {
+    // Guards the guard: the boat check must not swallow ordinary sets/trips.
+    expect(categorize('7s7h', 'Kd7c2h')).toEqual(['set'])
+    expect(categorize('KsQd', 'Kd Kc 2h')).toEqual(['trips'])
+  })
+
   it('tags a made flush, never as a draw', () => {
     // A monotone flop plus two of the same suit is the only made flush a flop
     // can give. Untagged, it fell through to `air` and the postflop heuristic

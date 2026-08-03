@@ -10,6 +10,8 @@ import { rankValue } from './cards'
  * runs strongest to weakest — so `flush` leads, ahead of `straight`.
  */
 export const HAND_CATEGORIES = [
+  'quads',
+  'fullHouse',
   'flush',
   'straight',
   'set',
@@ -38,7 +40,12 @@ export function categorizeHand(hand: Card[], flop: Card[]): HandCategory[] {
   const distinctBoardDesc = [...new Set(boardValues)].sort((a, b) => b - a)
   const flopCount = (v: number) => boardValues.filter((b) => b === v).length
 
-  const made = madeTag(holeValues, boardValues, maxBoard, distinctBoardDesc, flopCount)
+  // Quads and a full house are the same rank structure as a set or trips, only
+  // better, so the boat REPLACES the pair-tier tag rather than joining it — a
+  // combo must not be counted under two names for the one thing it is. (Flushes
+  // and straights are a different structure, so those do stack with a pair.)
+  const boat = boatTag([...holeValues, ...boardValues])
+  const made = boat ?? madeTag(holeValues, boardValues, maxBoard, distinctBoardDesc, flopCount)
   if (made) tags.add(made)
 
   // A completed straight fills a whole five-rank window; four of a window is a
@@ -57,6 +64,24 @@ export function categorizeHand(hand: Card[], flop: Card[]): HandCategory[] {
   if (tags.size === 0) tags.add('air')
 
   return HAND_CATEGORIES.filter((tag) => tags.has(tag))
+}
+
+/**
+ * `quads` or `fullHouse` across the five cards, else null.
+ *
+ * No "did the hand help" check is needed: a three-card flop holds at most three
+ * of a rank, so a fourth, and any three-plus-two split, can only come from the
+ * hole cards. Untagged, both fell back to the pair tiers — quads read as a set,
+ * and a pocket pair filling a trips board read as a bare `pair`, which the
+ * postflop heuristic then played for a cheap showdown.
+ */
+function boatTag(values: number[]): HandCategory | null {
+  const counts = new Map<number, number>()
+  for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1)
+  const sizes = [...counts.values()]
+  if (sizes.includes(4)) return 'quads'
+  if (sizes.includes(3) && sizes.includes(2)) return 'fullHouse'
+  return null
 }
 
 function madeTag(

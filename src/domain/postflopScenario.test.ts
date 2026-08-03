@@ -96,6 +96,12 @@ describe('suggestDecision', () => {
     expect(decide({ heroHand: '9s8d', flop: '7c6h5s', facing: 'checked to you' })).toBe('bet')
   })
 
+  it('plays a full house for value rather than as a cheap-showdown pair', () => {
+    // 2s2d on 7c7h7d is a full house. Read as a bare pair it just called.
+    expect(decide({ heroHand: '2s2d', flop: '7c7h7d', facing: 'villain bets' })).toBe('raise')
+    expect(decide({ heroHand: '2s2d', flop: '7c7h7d', facing: 'checked to you' })).toBe('bet')
+  })
+
   it('plays a made flush for value rather than folding it as air', () => {
     // AhKh on Qh7h2h is the nut flush. With no `flush` category it carried no
     // tag at all, so the heuristic reached its last branch and folded it.

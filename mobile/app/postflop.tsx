@@ -21,6 +21,8 @@ import type { ThemeColors } from '../theme/colors';
 
 /** Display labels for the made-hand / draw categories (UI only — @core has no labels). */
 const CATEGORY_LABELS: Record<HandCategory, string> = {
+  quads: 'Quads',
+  fullHouse: 'Full house',
   flush: 'Flush',
   straight: 'Straight',
   set: 'Set',

@@ -39,6 +39,15 @@ describe('bucketRangeOnBoard', () => {
     expect(tally.flushDraw).toBeGreaterThan(0)
   })
 
+  it('buckets a boat once, under its own name and not also as a set', () => {
+    const flop = parseBoard('7c7h7d')
+    // All 6 combos of 22 fill the trips board; none of them is merely a pair.
+    const tally = bucketRangeOnBoard(['22'], flop)
+    expect(tally.fullHouse).toBe(6)
+    expect(tally.set).toBe(0)
+    expect(tally.pair).toBe(0)
+  })
+
   it('buckets a made flush as a flush, not as air', () => {
     const flop = parseBoard('Qh7h2h')
     // Of AKs' 4 combos only AhKh is hearts, so exactly one makes the flush; the
