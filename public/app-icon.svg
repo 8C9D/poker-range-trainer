@@ -1,5 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#1a1626"/>
-  <rect x="96" y="96" width="320" height="320" rx="40" fill="#863bff"/>
-  <path fill="#ffffff" d="M256 150c-44 46-92 78-92 124a52 52 0 0 0 84 41c-4 24-14 41-28 53h72c-14-12-24-29-28-53a52 52 0 0 0 84-41c0-46-48-78-92-124z"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Poker Range Trainer">
+  <title>Poker Range Trainer</title>
+  <!-- Full-bleed: this file is declared "any maskable" and is also the
+       apple-touch-icon, so the OS crops it to its own circle or squircle. The
+       spade is held inside the middle 80% that crop is guaranteed to keep. -->
+  <rect width="512" height="512" fill="#d9ab33"/>
+  <path fill="#241c05" transform="translate(256 259) scale(1.35) translate(-256 -259)" d="M256 150c-44 46-92 78-92 124a52 52 0 0 0 84 41c-4 24-14 41-28 53h72c-14-12-24-29-28-53a52 52 0 0 0 84-41c0-46-48-78-92-124z"/>
 </svg>
