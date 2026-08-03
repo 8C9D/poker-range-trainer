@@ -159,6 +159,17 @@ h3 {
   border-color: var(--accent-strong);
 }
 
+/* Destructive actions carry the warning colour rather than a fill, matching the
+   range menu's delete entry. Without this the Library's "Delete selected" read
+   exactly like the Archive and Favorite buttons beside it. */
+.coach-btn.danger {
+  color: var(--bad);
+}
+
+.coach-btn.danger:hover:not(:disabled) {
+  border-color: var(--bad);
+}
+
 .coach-btn.quiet {
   background: transparent;
   border-color: transparent;

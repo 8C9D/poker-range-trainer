@@ -24,5 +24,5 @@
   "include": ["src"],
   /* Reads the stylesheets off disk, so it needs node types this browser-only
      config deliberately withholds; tsconfig.node.json typechecks it instead. */
-  "exclude": ["src/cssVariables.test.ts"]
+  "exclude": ["src/cssIntegrity.test.ts"]
 }

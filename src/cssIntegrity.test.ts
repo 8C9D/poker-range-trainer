@@ -19,12 +19,16 @@ import { join } from 'node:path'
 
 const SRC = join(process.cwd(), 'src')
 
-function cssFiles(dir: string): string[] {
+function filesUnder(dir: string, ext: string): string[] {
   return readdirSync(dir).flatMap((entry: string) => {
     const full = join(dir, entry)
-    if (statSync(full).isDirectory()) return cssFiles(full)
-    return full.endsWith('.css') ? [full] : []
+    if (statSync(full).isDirectory()) return filesUnder(full, ext)
+    return full.endsWith(ext) ? [full] : []
   })
+}
+
+function cssFiles(dir: string): string[] {
+  return filesUnder(dir, '.css')
 }
 
 describe('stylesheet custom properties', () => {
@@ -52,5 +56,38 @@ describe('stylesheet custom properties', () => {
     }
 
     expect(dangling).toEqual([])
+  })
+})
+
+/**
+ * The shared button takes extra classes (`coach-btn primary`, `coach-btn
+ * account-file`). One with no rule at all is invisible in exactly the wrong way:
+ * the Library's "Delete selected" carried `coach-btn danger` for which no
+ * `.danger` rule existed, so the destructive action rendered identically to the
+ * Archive and Favorite buttons beside it. Either form counts — a compound
+ * `.coach-btn.primary` modifier or a standalone `.account-file` rule.
+ */
+describe('coach-btn variants', () => {
+  it('has a rule for every variant the app applies', () => {
+    const css = cssFiles(SRC)
+      .map((file) => readFileSync(file, 'utf8'))
+      .join('\n')
+
+    const variants = new Set<string>()
+    for (const file of filesUnder(SRC, '.tsx')) {
+      if (file.includes('.test.')) continue
+      const source = readFileSync(file, 'utf8')
+      for (const match of source.matchAll(/className="coach-btn ([a-z][\w -]*)"/g)) {
+        for (const variant of match[1].split(/\s+/).filter(Boolean)) variants.add(variant)
+      }
+    }
+    // Guards the guard: the known variants must be found, or the scan is broken.
+    expect(variants).toContain('primary')
+
+    const unstyled = [...variants].filter(
+      (variant) =>
+        !css.includes(`.coach-btn.${variant}`) && !new RegExp(`\\.${variant}[\\s,{:.]`).test(css),
+    )
+    expect(unstyled).toEqual([])
   })
 })
