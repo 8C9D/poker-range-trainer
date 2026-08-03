@@ -80,14 +80,31 @@ describe('Share links', () => {
     }
     window.location.hash = `#range=${encodeRangeToHash(shared)}`
     vi.resetModules()
-    await import('./App')
+    const { default: FreshApp } = await import('./App')
 
     const saved = loadSavedRanges()
     expect(saved).toHaveLength(1)
     expect(saved[0].name).toBe('Linked range')
     expect(saved[0].id).not.toBe('src-id')
-    // The hash is cleared so a refresh won't re-import.
+    // The import hash is replaced so a refresh won't re-import, and it lands on
+    // the range that just arrived rather than the default screen — otherwise a
+    // working link is indistinguishable from one the app ignored.
+    expect(window.location.hash).toBe(`#/library/${saved[0].id}`)
+    render(<FreshApp />)
+    expect(screen.getByRole('heading', { name: 'Linked range' })).toBeInTheDocument()
+  })
+
+  it('clears the hash and says so when a #range= link cannot be read', async () => {
+    const alert = vi.spyOn(window, 'alert').mockImplementation(() => {})
+    window.location.hash = '#range=not-a-real-payload'
+    vi.resetModules()
+    await import('./App')
+
+    expect(alert).toHaveBeenCalledWith(expect.stringMatching(/share link|range/i))
+    expect(loadSavedRanges()).toHaveLength(0)
+    // No range to land on, so the app falls back to its default screen.
     expect(window.location.hash).toBe('')
+    alert.mockRestore()
   })
 })
 

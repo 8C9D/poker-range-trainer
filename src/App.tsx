@@ -30,22 +30,34 @@ import type { SavedRange } from './types/range'
 
 /**
  * Import a range shared via a `#range=<hash>` link into local storage once, at
- * module load, then clear the hash so a refresh won't re-import. Doing this
+ * module load, then replace the hash so a refresh won't re-import. Doing this
  * before React renders lets the normal `loadSavedRanges()` initializer pick it
  * up without a synchronous setState in an effect. No-op when there's no hash.
+ *
+ * A successful import opens the range it just added, the same landing as saving
+ * a new range or duplicating one. Clearing the hash instead dropped the visitor
+ * on Today with the library silently one longer — a failed link at least said
+ * so, while a working one said nothing at all.
  */
 function importSharedRangeFromHash() {
   if (typeof window === 'undefined') return
   const match = /^#range=(.+)$/.exec(window.location.hash)
   if (!match) return
+  let landing = ''
   try {
     const shared = decodeRangeFromHash(match[1])
     const now = new Date().toISOString()
-    saveSavedRange({ ...shared, id: createRangeId(), createdAt: now, updatedAt: now })
+    const id = createRangeId()
+    saveSavedRange({ ...shared, id, createdAt: now, updatedAt: now })
+    landing = routeHash({ screen: 'range', id, tab: 'overview' })
   } catch (error) {
     window.alert(error instanceof Error ? error.message : 'Could not open shared range.')
   }
-  window.history.replaceState(null, '', window.location.pathname + window.location.search)
+  window.history.replaceState(
+    null,
+    '',
+    window.location.pathname + window.location.search + landing,
+  )
 }
 
 importSharedRangeFromHash()
