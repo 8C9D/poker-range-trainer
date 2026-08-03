@@ -111,4 +111,17 @@ describe('heading outline', () => {
     expect(levels[0]).toBe(1)
     expect(firstSkip(levels)).toBeNull()
   })
+
+  it('keeps every edit-tab section at the same level under the range name', () => {
+    seed('a', 'BTN open')
+    render(<RangeScreen id="a" tab="edit" onPractice={vi.fn()} />)
+
+    // The editor blocks are siblings of each other, all directly under the range
+    // name. A lone deeper heading (Tags was an h3) reads as a subsection of
+    // whichever block came before it, which is not where it lives.
+    expect(outline()).toEqual([1, 2, 2, 2, 2, 2])
+    expect(
+      screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent),
+    ).toEqual(['Range shortcuts', 'Range notation', 'Scenario details', 'Tags', 'Hand notes'])
+  })
 })

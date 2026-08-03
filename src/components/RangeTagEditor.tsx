@@ -31,7 +31,7 @@ export function RangeTagEditor({ tags, onChange }: RangeTagEditorProps) {
 
   return (
     <section className="range-tags" aria-label="Tags">
-      <h3 className="range-tags-title">Tags</h3>
+      <h2 className="range-tags-title">Tags</h2>
       {tags.length > 0 && (
         <ul className="range-tags-list">
           {tags.map((tag) => (

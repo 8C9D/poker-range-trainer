@@ -5,6 +5,13 @@
   text-align: left;
 }
 
+.hand-notes-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-h);
+}
+
 .hand-notes-pick,
 .hand-notes-field {
   display: flex;

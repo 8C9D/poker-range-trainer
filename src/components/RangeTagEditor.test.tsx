@@ -4,6 +4,11 @@ import userEvent from '@testing-library/user-event'
 import { RangeTagEditor } from './RangeTagEditor'
 
 describe('RangeTagEditor', () => {
+  it('titles its section at the same level as the other editor blocks', () => {
+    render(<RangeTagEditor tags={[]} onChange={vi.fn()} />)
+    expect(screen.getByRole('heading', { name: 'Tags', level: 2 })).toBeInTheDocument()
+  })
+
   it('adds a typed tag on Enter', async () => {
     const user = userEvent.setup()
     const onChange = vi.fn()

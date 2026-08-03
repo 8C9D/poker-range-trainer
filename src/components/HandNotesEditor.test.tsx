@@ -9,6 +9,17 @@ describe('HandNotesEditor', () => {
     expect(screen.getByText(/add hands to the range/i)).toBeInTheDocument()
   })
 
+  it('is a titled landmark so the notes are reachable without hunting for the picker', () => {
+    render(<HandNotesEditor hands={['AA']} notes={{}} onChange={vi.fn()} />)
+    expect(screen.getByRole('region', { name: 'Hand notes' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Hand notes', level: 2 })).toBeInTheDocument()
+  })
+
+  it('keeps the landmark when the range has no hands', () => {
+    render(<HandNotesEditor hands={[]} notes={{}} onChange={vi.fn()} />)
+    expect(screen.getByRole('region', { name: 'Hand notes' })).toBeInTheDocument()
+  })
+
   it('renders a hand picker and a note field', () => {
     render(<HandNotesEditor hands={['AA', 'KK']} notes={{}} onChange={vi.fn()} />)
     expect(screen.getByLabelText('Hand')).toBeInTheDocument()

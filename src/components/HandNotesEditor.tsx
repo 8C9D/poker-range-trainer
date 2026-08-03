@@ -12,7 +12,8 @@ interface HandNotesEditorProps {
 }
 
 /**
- * Controlled, presentational editor for a range's per-hand notes.
+ * Controlled, presentational editor for a range's per-hand notes, in a titled
+ * section like the editor's other blocks.
  *
  * A `<select>` picks the active hand (from the range's hands, in canonical
  * matrix order) and a `<textarea>` edits that hand's note. Editing produces a
@@ -28,7 +29,12 @@ export function HandNotesEditor({ hands, notes, onChange }: HandNotesEditorProps
   const [activeHand, setActiveHand] = useState<PokerHand | ''>(orderedHands[0] ?? '')
 
   if (orderedHands.length === 0) {
-    return <p className="hand-notes-empty">Add hands to the range to attach notes.</p>
+    return (
+      <section className="hand-notes-editor" aria-label="Hand notes">
+        <h2 className="hand-notes-title">Hand notes</h2>
+        <p className="hand-notes-empty">Add hands to the range to attach notes.</p>
+      </section>
+    )
   }
 
   // Guard against an active hand that is no longer in the range (e.g. the hands
@@ -46,7 +52,8 @@ export function HandNotesEditor({ hands, notes, onChange }: HandNotesEditorProps
   }
 
   return (
-    <div className="hand-notes-editor">
+    <section className="hand-notes-editor" aria-label="Hand notes">
+      <h2 className="hand-notes-title">Hand notes</h2>
       <div className="hand-notes-pick">
         <label htmlFor="hand-notes-active">Hand</label>
         <select
@@ -72,6 +79,6 @@ export function HandNotesEditor({ hands, notes, onChange }: HandNotesEditorProps
           placeholder={`Optional note for ${selected}`}
         />
       </div>
-    </div>
+    </section>
   )
 }
