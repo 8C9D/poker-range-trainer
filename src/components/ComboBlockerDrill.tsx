@@ -77,7 +77,7 @@ export function ComboBlockerDrill({
             Deal a combo
           </button>
           {combo && (
-            <div className="combo-blocker-combo" aria-label="Dealt combo">
+            <div className="combo-blocker-combo" role="group" aria-label="Dealt combo">
               {combo.map((card) => (
                 <span key={formatCard(card)} className={`combo-card suit-${card.suit}`}>
                   {formatCard(card)}

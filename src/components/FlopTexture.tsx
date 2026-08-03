@@ -48,7 +48,7 @@ export function FlopTexture({ board }: FlopTextureProps) {
 
   return (
     <div className="flop-texture">
-      <div className="flop-cards" aria-label="Flop">
+      <div className="flop-cards" role="group" aria-label="Flop">
         {result.cards.map((card) => (
           <span key={formatCard(card)} className={`flop-card suit-${card.suit}`}>
             {formatCard(card)}

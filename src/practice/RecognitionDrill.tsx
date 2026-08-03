@@ -211,9 +211,9 @@ export function RecognitionDrill({
       onClose={() => finish(attemptsRef.current)}
     >
       {remainingSeconds !== null && (
-        <p className="drill-timer coach-tabular" aria-label="Time remaining">
-          {remainingSeconds}s left
-        </p>
+        // No label: a paragraph cannot carry one, and "45s left" already says
+        // more than the "Time remaining" that was on it would.
+        <p className="drill-timer coach-tabular">{remainingSeconds}s left</p>
       )}
       <div className="drill-center" {...swipe}>
         {scenario && <p className="drill-scenario">{scenario}</p>}

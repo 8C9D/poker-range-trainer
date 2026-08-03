@@ -5,7 +5,9 @@ import { LibraryScreen } from './LibraryScreen'
 import { ProgressScreen } from './ProgressScreen'
 import { RangeScreen } from './RangeScreen'
 import { TodayScreen } from './TodayScreen'
-import { ModePicker } from '../practice/ModePicker'
+import { ModePicker, type PracticeMode } from '../practice/ModePicker'
+import { PracticeHost } from '../practice/PracticeHost'
+import { SessionSummary } from '../practice/SessionSummary'
 import { RANGE_TABS } from '../app/routes'
 import { recordHandAccuracy } from '../storage/handAccuracyStorage'
 import { recordPracticeSessionHistory } from '../storage/sessionHistoryStorage'
@@ -101,6 +103,74 @@ describe('accessible names', () => {
     const range = seed('a', 'BTN open')
     render(<ModePicker range={range} onPick={vi.fn()} />)
     expect(screen.getByRole('region', { name: 'Choose practice mode' })).toBeInTheDocument()
+    expect(droppedLabels()).toEqual([])
+  })
+})
+
+/**
+ * The drills are where the app spends most of its time and where most of these
+ * had collected — the quiz stats, both answer palettes, the dealt combo, the
+ * flop, the build score and the session summary were all labelled and all mute.
+ * Driving the real host rather than each component keeps this honest about what
+ * a practising user actually reaches.
+ */
+describe('accessible names in practice', () => {
+  const DRILLED: PracticeMode[] = [
+    'recognize',
+    'timed',
+    'weakness',
+    'edges',
+    'build',
+    'action',
+    'mixed',
+    'combo',
+    'board',
+  ]
+
+  function drillable(): SavedRange {
+    const range: SavedRange = {
+      id: 'a',
+      name: 'BTN open',
+      // Enough hands that the edge drill has a boundary to work with.
+      hands: ['AA', 'KK', 'QQ', 'AKs', 'AQs', 'AKo'],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      // The action and frequency quizzes only appear for a range that has them.
+      handActions: { AA: 'raise', KK: 'raise', AKs: 'call' },
+      mixedStrategies: {
+        AA: [
+          { action: 'raise', frequency: 75 },
+          { action: 'call', frequency: 25 },
+        ],
+      },
+    }
+    saveSavedRange(range)
+    return range
+  }
+
+  it.each(DRILLED)('never labels an element that cannot carry a name in the %s drill', (mode) => {
+    const range = drillable()
+    render(<PracticeHost request={{ ranges: [range], mode }} onClose={vi.fn()} />)
+    expect(droppedLabels()).toEqual([])
+  })
+
+  it('never labels an element that cannot carry a name on the summary', () => {
+    render(
+      <SessionSummary
+        data={{
+          totalQuestions: 10,
+          correctAnswers: 8,
+          accuracy: 80,
+          deltaLine: 'Up 5 points from your last session.',
+          goalLine: '8 of 20 hands today.',
+          streakLine: '3 day streak.',
+        }}
+        hasNext
+        onNext={vi.fn()}
+        onDone={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('region', { name: 'Session summary' })).toBeInTheDocument()
     expect(droppedLabels()).toEqual([])
   })
 })

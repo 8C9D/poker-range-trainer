@@ -61,7 +61,7 @@ export function BuildFromMemoryPractice({ range, onExit }: BuildFromMemoryPracti
           <h2>Results: {range.name}</h2>
         </header>
 
-        <div className="practice-stats" aria-label="Build from memory score">
+        <div className="practice-stats" role="group" aria-label="Build from memory score">
           <span className="practice-stat">
             Correct: {correct.length} of {targetSize}
           </span>
@@ -130,7 +130,7 @@ export function BuildFromMemoryPractice({ range, onExit }: BuildFromMemoryPracti
 
       <HandGrid selected={selected} onSetSelected={setHandSelected} />
 
-      <div className="practice-stats" aria-label="Build progress">
+      <div className="practice-stats" role="group" aria-label="Build progress">
         <span className="practice-stat">{selected.size} hands selected</span>
       </div>
 

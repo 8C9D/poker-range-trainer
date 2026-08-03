@@ -126,7 +126,7 @@ export function ActionQuiz({ range, onExit, random = Math.random }: ActionQuizPr
         </button>
       </header>
 
-      <div className="practice-stats" aria-label="Quiz stats">
+      <div className="practice-stats" role="group" aria-label="Quiz stats">
         <span className="practice-stat">Total questions: {total}</span>
         <span className="practice-stat">Correct: {correct}</span>
         <span className="practice-stat">Accuracy: {accuracy}%</span>
@@ -159,7 +159,7 @@ export function ActionQuiz({ range, onExit, random = Math.random }: ActionQuizPr
           </button>
         </div>
       ) : (
-        <div className="action-palette" aria-label="Choose an action">
+        <div className="action-palette" role="group" aria-label="Choose an action">
           {RANGE_ACTIONS.map((action) => (
             <button
               key={action}

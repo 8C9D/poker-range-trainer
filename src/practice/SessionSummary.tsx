@@ -66,7 +66,7 @@ export function SessionSummary({ data, hasNext, onNext, onDone }: SessionSummary
   })
 
   return (
-    <div className="session-summary" aria-label="Session summary">
+    <section className="session-summary" aria-label="Session summary">
       <div className="session-summary-ring">
         <svg width="160" height="160" viewBox="0 0 160 160" aria-hidden="true">
           <circle
@@ -130,6 +130,6 @@ export function SessionSummary({ data, hasNext, onNext, onDone }: SessionSummary
           </button>
         )}
       </div>
-    </div>
+    </section>
   )
 }

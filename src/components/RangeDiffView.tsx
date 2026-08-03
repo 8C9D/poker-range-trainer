@@ -37,7 +37,7 @@ export function RangeDiffView({ handsA, handsB, labelA = 'A', labelB = 'B' }: Ra
         <li className="range-diff-swatch bucket-onlyA">Only {labelA}: {summary.onlyA}</li>
         <li className="range-diff-swatch bucket-onlyB">Only {labelB}: {summary.onlyB}</li>
       </ul>
-      <div className="action-grid range-diff-grid" aria-label="Range comparison">
+      <div className="action-grid range-diff-grid" role="group" aria-label="Range comparison">
         {HANDS.map((hand) => {
           const bucket = bucketOf.get(hand) ?? 'none'
           return (
