@@ -229,6 +229,27 @@
   font-size: 14px;
 }
 
+.range-freq-incomplete {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+
+.range-freq-jump {
+  font: inherit;
+  padding: 0;
+  color: var(--accent-strong);
+  background: none;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.range-freq-jump:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .range-compare {
   display: flex;
   flex-direction: column;

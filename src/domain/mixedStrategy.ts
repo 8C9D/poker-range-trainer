@@ -67,6 +67,22 @@ export function handsWithMixedStrategy(
 }
 
 /**
+ * The hands whose frequencies do not add up to 100, in canonical matrix order.
+ *
+ * The editor works one hand at a time, so a mix left at 60% is invisible the
+ * moment you switch hands: the range saves, and the frequency quiz then grades
+ * against a strategy that does not describe a whole decision. This is what a
+ * "finish these" line reports.
+ */
+export function incompleteMixedHands(
+  mixedStrategies: Record<PokerHand, HandMixedStrategy>,
+): PokerHand[] {
+  return handsWithMixedStrategy(mixedStrategies).filter(
+    (hand) => !isValidMixedStrategy(mixedStrategies[hand]),
+  )
+}
+
+/**
  * The highest-frequency action, ties broken by canonical `RANGE_ACTIONS` order.
  * Returns `null` for an empty (or all-invalid) strategy.
  */

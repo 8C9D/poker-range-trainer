@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { primaryAction, type HandMixedStrategy } from '@core/domain/mixedStrategy';
+import {
+  incompleteMixedHands,
+  primaryAction,
+  type HandMixedStrategy,
+} from '@core/domain/mixedStrategy';
 import type { PokerHand } from '@core/domain/pokerHands';
 import { findSavedRangeById, saveSavedRange } from '@core/storage/rangeStorage';
 
@@ -11,6 +15,9 @@ import { SaveErrorBanner, useLiveSave } from './liveSave';
 import { actionColors } from '../theme/actionColors';
 import { useTheme } from '../theme/colors';
 import type { ThemeColors } from '../theme/colors';
+
+/** How many unfinished hands the warning names before summarizing the rest. */
+const MAX_LISTED_INCOMPLETE = 6;
 
 /**
  * Mixed-frequency editor body for one saved range: pick an in-range hand, then set how
@@ -28,6 +35,7 @@ export function FrequenciesEditor({ id }: { id?: string }) {
   );
   const [activeHand, setActiveHand] = useState<PokerHand | null>(() => range?.hands[0] ?? null);
   const [saveError, runSave] = useLiveSave();
+  const incomplete = incompleteMixedHands(mixedStrategies);
 
   const hydratedRef = useRef(false);
   useEffect(() => {
@@ -61,6 +69,24 @@ export function FrequenciesEditor({ id }: { id?: string }) {
     <View style={styles.content}>
       <SaveErrorBanner error={saveError} />
       <Text style={styles.hint}>Pick a hand, then set how often it takes each action.</Text>
+      {/* The editor only ever shows one hand's total, so a mix left short is invisible the
+          moment you pick another hand. Name them here, where the whole range is in view. */}
+      {incomplete.length > 0 ? (
+        <Pressable
+          testID="freq-incomplete"
+          accessibilityRole="button"
+          onPress={() => setActiveHand(incomplete[0])}
+        >
+          <Text style={styles.incomplete}>
+            {incomplete.length} hand{incomplete.length === 1 ? '' : 's'} not at 100%:{' '}
+            {incomplete.slice(0, MAX_LISTED_INCOMPLETE).join(', ')}
+            {incomplete.length > MAX_LISTED_INCOMPLETE
+              ? ` and ${incomplete.length - MAX_LISTED_INCOMPLETE} more`
+              : ''}
+            . Tap to fix {incomplete[0]}.
+          </Text>
+        </Pressable>
+      ) : null}
       <View style={styles.chips}>
         {range.hands.map((hand) => {
           const primary = primaryAction(mixedStrategies[hand] ?? []);
@@ -98,6 +124,7 @@ function makeStyles(theme: ThemeColors) {
     content: { gap: 16 },
     notFound: { color: theme.ink2, fontSize: 16, marginTop: 32, textAlign: 'center' },
     hint: { color: theme.ink2, fontSize: 14 },
+    incomplete: { color: theme.accent, fontSize: 14, lineHeight: 20 },
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     chip: {
       flexDirection: 'row',

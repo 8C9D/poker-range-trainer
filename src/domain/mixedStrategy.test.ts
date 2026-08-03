@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   handsWithMixedStrategy,
+  incompleteMixedHands,
   isValidMixedStrategy,
   normalizeMixedStrategy,
   primaryAction,
@@ -94,5 +95,38 @@ describe('primaryAction', () => {
 
   it('returns null for an empty strategy', () => {
     expect(primaryAction([])).toBeNull()
+  })
+})
+
+describe('incompleteMixedHands', () => {
+  it('names the hands whose frequencies do not total 100, in matrix order', () => {
+    expect(
+      incompleteMixedHands({
+        // Insertion order is deliberately not matrix order.
+        KK: [{ action: 'raise', frequency: 60 }],
+        AA: [
+          { action: 'raise', frequency: 50 },
+          { action: 'fold', frequency: 50 },
+        ],
+        AKs: [{ action: 'call', frequency: 140 }],
+      }),
+      // AA adds up, so only the short 60 and the over-100 140 are reported.
+    ).toEqual(['AKs', 'KK'])
+  })
+
+  it('ignores hands with no strategy at all', () => {
+    expect(incompleteMixedHands({ AA: [], KK: [{ action: 'raise', frequency: 100 }] })).toEqual([])
+  })
+
+  it('returns nothing when every strategy is complete', () => {
+    expect(
+      incompleteMixedHands({
+        AA: [{ action: 'raise', frequency: 100 }],
+        KK: [
+          { action: 'raise', frequency: 25 },
+          { action: 'call', frequency: 75 },
+        ],
+      }),
+    ).toEqual([])
   })
 })

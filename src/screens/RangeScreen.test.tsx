@@ -372,6 +372,30 @@ describe('RangeScreen tabs', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
+  it('names the hands whose frequencies do not total 100 and jumps to one', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(
+      makeRange({
+        hands: ['AA', 'KK'],
+        mixedStrategies: {
+          AA: [{ action: 'raise', frequency: 60 }],
+          KK: [{ action: 'raise', frequency: 100 }],
+        },
+      }),
+    )
+    render(<RangeScreen id="r1" tab="frequencies" onPractice={vi.fn()} />)
+
+    // The editor shows one hand at a time, so the whole-range line is the only
+    // place a mix left at 60% is visible.
+    expect(screen.getByText(/1 hand not at 100%: AA/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Fix AA' }))
+    expect(screen.getByRole('combobox')).toHaveValue('AA')
+
+    fireEvent.change(screen.getByRole('slider', { name: 'Fold' }), { target: { value: '40' } })
+    expect(screen.queryByText(/not at 100%/)).not.toBeInTheDocument()
+  })
+
   it('shows the stats tab with the performance view', () => {
     saveSavedRange(makeRange())
     recordHandAccuracy('r1', [

@@ -28,7 +28,7 @@ import {
   toggleCombo,
   type ComboSelection,
 } from '../domain/comboSelection'
-import type { HandMixedStrategy } from '../domain/mixedStrategy'
+import { incompleteMixedHands, type HandMixedStrategy } from '../domain/mixedStrategy'
 import type { PokerHand } from '../domain/pokerHands'
 import { handsWithMistakes } from '../domain/practice'
 import { setRangeArchived } from '../domain/rangeArchive'
@@ -65,6 +65,9 @@ const TAB_LABELS: Record<RangeTab, string> = {
   frequencies: 'Frequencies',
   stats: 'Stats',
 }
+
+/** How many unfinished hands the Frequencies warning names before summarizing. */
+const MAX_LISTED_INCOMPLETE = 6
 
 interface RangeScreenProps {
   /** The saved range id, or null when composing a new range. */
@@ -656,6 +659,7 @@ function FrequenciesTab({ range, onSaved }: { range: SavedRange; onSaved: () => 
   })
   const [activeHand, setActiveHand] = useState<PokerHand | null>(range.hands[0] ?? null)
   const status = useTabSave()
+  const incomplete = incompleteMixedHands(draft)
 
   return (
     <div className="range-tab-stack">
@@ -678,6 +682,26 @@ function FrequenciesTab({ range, onSaved }: { range: SavedRange; onSaved: () => 
         </button>
         <TabSaveStatus saved={status.saved} error={status.error} label="Frequencies saved." />
       </div>
+      {/* The editor only ever shows one hand's total, so a mix left short is
+          invisible the moment you switch hands. Name them here, where the whole
+          range is in view, and offer a jump to the first one. */}
+      {incomplete.length > 0 && (
+        <p className="range-freq-incomplete">
+          {incomplete.length} hand{incomplete.length === 1 ? '' : 's'} not at 100%:{' '}
+          {incomplete.slice(0, MAX_LISTED_INCOMPLETE).join(', ')}
+          {incomplete.length > MAX_LISTED_INCOMPLETE
+            ? ` and ${incomplete.length - MAX_LISTED_INCOMPLETE} more`
+            : ''}
+          .{' '}
+          <button
+            type="button"
+            className="range-freq-jump"
+            onClick={() => setActiveHand(incomplete[0])}
+          >
+            Fix {incomplete[0]}
+          </button>
+        </p>
+      )}
       <MixedStrategyGrid mixedStrategies={draft} />
       <label className="range-freq-hand">
         Hand
