@@ -250,3 +250,53 @@ describe('palette contrast', () => {
     expect(onBg('--ink-2')).toBeGreaterThan(onBg('--ink-3') * 1.2)
   })
 })
+
+/**
+ * The playing card is the one surface that does not follow the theme: its face
+ * stays paper-colored in dark mode, because a dark playing card is not a
+ * playing card. The suit colors on it were themed anyway, so in dark mode the
+ * app lightened the ink for a dark background and then painted it on cream —
+ * the diamond landed at 2.4:1, a pale blue smudge next to a crisp black spade,
+ * on the screen a user spends the whole session looking at.
+ *
+ * The tokens are read out of the component rather than listed here, so pointing
+ * it at a different color brings that color under the same rule.
+ */
+describe('playing card contrast', () => {
+  const css = readFileSync(join(SRC, 'theme.css'), 'utf8')
+  const darkStart = css.indexOf('@media (prefers-color-scheme: dark)')
+  const themes = {
+    light: tokensIn(css.slice(0, darkStart)),
+    // The card's own tokens are only defined once, so fall back to the light
+    // block for anything the dark block does not override.
+    dark: { ...tokensIn(css.slice(0, darkStart)), ...tokensIn(css.slice(darkStart)) },
+  }
+
+  /** The suit color tokens `PlayingCards` paints on the card face. */
+  const suitTokens = [
+    ...new Set(
+      Array.from(
+        readFileSync(join(SRC, 'practice', 'PlayingCards.tsx'), 'utf8').matchAll(
+          /var\((--[\w-]+)\)/g,
+        ),
+      ).map((match) => match[1]),
+    ),
+  ]
+
+  it('reads all four suits out of the component', () => {
+    // Guards the guard: an empty list would pass every case below.
+    expect(suitTokens).toHaveLength(4)
+  })
+
+  it.each(Object.keys(themes))('keeps every suit legible on the card face in %s', (name) => {
+    const theme = themes[name as keyof typeof themes]
+    const failures: string[] = []
+    for (const token of suitTokens) {
+      const ratio = contrast(theme[token], theme['--cardface'])
+      if (ratio < 4.5) {
+        failures.push(`${token} (${theme[token]}) on --cardface (${theme['--cardface']}): ${ratio.toFixed(2)}`)
+      }
+    }
+    expect(failures).toEqual([])
+  })
+})

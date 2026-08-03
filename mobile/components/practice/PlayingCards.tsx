@@ -22,11 +22,13 @@ const SUIT_NAMES: Record<Card['suit'], string> = {
  */
 export function PlayingCards({ cards }: { cards: Card[] }) {
   const theme = useTheme();
+  // The card-face ink, not the themed heart/diamond/club accents: the face is
+  // paper in both themes, so its suits must not lighten for a dark background.
   const suitColor: Record<Card['suit'], string> = {
-    s: theme.spade,
-    h: theme.heart,
-    d: theme.diamond,
-    c: theme.club,
+    s: theme.cardSpade,
+    h: theme.cardHeart,
+    d: theme.cardDiamond,
+    c: theme.cardClub,
   };
   return (
     <View testID="playing-cards" style={styles.row}>

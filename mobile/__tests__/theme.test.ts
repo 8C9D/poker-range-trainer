@@ -37,6 +37,10 @@ describe('theme colors', () => {
       pairbg: '#efede4',
       cellbg: '#f1efe8',
       cardface: '#fffef9',
+      cardHeart: '#b84c2d',
+      cardDiamond: '#366ebc',
+      cardClub: '#297c53',
+      cardSpade: '#22252a',
     });
   });
 
@@ -71,6 +75,10 @@ describe('theme colors', () => {
       pairbg: '#23272d',
       cellbg: '#1b1f24',
       cardface: '#f4f1e8',
+      cardHeart: '#b84c2d',
+      cardDiamond: '#366ebc',
+      cardClub: '#297c53',
+      cardSpade: '#22252a',
     });
   });
 

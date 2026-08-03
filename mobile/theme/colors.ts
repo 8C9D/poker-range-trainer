@@ -37,6 +37,12 @@ export const light = {
   pairbg: '#efede4',
   cellbg: '#f1efe8',
   cardface: '#fffef9',
+  // Playing-card ink: identical in both palettes, because the card face stays
+  // paper in dark mode and its suits must not lighten for a dark background.
+  cardHeart: '#b84c2d',
+  cardDiamond: '#366ebc',
+  cardClub: '#297c53',
+  cardSpade: '#22252a',
 };
 
 export type ThemeColors = typeof light;
@@ -73,6 +79,12 @@ export const dark: ThemeColors = {
   pairbg: '#23272d',
   cellbg: '#1b1f24',
   cardface: '#f4f1e8',
+  // Playing-card ink: identical in both palettes, because the card face stays
+  // paper in dark mode and its suits must not lighten for a dark background.
+  cardHeart: '#b84c2d',
+  cardDiamond: '#366ebc',
+  cardClub: '#297c53',
+  cardSpade: '#22252a',
 };
 
 /**

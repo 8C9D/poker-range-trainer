@@ -34,6 +34,14 @@
   --pairbg: #efede4;
   --cellbg: #f1efe8;
   --cardface: #fffef9;
+  /* Suit ink for a playing card. Deliberately absent from the dark block: the
+   * card face stays paper in both themes, so its ink must not flip with them.
+   * Darker than the --heart / --diamond / --club accents those follow, which
+   * are drawn on themed surfaces and answer to the theme instead. */
+  --card-heart: #b84c2d;
+  --card-diamond: #366ebc;
+  --card-club: #297c53;
+  --card-spade: #22252a;
 
   --font-display: 'Bricolage Grotesque Variable', 'Instrument Sans Variable', system-ui, sans-serif;
   --font-ui: 'Instrument Sans Variable', system-ui, sans-serif;

@@ -7,11 +7,13 @@ const SUIT_NAMES: Record<Card['suit'], string> = {
   d: 'diamonds',
   c: 'clubs',
 }
+// The card-face ink, not the themed --heart/--diamond/--club accents: the face
+// is paper in both themes, so its suits must not lighten for a dark background.
 const SUIT_VARS: Record<Card['suit'], string> = {
-  s: 'var(--spade)',
-  h: 'var(--heart)',
-  d: 'var(--diamond)',
-  c: 'var(--club)',
+  s: 'var(--card-spade)',
+  h: 'var(--card-heart)',
+  d: 'var(--card-diamond)',
+  c: 'var(--card-club)',
 }
 
 /**
