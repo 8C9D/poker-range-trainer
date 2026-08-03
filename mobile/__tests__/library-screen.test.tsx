@@ -56,6 +56,29 @@ describe('LibraryScreen', () => {
     expect(getAllByTestId('range-thumbnail')).toHaveLength(2);
   });
 
+  it('announces what a row shows, not just the range name', async () => {
+    seed({
+      id: 'r1',
+      name: 'UTG Open',
+      favorite: true,
+      tags: ['Starter'],
+      metadata: { position: 'utg', actionType: 'open' },
+    });
+
+    const { getByTestId } = await render(<LibraryScreen />);
+
+    // A Pressable's own label replaces its children for VoiceOver, so the chips
+    // and the practice line have to be said in it or they reach nobody.
+    const label = getByTestId('range-row-r1').props.accessibilityLabel;
+    expect(label).toContain('Open range UTG Open');
+    expect(label).toContain('favorite');
+    expect(label).toContain('UTG');
+    expect(label).toContain('Open');
+    expect(label).toContain('due');
+    expect(label).toContain('Starter');
+    expect(label).toContain('not practiced');
+  });
+
   it('shows an empty state when there are no ranges', async () => {
     const { getByTestId } = await render(<LibraryScreen />);
 

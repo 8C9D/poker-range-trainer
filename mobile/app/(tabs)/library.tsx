@@ -614,6 +614,26 @@ function RangeRow({
 }) {
   const meta = range.metadata;
   const percentage = rangeComboPercentage(range.hands, range.comboSelections);
+  // VoiceOver reads a Pressable's own label instead of its children, so without
+  // this the chips and the practice line below — seat, action, size, due, tags,
+  // accuracy — are announced to nobody. The web row points at them by id;
+  // React Native has no describedby, so the same facts are said here.
+  const spokenFacts = [
+    range.favorite ? 'favorite' : null,
+    meta?.position
+      ? `${POSITION_LABELS[meta.position]}${meta.versusPosition ? ` vs ${POSITION_LABELS[meta.versusPosition]}` : ''}`
+      : null,
+    meta?.actionType ? ACTION_TYPE_LABELS[meta.actionType] : null,
+    `${percentage.toFixed(1)}%`,
+    due ? 'due' : null,
+    range.archived ? 'archived' : null,
+    ...(range.tags ?? []),
+    stats && stats.totalAttempts > 0
+      ? `${practiceAccuracyPercentage(stats).toFixed(0)}% accuracy, practiced ${formatDayDistance(stats.lastPracticedAt, nowIso)}`
+      : 'not practiced',
+  ]
+    .filter(Boolean)
+    .join(', ');
   const row = (
     <Pressable
         testID={`range-row-${range.id}`}
@@ -621,7 +641,7 @@ function RangeRow({
         accessibilityLabel={
           managing
             ? `${selected ? 'Deselect' : 'Select'} ${range.name || 'Untitled'}`
-            : `Open range ${range.name || 'Untitled'}`
+            : `Open range ${range.name || 'Untitled'}, ${spokenFacts}`
         }
         accessibilityState={managing ? { selected } : undefined}
         onPress={managing ? onToggle : undefined}
