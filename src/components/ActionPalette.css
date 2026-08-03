@@ -10,7 +10,8 @@
   font: inherit;
   font-size: 14px;
   font-weight: 600;
-  color: #fff;
+  color: var(--action-ink);
+  background: var(--action-fill);
   border: 2px solid transparent;
   border-radius: 6px;
   cursor: pointer;
@@ -26,39 +27,43 @@
   outline-offset: 1px;
 }
 
-/* Per-action colors, shared with the action grid (each sets bg AND a legible fg
-   so colored grid cells stay readable, not just the white-text palette swatches). */
+/* Per-action colors, shared with the action grid. They are handed over as custom
+   properties rather than set as `background`/`color` here, because `.action-cell`
+   is the same one-class specificity and is bundled last: a plain background
+   declared here lost the cascade to it, so every assigned hand in the grid
+   rendered in the unassigned fill and the whole overlay was invisible.
+   A property the base rule *reads* cannot be outranked by it. */
 .action-fold {
-  color: #fff;
-  background: #6b7280;
+  --action-fill: var(--act-fold);
+  --action-ink: var(--on-action);
 }
 
 .action-call {
-  color: #fff;
-  background: #1a7f37;
+  --action-fill: var(--act-call);
+  --action-ink: var(--on-action);
 }
 
 .action-raise {
-  color: #3d2c00;
-  background: #d4a72c;
+  --action-fill: var(--act-raise);
+  --action-ink: var(--on-action);
 }
 
 .action-threeBet {
-  color: #fff;
-  background: #cf222e;
+  --action-fill: var(--act-3bet);
+  --action-ink: var(--on-action);
 }
 
 .action-fourBet {
-  color: #fff;
-  background: #8250df;
+  --action-fill: var(--act-4bet);
+  --action-ink: var(--on-action);
 }
 
 .action-jam {
-  color: #fff;
-  background: #6e1423;
+  --action-fill: var(--act-jam);
+  --action-ink: var(--on-action);
 }
 
 .action-mixed {
-  color: #fff;
-  background: #0969da;
+  --action-fill: var(--act-mixed);
+  --action-ink: var(--on-action);
 }

@@ -15,8 +15,11 @@
   padding: 0;
   font-family: var(--mono);
   font-size: clamp(9px, 1.6vw, 13px);
-  color: var(--text-h);
-  background: var(--code-bg);
+  /* Read the assigned action's fill/ink when one is set; the fallbacks are the
+     unassigned cell. Reading them here is what lets a one-class `.action-*`
+     modifier win against this rule regardless of stylesheet order. */
+  color: var(--action-ink, var(--text-h));
+  background: var(--action-fill, var(--code-bg));
   border: 1px solid var(--border);
   border-radius: 3px;
   cursor: pointer;

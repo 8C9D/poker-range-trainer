@@ -48,6 +48,19 @@
   --card-club: #297c53;
   --card-spade: #22252a;
 
+  /* Fills for the seven multi-action classes. Aliases rather than literals, so
+   * each one flips with the theme: in light mode every fill is dark enough to
+   * stay 3:1 from an unassigned cell, in dark mode light enough to do the same,
+   * and one ink per theme clears 4.5:1 on all seven. */
+  --act-fold: var(--ink-3);
+  --act-call: var(--good);
+  --act-raise: var(--raise);
+  --act-3bet: var(--bet3);
+  --act-4bet: var(--diamond);
+  --act-jam: var(--accent-strong);
+  --act-mixed: var(--ink-2);
+  --on-action: #fffef9;
+
   --font-display: 'Bricolage Grotesque Variable', 'Instrument Sans Variable', system-ui, sans-serif;
   --font-ui: 'Instrument Sans Variable', system-ui, sans-serif;
 }
@@ -85,6 +98,9 @@
     --pairbg: #23272d;
     --cellbg: #1b1f24;
     --cardface: #f4f1e8;
+    /* The action fills alias tokens the block above already flipped, so only
+     * the ink on them has to turn over. */
+    --on-action: #241c05;
   }
 }
 

@@ -334,11 +334,7 @@ describe('playing card contrast', () => {
  */
 
 /** Rules whose background is set by a sibling class rather than in the block. */
-const PAIRED_ELSEWHERE = new Map([
-  // Always rendered with an .action-* class, which supplies the fill this
-  // white sits on; on its own the swatch has no background at all.
-  ['/components/ActionPalette.css:.action-swatch', 'fill comes from the .action-* class'],
-])
+const PAIRED_ELSEWHERE = new Map<string, string>([])
 
 describe('literal colors', () => {
   it('never sets a text color that no background in the same rule pins down', () => {
@@ -365,7 +361,8 @@ describe('literal colors', () => {
     }
 
     // Guards the guard: a sweep that matched no literals would pass vacuously.
-    expect(literals).toBeGreaterThan(5)
+    // Three remain — the range-diff buckets, each pinning its own background.
+    expect(literals).toBeGreaterThanOrEqual(3)
     expect(unpaired).toEqual([])
   })
 
@@ -375,6 +372,116 @@ describe('literal colors', () => {
     for (const [entry] of PAIRED_ELSEWHERE) {
       const [file, selector] = entry.split(':')
       expect(readFileSync(join(SRC, file.slice(1)), 'utf8')).toContain(selector)
+    }
+  })
+})
+
+/**
+ * The seven multi-action fills, and the two ways they had gone wrong at once.
+ *
+ * A `background` on `.action-jam` and the one on `.action-cell` are both a single
+ * class, and the bundler emits the grid's rule last — so the base rule won and
+ * every assigned hand rendered in the unassigned fill. The Actions tab painted a
+ * colored legend above a grid with no color in it at all, which no unit test
+ * could see because jsdom applies no stylesheets.
+ *
+ * The fills were also frozen literals from the pre-Coach palette, so once they
+ * did show they would have brought their own problems: `jam` sat at 1.6:1
+ * against an unassigned cell in dark mode, and `raise` at 1.9:1 in light.
+ *
+ * The fix is one mechanism: the modifier hands the fill and ink over as custom
+ * properties, and the base rule *reads* them — a property a rule reads cannot be
+ * outranked by that rule. Both halves are checked here.
+ */
+const ACTION_FILL_TOKENS = [
+  '--act-fold',
+  '--act-call',
+  '--act-raise',
+  '--act-3bet',
+  '--act-4bet',
+  '--act-jam',
+  '--act-mixed',
+]
+
+/** Every `--token: value` pair in a block, aliases (`var(--x)`) included. */
+function declarationsIn(block: string): Record<string, string> {
+  const declarations: Record<string, string> = {}
+  for (const match of block.matchAll(/(--[\w-]+):\s*([^;]+);/g)) {
+    declarations[match[1]] = match[2].trim()
+  }
+  return declarations
+}
+
+/** Follow `var(--x)` aliases down to the hex the theme actually paints. */
+function resolve(token: string, theme: Record<string, string>): string {
+  let value: string | undefined = theme[token]
+  for (let hop = 0; hop < 5 && value?.startsWith('var('); hop += 1) {
+    value = theme[value.slice(4, -1).trim()]
+  }
+  return value ?? ''
+}
+
+describe('action fills', () => {
+  const css = readFileSync(join(SRC, 'theme.css'), 'utf8')
+  const darkStart = css.indexOf('@media (prefers-color-scheme: dark)')
+  const lightBlock = declarationsIn(css.slice(0, darkStart))
+  const themes = {
+    light: lightBlock,
+    // The dark block only overrides part of the palette; the rest still resolves
+    // through the light one, which is what makes the aliases flip on their own.
+    dark: { ...lightBlock, ...declarationsIn(css.slice(darkStart)) },
+  }
+
+  it.each(Object.keys(themes))('resolves every action token to a color in %s', (name) => {
+    // Guards the guard: an alias pointing at nothing would silently drop out.
+    const theme = themes[name as keyof typeof themes]
+    for (const token of [...ACTION_FILL_TOKENS, '--on-action', '--well']) {
+      expect(resolve(token, theme), `${name} cannot resolve ${token}`).toMatch(/^#[0-9a-f]{6}$/)
+    }
+  })
+
+  it.each(Object.keys(themes))('keeps an assigned cell 3:1 from an unassigned one in %s', (name) => {
+    // An unassigned `.action-cell` falls back to --code-bg, which is --well.
+    const theme = themes[name as keyof typeof themes]
+    const failures: string[] = []
+    for (const token of ACTION_FILL_TOKENS) {
+      const ratio = contrast(resolve(token, theme), resolve('--well', theme))
+      if (ratio < 3) failures.push(`${token} on --well: ${ratio.toFixed(2)}`)
+    }
+    expect(failures).toEqual([])
+  })
+
+  it.each(Object.keys(themes))('keeps the hand label readable on every fill in %s', (name) => {
+    const theme = themes[name as keyof typeof themes]
+    const ink = resolve('--on-action', theme)
+    const failures: string[] = []
+    for (const token of ACTION_FILL_TOKENS) {
+      const ratio = contrast(ink, resolve(token, theme))
+      if (ratio < 4.5) failures.push(`--on-action on ${token}: ${ratio.toFixed(2)}`)
+    }
+    expect(failures).toEqual([])
+  })
+
+  it('hands the fill to the grid cell instead of racing it', () => {
+    const palette = readFileSync(join(SRC, 'components', 'ActionPalette.css'), 'utf8')
+    const grid = readFileSync(join(SRC, 'components', 'ActionGrid.css'), 'utf8')
+
+    // The base rule must READ the two properties, never set the pair itself.
+    expect(grid).toContain('color: var(--action-ink, var(--text-h))')
+    expect(grid).toContain('background: var(--action-fill, var(--code-bg))')
+
+    const modifiers = [...palette.matchAll(/\.action-(\w+)\s*\{([^}]*)\}/g)].filter(
+      ([, name]) => name !== 'swatch' && name !== 'palette',
+    )
+    // Guards the guard: one rule per action, or the sweep found the wrong rules.
+    expect(modifiers).toHaveLength(ACTION_FILL_TOKENS.length)
+    for (const [, name, body] of modifiers) {
+      expect(body, `.action-${name} must set --action-fill`).toContain('--action-fill:')
+      expect(body, `.action-${name} must set --action-ink`).toContain('--action-ink:')
+      expect(body, `.action-${name} must not set background directly`).not.toMatch(
+        /(^|[;\s])background(-color)?:/,
+      )
+      expect(body, `.action-${name} must not set color directly`).not.toMatch(/(^|[;\s])color:/)
     }
   })
 })
