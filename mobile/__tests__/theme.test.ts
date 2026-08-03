@@ -18,7 +18,7 @@ describe('theme colors', () => {
       ink2: '#555758',
       ink3: '#696a66',
       accent: '#a97e14',
-      accentStrong: '#876408',
+      accentStrong: '#785907',
       accentSoft: '#a97e1420',
       onAccent: '#241c05',
       onAction: '#fffef9',
@@ -112,6 +112,37 @@ function contrast(a: string, b: string): number {
   const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x);
   return (high + 0.05) / (low + 0.05);
 }
+
+/** Composite an `#rrggbbaa` tint onto an opaque `#rrggbb` surface. */
+function blend(tint: string, surface: string): string {
+  const t = parseInt(tint.slice(1), 16);
+  const s = parseInt(surface.slice(1), 16);
+  const alpha = (t & 255) / 255;
+  const channel = (shift: number) =>
+    Math.round(alpha * ((t >>> (shift + 8)) & 255) + (1 - alpha) * ((s >>> shift) & 255));
+  return `#${[16, 8, 0].map((shift) => channel(shift).toString(16).padStart(2, '0')).join('')}`;
+}
+
+/**
+ * The mirror of the web `text on a tint` sweep. `accentSoft` is a 12%-alpha gold,
+ * so the ground under a due chip or the streak pill is the tint composited onto
+ * the surface — lighter than either token alone. Read against the opaque tokens
+ * only, `accentStrong` looked fine at 5.4:1 while the chips rendered at 4.4.
+ */
+describe('text on the gold tint', () => {
+  it.each([
+    ['light', light],
+    ['dark', dark],
+  ])('keeps accentStrong at 4.5:1 on accentSoft in %s', (_name, theme) => {
+    const failures: string[] = [];
+    for (const surface of [theme.bg, theme.surface, theme.card, theme.well, theme.cellbg, theme.pairbg]) {
+      const ground = blend(theme.accentSoft, surface);
+      const ratio = contrast(theme.accentStrong, ground);
+      if (ratio < 4.5) failures.push(`accentStrong on ${ground}: ${ratio.toFixed(2)}`);
+    }
+    expect(failures).toEqual([]);
+  });
+});
 
 // The three primary actions map straight onto the Coach action tokens; the rest are
 // palette-derived. Both themes are checked so the mapping tracks light/dark.

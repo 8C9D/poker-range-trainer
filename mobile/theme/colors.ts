@@ -18,7 +18,8 @@ export const light = {
   ink2: '#555758',
   ink3: '#696a66',
   accent: '#a97e14',
-  accentStrong: '#876408',
+  // Dark enough to stay readable on accentSoft, not just on a plain surface.
+  accentStrong: '#785907',
   accentSoft: '#a97e1420',
   onAccent: '#241c05',
   // Ink for text sitting on an action fill. It inverts between the themes

@@ -199,6 +199,15 @@ const TEXT_TOKENS = [
  */
 const SURFACE_TOKENS = ['--bg', '--surface', '--card', '--well', '--cellbg', '--pairbg']
 
+/**
+ * Text drawn on a translucent tint, which is neither the tint nor the surface
+ * but the two composited. `--accent-soft` is a 12%-alpha gold, and reading
+ * `--accent-strong` against the opaque tokens alone said it was fine at 5.4:1
+ * while the active rail label and the Library's "Due" chip actually rendered at
+ * 4.4 — the tint lightens the ground out from under the only ink put on it.
+ */
+const TINTED_PAIRS = [{ text: '--accent-strong', tint: '--accent-soft' }]
+
 /** Relative luminance per WCAG 2.x. */
 function luminance(hex: string): number {
   const value = parseInt(hex.slice(1), 16)
@@ -227,6 +236,25 @@ function tokensIn(block: string): Record<string, string> {
   return tokens
 }
 
+/** The `--token: #rrggbbaa` tints inside one CSS block. */
+function tintsIn(block: string): Record<string, string> {
+  const tints: Record<string, string> = {}
+  for (const match of block.matchAll(/(--[\w-]+):\s*(#[0-9a-f]{8})\s*;/gi)) {
+    tints[match[1]] = match[2].toLowerCase()
+  }
+  return tints
+}
+
+/** Composite an `#rrggbbaa` tint onto an opaque `#rrggbb` surface. */
+function blend(tint: string, surface: string): string {
+  const t = parseInt(tint.slice(1), 16)
+  const s = parseInt(surface.slice(1), 16)
+  const alpha = (t & 255) / 255
+  const channel = (shift: number) =>
+    Math.round(alpha * ((t >>> (shift + 8)) & 255) + (1 - alpha) * ((s >>> shift) & 255))
+  return `#${[16, 8, 0].map((shift) => channel(shift).toString(16).padStart(2, '0')).join('')}`
+}
+
 describe('palette contrast', () => {
   const css = readFileSync(join(SRC, 'theme.css'), 'utf8')
   // The dark palette is the `:root` block inside the prefers-color-scheme query;
@@ -253,6 +281,27 @@ describe('palette contrast', () => {
         const ratio = contrast(theme[text], theme[surface])
         if (ratio < 4.5) {
           failures.push(`${text} (${theme[text]}) on ${surface} (${theme[surface]}): ${ratio.toFixed(2)}`)
+        }
+      }
+    }
+    expect(failures).toEqual([])
+  })
+
+  it.each(Object.keys(themes))('keeps text on a tint at 4.5:1 in %s', (name) => {
+    const theme = themes[name as keyof typeof themes]
+    const tints = {
+      light: tintsIn(css.slice(0, darkStart)),
+      dark: { ...tintsIn(css.slice(0, darkStart)), ...tintsIn(css.slice(darkStart)) },
+    }[name as 'light' | 'dark']
+    const failures: string[] = []
+    for (const { text, tint } of TINTED_PAIRS) {
+      // Guards the guard: a renamed tint would otherwise check nothing.
+      expect(tints[tint], `${name} is missing ${tint}`).toMatch(/^#[0-9a-f]{8}$/)
+      for (const surface of SURFACE_TOKENS) {
+        const ground = blend(tints[tint], theme[surface])
+        const ratio = contrast(theme[text], ground)
+        if (ratio < 4.5) {
+          failures.push(`${text} on ${tint} over ${surface} (${ground}): ${ratio.toFixed(2)}`)
         }
       }
     }

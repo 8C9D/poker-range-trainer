@@ -412,7 +412,9 @@ function makeStyles(theme: ThemeColors) {
     streakText: {
       fontFamily: fonts.bodySemibold,
       fontSize: 13,
-      color: theme.accent,
+      // The chip's own accentSoft fill lightens the ground, which left the
+      // lighter `accent` gold at 2.8:1 on it.
+      color: theme.accentStrong,
       fontVariant: ['tabular-nums'],
     },
     card: {
