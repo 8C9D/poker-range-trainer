@@ -75,10 +75,20 @@ export function scheduleNextReview(
 /**
  * Whether `state` is due for review at `now`. A never-scheduled state (empty
  * `dueAt`) is never due.
+ *
+ * Compared by local calendar day, not by instant, because an interval of one day
+ * means "tomorrow" and not "in 24 hours". Held to the instant, `dueAt` inherited
+ * the hour of the session that set it: a range reviewed at 21:00 was withheld
+ * from the next morning's practice, and each evening session pushed the hour
+ * later still, so someone who trains in the mornings would be offered their due
+ * ranges less and less often without anything appearing to be wrong.
  */
 export function isReviewDue(state: RangeReviewState, now: string): boolean {
   if (state.dueAt === '') return false
-  return new Date(now).getTime() >= new Date(state.dueAt).getTime()
+  const dueDay = localCalendarDay(state.dueAt)
+  const nowDay = localCalendarDay(now)
+  if (dueDay === null || nowDay === null) return false
+  return nowDay >= dueDay
 }
 
 /**
