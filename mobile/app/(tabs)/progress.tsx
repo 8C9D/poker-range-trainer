@@ -16,6 +16,7 @@ import {
 import { rankWeakHands, weakHandPools } from '@core/domain/weakHands';
 import {
   dailyHandCounts,
+  sessionsForLibrary,
   summarizeWeek,
   weeklyAccuracyTrend,
 } from '@core/domain/weeklyStats';
@@ -49,7 +50,9 @@ const MONTHS_SHORT = [
 
 function loadProgressState() {
   const ranges = loadSavedRanges();
-  const history = loadSessionHistory();
+  // Every per-range cut below is already scoped to the live library; the volume
+  // and accuracy figures have to be scoped the same way or they contradict it.
+  const history = sessionsForLibrary(loadSessionHistory(), ranges);
   const practiceStats = loadPracticeStats();
   const handAccuracy = loadHandAccuracy();
   const nowIso = new Date().toISOString();

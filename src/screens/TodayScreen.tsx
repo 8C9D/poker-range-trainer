@@ -12,7 +12,7 @@ import { buildStarterRanges, STARTER_RANGE_TEMPLATES } from '../domain/starterRa
 import { currentStreak, selectDueRanges } from '../domain/spacedRepetition'
 import { buildSpotCoverage, inferLibraryContext } from '../domain/spotCoverage'
 import { GOAL_OPTIONS, evaluateDailyGoal, goalLine } from '../domain/trainingGoal'
-import { summarizeWeek } from '../domain/weeklyStats'
+import { sessionsForLibrary, summarizeWeek } from '../domain/weeklyStats'
 import { loadPracticeStats } from '../storage/practiceStatsStorage'
 import { loadReviewStates } from '../storage/reviewStateStorage'
 import { createRangeId } from '../app/ids'
@@ -45,7 +45,7 @@ export function TodayScreen({ onStartReview, onPlaySpots, onStartWorkout }: Toda
   const [now] = useState(() => new Date())
   const [ranges, setRanges] = useState(() => loadSavedRanges())
   const [reviewStates] = useState(() => loadReviewStates())
-  const [history] = useState(() => loadSessionHistory())
+  const [storedHistory] = useState(() => loadSessionHistory())
   const [practiceStats] = useState(() => loadPracticeStats())
   const [spotAccuracy] = useState(() => loadSpotAccuracy())
   const [workoutCompletion] = useState(() => loadWorkoutCompletion())
@@ -67,6 +67,9 @@ export function TodayScreen({ onStartReview, onPlaySpots, onStartWorkout }: Toda
   }
 
   const nowIso = now.toISOString()
+  // Sessions recorded against ranges that have since gone away would still count
+  // toward the streak, the week tiles, and the daily goal.
+  const history = sessionsForLibrary(storedHistory, ranges)
   const due = selectDueRanges(
     ranges.filter((range) => !range.archived),
     reviewStates,
@@ -76,7 +79,7 @@ export function TodayScreen({ onStartReview, onPlaySpots, onStartWorkout }: Toda
     .flat()
     .map((session) => session.playedAt)
   const streak = currentStreak(playedAt, nowIso)
-  const week = summarizeWeek(history, nowIso, 7, new Set(ranges.map((range) => range.id)))
+  const week = summarizeWeek(history, nowIso, 7)
   const sharpestName = week.sharpestRangeId
     ? (ranges.find((range) => range.id === week.sharpestRangeId)?.name ?? null)
     : null

@@ -112,6 +112,23 @@ describe('ProgressScreen', () => {
     expect(queryByText('30')).toBeNull();
   });
 
+  it('leaves a deleted range out of the volume and accuracy figures too', async () => {
+    // The all-time tile was already scoped to the live library while the charts
+    // were not, so one screen could report 40 hands this week next to 0 all-time.
+    seed('live', 'UTG Open');
+    recordPracticeSession('live', { totalQuestions: 10, correctAnswers: 8 });
+    recordPracticeSessionHistory('live', { totalQuestions: 10, correctAnswers: 8 });
+    recordPracticeSessionHistory('deleted', { totalQuestions: 30, correctAnswers: 3 });
+
+    const { queryByText, getByTestId } = await render(<ProgressScreen />);
+
+    expect(getByTestId('hands-all-time')).toHaveTextContent('10');
+    expect(getByTestId('chart-value-6')).toHaveTextContent('10');
+    expect(getByTestId('trend-value-7')).toHaveTextContent('80%');
+    // Counting both would read 11 of 40 — a 30-day accuracy of 28%.
+    expect(queryByText('28%')).toBeNull();
+  });
+
   it('groups misses into hand-type leaks, each drillable', async () => {
     seed('r1', 'UTG Open');
     recordHandAccuracy('r1', [

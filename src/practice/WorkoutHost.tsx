@@ -11,6 +11,7 @@ import {
 import { currentStreak } from '../domain/spacedRepetition'
 import type { SpotSessionResult } from '../domain/spotDrill'
 import { evaluateDailyGoal, goalLine } from '../domain/trainingGoal'
+import { sessionsForLibrary } from '../domain/weeklyStats'
 import { loadSessionHistory } from '../storage/sessionHistoryStorage'
 import { recordSpotAccuracy } from '../storage/spotAccuracyStorage'
 import { loadTrainingGoal } from '../storage/trainingGoalStorage'
@@ -85,7 +86,7 @@ export function WorkoutHost({ workout, ranges, onClose }: WorkoutHostProps) {
       .map(
         ({ segment, tally }) => `${segmentTitle(segment.kind)} ${tally.correct}/${tally.total}`,
       )
-    const history = loadSessionHistory()
+    const history = sessionsForLibrary(loadSessionHistory(), ranges)
     const playedAt = Object.values(history)
       .flat()
       .map((session) => session.playedAt)

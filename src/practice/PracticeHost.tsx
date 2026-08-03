@@ -17,6 +17,8 @@ import { summarizePracticeAttempts } from '../domain/practice'
 import { currentStreak } from '../domain/spacedRepetition'
 import { DEFAULT_DRILL_SECONDS } from '../domain/timedDrill'
 import { recordActionAccuracy } from '../storage/actionAccuracyStorage'
+import { sessionsForLibrary } from '../domain/weeklyStats'
+import { loadSavedRanges } from '../storage/rangeStorage'
 import { loadSessionHistory } from '../storage/sessionHistoryStorage'
 import { recordSpotAccuracy } from '../storage/spotAccuracyStorage'
 import type { ActionAttempt, PracticeAttempt } from '../types/practice'
@@ -70,6 +72,15 @@ function deltaLineFor(accuracy: number, prevAccuracy: number | null, misses: num
  * are persisted through the shared session recorder the moment a drill ends.
  */
 export function PracticeHost({ request, onClose }: PracticeHostProps) {
+  /**
+   * The library the streak counts: what is saved, plus whatever this run is
+   * drilling. Sessions recorded against ranges that have since gone away would
+   * otherwise inflate the streak past the one the Today screen shows, and the
+   * queue is included so a run started from something not yet in the library
+   * still counts the session it just recorded.
+   */
+  const livePlusDrilled = () => [...loadSavedRanges(), ...request.ranges]
+
   const [index, setIndex] = useState(0)
   const [phase, setPhase] = useState<Phase>(() =>
     request.mode
@@ -100,7 +111,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     )
     const summary = summarizePracticeAttempts(attempts)
     const misses = attempts.filter((attempt) => !attempt.correct).length
-    const playedAt = Object.values(loadSessionHistory())
+    const playedAt = Object.values(sessionsForLibrary(loadSessionHistory(), livePlusDrilled()))
       .flat()
       .map((session) => session.playedAt)
     const streak = currentStreak(playedAt, new Date().toISOString())
@@ -158,7 +169,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     })
     const summary = summarizePracticeAttempts(all)
     const rangeCount = Object.keys(byRange).length
-    const playedAt = Object.values(loadSessionHistory())
+    const playedAt = Object.values(sessionsForLibrary(loadSessionHistory(), livePlusDrilled()))
       .flat()
       .map((session) => session.playedAt)
     const streak = currentStreak(playedAt, new Date().toISOString())

@@ -1,11 +1,21 @@
 import { describe, it, expect } from 'vitest'
-import { dailyHandCounts, summarizeWeek, weeklyAccuracyTrend } from './weeklyStats'
+import {
+  dailyHandCounts,
+  sessionsForLibrary,
+  summarizeWeek,
+  weeklyAccuracyTrend,
+} from './weeklyStats'
 import type { PracticeSessionRecord } from '../types/practice'
+import type { SavedRange } from '../types/range'
 
 const NOW = '2026-07-11T12:00:00.000Z'
 
 function session(rangeId: string, playedAt: string, total: number, correct: number): PracticeSessionRecord {
   return { rangeId, playedAt, totalQuestions: total, correctAnswers: correct }
+}
+
+function range(id: string): SavedRange {
+  return { id, name: id, createdAt: NOW, updatedAt: NOW, hands: ['AA'] }
 }
 
 describe('summarizeWeek', () => {
@@ -95,16 +105,43 @@ describe('summarizeWeek', () => {
     expect(summary.sharpestAccuracy).toBe(80)
   })
 
-  it('can exclude deleted ranges from the sharpest ranking without losing volume', () => {
+  it('drops a deleted range from the volume as well as the sharpest ranking', () => {
     const history = {
       live: [session('live', '2026-07-10T10:00:00.000Z', 10, 8)],
       deleted: [session('deleted', '2026-07-10T11:00:00.000Z', 10, 10)],
     }
 
-    const summary = summarizeWeek(history, NOW, 7, new Set(['live']))
+    const summary = summarizeWeek(sessionsForLibrary(history, [range('live')]), NOW)
 
-    expect(summary.handsAnswered).toBe(20)
+    // Reporting 20 hands while the sharpest cut sees only one range is the
+    // contradiction Progress used to show: 40 hands this week, 0 all-time.
+    expect(summary.handsAnswered).toBe(10)
+    expect(summary.correctAnswers).toBe(8)
     expect(summary.sharpestRangeId).toBe('live')
+  })
+})
+
+describe('sessionsForLibrary', () => {
+  const history = {
+    live: [session('live', '2026-07-10T10:00:00.000Z', 10, 8)],
+    deleted: [session('deleted', '2026-07-10T11:00:00.000Z', 10, 10)],
+  }
+
+  it('keeps only the sessions of ranges the library still holds', () => {
+    expect(sessionsForLibrary(history, [range('live')])).toEqual({ live: history.live })
+  })
+
+  it('keeps archived ranges — they are put away, not gone', () => {
+    const archived = { ...range('deleted'), archived: true }
+    expect(Object.keys(sessionsForLibrary(history, [range('live'), archived]))).toEqual([
+      'live',
+      'deleted',
+    ])
+  })
+
+  it('drops everything when the library is empty, and never mutates its input', () => {
+    expect(sessionsForLibrary(history, [])).toEqual({})
+    expect(Object.keys(history)).toEqual(['live', 'deleted'])
   })
 })
 

@@ -11,7 +11,12 @@ import {
 import { describeSpot, matchRangeToSpot, spotKey, type Spot } from '../domain/spot'
 import { rankSpotLeaks } from '../domain/spotLeaks'
 import { rankWeakHands, weakHandPools } from '../domain/weakHands'
-import { dailyHandCounts, summarizeWeek, weeklyAccuracyTrend } from '../domain/weeklyStats'
+import {
+  dailyHandCounts,
+  sessionsForLibrary,
+  summarizeWeek,
+  weeklyAccuracyTrend,
+} from '../domain/weeklyStats'
 import type { PokerHand } from '../domain/pokerHands'
 import { loadHandAccuracy } from '../storage/handAccuracyStorage'
 import { loadPracticeStats } from '../storage/practiceStatsStorage'
@@ -35,13 +40,16 @@ interface ProgressScreenProps {
 /** Long-term training overview: streak, accuracy, volume, and weak spots. */
 export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreenProps) {
   const [ranges] = useState(() => loadSavedRanges())
-  const [history] = useState(() => loadSessionHistory())
+  const [storedHistory] = useState(() => loadSessionHistory())
   const [practiceStats] = useState(() => loadPracticeStats())
   const [handAccuracy] = useState(() => loadHandAccuracy())
   const [spotAccuracy] = useState(() => loadSpotAccuracy())
   const [now] = useState(() => new Date())
 
   const nowIso = now.toISOString()
+  // Every per-range cut below is already scoped to the live library; the volume
+  // and accuracy figures have to be scoped the same way or they contradict it.
+  const history = sessionsForLibrary(storedHistory, ranges)
   const playedAt = Object.values(history)
     .flat()
     .map((session) => session.playedAt)

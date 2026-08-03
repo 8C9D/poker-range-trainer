@@ -1,6 +1,31 @@
 import type { PracticeSessionRecord } from '../types/practice'
+import type { SavedRange } from '../types/range'
 import { accuracyPercentage } from './accuracy'
 import { localCalendarDay, localDayStart } from './calendarDay'
+
+/**
+ * The recorded sessions belonging to ranges the library still holds.
+ *
+ * Deleting a range drops it from the library but not its sessions, and a cloud
+ * pull that replaces the library orphans them the same way. Left in, those
+ * orphans keep inflating every volume and accuracy figure while the per-range
+ * cuts beside them — "hands answered all-time", the leak tables, the sharpest
+ * range — are already scoped to the live library and report nothing. Progress
+ * could then claim 40 hands this week at 38% and 0 hands all-time on the one
+ * screen. Scoping the history where it is loaded keeps every figure derived
+ * from it agreeing, whichever way the range went away.
+ *
+ * Archived ranges are still in the library, so their sessions still count.
+ */
+export function sessionsForLibrary(
+  history: Record<string, PracticeSessionRecord[]>,
+  ranges: SavedRange[],
+): Record<string, PracticeSessionRecord[]> {
+  const live = new Set(ranges.map((range) => range.id))
+  return Object.fromEntries(
+    Object.entries(history).filter(([rangeId]) => live.has(rangeId)),
+  )
+}
 
 /**
  * Aggregates of the practice sessions inside a trailing local-calendar window
@@ -21,7 +46,6 @@ export function summarizeWeek(
   history: Record<string, PracticeSessionRecord[]>,
   now: string,
   windowDays = 7,
-  sharpestRangeIds?: ReadonlySet<string>,
 ): WeeklySummary {
   const nowTimestamp = new Date(now).getTime()
   const todayNum = localCalendarDay(now)
@@ -46,12 +70,10 @@ export function summarizeWeek(
       if (dayNum === null || dayNum < firstNum || dayNum > todayNum || at > nowTimestamp) continue
       handsAnswered += session.totalQuestions
       correctAnswers += session.correctAnswers
-      if (sharpestRangeIds === undefined || sharpestRangeIds.has(session.rangeId)) {
-        const entry = perRange.get(session.rangeId) ?? { total: 0, correct: 0 }
-        entry.total += session.totalQuestions
-        entry.correct += session.correctAnswers
-        perRange.set(session.rangeId, entry)
-      }
+      const entry = perRange.get(session.rangeId) ?? { total: 0, correct: 0 }
+      entry.total += session.totalQuestions
+      entry.correct += session.correctAnswers
+      perRange.set(session.rangeId, entry)
     }
   }
 

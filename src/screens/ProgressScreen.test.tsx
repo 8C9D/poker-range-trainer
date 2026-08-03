@@ -111,6 +111,27 @@ describe('ProgressScreen', () => {
     expect(analytics).toHaveTextContent('1 range practiced · 8 of 10 correct · 80% overall')
   })
 
+  it('leaves a deleted range out of the volume and accuracy figures too', () => {
+    // The analytics tile was already scoped to the live library while the charts
+    // were not, so one screen could report 40 hands this week at 38% next to
+    // "0 hands answered all-time".
+    saveSavedRange(makeRange('live', 'UTG open'))
+    recordPracticeSession('live', { totalQuestions: 10, correctAnswers: 8 }, TODAY)
+    recordPracticeSessionHistory('live', { totalQuestions: 10, correctAnswers: 8 }, TODAY)
+    recordPracticeSessionHistory('deleted', { totalQuestions: 30, correctAnswers: 3 }, TODAY)
+    render(<ProgressScreen onDrillWeakHands={vi.fn()} onDrillSpot={vi.fn()} />)
+
+    const tiles = screen.getByRole('region', { name: 'Training overview' })
+    expect(within(tiles).getByText('80%')).toBeInTheDocument()
+    expect(within(tiles).getByText('10')).toBeInTheDocument()
+
+    const chart = screen.getByRole('region', { name: 'Hands answered this week' })
+    expect(within(chart).getAllByRole('listitem')[6]).toHaveAccessibleName(/10 hands/)
+
+    const trend = screen.getByRole('region', { name: 'Accuracy by week' })
+    expect(within(trend).getAllByRole('listitem')[7]).toHaveAccessibleName(/80% over 10 hands/)
+  })
+
   it('lists the weakest hands across ranges and drills them per range', async () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'UTG open'))

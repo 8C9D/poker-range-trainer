@@ -16,7 +16,7 @@ import {
   evaluateDailyGoal,
   goalLine,
 } from '@core/domain/trainingGoal';
-import { summarizeWeek } from '@core/domain/weeklyStats';
+import { sessionsForLibrary, summarizeWeek } from '@core/domain/weeklyStats';
 import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
 import { loadReviewStates } from '@core/storage/reviewStateStorage';
 import { loadSavedRanges, saveSavedRanges } from '@core/storage/rangeStorage';
@@ -42,7 +42,9 @@ function loadTodayState() {
   const nowIso = now.toISOString();
   const ranges = loadSavedRanges();
   const reviewStates = loadReviewStates();
-  const history = loadSessionHistory();
+  // Sessions recorded against ranges that have since gone away would still count
+  // toward the streak, the week tiles, and the daily goal.
+  const history = sessionsForLibrary(loadSessionHistory(), ranges);
   const practiceStats = loadPracticeStats();
   const due = selectDueRanges(
     ranges.filter((range) => !range.archived),
@@ -53,7 +55,7 @@ function loadTodayState() {
     .flat()
     .map((session) => session.playedAt);
   const streak = currentStreak(playedAt, nowIso);
-  const week = summarizeWeek(history, nowIso, 7, new Set(ranges.map((range) => range.id)));
+  const week = summarizeWeek(history, nowIso, 7);
   const sharpestName = week.sharpestRangeId
     ? (ranges.find((range) => range.id === week.sharpestRangeId)?.name ?? null)
     : null;

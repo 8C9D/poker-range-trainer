@@ -8,6 +8,8 @@ import { summarizePracticeAttempts } from '@core/domain/practice';
 import type { SpotSessionResult } from '@core/domain/spotDrill';
 import { currentStreak } from '@core/domain/spacedRepetition';
 import { DEFAULT_DRILL_SECONDS } from '@core/domain/timedDrill';
+import { sessionsForLibrary } from '@core/domain/weeklyStats';
+import { loadSavedRanges } from '@core/storage/rangeStorage';
 import { loadSessionHistory } from '@core/storage/sessionHistoryStorage';
 import { recordSpotAccuracy } from '@core/storage/spotAccuracyStorage';
 import type { PracticeAttempt } from '@core/types/practice';
@@ -96,6 +98,14 @@ interface PracticeHostProps {
  */
 export function PracticeHost({ request, onClose }: PracticeHostProps) {
   const router = useRouter();
+  /**
+   * The library the streak counts: what is saved, plus whatever this run is
+   * drilling. Sessions recorded against ranges that have since gone away would
+   * otherwise inflate the streak past the one the Today screen shows, and the
+   * queue is included so a run started from something not yet in the library
+   * still counts the session it just recorded.
+   */
+  const livePlusDrilled = () => [...loadSavedRanges(), ...request.ranges];
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>(() =>
     request.mode && INLINE_MODES.has(request.mode)
@@ -137,7 +147,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     );
     const summary = summarizePracticeAttempts(attempts);
     const misses = attempts.filter((attempt) => !attempt.correct).length;
-    const playedAt = Object.values(loadSessionHistory())
+    const playedAt = Object.values(sessionsForLibrary(loadSessionHistory(), livePlusDrilled()))
       .flat()
       .map((session) => session.playedAt);
     const streak = currentStreak(playedAt, new Date().toISOString());
@@ -172,7 +182,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     });
     const summary = summarizePracticeAttempts(all);
     const rangeCount = Object.keys(byRange).length;
-    const playedAt = Object.values(loadSessionHistory())
+    const playedAt = Object.values(sessionsForLibrary(loadSessionHistory(), livePlusDrilled()))
       .flat()
       .map((session) => session.playedAt);
     const streak = currentStreak(playedAt, new Date().toISOString());
