@@ -135,6 +135,11 @@ export default function DiffScreen() {
                     <View
                       key={hand}
                       testID={`diff-cell-${hand}`}
+                      // Without `accessible` the cell is not an element of its
+                      // own, so the bucket — the whole point of the grid — never
+                      // reaches VoiceOver.
+                      accessible
+                      accessibilityRole="image"
                       accessibilityLabel={`${hand} ${bucket}`}
                       style={[styles.cell, { backgroundColor: bucketFill[bucket] }]}
                     >

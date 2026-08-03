@@ -59,6 +59,11 @@ export function HandHeatmap({ accuracy }: HandHeatmapProps) {
               <View
                 key={hand}
                 testID={`heat-cell-${hand}`}
+                // The cell has to be `accessible` to carry its own name; left
+                // off, VoiceOver skips it and reads the bare "AA" inside, which
+                // is the half of the label that says nothing about accuracy.
+                accessible
+                accessibilityRole="image"
                 accessibilityLabel={label}
                 accessibilityValue={{ text: level }}
                 style={[styles.cell, { backgroundColor: bg }]}

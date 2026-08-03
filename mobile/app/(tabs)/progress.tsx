@@ -170,6 +170,10 @@ export default function ProgressScreen() {
                   <View
                     key={day.dayStart}
                     style={styles.chartCol}
+                    // `accessible` is what makes the column one element VoiceOver
+                    // can name; without it the label is dropped and the bare
+                    // number and weekday are read as two unrelated scraps.
+                    accessible
                     accessibilityLabel={`${weekday}: ${day.handsAnswered} hands`}
                   >
                     {/* A bar with no number reads as decoration: 20 hands and 200
@@ -216,6 +220,7 @@ export default function ProgressScreen() {
                   <View
                     key={point.weekStart}
                     style={styles.chartCol}
+                    accessible
                     accessibilityLabel={
                       point.handsAnswered > 0
                         ? `Week of ${weekLabel}: ${point.accuracy.toFixed(0)}% over ${point.handsAnswered} hands`

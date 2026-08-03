@@ -193,9 +193,10 @@ export function RecognitionDrill({
     >
       <View style={styles.body}>
         {remainingSeconds !== null ? (
-          <Text style={styles.timer} accessibilityLabel="Time remaining">
-            {remainingSeconds}s left
-          </Text>
+          // No label: on a Text one replaces the content rather than adding to
+          // it, so "Time remaining" was read in place of the seconds — hiding
+          // the only part a player racing the clock needs.
+          <Text style={styles.timer}>{remainingSeconds}s left</Text>
         ) : null}
         <GestureDetector gesture={swipeGesture}>
           <View style={styles.center}>
