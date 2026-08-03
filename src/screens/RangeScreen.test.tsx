@@ -228,6 +228,13 @@ describe('RangeScreen tabs', () => {
     )
   })
 
+  it('gives the overview chart the hands it draws as its text', () => {
+    saveSavedRange(makeRange())
+    render(<RangeScreen id="r1" tab="overview" onPractice={vi.fn()} />)
+
+    expect(screen.getByRole('img', { name: 'Range chart: AA, AKs, KK' })).toBeInTheDocument()
+  })
+
   it('scrolls the active tab into view, since the strip scrolls sideways on a phone', () => {
     // jsdom has no layout and no scrollIntoView, so stub it and assert the
     // active tab is the one asked for: without this, landing on a tab past the

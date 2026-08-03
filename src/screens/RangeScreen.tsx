@@ -35,6 +35,7 @@ import { setRangeArchived } from '../domain/rangeArchive'
 import { duplicateRange } from '../domain/rangeDuplication'
 import { setRangeFavorite } from '../domain/rangeFavorite'
 import { TOTAL_HOLDEM_COMBOS } from '../domain/rangeMath'
+import { describeRangeChart } from '../domain/rangeNotation'
 import { sourceReferenceUrl } from '../domain/sourceReference'
 
 import { accuracyPercentage } from '../domain/accuracy'
@@ -441,7 +442,7 @@ function OverviewTab({ range }: { range: SavedRange }) {
   return (
     <div className="range-overview">
       <section className="coach-card range-overview-grid" aria-label="Range preview">
-        <RangeThumbnail hands={range.hands} size={280} />
+        <RangeThumbnail hands={range.hands} size={280} label={describeRangeChart(range.hands)} />
         <div className="range-overview-facts coach-tabular">
           <p>
             {range.hands.length} hands · {combos} combos · {percentage.toFixed(1)}% of all hands

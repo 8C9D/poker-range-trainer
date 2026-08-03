@@ -186,3 +186,16 @@ export function parseRangeNotation(input: string): PokerHand[] {
 export function formatRangeNotation(hands: PokerHand[]): string {
   return normalizeRangeHands(hands).join(', ')
 }
+
+/**
+ * How the 13x13 chart reads aloud, shared by both platforms.
+ *
+ * The chart is drawn, so on a range's own screen — where it is the content, not
+ * a thumbnail beside a name — assistive tech has nothing to announce unless the
+ * hands themselves are given as its text. Throws if any hand is invalid, like
+ * the combo and percentage maths the same screen already runs.
+ */
+export function describeRangeChart(hands: PokerHand[]): string {
+  const notation = formatRangeNotation(hands)
+  return notation ? `Range chart: ${notation}` : 'Range chart: no hands selected'
+}

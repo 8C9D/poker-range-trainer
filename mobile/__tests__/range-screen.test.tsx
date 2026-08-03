@@ -54,6 +54,16 @@ describe('RangeScreen', () => {
     expect(getByText(/3 hands ·/)).toBeTruthy();
   });
 
+  it('gives the overview chart the hands it draws as its label', async () => {
+    seed({ id: 'r1', name: 'UTG Open' });
+
+    const { getByTestId } = await render(<RangeScreen />);
+
+    expect(getByTestId('range-thumbnail').props.accessibilityLabel).toBe(
+      'Range chart: AA, AKs, KK',
+    );
+  });
+
   it('renders metadata chips', async () => {
     seed({ id: 'r1', name: 'UTG Open', metadata: { position: 'utg', actionType: 'open' } });
 

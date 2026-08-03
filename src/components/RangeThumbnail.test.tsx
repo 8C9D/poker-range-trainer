@@ -16,6 +16,15 @@ describe('RangeThumbnail', () => {
     expect(svg.querySelectorAll('rect')).toHaveLength(1)
   })
 
+  it('becomes a named image when given a label', () => {
+    // Where the chart is the content and not a thumbnail beside a name, keeping
+    // it aria-hidden leaves a screen reader with no way to learn the range.
+    render(<RangeThumbnail hands={['AA', 'KK']} label="Range chart: AA, KK" />)
+    const svg = screen.getByRole('img', { name: 'Range chart: AA, KK' })
+    expect(svg).toBe(screen.getByTestId('range-thumbnail'))
+    expect(svg).not.toHaveAttribute('aria-hidden')
+  })
+
   it('places pairs on the diagonal', () => {
     render(<RangeThumbnail hands={['AA']} />)
     const cell = screen.getByTestId('range-thumbnail').querySelector('rect')!

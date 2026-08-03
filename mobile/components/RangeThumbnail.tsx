@@ -21,19 +21,29 @@ interface RangeThumbnailProps {
   hands: PokerHand[];
   /** Rendered size in px (square). */
   size?: number;
+  /**
+   * Accessible name for the chart, e.g. from `describeRangeChart`. Pass it where
+   * the chart is the content rather than a thumbnail beside a name.
+   */
+  label?: string;
 }
 
 /**
- * A miniature 13x13 grid of a range: gold cells on the well background. Decorative —
- * always shown next to the range's name, never instead of it. Only the in-range cells
- * are drawn (absolutely positioned) so a thumbnail costs ~|hands| views, not 169.
+ * A miniature 13x13 grid of a range: gold cells on the well background. Decorative by
+ * default — shown next to the range's name, never instead of it. Given a `label` it
+ * becomes an image with that text instead, for the range's own screen where nothing
+ * else says which hands are in. Only the in-range cells are drawn (absolutely
+ * positioned) so a thumbnail costs ~|hands| views, not 169.
  */
-export function RangeThumbnail({ hands, size = 44 }: RangeThumbnailProps) {
+export function RangeThumbnail({ hands, size = 44, label }: RangeThumbnailProps) {
   const theme = useTheme();
   const cell = size / 13;
   return (
     <View
       testID="range-thumbnail"
+      accessible={label ? true : undefined}
+      accessibilityRole={label ? 'image' : undefined}
+      accessibilityLabel={label}
       style={[styles.grid, { width: size, height: size, backgroundColor: theme.well }]}
     >
       {hands.map((hand) => {

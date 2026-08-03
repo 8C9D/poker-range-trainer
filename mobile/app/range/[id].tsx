@@ -8,7 +8,7 @@ import * as Sharing from 'expo-sharing';
 
 import { publishSharedRange, unpublishSharedRange } from '@core/cloud/sharedRangesRepo';
 import { accuracyPercentage } from '@core/domain/accuracy';
-import { formatRangeNotation } from '@core/domain/rangeNotation';
+import { describeRangeChart, formatRangeNotation } from '@core/domain/rangeNotation';
 import {
   encodeRangeToHash,
   formatRangeCsv,
@@ -442,7 +442,7 @@ function OverviewTab({
     <View style={{ gap: 16 }}>
       <View style={styles.overviewCard}>
         <View style={styles.thumbWrap}>
-          <RangeThumbnail hands={range.hands} size={260} />
+          <RangeThumbnail hands={range.hands} size={260} label={describeRangeChart(range.hands)} />
         </View>
         <View style={styles.facts}>
           <Text style={styles.factLine}>

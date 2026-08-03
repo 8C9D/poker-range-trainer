@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { RANKS } from './pokerHands'
 import { normalizeRangeHands } from './rangeMath'
-import { parseRangeNotation, formatRangeNotation } from './rangeNotation'
+import { parseRangeNotation, formatRangeNotation, describeRangeChart } from './rangeNotation'
 
 /** All 13 pocket pairs in canonical order (AA … 22). */
 const ALL_PAIRS = RANKS.map((rank) => `${rank}${rank}`)
@@ -274,5 +274,15 @@ describe('formatRangeNotation', () => {
   it('round-trips with parseRangeNotation', () => {
     const hands = parseRangeNotation('77+, AJs+, KQo')
     expect(parseRangeNotation(formatRangeNotation(hands))).toEqual(hands)
+  })
+})
+
+describe('describeRangeChart', () => {
+  it('names the hands the chart draws, so it reads as more than "chart"', () => {
+    expect(describeRangeChart(['22', 'AA', 'AKs'])).toBe('Range chart: AA, AKs, 22')
+  })
+
+  it('says so plainly when nothing is selected', () => {
+    expect(describeRangeChart([])).toBe('Range chart: no hands selected')
   })
 })
