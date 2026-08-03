@@ -17,6 +17,14 @@ const COLUMNS = 13
 const CELLS = COLUMNS * COLUMNS
 
 /**
+ * What the roving tab stop below does, in words, for the grids to hang off
+ * `aria-describedby`. The keys are worth having but invisible: a keyboard user
+ * lands on one cell out of 169 with no way to guess that anything but Tab works.
+ */
+export const HAND_GRID_KEY_HINT =
+  'Use the arrow keys to move between hands. Home and End jump to the ends of the row, Page Up and Page Down to the ends of the column.'
+
+/**
  * The cell index a key press moves to, or `null` when the key does not navigate.
  *
  * Movement clamps at the edges rather than wrapping: the matrix is a chart, and

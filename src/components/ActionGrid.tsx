@@ -1,6 +1,7 @@
+import { useId } from 'react'
 import { generateHandMatrix, type PokerHand } from '../domain/pokerHands'
 import { RANGE_ACTION_LABELS, type RangeAction } from '../types/range'
-import { useHandGridKeys } from './useHandGridKeys'
+import { HAND_GRID_KEY_HINT, useHandGridKeys } from './useHandGridKeys'
 import './ActionPalette.css'
 import './ActionGrid.css'
 
@@ -26,9 +27,22 @@ interface ActionGridProps {
  */
 export function ActionGrid({ handActions, onAssign }: ActionGridProps) {
   const { gridRef, focusedIndex, onKeyDown, onFocus } = useHandGridKeys()
+  const keysId = useId()
 
   return (
-    <div className="action-grid" ref={gridRef} onKeyDown={onKeyDown} onFocus={onFocus}>
+    <div
+      className="action-grid"
+      role="group"
+      aria-label="Starting hand action grid"
+      aria-describedby={keysId}
+      ref={gridRef}
+      onKeyDown={onKeyDown}
+      onFocus={onFocus}
+    >
+      {/* Out of flow (absolutely positioned), so it takes no cell in the grid. */}
+      <p id={keysId} className="coach-sr-only">
+        {HAND_GRID_KEY_HINT}
+      </p>
       {HANDS.map((hand, index) => {
         const action = handActions[hand]
         return (

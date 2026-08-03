@@ -57,6 +57,18 @@ describe('HandGrid rendering', () => {
 })
 
 describe('HandGrid keyboard navigation', () => {
+  it('names the grid and says how to move through it', () => {
+    render(<Harness />)
+
+    // Tab lands on one cell out of 169 inside an unnamed box: without a name
+    // there is nothing to say what was entered, and without the description
+    // nothing to say the arrow keys below are what moves within it.
+    const grid = screen.getByRole('group', { name: 'Starting hand grid' })
+    expect(grid).toHaveAccessibleDescription(/arrow keys to move between hands/i)
+    // The hint is out of the grid's flow, so it never eats a cell.
+    expect(grid.querySelectorAll('button')).toHaveLength(169)
+  })
+
   it('holds a single tab stop that follows focus', async () => {
     const user = userEvent.setup()
     render(<Harness />)

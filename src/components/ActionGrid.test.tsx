@@ -6,6 +6,16 @@ import type { PokerHand } from '../domain/pokerHands'
 import type { RangeAction } from '../types/range'
 
 describe('ActionGrid', () => {
+  it('names the grid and says how to move through it', () => {
+    render(<ActionGrid handActions={{}} onAssign={vi.fn()} />)
+
+    // Tab lands on one cell out of 169 inside an unnamed box: without a name
+    // there is nothing to say what was entered, and without the description
+    // nothing to say the arrow keys are what moves within it.
+    const grid = screen.getByRole('group', { name: 'Starting hand action grid' })
+    expect(grid).toHaveAccessibleDescription(/arrow keys to move between hands/i)
+  })
+
   it('renders all 169 hands, unassigned by default', () => {
     render(<ActionGrid handActions={{}} onAssign={vi.fn()} />)
     expect(screen.getAllByRole('button')).toHaveLength(169)

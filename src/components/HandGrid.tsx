@@ -1,8 +1,8 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import { generateHandMatrix } from '../domain/pokerHands'
 import type { PokerHand } from '../domain/pokerHands'
 import { HandCell } from './HandCell'
-import { useHandGridKeys } from './useHandGridKeys'
+import { HAND_GRID_KEY_HINT, useHandGridKeys } from './useHandGridKeys'
 import './HandGrid.css'
 
 /**
@@ -32,6 +32,7 @@ export function HandGrid({ selected, onSetSelected }: HandGridProps) {
   const draggingRef = useRef(false)
   const paintModeRef = useRef<'select' | 'deselect'>('select')
   const { gridRef, focusedIndex, onKeyDown, onFocus } = useHandGridKeys()
+  const keysId = useId()
 
   // A drag can end with the button released anywhere, so end it on a window-level
   // mouseup rather than relying on a mouseup landing on a specific cell.
@@ -76,10 +77,17 @@ export function HandGrid({ selected, onSetSelected }: HandGridProps) {
   return (
     <div
       className="hand-grid"
+      role="group"
+      aria-label="Starting hand grid"
+      aria-describedby={keysId}
       ref={gridRef}
       onKeyDown={onKeyDown}
       onFocus={onFocus}
     >
+      {/* Out of flow (absolutely positioned), so it takes no cell in the grid. */}
+      <p id={keysId} className="coach-sr-only">
+        {HAND_GRID_KEY_HINT}
+      </p>
       {HANDS.map((hand, index) => (
         <HandCell
           key={hand}

@@ -238,6 +238,23 @@ h3 {
   overflow-x: auto;
 }
 
+/**
+ * Text for screen readers only. Clipped rather than `display: none` or
+ * `visibility: hidden`, either of which would take it out of the accessibility
+ * tree along with the layout — which is the whole point of it.
+ */
+.coach-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .coach-shell *,
   .coach-shell *::before,
