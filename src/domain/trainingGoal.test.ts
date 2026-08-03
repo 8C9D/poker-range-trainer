@@ -10,11 +10,14 @@ function session(playedAt: string, totalQuestions: number): PracticeSessionRecor
 
 describe('evaluateDailyGoal', () => {
   it('counts only hands answered today', () => {
+    // Local wall-clock, because the goal buckets by local day: as UTC literals
+    // these two sessions fall on one day or two depending on the zone.
+    const localIso = (day: number, hour: number) => new Date(2026, 6, day, hour).toISOString()
     const history = {
-      r1: [session('2026-07-10T23:00:00.000Z', 30), session('2026-07-11T09:00:00.000Z', 12)],
+      r1: [session(localIso(10, 23), 30), session(localIso(11, 9), 12)],
     }
 
-    const progress = evaluateDailyGoal(history, NOW, 20)
+    const progress = evaluateDailyGoal(history, localIso(11, 12), 20)
 
     expect(progress.answered).toBe(12)
     expect(progress.remaining).toBe(8)

@@ -110,7 +110,10 @@ describe('summarizeWeek', () => {
 
 describe('dailyHandCounts', () => {
   it('returns seven zeroed days for empty history, ending today', () => {
-    const days = dailyHandCounts({}, NOW)
+    // Local wall-clock noon: the buckets are local days, so a UTC literal is a
+    // different date in a far enough zone and the window slides by one.
+    const localNoon = new Date(2026, 6, 11, 12).toISOString()
+    const days = dailyHandCounts({}, localNoon)
     expect(days).toHaveLength(7)
     expect(days.every((day) => day.handsAnswered === 0)).toBe(true)
     expect(new Date(days[6].dayStart).getDate()).toBe(11)
