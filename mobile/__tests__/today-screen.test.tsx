@@ -171,6 +171,30 @@ describe('TodayScreen', () => {
     expect(queryByTestId('goal-bar')).toBeNull();
     expect(loadTrainingGoal()).toBe(0);
   });
+
+  it('reports a goal change the device store refused', async () => {
+    seed('r1', 'UTG Open');
+    recordPracticeSessionHistory(
+      'r1',
+      { totalQuestions: 12, correctAnswers: 9 },
+      new Date().toISOString(),
+    );
+    saveTrainingGoal(20);
+
+    const user = userEvent.setup();
+    const { getByTestId } = await render(<TodayScreen />);
+    const failing = jest.spyOn(localStorageShim, 'setItem').mockImplementation(() => {
+      throw new Error('mmkv: no space left on device');
+    });
+
+    await user.press(getByTestId('goal-40'));
+
+    expect(getByTestId('goal-error')).toHaveTextContent(/storage is full or unavailable/);
+    // The old target stands: the card never claims a goal that was not saved.
+    expect(getByTestId('goal-line')).toHaveTextContent('12 of 20 hands — 8 to go.');
+    expect(loadTrainingGoal()).toBe(20);
+    failing.mockRestore();
+  });
 });
 
 describe('TodayScreen spot drill entry', () => {

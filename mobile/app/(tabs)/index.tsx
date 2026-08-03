@@ -101,6 +101,7 @@ export default function TodayScreen() {
   const styles = makeStyles(theme);
   const [state, setState] = useState(loadTodayState);
   const [starterError, setStarterError] = useState<string | null>(null);
+  const [goalError, setGoalError] = useState<string | null>(null);
   useFocusEffect(
     useCallback(() => {
       setState(loadTodayState());
@@ -142,7 +143,15 @@ export default function TodayScreen() {
   };
 
   const pickGoal = (target: number) => {
-    saveTrainingGoal(target);
+    // A throw here (full or unavailable store) would leave the picker showing a
+    // target nothing saved, so report it and keep the old one.
+    try {
+      saveTrainingGoal(target);
+    } catch (error) {
+      setGoalError(error instanceof Error ? error.message : 'Could not save the daily goal.');
+      return;
+    }
+    setGoalError(null);
     // The workout is sized to the goal, so reload the whole card state.
     setState(loadTodayState());
   };
@@ -340,6 +349,7 @@ export default function TodayScreen() {
                   })}
                 </View>
               </View>
+              <SaveErrorBanner error={goalError} testID="goal-error" />
               <Text testID="goal-line" style={styles.goalLine}>
                 {goalLine(goalProgress)}
               </Text>

@@ -71,6 +71,26 @@ describe('SharedPackScreen', () => {
     expect(mockSave).toHaveBeenCalledWith(expect.objectContaining({ id: 'new-id', name: 'BTN' }));
   });
 
+  it('reports an add the device store refused instead of confirming it', async () => {
+    mockGetClient.mockResolvedValue({ id: 'client' });
+    mockGetPack.mockResolvedValue(PACK);
+    mockSave.mockImplementation(() => {
+      throw new Error('Could not save: storage is full or unavailable.');
+    });
+
+    const user = userEvent.setup();
+    const { getByTestId, queryByTestId } = await render(<SharedPackScreen />);
+
+    await waitFor(() => expect(getByTestId('shared-pack-name')).toBeTruthy());
+    await user.press(getByTestId('shared-add-all'));
+
+    await waitFor(() =>
+      expect(getByTestId('shared-add-error')).toHaveTextContent(/storage is full or unavailable/),
+    );
+    expect(queryByTestId('shared-status')).toBeNull();
+    expect(getByTestId('shared-add-all')).toBeTruthy();
+  });
+
   it('shows not-found when the shared pack is missing', async () => {
     mockGetClient.mockResolvedValue({ id: 'client' });
     mockGetPack.mockResolvedValue(null);

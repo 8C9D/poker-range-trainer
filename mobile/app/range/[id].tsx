@@ -39,6 +39,7 @@ import {
 import { ActionsEditor } from '../../components/ActionsEditor';
 import { ComboExplorer } from '../../components/ComboExplorer';
 import { FrequenciesEditor } from '../../components/FrequenciesEditor';
+import { SaveErrorBanner, useLiveSave } from '../../components/liveSave';
 import { RangeEditor } from '../../components/RangeEditor';
 import { RangeStats } from '../../components/RangeStats';
 import { RangeThumbnail } from '../../components/RangeThumbnail';
@@ -100,6 +101,7 @@ export default function RangeScreen() {
   const { client, session, resolveUserId } = useMobileSession();
   const [publishedShareId, setPublishedShareId] = useState<string | null>(null);
   const [shareStatus, setShareStatus] = useState('');
+  const [actionError, runSave] = useLiveSave();
 
   const refresh = useCallback(() => {
     setRange(findSavedRangeById(id) ?? null);
@@ -130,20 +132,22 @@ export default function RangeScreen() {
 
   const chips = metadataChips(range);
 
+  // Each menu action persists first: a device store that is full or unavailable
+  // throws, and without this the menu item would just close having done nothing.
   const doDuplicate = () => {
     const copy = duplicateRange(range, createRangeId(), new Date().toISOString());
-    saveSavedRange(copy);
     setMenuOpen(false);
+    if (!runSave(() => saveSavedRange(copy))) return;
     router.replace({ pathname: '/range/[id]', params: { id: copy.id } });
   };
   const doToggleFavorite = () => {
-    saveSavedRange(setRangeFavorite(range, !range.favorite));
     setMenuOpen(false);
+    if (!runSave(() => saveSavedRange(setRangeFavorite(range, !range.favorite)))) return;
     refresh();
   };
   const doToggleArchive = () => {
-    saveSavedRange(setRangeArchived(range, !range.archived));
     setMenuOpen(false);
+    if (!runSave(() => saveSavedRange(setRangeArchived(range, !range.archived)))) return;
     refresh();
   };
   const copyText = (text: string, label: string) => {
@@ -179,7 +183,7 @@ export default function RangeScreen() {
         text: 'Delete',
         style: 'destructive',
         onPress: () => {
-          deleteSavedRange(range.id);
+          if (!runSave(() => deleteSavedRange(range.id))) return;
           router.replace('/library');
         },
       },
@@ -329,6 +333,7 @@ export default function RangeScreen() {
             {shareStatus}
           </Text>
         ) : null}
+        <SaveErrorBanner error={actionError} testID="range-action-error" />
 
         <Text style={styles.title}>{range.name || 'Untitled'}</Text>
         {chips.length > 0 ? (

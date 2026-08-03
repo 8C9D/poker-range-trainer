@@ -7,6 +7,7 @@ import { areValidHands } from '@core/domain/pokerHands';
 import type { RangePack } from '@core/domain/rangeTransfer';
 import { saveSavedRange } from '@core/storage/rangeStorage';
 
+import { SaveErrorBanner, useLiveSave } from '../../components/liveSave';
 import { Screen } from '../../components/Screen';
 import { createRangeId } from '../../platform/createRangeId';
 import { getMobileSupabaseClient } from '../../platform/supabaseClient';
@@ -34,6 +35,7 @@ export default function SharedPackScreen() {
   const [pack, setPack] = useState<RangePack | null>(null);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
+  const [addError, runSave] = useLiveSave();
 
   useEffect(() => {
     let active = true;
@@ -68,12 +70,17 @@ export default function SharedPackScreen() {
   const handleAddAll = useCallback(() => {
     if (!pack) return;
     const now = new Date().toISOString();
-    for (const range of pack.ranges) {
-      saveSavedRange({ ...range, id: createRangeId(), createdAt: now, updatedAt: now });
-    }
+    // Never confirm an add the device store refused: the button stays so the
+    // viewer can free space and retry.
+    const written = runSave(() => {
+      for (const range of pack.ranges) {
+        saveSavedRange({ ...range, id: createRangeId(), createdAt: now, updatedAt: now });
+      }
+    });
+    if (!written) return;
     const count = pack.ranges.length;
     setStatus(`Added ${count} range${count === 1 ? '' : 's'} to your library.`);
-  }, [pack]);
+  }, [pack, runSave]);
 
   return (
     <Screen>
@@ -114,6 +121,7 @@ export default function SharedPackScreen() {
                 {status}
               </Text>
             ) : null}
+            <SaveErrorBanner error={addError} testID="shared-add-error" />
           </>
         ) : (
           <Text testID="shared-not-found" style={styles.muted}>

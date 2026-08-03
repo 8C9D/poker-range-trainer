@@ -13,17 +13,20 @@ import { useTheme } from '../theme/colors';
  * on the next keystroke. Catching it keeps the editor on screen with its work
  * intact and puts the reason where the user can act on it.
  */
-export function useLiveSave(): [string | null, (save: () => void) => void] {
+export function useLiveSave(): [string | null, (save: () => void) => boolean] {
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // Returns whether the write landed, so a caller that navigates or refreshes on
+  // the back of a save only does so when there is something saved to show.
   const runSave = useCallback((save: () => void) => {
     try {
       save();
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'Could not save this range.');
-      return;
+      return false;
     }
     setSaveError(null);
+    return true;
   }, []);
 
   return [saveError, runSave];

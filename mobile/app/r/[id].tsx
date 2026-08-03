@@ -8,6 +8,7 @@ import { rangeComboPercentage } from '@core/domain/comboSelection';
 import { saveSavedRange } from '@core/storage/rangeStorage';
 import type { SavedRange } from '@core/types/range';
 
+import { SaveErrorBanner, useLiveSave } from '../../components/liveSave';
 import { Screen } from '../../components/Screen';
 import { createRangeId } from '../../platform/createRangeId';
 import { getMobileSupabaseClient } from '../../platform/supabaseClient';
@@ -36,6 +37,7 @@ export default function SharedRangeScreen() {
   const [range, setRange] = useState<SavedRange | null>(null);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
+  const [addError, runSave] = useLiveSave();
 
   useEffect(() => {
     let active = true;
@@ -66,9 +68,12 @@ export default function SharedRangeScreen() {
   const handleAdd = useCallback(() => {
     if (!range) return;
     const now = new Date().toISOString();
-    saveSavedRange({ ...range, id: createRangeId(), createdAt: now, updatedAt: now });
+    // Never confirm an add the device store refused: the button stays so the
+    // viewer can free space and retry.
+    if (!runSave(() => saveSavedRange({ ...range, id: createRangeId(), createdAt: now, updatedAt: now })))
+      return;
     setStatus('Added to your library.');
-  }, [range]);
+  }, [range, runSave]);
 
   return (
     <Screen>
@@ -109,6 +114,7 @@ export default function SharedRangeScreen() {
                 {status}
               </Text>
             ) : null}
+            <SaveErrorBanner error={addError} testID="shared-add-error" />
           </>
         ) : (
           <Text testID="shared-not-found" style={styles.muted}>

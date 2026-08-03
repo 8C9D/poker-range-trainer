@@ -59,6 +59,27 @@ describe('SharedRangeScreen', () => {
     );
   });
 
+  it('reports an add the device store refused instead of confirming it', async () => {
+    mockGetClient.mockResolvedValue({ id: 'client' });
+    mockGetShared.mockResolvedValue(SHARED);
+    mockSave.mockImplementation(() => {
+      throw new Error('Could not save: storage is full or unavailable.');
+    });
+
+    const user = userEvent.setup();
+    const { getByTestId, queryByTestId } = await render(<SharedRangeScreen />);
+
+    await waitFor(() => expect(getByTestId('shared-range-name')).toBeTruthy());
+    await user.press(getByTestId('shared-add'));
+
+    await waitFor(() =>
+      expect(getByTestId('shared-add-error')).toHaveTextContent(/storage is full or unavailable/),
+    );
+    expect(queryByTestId('shared-status')).toBeNull();
+    // The button stays, so the viewer can free space and retry.
+    expect(getByTestId('shared-add')).toBeTruthy();
+  });
+
   it('shows not-found when the shared range is missing', async () => {
     mockGetClient.mockResolvedValue({ id: 'client' });
     mockGetShared.mockResolvedValue(null);

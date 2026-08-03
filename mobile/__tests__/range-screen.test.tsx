@@ -150,6 +150,26 @@ describe('RangeScreen', () => {
     await waitFor(() => expect(loadSavedRanges()[0].favorite).toBe(true));
   });
 
+  it('reports a menu action the device store refused', async () => {
+    seed({ id: 'r1', name: 'UTG Open' });
+
+    const { getByTestId, findByTestId } = await render(<RangeScreen />);
+    fireEvent.press(getByTestId('range-menu-button'));
+    const failing = jest.spyOn(localStorageShim, 'setItem').mockImplementation(() => {
+      throw new Error('mmkv: no space left on device');
+    });
+    fireEvent.press(await findByTestId('menu-favorite'));
+
+    await waitFor(() =>
+      expect(getByTestId('range-action-error')).toHaveTextContent(
+        /storage is full or unavailable/,
+      ),
+    );
+    // The favorite never happened, so the stored range must be untouched.
+    expect(loadSavedRanges()[0].favorite).toBeUndefined();
+    failing.mockRestore();
+  });
+
   it('shows recent sessions in the overview', async () => {
     seed({ id: 'r1', name: 'UTG Open' });
     recordPracticeSessionHistory('r1', { totalQuestions: 10, correctAnswers: 9 }, '2026-06-01T00:00:00.000Z');
