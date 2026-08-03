@@ -33,7 +33,7 @@ export function MultiActionEditor({ handActions, onSetHandAction }: MultiActionE
         handActions={handActions}
         onAssign={(hand) => onSetHandAction(hand, selectedAction)}
       />
-      <div className="multi-action-summary" aria-label="Per-action percentages">
+      <div className="multi-action-summary" role="group" aria-label="Per-action percentages">
         {actionsInUse.length === 0 ? (
           <span className="multi-action-summary-empty">No actions assigned yet.</span>
         ) : (

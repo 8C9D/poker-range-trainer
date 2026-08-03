@@ -35,7 +35,7 @@ export function HandHeatmap({ accuracy }: HandHeatmapProps) {
           </li>
         ))}
       </ul>
-      <div className="hand-heatmap" aria-label="Accuracy heatmap">
+      <div className="hand-heatmap" role="group" aria-label="Accuracy heatmap">
         {HANDS.map((hand) => {
         const stat = accuracy[hand]
         const level = accuracyHeatLevel(stat)

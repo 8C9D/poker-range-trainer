@@ -29,7 +29,9 @@ export function ComboSelector({ hand, selection, onToggle }: ComboSelectorProps)
       <p className="combo-selector-count">
         {selected}/{combos.length} combos
       </p>
-      <div className="combo-selector-grid" aria-label={`Combos for ${hand}`}>
+      {/* A bare div maps to `generic`, which cannot carry a name — the role is
+          what makes "Combos for AA" reach a screen reader at all. */}
+      <div className="combo-selector-grid" role="group" aria-label={`Combos for ${hand}`}>
         {combos.map((combo) => {
           const key = comboKey(combo)
           const on = isComboSelected(selection, combo)

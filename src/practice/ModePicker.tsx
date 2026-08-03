@@ -39,7 +39,7 @@ export function ModePicker({ range, onPick }: ModePickerProps) {
   const hasEdge = rangeEdgeHands(range.hands).length > 0
 
   return (
-    <div className="mode-picker" aria-label="Choose practice mode">
+    <section className="mode-picker" aria-label="Choose practice mode">
       <h2>How do you want to train?</h2>
       <button type="button" className="mode-picker-option" onClick={() => onPick('recognize')}>
         <strong>Recognize hands</strong>
@@ -107,6 +107,6 @@ export function ModePicker({ range, onPick }: ModePickerProps) {
         <strong>Range vs board</strong>
         <span>Explore how this range hits a flop texture.</span>
       </button>
-    </div>
+    </section>
   )
 }

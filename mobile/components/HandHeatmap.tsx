@@ -39,8 +39,12 @@ function heatStyle(level: HeatLevel, theme: ThemeColors, isDark: boolean): { bg:
 export function HandHeatmap({ accuracy }: HandHeatmapProps) {
   const theme = useTheme();
   const isDark = theme === dark;
+  // No label on the grid itself: a View only carries one when it is
+  // `accessible`, and making it so would collapse all 169 cells into a single
+  // element and lose their per-hand labels. The "Accuracy heatmap" header above
+  // it is what names this.
   return (
-    <View style={styles.grid} accessibilityLabel="Accuracy heatmap">
+    <View style={styles.grid}>
       {HAND_MATRIX.map((row, rowIndex) => (
         <View key={rowIndex} style={styles.row}>
           {row.map((hand) => {
