@@ -51,6 +51,7 @@ export function TodayScreen({ onStartReview, onPlaySpots, onStartWorkout }: Toda
   const [workoutCompletion] = useState(() => loadWorkoutCompletion())
   const [goal, setGoal] = useState(() => loadTrainingGoal())
   const [starterError, setStarterError] = useState<string | null>(null)
+  const [goalError, setGoalError] = useState<string | null>(null)
 
   // The welcome card's shortcut past an empty library. Only reachable while there
   // are no ranges, so the whole pack goes in without the Account tab's top-up check.
@@ -257,7 +258,17 @@ export function TodayScreen({ onStartReview, onPlaySpots, onStartWorkout }: Toda
                   value={goal}
                   onChange={(event) => {
                     const next = Number(event.target.value)
-                    saveTrainingGoal(next)
+                    // A throw here (full or blocked store) would escape the click
+                    // handler and leave the picker showing a target nothing saved.
+                    try {
+                      saveTrainingGoal(next)
+                    } catch (error) {
+                      setGoalError(
+                        error instanceof Error ? error.message : 'Could not save the daily goal.',
+                      )
+                      return
+                    }
+                    setGoalError(null)
                     setGoal(next)
                   }}
                 >
@@ -270,6 +281,11 @@ export function TodayScreen({ onStartReview, onPlaySpots, onStartWorkout }: Toda
                 </select>
               </label>
             </div>
+            {goalError && (
+              <p className="today-cta-error" role="alert">
+                {goalError}
+              </p>
+            )}
             <p className="today-goal-line coach-tabular">{goalLine(goalProgress)}</p>
             {goal > 0 && (
               <div

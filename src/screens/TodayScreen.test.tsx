@@ -165,6 +165,28 @@ describe('TodayScreen', () => {
     expect(loadTrainingGoal()).toBe(10)
   })
 
+  it('reports a goal change the store refused instead of crashing', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange('a', 'UTG open'))
+    saveTrainingGoal(20)
+    render(<TodayScreen onStartReview={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError')
+    })
+
+    const card = screen.getByRole('region', { name: 'Daily goal' })
+    try {
+      await user.selectOptions(within(card).getByRole('combobox'), '40')
+    } finally {
+      spy.mockRestore()
+    }
+
+    expect(within(card).getByRole('alert')).toHaveTextContent(/storage is full or unavailable/)
+    // The old target stands: the picker never claims a goal that was not saved.
+    expect(within(card).getByText(/of 20 hands/)).toBeInTheDocument()
+    expect(loadTrainingGoal()).toBe(20)
+  })
+
   it('hides the progress bar when the goal is switched off', async () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'UTG open'))

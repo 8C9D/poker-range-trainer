@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { asMember, isNonNegativeFinite, readJson, writeJson } from './storageHelpers'
+import { asMember, isNonNegativeFinite, readJson, removeJson, writeJson } from './storageHelpers'
 
 describe('isNonNegativeFinite', () => {
   it('accepts zero and positive finite numbers', () => {
@@ -71,6 +71,18 @@ describe('readJson', () => {
     localStorage.setItem(KEY, JSON.stringify('hi'))
     expect(readJson(KEY)).toBe('hi')
   })
+
+  it('reads as empty when the store refuses access instead of taking the app down', () => {
+    const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('The operation is insecure.', 'SecurityError')
+    })
+
+    try {
+      expect(readJson(KEY)).toBeUndefined()
+    } finally {
+      spy.mockRestore()
+    }
+  })
 })
 
 describe('writeJson', () => {
@@ -96,6 +108,29 @@ describe('writeJson', () => {
         thrown = error
       }
       expect((thrown as Error).cause).toBe(quota)
+    } finally {
+      spy.mockRestore()
+    }
+  })
+})
+
+describe('removeJson', () => {
+  it('deletes the stored value', () => {
+    localStorage.setItem('helpers-remove-test', '1')
+
+    removeJson('helpers-remove-test')
+
+    expect(localStorage.getItem('helpers-remove-test')).toBeNull()
+  })
+
+  it('reports a store that refuses the delete the same way a failed save does', () => {
+    const blocked = new DOMException('The operation is insecure.', 'SecurityError')
+    const spy = vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+      throw blocked
+    })
+
+    try {
+      expect(() => removeJson('helpers-remove-test')).toThrow(/storage is full or unavailable/)
     } finally {
       spy.mockRestore()
     }

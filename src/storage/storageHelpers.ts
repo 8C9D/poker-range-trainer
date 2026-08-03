@@ -19,12 +19,24 @@ export function asMember<T extends string>(allowed: readonly T[], value: unknown
 /**
  * Read and JSON-parse the value stored at `key`.
  *
- * Returns `undefined` when the key is absent or the stored text is not valid
- * JSON, collapsing the "missing" and "corrupt" cases so callers only have to
- * validate the shape of the parsed value (not re-handle IO and parse errors).
+ * Returns `undefined` when the key is absent, unreadable, or the stored text is
+ * not valid JSON, collapsing those cases so callers only have to validate the
+ * shape of the parsed value (not re-handle IO and parse errors).
+ *
+ * Unreadable is not hypothetical: where site data is blocked outright (Chrome's
+ * "block all cookies", some embedded webviews), touching `localStorage` throws
+ * a `SecurityError`. Every screen reads storage as it mounts, so letting that
+ * escape took down the whole app behind an error boundary reading "The
+ * operation is insecure." Degrading to "nothing stored" keeps the app usable in
+ * memory instead, and writes still surface their own readable failure.
  */
 export function readJson(key: string): unknown {
-  const raw = localStorage.getItem(key)
+  let raw: string | null
+  try {
+    raw = localStorage.getItem(key)
+  } catch {
+    return undefined
+  }
   if (raw === null) return undefined
   try {
     return JSON.parse(raw)
@@ -49,9 +61,24 @@ export function writeJson(key: string, value: unknown): void {
   try {
     localStorage.setItem(key, JSON.stringify(value))
   } catch (error) {
-    throw new Error(
-      'Could not save: storage is full or unavailable. Export a backup, then delete some ranges to free space.',
-      { cause: error },
-    )
+    throw new Error(SAVE_FAILED, { cause: error })
   }
 }
+
+/**
+ * Delete the value at `key`.
+ *
+ * Clearing a setting is a save like any other, so a store that refuses the
+ * write reports the same readable failure rather than throwing a raw
+ * `SecurityError` out of a click handler.
+ */
+export function removeJson(key: string): void {
+  try {
+    localStorage.removeItem(key)
+  } catch (error) {
+    throw new Error(SAVE_FAILED, { cause: error })
+  }
+}
+
+const SAVE_FAILED =
+  'Could not save: storage is full or unavailable. Export a backup, then delete some ranges to free space.'
