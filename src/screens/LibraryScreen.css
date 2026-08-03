@@ -53,6 +53,12 @@
   background: var(--well);
 }
 
+.library-error {
+  margin: 0;
+  font-size: 14px;
+  color: var(--bad);
+}
+
 .library-empty h2 {
   margin: 0 0 4px;
   font-size: 18px;

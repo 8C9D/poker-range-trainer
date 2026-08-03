@@ -72,6 +72,8 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
   const [showArchived, setShowArchived] = useState(false)
   const [favoritesOnly, setFavoritesOnly] = useState(false)
   const [managing, setManaging] = useState(false)
+  // Why the last library write did not land, cleared by the next one that does.
+  const [actionError, setActionError] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
 
   // Both depend only on the mount-once library data, so memoize them instead of
@@ -139,9 +141,27 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
     (showArchived ? 1 : 0)
   const hasViewChanges = query.length > 0 || sort !== '' || activeFilterCount > 0
 
+  /**
+   * Run a storage write, reporting a failure instead of losing it. Every library
+   * action persists from a click handler, where a throw from a full or
+   * unavailable store escapes to nothing — the button just appears dead and the
+   * list silently keeps its old state. Returns whether the write landed, so
+   * callers only update the view when it did.
+   */
+  function persist(write: () => void): boolean {
+    try {
+      write()
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Could not save that change.')
+      return false
+    }
+    setActionError(null)
+    return true
+  }
+
   function addStarterRanges() {
     const starters = buildStarterRanges(new Date().toISOString(), createRangeId)
-    saveSavedRanges(starters)
+    if (!persist(() => saveSavedRanges(starters))) return
     setRanges(loadSavedRanges())
   }
 
@@ -180,6 +200,12 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
           </a>
         </div>
       </header>
+
+      {actionError && (
+        <p className="library-error" role="alert">
+          {actionError}
+        </p>
+      )}
 
       {ranges.length === 0 ? (
         <section className="coach-card library-empty" aria-label="Empty library">
@@ -262,9 +288,12 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
                     if (!visibleSelectedIds.has(range.id)) return range
                     return setRangeFavorite(range, nextFavorite)
                   })
-                  saveSavedRanges(
-                    nextRanges.filter((range) => visibleSelectedIds.has(range.id)),
+                  const saved = persist(() =>
+                    saveSavedRanges(
+                      nextRanges.filter((range) => visibleSelectedIds.has(range.id)),
+                    ),
                   )
+                  if (!saved) return
                   setRanges(nextRanges)
                   setSelectedIds(new Set())
                 }}
@@ -281,9 +310,12 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
                     if (!visibleSelectedIds.has(range.id)) return range
                     return setRangeArchived(range, nextArchived)
                   })
-                  saveSavedRanges(
-                    nextRanges.filter((range) => visibleSelectedIds.has(range.id)),
+                  const saved = persist(() =>
+                    saveSavedRanges(
+                      nextRanges.filter((range) => visibleSelectedIds.has(range.id)),
+                    ),
                   )
+                  if (!saved) return
                   setRanges(nextRanges)
                   setSelectedIds(new Set())
                 }}
@@ -302,7 +334,7 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
                   ) {
                     return
                   }
-                  deleteSavedRanges(visibleSelectedIds)
+                  if (!persist(() => deleteSavedRanges(visibleSelectedIds))) return
                   setRanges((current) =>
                     current.filter((range) => !visibleSelectedIds.has(range.id)),
                   )

@@ -250,6 +250,28 @@ describe('LibraryScreen', () => {
     );
   });
 
+  it('reports a bulk action that could not be saved and keeps the list honest', async () => {
+    seed({ id: 'r1', name: 'Keep' });
+    seed({ id: 'r2', name: 'Archive me' });
+
+    const { getByTestId, findByLabelText, findByText } = await render(<LibraryScreen />);
+    await fireEvent.press(getByTestId('manage-ranges'));
+    await fireEvent.press(await findByLabelText('Select Archive me'));
+    const failing = jest.spyOn(localStorageShim, 'setItem').mockImplementation(() => {
+      throw new Error('mmkv: no space left on device');
+    });
+    try {
+      await fireEvent.press(getByTestId('archive-selected'));
+
+      expect(await findByText(/storage is full or unavailable/)).toBeTruthy();
+      // The row must not vanish as though it archived: nothing was written.
+      expect(loadSavedRanges().some((range) => range.archived)).toBe(false);
+      expect(await findByText('Archive me')).toBeTruthy();
+    } finally {
+      failing.mockRestore();
+    }
+  });
+
   it('bulk favorites and unfavorites selected ranges', async () => {
     seed({ id: 'r1', name: 'Keep' });
     seed({ id: 'r2', name: 'Favorite me' });

@@ -295,6 +295,29 @@ describe('LibraryScreen', () => {
     expect(rowNames()).toEqual(['Keep', 'Archive one', 'Archive two'])
   })
 
+  it('reports a bulk action that could not be saved and keeps the list honest', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange('a', 'Keep'))
+    saveSavedRange(makeRange('b', 'Archive one'))
+    render(<LibraryScreen onPlaySpots={vi.fn()} />)
+
+    await user.click(screen.getByRole('button', { name: 'Manage' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select Archive one' }))
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError')
+    })
+    try {
+      await user.click(screen.getByRole('button', { name: 'Archive selected' }))
+
+      expect(screen.getByRole('alert')).toHaveTextContent(/storage is full or unavailable/)
+      // The row must not disappear as though it archived: nothing was written.
+      expect(rowNames()).toEqual(['Keep', 'Archive one'])
+      expect(loadSavedRanges().some((range) => range.archived)).toBe(false)
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
   it('bulk favorites and unfavorites selected ranges', async () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'Keep'))

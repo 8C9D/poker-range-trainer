@@ -40,6 +40,7 @@ import {
   type SavedRange,
 } from '@core/types/range';
 
+import { SaveErrorBanner } from '../../components/liveSave';
 import { RangeThumbnail } from '../../components/RangeThumbnail';
 import { Screen } from '../../components/Screen';
 import { SpotCoverage } from '../../components/SpotCoverage';
@@ -101,6 +102,8 @@ export default function LibraryScreen() {
   const [showArchived, setShowArchived] = useState(false);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [managing, setManaging] = useState(false);
+  // Why the last library write did not land, cleared by the next one that does.
+  const [actionError, setActionError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
 
   const stackOptions = useMemo<SegmentedOption<number>[]>(
@@ -192,8 +195,26 @@ export default function LibraryScreen() {
     (showArchived ? 1 : 0);
   const hasViewChanges = query.length > 0 || sort !== undefined || activeFilterCount > 0;
 
+  /**
+   * Run a storage write, reporting a failure instead of losing it. Every library action
+   * persists from a press handler, where a throw from a full device store escapes to
+   * nothing — the button just appears dead and the list silently keeps its old state.
+   * Returns whether the write landed, so callers only update the view when it did.
+   */
+  const persist = (write: () => void): boolean => {
+    try {
+      write();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Could not save that change.');
+      return false;
+    }
+    setActionError(null);
+    return true;
+  };
+
   const addStarterRanges = () => {
-    saveSavedRanges(buildStarterRanges(new Date().toISOString(), createRangeId));
+    if (!persist(() => saveSavedRanges(buildStarterRanges(new Date().toISOString(), createRangeId))))
+      return;
     setData(loadLibraryState());
   };
 
@@ -239,6 +260,8 @@ export default function LibraryScreen() {
         </View>
       </View>
 
+      <SaveErrorBanner error={actionError} testID="library-error" />
+
       {ranges.length === 0 ? null : (
         <>
           {managing ? (
@@ -277,9 +300,12 @@ export default function LibraryScreen() {
                     if (!visibleSelectedIds.has(range.id)) return range;
                     return setRangeFavorite(range, nextFavorite);
                   });
-                  saveSavedRanges(
-                    nextRanges.filter((range) => visibleSelectedIds.has(range.id)),
+                  const saved = persist(() =>
+                    saveSavedRanges(
+                      nextRanges.filter((range) => visibleSelectedIds.has(range.id)),
+                    ),
                   );
+                  if (!saved) return;
                   setData((current) => ({ ...current, ranges: nextRanges }));
                   setSelectedIds(new Set());
                 }}
@@ -300,9 +326,12 @@ export default function LibraryScreen() {
                     if (!visibleSelectedIds.has(range.id)) return range;
                     return setRangeArchived(range, nextArchived);
                   });
-                  saveSavedRanges(
-                    nextRanges.filter((range) => visibleSelectedIds.has(range.id)),
+                  const saved = persist(() =>
+                    saveSavedRanges(
+                      nextRanges.filter((range) => visibleSelectedIds.has(range.id)),
+                    ),
                   );
+                  if (!saved) return;
                   setData((current) => ({ ...current, ranges: nextRanges }));
                   setSelectedIds(new Set());
                 }}
@@ -325,7 +354,7 @@ export default function LibraryScreen() {
                         text: 'Delete',
                         style: 'destructive',
                         onPress: () => {
-                          deleteSavedRanges(visibleSelectedIds);
+                          if (!persist(() => deleteSavedRanges(visibleSelectedIds))) return;
                           setData((current) => ({
                             ...current,
                             ranges: current.ranges.filter(
