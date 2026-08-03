@@ -70,7 +70,7 @@
   gap: 8px;
 }
 
-.today-due h3 {
+.today-due h2 {
   margin: 0 0 10px;
   font-size: 15px;
 }
@@ -159,7 +159,7 @@
   gap: 12px;
 }
 
-.today-goal-head h3 {
+.today-goal-head h2 {
   margin: 0;
   font-size: 15px;
 }

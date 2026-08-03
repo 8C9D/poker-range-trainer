@@ -219,7 +219,7 @@ export function TodayScreen({ onStartReview, onPlaySpots, onStartWorkout }: Toda
 
           {due.length > 0 && (
             <section className="coach-card today-due" aria-label="Due now">
-              <h3>Due now</h3>
+              <h2>Due now</h2>
               <ul className="today-due-list">
                 {due.map((range) => {
                   const stats = practiceStats[range.id]
@@ -250,7 +250,7 @@ export function TodayScreen({ onStartReview, onPlaySpots, onStartWorkout }: Toda
 
           <section className="coach-card today-goal" aria-label="Daily goal">
             <div className="today-goal-head">
-              <h3>Daily goal</h3>
+              <h2>Daily goal</h2>
               <label className="today-goal-picker">
                 <select
                   className="coach-input"

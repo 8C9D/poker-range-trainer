@@ -250,7 +250,7 @@ export function AccountScreen() {
       <h1>Account</h1>
 
       <section className="coach-card account-section" aria-label="Cloud">
-        <h3>Cloud</h3>
+        <h2>Cloud</h2>
         {!auth.isCloudConfigured && (
           <p className="account-note">
             Running local-only: your ranges and stats live in this browser. Use the backups below
@@ -295,7 +295,7 @@ export function AccountScreen() {
       </section>
 
       <section className="coach-card account-section" aria-label="Data">
-        <h3>Data</h3>
+        <h2>Data</h2>
         <p className="account-note">
           Backups include everything: ranges, stats, history, review schedules, and your daily
           goal.

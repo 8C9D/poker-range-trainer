@@ -68,7 +68,7 @@ export function SpotCoverage({ ranges, onPlaySpots }: SpotCoverageProps) {
   return (
     <section className="coach-card spot-coverage" aria-label="Spot coverage">
       <div className="spot-coverage-header">
-        <h3>Spot coverage</h3>
+        <h2>Spot coverage</h2>
         <div className="spot-coverage-controls">
           <select
             className="coach-input"

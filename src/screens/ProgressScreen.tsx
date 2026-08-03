@@ -115,7 +115,7 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
       </section>
 
       <section className="coach-card" aria-label="Hands answered this week">
-        <h3>Hands answered this week</h3>
+        <h2>Hands answered this week</h2>
         {weekHasData ? (
           <ul className="progress-chart">
             {days.map((day, index) => {
@@ -156,7 +156,7 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
       </section>
 
       <section className="coach-card" aria-label="Accuracy by week">
-        <h3>Accuracy by week</h3>
+        <h2>Accuracy by week</h2>
         {trendHasData ? (
           <ul className="progress-chart">
             {trend.map((point, index) => {
@@ -197,7 +197,7 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
       </section>
 
       <section className="coach-card" aria-label="Library analytics">
-        <h3>Across your library</h3>
+        <h2>Across your library</h2>
         <p className="progress-analytics coach-tabular">
           {analytics.rangesPracticed} range{analytics.rangesPracticed === 1 ? '' : 's'} practiced
           · {analytics.totalCorrect} of {analytics.totalAttempts} correct ·{' '}
@@ -206,7 +206,7 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
       </section>
 
       <section className="coach-card" aria-label="Accuracy by seat and action">
-        <h3>Where you leak</h3>
+        <h2>Where you leak</h2>
         {seatGroups.length === 0 && actionGroups.length === 0 ? (
           <p className="progress-empty">
             Practice ranges that record a position or an action and this will show which seats
@@ -222,7 +222,7 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
 
       {spotLeaks.length > 0 && (
         <section className="coach-card" aria-label="Weakest spots">
-          <h3>Weakest spots</h3>
+          <h2>Weakest spots</h2>
           <ul className="progress-spot-list">
             {spotLeaks.slice(0, 5).map((leak) => (
               <li key={spotKey(leak.spot)} className="progress-spot-row">
@@ -247,7 +247,7 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
       )}
 
       <section className="coach-card" aria-label="Leaks by hand type">
-        <h3>Leaks by hand type</h3>
+        <h2>Leaks by hand type</h2>
         {leaks.length === 0 ? (
           <p className="progress-empty">
             Practice a little more and the hand types you miss most will show up here.
@@ -280,7 +280,7 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
 
       <section className="coach-card" aria-label="Weakest hands">
         <div className="progress-weak-header">
-          <h3>Weakest hands</h3>
+          <h2>Weakest hands</h2>
           {weakHands.length > 0 && (
             <button type="button" className="coach-btn primary" onClick={drillWeakHands}>
               Drill these
@@ -336,7 +336,7 @@ function LeakColumn<T extends string>({
   if (groups.length === 0) return null
   return (
     <div className="progress-seat-column">
-      <h4 className="progress-seat-heading">{heading}</h4>
+      <h3 className="progress-seat-heading">{heading}</h3>
       <ul className="progress-seat-list">
         {groups.map((group) => (
           <li key={group.key} className="progress-seat-row">
