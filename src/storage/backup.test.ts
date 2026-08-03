@@ -4,6 +4,7 @@ import { saveSavedRange } from './rangeStorage'
 import { loadSavedRanges } from './rangeStorage'
 import { ACTION_ACCURACY_STORAGE_KEY } from './actionAccuracyStorage'
 import { loadSpotAccuracy, recordSpotAccuracy } from './spotAccuracyStorage'
+import { loadTrainingGoal, saveTrainingGoal } from './trainingGoalStorage'
 import {
   BACKUP_VERSION,
   type Backup,
@@ -42,6 +43,7 @@ describe('buildBackup', () => {
       sessionHistory: {},
       reviewStates: {},
       spotAccuracy: {},
+      trainingGoal: 0,
     })
   })
 
@@ -196,6 +198,52 @@ describe('per-spot accuracy in a backup', () => {
     // A restore replaces the library wholesale, so an older file leaves no
     // stale spot record pointing at a library that is no longer there.
     expect(loadSpotAccuracy()).toEqual({})
+  })
+
+  it('carries and restores the daily goal, so a restored device keeps the target', () => {
+    saveTrainingGoal(40)
+
+    const snapshot = parseBackup(serializeBackup(buildBackup('2026-06-08T00:00:00.000Z')))
+    expect(snapshot.trainingGoal).toBe(40)
+    localStorage.clear()
+    restoreBackup(snapshot)
+
+    expect(loadTrainingGoal()).toBe(40)
+  })
+
+  it('clears the goal when restoring a file written before the field existed', () => {
+    saveTrainingGoal(40)
+    const older = {
+      version: BACKUP_VERSION,
+      exportedAt: '2026-06-08T00:00:00.000Z',
+      ranges: [],
+      practiceStats: {},
+      handAccuracy: {},
+      actionAccuracy: {},
+      sessionHistory: {},
+      reviewStates: {},
+    }
+
+    restoreBackup(parseBackup(JSON.stringify(older)))
+
+    // A restore replaces the library wholesale rather than merging into it.
+    expect(loadTrainingGoal()).toBe(0)
+  })
+
+  it('rejects a file whose trainingGoal is not a number', () => {
+    const broken = {
+      version: BACKUP_VERSION,
+      exportedAt: '2026-06-08T00:00:00.000Z',
+      ranges: [],
+      practiceStats: {},
+      handAccuracy: {},
+      actionAccuracy: {},
+      sessionHistory: {},
+      reviewStates: {},
+      trainingGoal: '40',
+    }
+
+    expect(() => parseBackup(JSON.stringify(broken))).toThrow(/trainingGoal/)
   })
 
   it('rejects a file whose spotAccuracy is not an object', () => {

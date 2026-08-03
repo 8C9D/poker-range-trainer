@@ -297,7 +297,8 @@ export function AccountScreen() {
       <section className="coach-card account-section" aria-label="Data">
         <h3>Data</h3>
         <p className="account-note">
-          Backups include everything: ranges, stats, history, and review schedules.
+          Backups include everything: ranges, stats, history, review schedules, and your daily
+          goal.
         </p>
         <div className="account-actions">
           <button type="button" className="coach-btn" onClick={handleExportBackup}>

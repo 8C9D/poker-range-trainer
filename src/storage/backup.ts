@@ -14,6 +14,7 @@ import { ACTION_ACCURACY_STORAGE_KEY, loadActionAccuracy } from './actionAccurac
 import { SESSION_HISTORY_STORAGE_KEY, loadSessionHistory } from './sessionHistoryStorage'
 import { REVIEW_STATE_STORAGE_KEY, loadReviewStates } from './reviewStateStorage'
 import { SPOT_ACCURACY_STORAGE_KEY, loadSpotAccuracy } from './spotAccuracyStorage'
+import { TRAINING_GOAL_STORAGE_KEY, loadTrainingGoal } from './trainingGoalStorage'
 
 /** Current backup-file schema version. Bump when the shape changes incompatibly. */
 export const BACKUP_VERSION = 1
@@ -39,6 +40,14 @@ export interface Backup {
    * empty map a fresh install has.
    */
   spotAccuracy?: Record<string, SpotAccuracyStat>
+  /**
+   * The daily hands target, or 0 for "no goal". OPTIONAL for the same reason as
+   * `spotAccuracy`: files written before the field existed still have to import.
+   * It is a setting rather than earned data, but the Account screen promises a
+   * backup carries everything, and re-picking it on a restored device is exactly
+   * the small loss a backup exists to prevent.
+   */
+  trainingGoal?: number
 }
 
 /**
@@ -56,6 +65,7 @@ export function buildBackup(exportedAt: string = new Date().toISOString()): Back
     sessionHistory: loadSessionHistory(),
     reviewStates: loadReviewStates(),
     spotAccuracy: loadSpotAccuracy(),
+    trainingGoal: loadTrainingGoal(),
   }
 }
 
@@ -101,9 +111,12 @@ export function parseBackup(json: string): Backup {
       throw new Error(`Backup file is missing its ${field} data.`)
     }
   }
-  // Optional, so only its shape is checked when the file carries it at all.
+  // Optional, so only their shape is checked when the file carries them at all.
   if (parsed.spotAccuracy !== undefined && !isPlainObject(parsed.spotAccuracy)) {
     throw new Error('Backup file is missing its spotAccuracy data.')
+  }
+  if (parsed.trainingGoal !== undefined && typeof parsed.trainingGoal !== 'number') {
+    throw new Error('Backup file has an unreadable trainingGoal.')
   }
   return parsed as unknown as Backup
 }
@@ -130,6 +143,9 @@ export function restoreBackup(backup: Backup): void {
     // A file without the field replaces the local record with nothing, the same
     // as every other slice: a restore is the whole library, not a merge.
     [SPOT_ACCURACY_STORAGE_KEY, JSON.stringify(backup.spotAccuracy ?? {})],
+    // 0 reads back as "no goal", so a file without the field clears the target
+    // like every other slice a restore replaces.
+    [TRAINING_GOAL_STORAGE_KEY, JSON.stringify(backup.trainingGoal ?? 0)],
   ]
   const previous = entries.map(([key]) => [key, localStorage.getItem(key)] as const)
   try {
