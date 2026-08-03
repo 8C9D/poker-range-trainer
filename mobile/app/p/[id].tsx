@@ -5,7 +5,7 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { getSharedPack } from '@core/cloud/sharedPacksRepo';
 import { areValidHands } from '@core/domain/pokerHands';
 import type { RangePack } from '@core/domain/rangeTransfer';
-import { saveSavedRange } from '@core/storage/rangeStorage';
+import { saveSavedRanges } from '@core/storage/rangeStorage';
 
 import { SaveErrorBanner, useLiveSave } from '../../components/liveSave';
 import { Screen } from '../../components/Screen';
@@ -72,11 +72,17 @@ export default function SharedPackScreen() {
     const now = new Date().toISOString();
     // Never confirm an add the device store refused: the button stays so the
     // viewer can free space and retry.
-    const written = runSave(() => {
-      for (const range of pack.ranges) {
-        saveSavedRange({ ...range, id: createRangeId(), createdAt: now, updatedAt: now });
-      }
-    });
+    // ONE write, so a refusal cannot leave part of the pack behind.
+    const written = runSave(() =>
+      saveSavedRanges(
+        pack.ranges.map((range) => ({
+          ...range,
+          id: createRangeId(),
+          createdAt: now,
+          updatedAt: now,
+        })),
+      ),
+    );
     if (!written) return;
     const count = pack.ranges.length;
     setStatus(`Added ${count} range${count === 1 ? '' : 's'} to your library.`);

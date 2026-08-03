@@ -3,9 +3,9 @@ import { SharedRangePage } from './components/SharedRangePage'
 import { SharedPackPage } from './components/SharedPackPage'
 import { parsePackShareRoute, parseShareRoute } from './domain/shareRoute'
 import { decodeRangeFromHash } from './domain/rangeTransfer'
-import { loadSavedRanges, saveSavedRange } from './storage/rangeStorage'
+import { loadSavedRanges } from './storage/rangeStorage'
 import { AppShell } from './app/AppShell'
-import { createRangeId } from './app/ids'
+import { forkSharedPack, forkSharedRange } from './app/forkShared'
 import { routeHash, useHashRoute } from './app/routes'
 import { useBackToClose } from './app/useBackToClose'
 import type { PracticeRequest } from './practice/PracticeHost'
@@ -45,10 +45,7 @@ function importSharedRangeFromHash() {
   if (!match) return
   let landing = ''
   try {
-    const shared = decodeRangeFromHash(match[1])
-    const now = new Date().toISOString()
-    const id = createRangeId()
-    saveSavedRange({ ...shared, id, createdAt: now, updatedAt: now })
+    const id = forkSharedRange(decodeRangeFromHash(match[1]))
     landing = routeHash({ screen: 'range', id, tab: 'overview' })
   } catch (error) {
     window.alert(error instanceof Error ? error.message : 'Could not open shared range.')
@@ -71,11 +68,7 @@ function App() {
       <SharedRangePage
         id={shareRoute.id}
         token={shareRoute.token}
-        onForkRange={(range) => {
-          // Fork: save the shared range into the local library as a new range.
-          const now = new Date().toISOString()
-          saveSavedRange({ ...range, id: createRangeId(), createdAt: now, updatedAt: now })
-        }}
+        onForkRange={forkSharedRange}
       />
     )
   }
@@ -88,14 +81,7 @@ function App() {
       <SharedPackPage
         id={packRoute.id}
         token={packRoute.token}
-        onForkPack={(pack) => {
-          // Fork: save every range in the pack locally as a NEW range, minting a
-          // fresh id for each so a shared id never clobbers an existing range.
-          const now = new Date().toISOString()
-          for (const range of pack.ranges) {
-            saveSavedRange({ ...range, id: createRangeId(), createdAt: now, updatedAt: now })
-          }
-        }}
+        onForkPack={forkSharedPack}
       />
     )
   }

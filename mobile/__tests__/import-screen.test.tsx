@@ -48,6 +48,25 @@ describe('ImportScreen', () => {
     expect(getByTestId('import-status')).toHaveTextContent('Added "UTG Open" to your library.');
   });
 
+  it('reports an add the device store refused instead of confirming it', async () => {
+    params.range = encodeRangeToHash(RANGE);
+    mockSave.mockImplementation(() => {
+      throw new Error('Could not save: storage is full or unavailable.');
+    });
+
+    const user = userEvent.setup();
+    const { getByTestId, queryByTestId } = await render(<ImportScreen />);
+
+    await user.press(getByTestId('import-add'));
+
+    await waitFor(() =>
+      expect(getByTestId('import-save-error')).toHaveTextContent(/storage is full or unavailable/),
+    );
+    // Without this the button did nothing and said nothing, and the range was
+    // simply not in the library later.
+    expect(queryByTestId('import-status')).toBeNull();
+  });
+
   it('imports a pasted web share link', async () => {
     const link = `https://example.com/app/#range=${encodeRangeToHash(RANGE)}`;
 

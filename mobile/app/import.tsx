@@ -8,6 +8,7 @@ import { decodeRangeFromHash } from '@core/domain/rangeTransfer';
 import { saveSavedRange } from '@core/storage/rangeStorage';
 import type { SavedRange } from '@core/types/range';
 
+import { SaveErrorBanner, useLiveSave } from '../components/liveSave';
 import { RangeThumbnail } from '../components/RangeThumbnail';
 import { Screen } from '../components/Screen';
 import { extractSharedRangeHash } from '../lib/shareLink';
@@ -49,6 +50,7 @@ export default function ImportScreen() {
   const [pasted, setPasted] = useState('');
   const [decoded, setDecoded] = useState(() => (linked ? decodeLink(linked) : null));
   const [status, setStatus] = useState('');
+  const [addError, runSave] = useLiveSave();
 
   const range = decoded?.range ?? null;
 
@@ -60,7 +62,15 @@ export default function ImportScreen() {
   const handleAdd = () => {
     if (!range) return;
     const now = new Date().toISOString();
-    saveSavedRange({ ...range, id: createRangeId(), createdAt: now, updatedAt: now });
+    // Never confirm an add the device store refused: without this the button
+    // did nothing and said nothing, and the range was simply not there later.
+    const written = runSave(() =>
+      saveSavedRange({ ...range, id: createRangeId(), createdAt: now, updatedAt: now }),
+    );
+    if (!written) {
+      setStatus('');
+      return;
+    }
     setStatus(`Added "${range.name || 'Untitled'}" to your library.`);
   };
 
@@ -115,6 +125,8 @@ export default function ImportScreen() {
             <Text style={styles.primaryBtnText}>Add to my library</Text>
           </Pressable>
         ) : null}
+
+        <SaveErrorBanner error={addError} testID="import-save-error" />
 
         {status ? (
           <Text testID="import-status" style={styles.status}>
