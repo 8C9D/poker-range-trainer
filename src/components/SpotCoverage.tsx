@@ -119,7 +119,7 @@ export function SpotCoverage({ ranges, onPlaySpots }: SpotCoverageProps) {
         )}
       </div>
 
-      <div className="spot-coverage-scroll">
+      <div className="coach-table-scroll">
         <table className="spot-coverage-table">
           <thead>
             <tr>

@@ -91,3 +91,37 @@ describe('coach-btn variants', () => {
     expect(unstyled).toEqual([])
   })
 })
+
+/**
+ * A table of tabular columns has a hard minimum width. Left bare in a card it
+ * does not shrink on a phone — it widens its card past the viewport and the
+ * whole page scrolls sideways, which is how the Library's spot map, the
+ * Progress screen's weakest hands, and the range Stats tables all behaved at
+ * 390px. `.coach-table-scroll` confines that scrolling to the table itself, and
+ * this keeps the next table from forgetting it. Layout is invisible to jsdom,
+ * so the invariant is checked in the markup.
+ */
+describe('wide tables', () => {
+  it('wraps every table in a horizontal scroll container', () => {
+    const unwrapped: string[] = []
+    let tables = 0
+    for (const file of filesUnder(SRC, '.tsx')) {
+      if (file.includes('.test.')) continue
+      const lines = readFileSync(file, 'utf8').split('\n')
+      lines.forEach((line, index) => {
+        if (!line.includes('<table')) return
+        tables += 1
+        const previous = lines
+          .slice(0, index)
+          .reverse()
+          .find((candidate) => candidate.trim() !== '')
+        if (!previous?.includes('coach-table-scroll')) {
+          unwrapped.push(`${file.slice(SRC.length)}:${index + 1}`)
+        }
+      })
+    }
+    // Guards the guard: an empty sweep would pass no matter what the JSX says.
+    expect(tables).toBeGreaterThanOrEqual(5)
+    expect(unwrapped).toEqual([])
+  })
+})

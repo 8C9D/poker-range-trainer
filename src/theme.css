@@ -229,6 +229,15 @@ h3 {
   font-variant-numeric: tabular-nums;
 }
 
+/**
+ * Wrapper for any table too wide for a phone. Columns of tabular text have a
+ * hard minimum width, so without this the table drags the whole page sideways
+ * instead of scrolling inside its own card.
+ */
+.coach-table-scroll {
+  overflow-x: auto;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .coach-shell *,
   .coach-shell *::before,

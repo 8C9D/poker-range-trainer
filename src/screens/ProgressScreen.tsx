@@ -290,28 +290,30 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
         {weakHands.length === 0 ? (
           <p className="progress-empty">No recorded misses yet — they will show up here.</p>
         ) : (
-          <table className="progress-weak-table coach-tabular">
-            <thead>
-              <tr>
-                <th scope="col">Hand</th>
-                <th scope="col">Range</th>
-                <th scope="col">Record</th>
-                <th scope="col">Accuracy</th>
-              </tr>
-            </thead>
-            <tbody>
-              {weakHands.map((entry) => (
-                <tr key={`${entry.rangeId}-${entry.hand}`}>
-                  <td>{entry.hand}</td>
-                  <td className="progress-weak-range">{rangeName(entry.rangeId)}</td>
-                  <td>
-                    {entry.correct}/{entry.attempts}
-                  </td>
-                  <td>{entry.accuracy.toFixed(0)}%</td>
+          <div className="coach-table-scroll">
+            <table className="progress-weak-table coach-tabular">
+              <thead>
+                <tr>
+                  <th scope="col">Hand</th>
+                  <th scope="col">Range</th>
+                  <th scope="col">Record</th>
+                  <th scope="col">Accuracy</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {weakHands.map((entry) => (
+                  <tr key={`${entry.rangeId}-${entry.hand}`}>
+                    <td>{entry.hand}</td>
+                    <td className="progress-weak-range">{rangeName(entry.rangeId)}</td>
+                    <td>
+                      {entry.correct}/{entry.attempts}
+                    </td>
+                    <td>{entry.accuracy.toFixed(0)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
     </div>

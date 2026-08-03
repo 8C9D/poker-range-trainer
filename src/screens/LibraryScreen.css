@@ -111,6 +111,10 @@
 
 .library-list-item .library-row {
   flex: 1;
+  /* Without this the row's automatic minimum size is its content's min-content
+     width, so a long range name pushes the row past the phone viewport and the
+     whole page scrolls sideways. The name already ellipsizes once it can shrink. */
+  min-width: 0;
 }
 
 .library-row-select {

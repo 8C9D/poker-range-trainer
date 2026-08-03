@@ -8,6 +8,11 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  /* The buttons never shrink, so a heading plus two of them is wider than a
+     phone; without wrapping the extra width falls out of the card and scrolls
+     the page sideways. */
+  flex-wrap: wrap;
+  row-gap: 8px;
 }
 
 .practice-header h2 {

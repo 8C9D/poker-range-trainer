@@ -77,25 +77,27 @@ export function RangeVsBoard({ hands }: RangeVsBoardProps) {
           <p className="range-vs-board-combos">
             {result.comboCount} combos remaining (after removing board cards)
           </p>
-          <table className="range-vs-board-table">
-            <thead>
-              <tr>
-                <th>Category</th>
-                <th>Combos</th>
-              </tr>
-            </thead>
-            <tbody>
-              {HAND_CATEGORIES.map((category) => (
-                <tr
-                  key={category}
-                  className={result.tally[category] === 0 ? 'is-zero' : undefined}
-                >
-                  <td>{CATEGORY_LABELS[category]}</td>
-                  <td>{result.tally[category]}</td>
+          <div className="coach-table-scroll">
+            <table className="range-vs-board-table">
+              <thead>
+                <tr>
+                  <th>Category</th>
+                  <th>Combos</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {HAND_CATEGORIES.map((category) => (
+                  <tr
+                    key={category}
+                    className={result.tally[category] === 0 ? 'is-zero' : undefined}
+                  >
+                    <td>{CATEGORY_LABELS[category]}</td>
+                    <td>{result.tally[category]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

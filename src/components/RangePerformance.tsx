@@ -69,78 +69,86 @@ export function RangePerformance({
         <>
           <h3 className="practice-review-heading">Accuracy heatmap</h3>
           <HandHeatmap accuracy={accuracy} />
-          <table className="hand-accuracy-table" aria-label="Per-hand accuracy">
-            <thead>
-              <tr>
-                <th scope="col">Hand</th>
-                <th scope="col">Accuracy</th>
-                <th scope="col">Attempts</th>
-                <th scope="col">Missed</th>
-                <th scope="col">Wrongly included</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ranked.map((stat) => (
-                <tr key={stat.hand}>
-                  <td>{stat.hand}</td>
-                  <td>{handAccuracyRate(stat).toFixed(0)}%</td>
-                  <td>{stat.attempts}</td>
-                  <td>{stat.falseNegatives}</td>
-                  <td>{stat.falsePositives}</td>
+          <div className="coach-table-scroll">
+            <table className="hand-accuracy-table" aria-label="Per-hand accuracy">
+              <thead>
+                <tr>
+                  <th scope="col">Hand</th>
+                  <th scope="col">Accuracy</th>
+                  <th scope="col">Attempts</th>
+                  <th scope="col">Missed</th>
+                  <th scope="col">Wrongly included</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {ranked.map((stat) => (
+                  <tr key={stat.hand}>
+                    <td>{stat.hand}</td>
+                    <td>{handAccuracyRate(stat).toFixed(0)}%</td>
+                    <td>{stat.attempts}</td>
+                    <td>{stat.falseNegatives}</td>
+                    <td>{stat.falsePositives}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
 
       {actionRows.length > 0 && (
         <>
           <h3 className="practice-review-heading">Per-action accuracy</h3>
-          <table className="hand-accuracy-table" aria-label="Per-action accuracy">
-            <thead>
-              <tr>
-                <th scope="col">Action</th>
-                <th scope="col">Accuracy</th>
-                <th scope="col">Attempts</th>
-              </tr>
-            </thead>
-            <tbody>
-              {actionRows.map((stat) => (
-                <tr key={stat.action}>
-                  <td>{RANGE_ACTION_LABELS[stat.action]}</td>
-                  <td>{actionAccuracyRate(stat).toFixed(0)}%</td>
-                  <td>{stat.attempts}</td>
+          <div className="coach-table-scroll">
+            <table className="hand-accuracy-table" aria-label="Per-action accuracy">
+              <thead>
+                <tr>
+                  <th scope="col">Action</th>
+                  <th scope="col">Accuracy</th>
+                  <th scope="col">Attempts</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {actionRows.map((stat) => (
+                  <tr key={stat.action}>
+                    <td>{RANGE_ACTION_LABELS[stat.action]}</td>
+                    <td>{actionAccuracyRate(stat).toFixed(0)}%</td>
+                    <td>{stat.attempts}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
 
       {history.length > 0 && (
         <>
           <h3 className="practice-review-heading">Session history</h3>
-          <table className="hand-accuracy-table" aria-label="Session history">
-            <thead>
-              <tr>
-                <th scope="col">Date</th>
-                <th scope="col">Score</th>
-                <th scope="col">Accuracy</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentSessions.map((record, index) => (
-                <tr key={`${record.playedAt}-${index}`}>
-                  <td>{new Date(record.playedAt).toLocaleDateString()}</td>
-                  <td>
-                    {record.correctAnswers}/{record.totalQuestions}
-                  </td>
-                  <td>{Math.round(accuracyPercentage(record.correctAnswers, record.totalQuestions))}%</td>
+          <div className="coach-table-scroll">
+            <table className="hand-accuracy-table" aria-label="Session history">
+              <thead>
+                <tr>
+                  <th scope="col">Date</th>
+                  <th scope="col">Score</th>
+                  <th scope="col">Accuracy</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {recentSessions.map((record, index) => (
+                  <tr key={`${record.playedAt}-${index}`}>
+                    <td>{new Date(record.playedAt).toLocaleDateString()}</td>
+                    <td>
+                      {record.correctAnswers}/{record.totalQuestions}
+                    </td>
+                    <td>
+                      {Math.round(accuracyPercentage(record.correctAnswers, record.totalQuestions))}%
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
     </section>

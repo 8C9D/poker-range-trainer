@@ -37,10 +37,6 @@
 }
 
 /* The five situations do not fit a narrow phone; scroll the grid, not the page. */
-.spot-coverage-scroll {
-  overflow-x: auto;
-}
-
 .spot-coverage-table {
   width: 100%;
   border-collapse: collapse;
