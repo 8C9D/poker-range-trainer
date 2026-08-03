@@ -53,6 +53,7 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
   )
   const days = dailyHandCounts(history, nowIso)
   const maxDay = Math.max(1, ...days.map((day) => day.handsAnswered))
+  const weekHasData = days.some((day) => day.handsAnswered > 0)
   const trend = weeklyAccuracyTrend(history, nowIso)
   const trendHasData = trend.some((point) => point.handsAnswered > 0)
   const weakHands = rankWeakHands(handAccuracy).filter((entry) =>
@@ -115,35 +116,43 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
 
       <section className="coach-card" aria-label="Hands answered this week">
         <h3>Hands answered this week</h3>
-        <ul className="progress-chart">
-          {days.map((day, index) => {
-            const date = new Date(day.dayStart)
-            const weekday = date.toLocaleDateString(undefined, {
-              weekday: 'short',
-            })
-            const isToday = index === days.length - 1
-            return (
-              <li
-                key={day.dayStart}
-                className={isToday ? 'progress-chart-day today' : 'progress-chart-day'}
-                aria-label={`${weekday}: ${day.handsAnswered} hands`}
-              >
-                {/* A bar with no number reads as decoration: 20 hands and 200
-                    draw the same full-height column. */}
-                <span className="progress-chart-value coach-tabular">
-                  {day.handsAnswered > 0 ? day.handsAnswered : ''}
-                </span>
-                <span className="progress-chart-track">
-                  <span
-                    className="progress-chart-bar"
-                    style={{ height: `${Math.round((day.handsAnswered / maxDay) * 100)}%` }}
-                  />
-                </span>
-                <span className="progress-chart-label">{weekday}</span>
-              </li>
-            )
-          })}
-        </ul>
+        {weekHasData ? (
+          <ul className="progress-chart">
+            {days.map((day, index) => {
+              const date = new Date(day.dayStart)
+              const weekday = date.toLocaleDateString(undefined, {
+                weekday: 'short',
+              })
+              const isToday = index === days.length - 1
+              return (
+                <li
+                  key={day.dayStart}
+                  className={isToday ? 'progress-chart-day today' : 'progress-chart-day'}
+                  aria-label={`${weekday}: ${day.handsAnswered} hands`}
+                >
+                  {/* A bar with no number reads as decoration: 20 hands and 200
+                      draw the same full-height column. */}
+                  <span className="progress-chart-value coach-tabular">
+                    {day.handsAnswered > 0 ? day.handsAnswered : ''}
+                  </span>
+                  <span className="progress-chart-track">
+                    <span
+                      className="progress-chart-bar"
+                      style={{ height: `${Math.round((day.handsAnswered / maxDay) * 100)}%` }}
+                    />
+                  </span>
+                  <span className="progress-chart-label">{weekday}</span>
+                </li>
+              )
+            })}
+          </ul>
+        ) : (
+          // An all-zero chart is seven bare ticks: decoration that says nothing.
+          // Every sibling card explains itself when empty; this one should too.
+          <p className="progress-empty">
+            Answer some hands and this week’s practice will show up here.
+          </p>
+        )}
       </section>
 
       <section className="coach-card" aria-label="Accuracy by week">

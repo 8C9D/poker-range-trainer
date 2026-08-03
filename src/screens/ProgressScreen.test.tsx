@@ -56,6 +56,17 @@ describe('ProgressScreen', () => {
     expect(within(days[0]).queryByText('0')).toBeNull()
   })
 
+  it('explains the weekly chart instead of drawing an empty one', () => {
+    saveSavedRange(makeRange('a', 'UTG open'))
+    render(<ProgressScreen onDrillWeakHands={vi.fn()} onDrillSpot={vi.fn()} />)
+
+    // Seven zero-height bars are decoration; every sibling card explains itself
+    // when it has nothing to show, and this one now does too.
+    const chart = screen.getByRole('region', { name: 'Hands answered this week' })
+    expect(within(chart).queryAllByRole('listitem')).toHaveLength(0)
+    expect(within(chart).getByText(/Answer some hands/)).toBeInTheDocument()
+  })
+
   it('charts accuracy by week once there is practice to chart', () => {
     saveSavedRange(makeRange('a', 'UTG open'))
     recordPracticeSessionHistory('a', { totalQuestions: 10, correctAnswers: 7 }, TODAY)

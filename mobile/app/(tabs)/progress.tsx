@@ -118,6 +118,7 @@ export default function ProgressScreen() {
   } = state;
   const maxDay = Math.max(1, ...days.map((day) => day.handsAnswered));
   const trendHasData = trend.some((point) => point.handsAnswered > 0);
+  const weekHasData = days.some((day) => day.handsAnswered > 0);
   const rangeName = (rangeId: string) =>
     ranges.find((range) => range.id === rangeId)?.name ?? 'Deleted range';
 
@@ -159,38 +160,48 @@ export default function ProgressScreen() {
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Hands answered this week</Text>
-          <View style={styles.chart}>
-            {days.map((day, index) => {
-              const isToday = index === days.length - 1;
-              const weekday = WEEKDAYS_SHORT[new Date(day.dayStart).getDay()];
-              const heightPct = Math.round((day.handsAnswered / maxDay) * 100);
-              return (
-                <View
-                  key={day.dayStart}
-                  style={styles.chartCol}
-                  accessibilityLabel={`${weekday}: ${day.handsAnswered} hands`}
-                >
-                  {/* A bar with no number reads as decoration: 20 hands and 200
-                      draw the same full-height column. */}
-                  <Text testID={`chart-value-${index}`} style={styles.chartValue}>
-                    {day.handsAnswered > 0 ? String(day.handsAnswered) : ''}
-                  </Text>
-                  <View style={styles.chartBarTrack}>
-                    <View
-                      style={[
-                        styles.chartBar,
-                        {
-                          height: `${Math.max(2, heightPct)}%`,
-                          backgroundColor: isToday ? theme.goldFill : theme.line2,
-                        },
-                      ]}
-                    />
+          {weekHasData ? (
+            <View style={styles.chart}>
+              {days.map((day, index) => {
+                const isToday = index === days.length - 1;
+                const weekday = WEEKDAYS_SHORT[new Date(day.dayStart).getDay()];
+                const heightPct = Math.round((day.handsAnswered / maxDay) * 100);
+                return (
+                  <View
+                    key={day.dayStart}
+                    style={styles.chartCol}
+                    accessibilityLabel={`${weekday}: ${day.handsAnswered} hands`}
+                  >
+                    {/* A bar with no number reads as decoration: 20 hands and 200
+                        draw the same full-height column. */}
+                    <Text testID={`chart-value-${index}`} style={styles.chartValue}>
+                      {day.handsAnswered > 0 ? String(day.handsAnswered) : ''}
+                    </Text>
+                    <View style={styles.chartBarTrack}>
+                      <View
+                        style={[
+                          styles.chartBar,
+                          {
+                            height: `${Math.max(2, heightPct)}%`,
+                            backgroundColor: isToday ? theme.goldFill : theme.line2,
+                          },
+                        ]}
+                      />
+                    </View>
+                    <Text style={[styles.chartLabel, isToday && { color: theme.ink }]}>
+                      {weekday}
+                    </Text>
                   </View>
-                  <Text style={[styles.chartLabel, isToday && { color: theme.ink }]}>{weekday}</Text>
-                </View>
-              );
-            })}
-          </View>
+                );
+              })}
+            </View>
+          ) : (
+            // An all-zero chart is seven bare ticks: decoration that says nothing.
+            // Every sibling card explains itself when empty; this one should too.
+            <Text testID="week-empty" style={styles.empty}>
+              Answer some hands and this week’s practice will show up here.
+            </Text>
+          )}
         </View>
 
         <View style={styles.card}>

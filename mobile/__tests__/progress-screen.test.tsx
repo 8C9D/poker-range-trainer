@@ -83,6 +83,17 @@ describe('ProgressScreen', () => {
     expect(getByTestId('trend-value-0')).toHaveTextContent('');
   });
 
+  it('explains the weekly chart instead of drawing an empty one', async () => {
+    seed('r1', 'UTG Open');
+
+    const { getByTestId, queryByTestId } = await render(<ProgressScreen />);
+
+    // Seven zero-height bars are decoration; every sibling card explains itself
+    // when it has nothing to show, and this one now does too.
+    expect(getByTestId('week-empty')).toBeTruthy();
+    expect(queryByTestId('chart-value-6')).toBeNull();
+  });
+
   it('explains the accuracy trend before there is any practice', async () => {
     const { getByText, queryByTestId } = await render(<ProgressScreen />);
 
