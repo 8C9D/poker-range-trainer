@@ -473,7 +473,7 @@ function OverviewTab({ range }: { range: SavedRange }) {
 
       {recentSessions.length > 0 && (
         <section className="coach-card" aria-label="Recent sessions">
-          <h3>Recent sessions</h3>
+          <h2>Recent sessions</h2>
           <ul className="range-overview-sessions coach-tabular">
             {recentSessions.map((session) => (
               <li key={session.playedAt}>
@@ -641,7 +641,7 @@ function CombosTab({ range, onSaved }: { range: SavedRange; onSaved: () => void 
       </p>
       {range.hands.map((hand) => (
         <div key={hand} className="coach-card range-combo-hand">
-          <h3>{hand}</h3>
+          <h2>{hand}</h2>
           <ComboSelector
             hand={hand}
             selection={draft[hand] ?? allCombosForHand(hand)}

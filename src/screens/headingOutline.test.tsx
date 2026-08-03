@@ -3,7 +3,9 @@ import { render, screen } from '@testing-library/react'
 import { AccountScreen } from './AccountScreen'
 import { LibraryScreen } from './LibraryScreen'
 import { ProgressScreen } from './ProgressScreen'
+import { RangeScreen } from './RangeScreen'
 import { TodayScreen } from './TodayScreen'
+import { RANGE_TABS } from '../app/routes'
 import { recordHandAccuracy } from '../storage/handAccuracyStorage'
 import { recordPracticeSession } from '../storage/practiceStatsStorage'
 import { saveSavedRange } from '../storage/rangeStorage'
@@ -91,6 +93,19 @@ describe('heading outline', () => {
   it('never skips a level on Account', () => {
     seed('a', 'BTN open')
     render(<AccountScreen />)
+
+    const levels = outline()
+    expect(levels[0]).toBe(1)
+    expect(firstSkip(levels)).toBeNull()
+  })
+
+  it.each(RANGE_TABS)('never skips a level on the range %s tab', (tab) => {
+    seed('a', 'BTN open')
+    recordPracticeSessionHistory('a', { totalQuestions: 10, correctAnswers: 6 }, NOW)
+    recordHandAccuracy('a', [
+      { hand: 'AA', attempts: 3, correct: 1, falsePositives: 0, falseNegatives: 2 },
+    ])
+    render(<RangeScreen id="a" tab={tab} onPractice={vi.fn()} />)
 
     const levels = outline()
     expect(levels[0]).toBe(1)
