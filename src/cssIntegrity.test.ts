@@ -156,3 +156,97 @@ describe('wide tables', () => {
     expect(unwrapped).toEqual([])
   })
 })
+
+/**
+ * WCAG AA asks 4.5:1 of body-size text, and the whole Coach palette runs through
+ * six tokens, so a single hex decides whether a dozen screens are readable.
+ * `--ink-3` was at 2.5:1 in light mode — the date line, the chart labels, the
+ * weak-hands table headers and the drill's swipe hint all sat well under half
+ * the required contrast, and none of it looked obviously wrong to a sighted
+ * reader on a bright screen. The remaining muted tokens were between 3.5 and
+ * 4.4, close enough to pass by eye and fail in fact.
+ *
+ * Dark mode already had a working three-step ramp (≈12 / 6 / 4.5); this holds
+ * light mode to the same shape and keeps either from drifting back.
+ */
+
+/** Tokens the stylesheets set as a `color:`, i.e. that have to clear 4.5:1. */
+const TEXT_TOKENS = ['--ink', '--ink-2', '--ink-3', '--accent-strong', '--good', '--bad']
+
+/**
+ * Surfaces those tokens can land on. `--cardface` is deliberately absent: it is
+ * the playing card's own face, which stays light in both themes, and no ink
+ * token is ever drawn on it (the suit colors are, and they are a separate
+ * problem with a separate rule).
+ */
+const SURFACE_TOKENS = ['--bg', '--surface', '--card', '--well', '--cellbg', '--pairbg']
+
+/** Relative luminance per WCAG 2.x. */
+function luminance(hex: string): number {
+  const value = parseInt(hex.slice(1), 16)
+  const channel = (raw: number) => {
+    const c = raw / 255
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+  }
+  return (
+    0.2126 * channel((value >> 16) & 255) +
+    0.7152 * channel((value >> 8) & 255) +
+    0.0722 * channel(value & 255)
+  )
+}
+
+function contrast(a: string, b: string): number {
+  const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x)
+  return (high + 0.05) / (low + 0.05)
+}
+
+/** The `--token: #rrggbb` pairs inside one CSS block. */
+function tokensIn(block: string): Record<string, string> {
+  const tokens: Record<string, string> = {}
+  for (const match of block.matchAll(/(--[\w-]+):\s*(#[0-9a-f]{6})\s*;/gi)) {
+    tokens[match[1]] = match[2].toLowerCase()
+  }
+  return tokens
+}
+
+describe('palette contrast', () => {
+  const css = readFileSync(join(SRC, 'theme.css'), 'utf8')
+  // The dark palette is the `:root` block inside the prefers-color-scheme query;
+  // the light one is everything before that query starts.
+  const darkStart = css.indexOf('@media (prefers-color-scheme: dark)')
+  const themes = {
+    light: tokensIn(css.slice(0, darkStart)),
+    dark: tokensIn(css.slice(darkStart)),
+  }
+
+  it.each(Object.keys(themes))('defines every token the sweep checks in %s', (name) => {
+    // Guards the guard: a renamed token would otherwise silently drop out.
+    const theme = themes[name as keyof typeof themes]
+    for (const token of [...TEXT_TOKENS, ...SURFACE_TOKENS]) {
+      expect(theme[token], `${name} is missing ${token}`).toMatch(/^#[0-9a-f]{6}$/)
+    }
+  })
+
+  it.each(Object.keys(themes))('keeps body text at 4.5:1 on every surface in %s', (name) => {
+    const theme = themes[name as keyof typeof themes]
+    const failures: string[] = []
+    for (const text of TEXT_TOKENS) {
+      for (const surface of SURFACE_TOKENS) {
+        const ratio = contrast(theme[text], theme[surface])
+        if (ratio < 4.5) {
+          failures.push(`${text} (${theme[text]}) on ${surface} (${theme[surface]}): ${ratio.toFixed(2)}`)
+        }
+      }
+    }
+    expect(failures).toEqual([])
+  })
+
+  it.each(Object.keys(themes))('keeps the three ink steps visibly apart in %s', (name) => {
+    // All three passing AA is not enough on its own: collapsing them to the same
+    // darkness would pass this file and flatten every screen's hierarchy.
+    const theme = themes[name as keyof typeof themes]
+    const onBg = (token: string) => contrast(theme[token], theme['--bg'])
+    expect(onBg('--ink')).toBeGreaterThan(onBg('--ink-2') * 1.5)
+    expect(onBg('--ink-2')).toBeGreaterThan(onBg('--ink-3') * 1.2)
+  })
+})
