@@ -127,6 +127,57 @@ describe('AccountScreen', () => {
     expect(alert).toHaveBeenCalled()
     expect(loadSavedRanges()).toHaveLength(0)
   })
+
+  // A readable file the store then refuses (quota exhausted, storage disabled)
+  // used to leave the screen silent: no range, no message, nothing to act on.
+  it('reports a refused write instead of importing a range in silence', async () => {
+    const user = userEvent.setup()
+    const exported = serializeRangeExport(makeRange('src', 'Shared range'))
+    render(<AccountScreen />)
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError')
+    })
+    await user.upload(screen.getByLabelText('Import range'), jsonFile('range.json', exported))
+    spy.mockRestore()
+
+    expect(await screen.findByText(/storage is full or unavailable/)).toBeInTheDocument()
+    expect(screen.queryByText(/Imported range/)).not.toBeInTheDocument()
+    expect(loadSavedRanges()).toHaveLength(0)
+  })
+
+  it('reports a refused write instead of importing a CSV in silence', async () => {
+    const user = userEvent.setup()
+    render(<AccountScreen />)
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError')
+    })
+    await user.upload(
+      screen.getByLabelText('Import CSV'),
+      jsonFile('my-csv-range.csv', 'hand\nAA\nKK\n', 'text/csv'),
+    )
+    spy.mockRestore()
+
+    expect(await screen.findByText(/storage is full or unavailable/)).toBeInTheDocument()
+    expect(screen.queryByText(/from CSV/)).not.toBeInTheDocument()
+  })
+
+  it('does not claim a whole pack imported when the store refused part of it', async () => {
+    const user = userEvent.setup()
+    const pack = serializeRangePack('My pack', [
+      makeRange('a', 'Pack range A'),
+      makeRange('b', 'Pack range B'),
+    ])
+    render(<AccountScreen />)
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError')
+    })
+    await user.upload(screen.getByLabelText('Import pack'), jsonFile('pack.json', pack))
+    spy.mockRestore()
+
+    expect(await screen.findByText(/storage is full or unavailable/)).toBeInTheDocument()
+    expect(screen.queryByText(/Imported 2 ranges/)).not.toBeInTheDocument()
+    expect(loadSavedRanges()).toHaveLength(0)
+  })
 })
 
 describe('AccountScreen starter ranges', () => {

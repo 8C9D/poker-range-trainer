@@ -145,6 +145,31 @@ describe('RangeFilesPanel', () => {
     expect(loadSavedRanges()).toHaveLength(0);
   });
 
+  it('imports a pack in one write, so a filling store cannot split it', async () => {
+    saveSavedRange(makeRange('mine', 'My range'));
+    pickFile(serializeRangePack('', [makeRange('a', 'Pack A'), makeRange('b', 'Pack B')]));
+
+    const user = userEvent.setup();
+    const { getByTestId } = await render(<RangeFilesPanel />);
+    // A store with room for exactly one more write. Saving range by range put
+    // Pack A in and then lost Pack B; the whole pack is one write, so it lands.
+    const real = localStorageShim.setItem.bind(localStorageShim);
+    let writes = 0;
+    const spy = jest.spyOn(localStorageShim, 'setItem').mockImplementation((key, value) => {
+      if (++writes > 1) throw new Error('quota');
+      real(key, value);
+    });
+    await user.press(getByTestId('pack-import'));
+    await waitFor(() => expect(getByTestId('range-files-status')).toHaveTextContent(/Added 2/));
+    spy.mockRestore();
+
+    expect(loadSavedRanges().map((range) => range.name)).toEqual([
+      'My range',
+      'Pack A',
+      'Pack B',
+    ]);
+  });
+
   it('does nothing when the picker is cancelled', async () => {
     mockPick.mockResolvedValue({ canceled: true });
 

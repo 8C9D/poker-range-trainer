@@ -133,18 +133,34 @@ export function AccountScreen() {
     }
   }
 
+  /**
+   * Run a write that the store may refuse, reporting the reason instead of
+   * letting it escape. Every write here happens inside a click or file-input
+   * handler, where an uncaught throw reaches no error boundary: the import
+   * simply did nothing and said nothing. Returns whether the write landed, so
+   * the caller only claims success when there was some.
+   */
+  function persist(write: () => void, fallback: string): boolean {
+    try {
+      write()
+    } catch (error) {
+      setDataStatus(error instanceof Error ? error.message : fallback)
+      return false
+    }
+    return true
+  }
+
   function handleAddStarterRanges() {
     const missing = starterRangesMissingFrom(loadSavedRanges())
     if (missing.length === 0) {
       setDataStatus('Every starter chart is already in your library.')
       return
     }
-    try {
-      saveSavedRanges(buildStarterRanges(new Date().toISOString(), createRangeId, missing))
-    } catch (error) {
-      setDataStatus(error instanceof Error ? error.message : 'Could not add the starter ranges.')
-      return
-    }
+    const written = persist(
+      () => saveSavedRanges(buildStarterRanges(new Date().toISOString(), createRangeId, missing)),
+      'Could not add the starter ranges.',
+    )
+    if (!written) return
     setDataStatus(`Added ${missing.length} starter chart${missing.length === 1 ? '' : 's'}.`)
   }
 
@@ -187,7 +203,11 @@ export function AccountScreen() {
     }
     // Add as a new range with a fresh id so importing never clobbers an existing one.
     const now = new Date().toISOString()
-    saveSavedRange({ ...imported, id: createRangeId(), createdAt: now, updatedAt: now })
+    const written = persist(
+      () => saveSavedRange({ ...imported, id: createRangeId(), createdAt: now, updatedAt: now }),
+      'Could not import range file.',
+    )
+    if (!written) return
     setDataStatus(`Imported range “${imported.name}”.`)
   }
 
@@ -206,13 +226,18 @@ export function AccountScreen() {
     const fallbackName = file.name.replace(/\.csv$/i, '').trim() || 'Imported range'
     const now = new Date().toISOString()
     const name = parsed.name?.trim() || fallbackName
-    saveSavedRange({
-      id: createRangeId(),
-      name,
-      hands: parsed.hands,
-      createdAt: now,
-      updatedAt: now,
-    })
+    const written = persist(
+      () =>
+        saveSavedRange({
+          id: createRangeId(),
+          name,
+          hands: parsed.hands,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      'Could not import CSV file.',
+    )
+    if (!written) return
     setDataStatus(`Imported range “${name}” from CSV.`)
   }
 
@@ -236,10 +261,22 @@ export function AccountScreen() {
       return
     }
     // Add every range as a new range so importing never clobbers existing ones.
+    // Saved in ONE write, so a store that refuses partway cannot leave half the
+    // pack in the library under a message claiming all of it arrived.
     const now = new Date().toISOString()
-    for (const range of pack.ranges) {
-      saveSavedRange({ ...range, id: createRangeId(), createdAt: now, updatedAt: now })
-    }
+    const written = persist(
+      () =>
+        saveSavedRanges(
+          pack.ranges.map((range) => ({
+            ...range,
+            id: createRangeId(),
+            createdAt: now,
+            updatedAt: now,
+          })),
+        ),
+      'Could not import pack file.',
+    )
+    if (!written) return
     setDataStatus(
       `Imported ${pack.ranges.length} range${pack.ranges.length === 1 ? '' : 's'} from the pack.`,
     )

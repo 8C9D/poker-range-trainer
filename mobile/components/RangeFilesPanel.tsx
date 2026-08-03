@@ -10,7 +10,7 @@ import {
   parseRangePack,
   serializeRangePack,
 } from '@core/domain/rangeTransfer';
-import { loadSavedRanges, saveSavedRange } from '@core/storage/rangeStorage';
+import { loadSavedRanges, saveSavedRange, saveSavedRanges } from '@core/storage/rangeStorage';
 import type { SavedRange } from '@core/types/range';
 
 import { createRangeId } from '../platform/createRangeId';
@@ -86,7 +86,12 @@ export function RangeFilesPanel() {
       const picked = await pickFile('application/json');
       if (!picked) return;
       const pack = parseRangePack(picked.text);
-      pack.ranges.forEach(addAsNewRange);
+      // One write, not one per range: a store that refuses partway would
+      // otherwise leave half the pack in the library.
+      const now = new Date().toISOString();
+      saveSavedRanges(
+        pack.ranges.map((range) => ({ ...range, id: createRangeId(), createdAt: now, updatedAt: now })),
+      );
       const count = pack.ranges.length;
       setStatus(`Added ${count} range${count === 1 ? '' : 's'} from the pack.`);
     });
