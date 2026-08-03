@@ -54,7 +54,7 @@ function ErrorFallback({ error, onRetry }: { error: Error; onRetry: () => void }
   const styles = makeStyles(theme);
   return (
     <View style={styles.screen}>
-      <Text style={styles.title}>Something went wrong</Text>
+      <Text accessibilityRole="header" style={styles.title}>Something went wrong</Text>
       <Text testID="error-message" style={styles.message}>
         {error.message || 'An unexpected error occurred.'}
       </Text>

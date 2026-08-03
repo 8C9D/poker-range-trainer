@@ -58,7 +58,7 @@ export function RangeStats({ id }: { id: string }) {
     <View style={styles.stack}>
       {weakest.length > 0 ? (
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Accuracy heatmap</Text>
+          <Text accessibilityRole="header" style={styles.sectionTitle}>Accuracy heatmap</Text>
           <HandHeatmap accuracy={handAccuracy} />
           <View style={styles.legend}>
             {legend.map((entry) => (
@@ -73,7 +73,7 @@ export function RangeStats({ id }: { id: string }) {
 
       {weakest.length > 0 ? (
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Weakest hands</Text>
+          <Text accessibilityRole="header" style={styles.sectionTitle}>Weakest hands</Text>
           <View style={styles.chips}>
             {weakest.map((stat) => (
               <View key={stat.hand} style={styles.statChip}>
@@ -101,7 +101,7 @@ export function RangeStats({ id }: { id: string }) {
 
       {actionEntries.length > 0 ? (
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Per-action accuracy</Text>
+          <Text accessibilityRole="header" style={styles.sectionTitle}>Per-action accuracy</Text>
           {actionEntries.map((stat) => (
             <View key={stat.action} style={styles.actionRow}>
               <Text style={styles.actionName}>{stat.action}</Text>
@@ -115,7 +115,7 @@ export function RangeStats({ id }: { id: string }) {
 
       {recentSessions.length > 0 ? (
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Session history</Text>
+          <Text accessibilityRole="header" style={styles.sectionTitle}>Session history</Text>
           {recentSessions.map((session) => (
             <View key={session.playedAt} style={styles.actionRow}>
               <Text style={styles.actionName}>{new Date(session.playedAt).toLocaleDateString()}</Text>

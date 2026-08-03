@@ -32,7 +32,7 @@ export default function NewRangeScreen() {
             <Text style={[styles.back, { color: theme.accent }]}>← Library</Text>
           </Pressable>
         </Link>
-        <Text style={[styles.title, { color: theme.ink }]}>New range</Text>
+        <Text accessibilityRole="header" style={[styles.title, { color: theme.ink }]}>New range</Text>
         <Pressable
           testID="new-range-done"
           onPress={() => router.replace({ pathname: '/range/[id]', params: { id } })}

@@ -149,7 +149,7 @@ export function AuthPanel() {
 
   return (
     <View style={styles.panel}>
-      <Text style={styles.sectionTitle}>Account & sync</Text>
+      <Text accessibilityRole="header" style={styles.sectionTitle}>Account & sync</Text>
       {client === undefined ? (
         <Text style={styles.muted}>Connecting…</Text>
       ) : client === null ? (

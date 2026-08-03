@@ -42,7 +42,7 @@ export function StarterRangesPanel() {
 
   return (
     <View style={styles.panel}>
-      <Text style={styles.sectionTitle}>Starter ranges</Text>
+      <Text accessibilityRole="header" style={styles.sectionTitle}>Starter ranges</Text>
       <Text style={styles.hint}>
         Standard 6-max 100bb charts: an open for every seat, big-blind defences, and 3-bets. They
         are ordinary ranges, so edit or delete any of them.

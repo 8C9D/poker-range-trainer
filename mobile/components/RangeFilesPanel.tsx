@@ -124,7 +124,7 @@ export function RangeFilesPanel() {
 
   return (
     <View style={styles.panel}>
-      <Text style={styles.sectionTitle}>Range files</Text>
+      <Text accessibilityRole="header" style={styles.sectionTitle}>Range files</Text>
       <Text style={styles.hint}>
         A pack is just your ranges — importing one adds to your library instead of replacing
         it, so it is the safe way to share ranges with another device or person.

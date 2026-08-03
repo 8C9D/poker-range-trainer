@@ -20,7 +20,7 @@ export default function AccountScreen() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={[styles.title, { color: theme.ink }]}>Account</Text>
+        <Text accessibilityRole="header" style={[styles.title, { color: theme.ink }]}>Account</Text>
         <AuthPanel />
         <SharePackPanel />
         <View style={[styles.divider, { backgroundColor: theme.line }]} />

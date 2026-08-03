@@ -67,7 +67,7 @@ export function BackupPanel() {
 
   return (
     <View style={styles.panel}>
-      <Text style={styles.sectionTitle}>File backup</Text>
+      <Text accessibilityRole="header" style={styles.sectionTitle}>File backup</Text>
       <Text style={styles.hint}>
         Save your whole library to a JSON file you can store or move to another device, or restore
         one you exported earlier. This works offline — no account needed.

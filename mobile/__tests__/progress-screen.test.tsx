@@ -133,6 +133,19 @@ describe('ProgressScreen', () => {
 
     expect(getByText(/hand types you miss most/)).toBeTruthy();
   });
+
+  it('marks its section titles as headings so the VoiceOver rotor can jump', async () => {
+    seed('a', 'UTG Open');
+    recordPracticeSession('a', { totalQuestions: 10, correctAnswers: 8 }, new Date().toISOString());
+
+    const { getAllByRole } = await render(<ProgressScreen />);
+
+    // Without headers a VoiceOver user has to swipe through every stat on the
+    // screen to reach the next section.
+    const headings = getAllByRole('header').map((node) => node.props.children);
+    expect(headings).toContain('Progress');
+    expect(headings).toContain('Hands answered this week');
+  });
 });
 
 describe('ProgressScreen leak breakdown', () => {

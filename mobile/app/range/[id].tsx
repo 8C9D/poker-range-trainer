@@ -335,7 +335,7 @@ export default function RangeScreen() {
         ) : null}
         <SaveErrorBanner error={actionError} testID="range-action-error" />
 
-        <Text style={styles.title}>{range.name || 'Untitled'}</Text>
+        <Text accessibilityRole="header" style={styles.title}>{range.name || 'Untitled'}</Text>
         {chips.length > 0 ? (
           <View style={styles.chips}>
             {chips.map((chip) => (
@@ -495,7 +495,7 @@ function OverviewTab({
 
       {recentSessions.length > 0 ? (
         <View style={styles.overviewCard}>
-          <Text style={styles.sectionTitle}>Recent sessions</Text>
+          <Text accessibilityRole="header" style={styles.sectionTitle}>Recent sessions</Text>
           {recentSessions.map((session) => (
             <View key={session.playedAt} style={styles.sessionRow}>
               <Text style={styles.sessionDate}>{new Date(session.playedAt).toLocaleDateString()}</Text>

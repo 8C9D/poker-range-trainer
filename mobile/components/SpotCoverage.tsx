@@ -73,7 +73,7 @@ export function SpotCoverage({ ranges }: { ranges: SavedRange[] }) {
 
   return (
     <View testID="spot-coverage" style={styles.card}>
-      <Text style={styles.sectionTitle}>Spot coverage</Text>
+      <Text accessibilityRole="header" style={styles.sectionTitle}>Spot coverage</Text>
 
       <Segmented
         options={TABLE_OPTIONS}

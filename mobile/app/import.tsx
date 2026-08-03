@@ -69,7 +69,7 @@ export default function ImportScreen() {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Stack.Screen options={{ title: 'Import range' }} />
 
-        <Text style={styles.title}>Import a shared range</Text>
+        <Text accessibilityRole="header" style={styles.title}>Import a shared range</Text>
         <Text style={styles.body}>
           Paste a share link to add its range to your library. Share links carry the whole range,
           so no account is needed.

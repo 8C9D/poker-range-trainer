@@ -265,7 +265,7 @@ export function RangeEditor({ id: idParam, prefill, showNotesLink = true }: Rang
       <HandGrid selected={selected} onSetSelected={handleSetSelected} />
       {selected.size > 0 ? (
         <View style={styles.combosSection}>
-          <Text style={styles.sectionTitle}>Refine combos</Text>
+          <Text accessibilityRole="header" style={styles.sectionTitle}>Refine combos</Text>
           <Text style={styles.sectionHint}>Tap an in-range hand to pick which combos stay in.</Text>
           <View style={styles.chips}>
             {ALL_HANDS.filter((hand) => selected.has(hand)).map((hand) => {

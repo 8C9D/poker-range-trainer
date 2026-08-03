@@ -135,7 +135,7 @@ export default function ProgressScreen() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Progress</Text>
+        <Text accessibilityRole="header" style={styles.title}>Progress</Text>
 
         <View style={styles.tiles}>
           <View style={styles.tile}>
@@ -159,7 +159,7 @@ export default function ProgressScreen() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Hands answered this week</Text>
+          <Text accessibilityRole="header" style={styles.sectionTitle}>Hands answered this week</Text>
           {weekHasData ? (
             <View style={styles.chart}>
               {days.map((day, index) => {
@@ -205,7 +205,7 @@ export default function ProgressScreen() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Accuracy by week</Text>
+          <Text accessibilityRole="header" style={styles.sectionTitle}>Accuracy by week</Text>
           {trendHasData ? (
             <View style={styles.chart}>
               {trend.map((point, index) => {
@@ -251,7 +251,7 @@ export default function ProgressScreen() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Across your library</Text>
+          <Text accessibilityRole="header" style={styles.sectionTitle}>Across your library</Text>
           <Text style={styles.analytics}>
             {analytics.rangesPracticed} range{analytics.rangesPracticed === 1 ? '' : 's'} practiced ·{' '}
             {analytics.totalCorrect} of {analytics.totalAttempts} correct ·{' '}
@@ -261,7 +261,7 @@ export default function ProgressScreen() {
 
         {spotLeaks.length > 0 ? (
           <View testID="spot-leaks" style={styles.card}>
-            <Text style={styles.sectionTitle}>Weakest spots</Text>
+            <Text accessibilityRole="header" style={styles.sectionTitle}>Weakest spots</Text>
             <View style={styles.spotList}>
               {spotLeaks.slice(0, 5).map((leak) => (
                 <View key={spotKey(leak.spot)} style={styles.spotRow}>
@@ -294,7 +294,7 @@ export default function ProgressScreen() {
         ) : null}
 
         <View testID="seat-leaks" style={styles.card}>
-          <Text style={styles.sectionTitle}>Where you leak</Text>
+          <Text accessibilityRole="header" style={styles.sectionTitle}>Where you leak</Text>
           {seatGroups.length === 0 && actionGroups.length === 0 ? (
             <Text style={styles.empty}>
               Practice ranges that record a position or an action and this will show which seats
@@ -321,7 +321,7 @@ export default function ProgressScreen() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Leaks by hand type</Text>
+          <Text accessibilityRole="header" style={styles.sectionTitle}>Leaks by hand type</Text>
           {leaks.length === 0 ? (
             <Text style={styles.empty}>
               Practice a little more and the hand types you miss most will show up here.
@@ -363,7 +363,7 @@ export default function ProgressScreen() {
 
         <View style={styles.card}>
           <View style={styles.weakHeader}>
-            <Text style={styles.sectionTitle}>Weakest hands</Text>
+            <Text accessibilityRole="header" style={styles.sectionTitle}>Weakest hands</Text>
             {weakHands.length > 0 && drillQueue.length > 0 ? (
               <Link href={{ pathname: '/practice', params: drillParams }} asChild>
                 <Text testID="drill-weak-hands" style={styles.drillBtn}>

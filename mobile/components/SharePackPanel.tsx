@@ -85,7 +85,7 @@ export function SharePackPanel() {
 
   return (
     <View style={styles.panel}>
-      <Text style={styles.sectionTitle}>Share your library</Text>
+      <Text accessibilityRole="header" style={styles.sectionTitle}>Share your library</Text>
       <Text style={styles.muted}>Publish all your saved ranges as one shareable pack link.</Text>
       <View style={styles.row}>
         <Pressable

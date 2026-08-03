@@ -188,7 +188,7 @@ export default function TodayScreen() {
 
         {ranges.length === 0 ? (
           <View testID="today-onboarding" style={styles.card}>
-            <Text style={styles.cardTitle}>Welcome</Text>
+            <Text accessibilityRole="header" style={styles.cardTitle}>Welcome</Text>
             <Text style={styles.cardBody}>
               You have no ranges yet. Start with {STARTER_RANGE_TEMPLATES.length} standard 6-max
               100bb charts (ordinary ranges you can edit or delete), or build your own in the
@@ -213,14 +213,14 @@ export default function TodayScreen() {
           <>
             {workoutDone ? (
               <View testID="today-workout-done" style={styles.card}>
-                <Text style={styles.cardTitle}>Daily workout</Text>
+                <Text accessibilityRole="header" style={styles.cardTitle}>Daily workout</Text>
                 <Text style={styles.cardBody}>
                   Done for today. {goal > 0 ? goalLine(goalProgress) : 'See you tomorrow.'}
                 </Text>
               </View>
             ) : workout ? (
               <View testID="today-workout" style={styles.card}>
-                <Text style={styles.cardTitle}>Daily workout</Text>
+                <Text accessibilityRole="header" style={styles.cardTitle}>Daily workout</Text>
                 <Text style={styles.cardBody}>{summarizeWorkout(workout)}</Text>
                 <Link href="/workout" asChild>
                   <Pressable testID="start-workout" style={styles.primaryBtn}>
@@ -232,7 +232,7 @@ export default function TodayScreen() {
 
             {due.length > 0 ? (
               <View style={styles.card}>
-                <Text style={styles.cardTitle}>Today&rsquo;s review</Text>
+                <Text accessibilityRole="header" style={styles.cardTitle}>Today&rsquo;s review</Text>
                 <Text style={styles.cardBody}>
                   {due.length} range{due.length === 1 ? '' : 's'} due · ~{estimatedMinutes} min
                 </Text>
@@ -255,7 +255,7 @@ export default function TodayScreen() {
               </View>
             ) : (
               <View testID="today-caught-up" style={styles.card}>
-                <Text style={styles.cardTitle}>All caught up</Text>
+                <Text accessibilityRole="header" style={styles.cardTitle}>All caught up</Text>
                 <Text style={styles.cardBody}>
                   Nothing is due right now. Fancy a free practice run anyway?
                 </Text>
@@ -269,7 +269,7 @@ export default function TodayScreen() {
 
             {spotCoverage.covered > 0 ? (
               <View testID="today-spots" style={styles.card}>
-                <Text style={styles.cardTitle}>Play the spot</Text>
+                <Text accessibilityRole="header" style={styles.cardTitle}>Play the spot</Text>
                 <Text style={styles.cardBody}>
                   The table deals the situation · {spotCoverage.covered} of {spotCoverage.total}{' '}
                   spots covered
@@ -294,7 +294,7 @@ export default function TodayScreen() {
 
             {due.length > 0 ? (
               <View style={styles.card}>
-                <Text style={styles.sectionTitle}>Due now</Text>
+                <Text accessibilityRole="header" style={styles.sectionTitle}>Due now</Text>
                 <View style={styles.dueList}>
                   {due.map((range) => {
                     const stats = practiceStats[range.id];
@@ -328,7 +328,7 @@ export default function TodayScreen() {
 
             <View testID="today-goal" style={styles.card}>
               <View style={styles.goalHead}>
-                <Text style={styles.sectionTitle}>Daily goal</Text>
+                <Text accessibilityRole="header" style={styles.sectionTitle}>Daily goal</Text>
                 <View style={styles.goalOptions}>
                   {[0, ...GOAL_OPTIONS].map((option) => {
                     const active = goal === option;

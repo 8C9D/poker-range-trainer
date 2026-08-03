@@ -233,7 +233,7 @@ export default function LibraryScreen() {
   const header = (
     <View style={styles.header}>
       <View style={styles.titleRow}>
-        <Text style={styles.title}>Library</Text>
+        <Text accessibilityRole="header" style={styles.title}>Library</Text>
         <View style={styles.titleActions}>
           {ranges.length > 0 ? (
             <Pressable
