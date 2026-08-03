@@ -32,10 +32,29 @@
 
 .account-file {
   cursor: pointer;
+  position: relative;
 }
 
+/* The label is styled as a button but is not one, so the input inside it is the
+   only thing here a keyboard can reach. `display: none` dropped it out of the
+   tab order and made every Import action unreachable; clip it instead so it
+   stays focusable and keeps announcing the label's text. */
 .account-file input {
-  display: none;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+/* Focus lands on the clipped input, so the ring has to be drawn by the label. */
+.account-file:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .account-status {

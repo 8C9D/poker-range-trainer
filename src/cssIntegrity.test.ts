@@ -59,6 +59,37 @@ describe('stylesheet custom properties', () => {
   })
 })
 
+describe('hidden form controls', () => {
+  it('never takes a form control out of the tab order to hide it', () => {
+    // `display: none` on a form control does not just hide it — it removes it
+    // from the tab order. The Account file inputs were hidden that way behind
+    // labels styled as buttons, which left all four Import actions unreachable
+    // by keyboard: Tab jumped straight from "Export backup" to "Export pack".
+    // Visually hidden controls have to stay laid out and merely clipped.
+    const sources = cssFiles(SRC).map((file) => ({
+      file: file.slice(SRC.length),
+      css: readFileSync(file, 'utf8'),
+    }))
+    expect(sources.length).toBeGreaterThan(10)
+
+    const CONTROL = /(?:^|[\s,>+~])(?:input|select|textarea|button)\s*(?:\[[^\]]*\]|:[\w-]+(?:\([^)]*\))?)*\s*$/
+    const offenders: string[] = []
+    for (const { file, css } of sources) {
+      // `[^{}]` on both sides so a rule nested in an @media block is seen as
+      // its own rule instead of being swallowed as the at-rule's body.
+      for (const match of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const [, selectorList, body] = match
+        if (!/(?:display\s*:\s*none|visibility\s*:\s*hidden)/.test(body)) continue
+        for (const selector of selectorList.split(',')) {
+          if (CONTROL.test(selector.trim())) offenders.push(`${file}: ${selector.trim()}`)
+        }
+      }
+    }
+
+    expect(offenders).toEqual([])
+  })
+})
+
 /**
  * The shared button takes extra classes (`coach-btn primary`, `coach-btn
  * account-file`). One with no rule at all is invisible in exactly the wrong way:
