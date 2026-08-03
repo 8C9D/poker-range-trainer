@@ -37,7 +37,7 @@ export function RangeMetadataEditor({ value, onChange }: RangeMetadataEditorProp
 
   return (
     <View style={styles.container}>
-      <Text style={styles.heading}>Scenario details</Text>
+      <Text accessibilityRole="header" style={styles.heading}>Scenario details</Text>
 
       <ChipRow
         label="Position"

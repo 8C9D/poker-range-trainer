@@ -34,7 +34,7 @@ export function RangeTagEditor({ tags, onChange }: RangeTagEditorProps) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.heading}>Tags</Text>
+      <Text accessibilityRole="header" style={styles.heading}>Tags</Text>
       {tags.length > 0 ? (
         <View style={styles.chips}>
           {tags.map((tag) => (

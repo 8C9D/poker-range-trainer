@@ -75,7 +75,7 @@ export default function NotesEditorScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Stack.Screen options={{ title: 'Edit notes' }} />
-      <Text style={styles.rangeName}>{range.name || 'Untitled'}</Text>
+      <Text accessibilityRole="header" style={styles.rangeName}>{range.name || 'Untitled'}</Text>
       <SaveErrorBanner error={saveError} />
 
       {orderedHands.length === 0 ? (

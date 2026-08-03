@@ -95,7 +95,7 @@ export default function SharedRangeScreen() {
           </Text>
         ) : range ? (
           <>
-            <Text testID="shared-range-name" style={styles.name}>
+            <Text testID="shared-range-name" accessibilityRole="header" style={styles.name}>
               {range.name || 'Untitled range'}
             </Text>
             <Text style={styles.meta}>

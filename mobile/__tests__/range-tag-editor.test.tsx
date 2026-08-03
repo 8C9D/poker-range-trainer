@@ -27,6 +27,12 @@ async function typeTag(getByTestId: (id: string) => any, text: string) {
 }
 
 describe('RangeTagEditor', () => {
+  it('marks its title as a heading so the VoiceOver rotor can jump to it', async () => {
+    const { getAllByRole } = await render(<RangeTagEditor tags={[]} onChange={jest.fn()} />);
+
+    expect(getAllByRole('header').map((node) => node.props.children)).toContain('Tags');
+  });
+
   it('adds a trimmed tag via the Add button', async () => {
     const onChange = jest.fn();
     const { getByTestId } = await render(<RangeTagEditor tags={['MTT']} onChange={onChange} />);

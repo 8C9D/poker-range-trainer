@@ -57,7 +57,7 @@ export function ModePicker({ range, onPick }: ModePickerProps) {
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
-      <Text style={styles.heading}>How do you want to train?</Text>
+      <Text accessibilityRole="header" style={styles.heading}>How do you want to train?</Text>
       {option(
         'recognize',
         'Recognize hands',

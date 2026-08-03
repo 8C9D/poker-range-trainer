@@ -102,7 +102,7 @@ export default function SharedPackScreen() {
           </Text>
         ) : pack ? (
           <>
-            <Text testID="shared-pack-name" style={styles.name}>
+            <Text testID="shared-pack-name" accessibilityRole="header" style={styles.name}>
               {pack.name || 'Untitled pack'}
             </Text>
             <Text style={styles.meta}>
