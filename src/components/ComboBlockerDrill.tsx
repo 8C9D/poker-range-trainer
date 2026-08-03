@@ -54,6 +54,7 @@ export function ComboBlockerDrill({
         Board (dead cards)
         <input
           type="text"
+          className="coach-input"
           value={board}
           placeholder="e.g. AsKd7h"
           onChange={(event) => {
@@ -72,7 +73,7 @@ export function ComboBlockerDrill({
       ) : (
         <>
           <p className="combo-blocker-remaining">{parsed.remaining} combos available</p>
-          <button type="button" className="combo-blocker-deal" onClick={deal}>
+          <button type="button" className="coach-btn primary" onClick={deal}>
             Deal a combo
           </button>
           {combo && (
@@ -87,7 +88,7 @@ export function ComboBlockerDrill({
         </>
       )}
 
-      <button type="button" className="combo-blocker-back" onClick={onExit}>
+      <button type="button" className="coach-btn" onClick={onExit}>
         Back
       </button>
     </div>
