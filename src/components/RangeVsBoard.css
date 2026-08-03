@@ -48,6 +48,6 @@
 }
 
 .range-vs-board-error {
-  color: #e5484d;
+  color: var(--bad);
   margin: 0;
 }

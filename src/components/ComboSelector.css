@@ -36,10 +36,10 @@
 
 /* Suit accents: spades/clubs neutral, hearts red, diamonds blue. */
 .combo-card.suit-h {
-  color: #e5484d;
+  color: var(--heart);
 }
 .combo-card.suit-d {
-  color: #4493f8;
+  color: var(--diamond);
 }
 .combo-card.suit-s,
 .combo-card.suit-c {

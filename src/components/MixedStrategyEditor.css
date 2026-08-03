@@ -30,6 +30,6 @@
 }
 
 .mixed-strategy-total.is-valid {
-  color: #46a758;
+  color: var(--good);
   opacity: 1;
 }

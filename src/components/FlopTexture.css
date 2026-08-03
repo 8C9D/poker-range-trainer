@@ -23,10 +23,10 @@
 
 /* Suit accents: spades/clubs neutral, hearts red, diamonds blue. */
 .flop-card.suit-h {
-  color: #e5484d;
+  color: var(--heart);
 }
 .flop-card.suit-d {
-  color: #4493f8;
+  color: var(--diamond);
 }
 .flop-card.suit-s,
 .flop-card.suit-c {
@@ -51,6 +51,6 @@
 }
 
 .flop-texture-error {
-  color: #e5484d;
+  color: var(--bad);
   margin: 0;
 }

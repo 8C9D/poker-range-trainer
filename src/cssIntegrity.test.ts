@@ -174,8 +174,22 @@ describe('wide tables', () => {
  * light mode to the same shape and keeps either from drifting back.
  */
 
-/** Tokens the stylesheets set as a `color:`, i.e. that have to clear 4.5:1. */
-const TEXT_TOKENS = ['--ink', '--ink-2', '--ink-3', '--accent-strong', '--good', '--bad']
+/**
+ * Tokens the stylesheets set as a `color:`, i.e. that have to clear 4.5:1.
+ * `--heart` and `--diamond` are the suit accents on a *themed* surface (the
+ * combo grid, the flop cards); the card face's own ink is `--card-*` and is
+ * checked separately against the face it is painted on.
+ */
+const TEXT_TOKENS = [
+  '--ink',
+  '--ink-2',
+  '--ink-3',
+  '--accent-strong',
+  '--good',
+  '--bad',
+  '--heart',
+  '--diamond',
+]
 
 /**
  * Surfaces those tokens can land on. `--cardface` is deliberately absent: it is

@@ -27,8 +27,8 @@ export const light = {
   bet3: '#7261c9', // action colors, CVD-validated
   good: '#287750',
   bad: '#b1492b',
-  heart: '#c2502f',
-  diamond: '#3a76c9',
+  heart: '#b1492b',
+  diamond: '#3469b4',
   club: '#2e8a5c',
   spade: '#22252a', // 4-color deck
   h1c: '#ecdfb6',
@@ -69,7 +69,7 @@ export const dark: ThemeColors = {
   bet3: '#8f7ae0',
   good: '#35a068',
   bad: '#e8643e',
-  heart: '#e0603c',
+  heart: '#e8643e',
   diamond: '#6d9fe8',
   club: '#35a068',
   spade: '#22252a',
