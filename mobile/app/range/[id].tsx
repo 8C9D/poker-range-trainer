@@ -22,11 +22,8 @@ import { setRangeFavorite } from '@core/domain/rangeFavorite';
 import { sourceReferenceUrl } from '@core/domain/sourceReference';
 import { loadReviewStates } from '@core/storage/reviewStateStorage';
 import { loadSessionHistory } from '@core/storage/sessionHistoryStorage';
-import {
-  deleteSavedRange,
-  findSavedRangeById,
-  saveSavedRange,
-} from '@core/storage/rangeStorage';
+import { findSavedRangeById, saveSavedRange } from '@core/storage/rangeStorage';
+import { deleteRangesWithRecords } from '@core/storage/rangeRemoval';
 import {
   ACTION_TYPE_LABELS,
   GAME_TYPE_LABELS,
@@ -183,7 +180,7 @@ export default function RangeScreen() {
         text: 'Delete',
         style: 'destructive',
         onPress: () => {
-          if (!runSave(() => deleteSavedRange(range.id))) return;
+          if (!runSave(() => deleteRangesWithRecords([range.id]))) return;
           router.replace('/library');
         },
       },

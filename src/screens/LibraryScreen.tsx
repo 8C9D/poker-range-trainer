@@ -28,7 +28,8 @@ import { selectDueRanges } from '../domain/spacedRepetition'
 import { buildStarterRanges, STARTER_RANGE_TEMPLATES } from '../domain/starterRanges'
 import { loadPracticeStats } from '../storage/practiceStatsStorage'
 import { loadReviewStates } from '../storage/reviewStateStorage'
-import { deleteSavedRanges, loadSavedRanges, saveSavedRanges } from '../storage/rangeStorage'
+import { loadSavedRanges, saveSavedRanges } from '../storage/rangeStorage'
+import { deleteRangesWithRecords } from '../storage/rangeRemoval'
 import {
   ACTION_TYPE_LABELS,
   ACTION_TYPES,
@@ -337,7 +338,7 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
                   ) {
                     return
                   }
-                  if (!persist(() => deleteSavedRanges(visibleSelectedIds))) return
+                  if (!persist(() => deleteRangesWithRecords(visibleSelectedIds))) return
                   setRanges((current) =>
                     current.filter((range) => !visibleSelectedIds.has(range.id)),
                   )

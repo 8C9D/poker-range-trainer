@@ -44,7 +44,8 @@ import { loadActionAccuracy } from '../storage/actionAccuracyStorage'
 import { loadHandAccuracy } from '../storage/handAccuracyStorage'
 import { loadReviewStates } from '../storage/reviewStateStorage'
 import { loadSessionHistory } from '../storage/sessionHistoryStorage'
-import { deleteSavedRange, findSavedRangeById, loadSavedRanges, saveSavedRange } from '../storage/rangeStorage'
+import { findSavedRangeById, loadSavedRanges, saveSavedRange } from '../storage/rangeStorage'
+import { deleteRangesWithRecords } from '../storage/rangeRemoval'
 import {
   ACTION_TYPE_LABELS,
   GAME_TYPE_LABELS,
@@ -358,7 +359,7 @@ export function RangeScreen({ id, tab, prefill, onPractice }: RangeScreenProps) 
             className="range-screen-menu-danger"
             onClick={menuAction(() => {
               if (!window.confirm(`Delete "${range.name}"? This cannot be undone.`)) return
-              if (!persist(() => deleteSavedRange(range.id))) return
+              if (!persist(() => deleteRangesWithRecords([range.id]))) return
               navigate({ screen: 'library' })
             })}
           >

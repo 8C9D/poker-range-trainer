@@ -26,7 +26,8 @@ import { selectDueRanges } from '@core/domain/spacedRepetition';
 import { buildStarterRanges, STARTER_RANGE_TEMPLATES } from '@core/domain/starterRanges';
 import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
 import { loadReviewStates } from '@core/storage/reviewStateStorage';
-import { deleteSavedRanges, loadSavedRanges, saveSavedRanges } from '@core/storage/rangeStorage';
+import { loadSavedRanges, saveSavedRanges } from '@core/storage/rangeStorage';
+import { deleteRangesWithRecords } from '@core/storage/rangeRemoval';
 import {
   ACTION_TYPE_LABELS,
   ACTION_TYPES,
@@ -354,7 +355,7 @@ export default function LibraryScreen() {
                         text: 'Delete',
                         style: 'destructive',
                         onPress: () => {
-                          if (!persist(() => deleteSavedRanges(visibleSelectedIds))) return;
+                          if (!persist(() => deleteRangesWithRecords(visibleSelectedIds))) return;
                           setData((current) => ({
                             ...current,
                             ranges: current.ranges.filter(

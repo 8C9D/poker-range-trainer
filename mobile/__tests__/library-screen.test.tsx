@@ -2,7 +2,11 @@ import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import type { ReactNode } from 'react';
 
-import { recordPracticeSession } from '@core/storage/practiceStatsStorage';
+import { loadPracticeStats, recordPracticeSession } from '@core/storage/practiceStatsStorage';
+import {
+  loadSessionHistory,
+  recordPracticeSessionHistory,
+} from '@core/storage/sessionHistoryStorage';
 import { saveReviewState } from '@core/storage/reviewStateStorage';
 import { loadSavedRanges, saveSavedRange } from '@core/storage/rangeStorage';
 import { STARTER_RANGE_TEMPLATES } from '@core/domain/starterRanges';
@@ -260,6 +264,29 @@ describe('LibraryScreen', () => {
     await waitFor(() =>
       expect(loadSavedRanges().map((range) => range.name)).toEqual(['Keep']),
     );
+  });
+
+  it('frees the deleted ranges\u2019 recorded stats, not just the range records', async () => {
+    seed({ id: 'r1', name: 'Keep' });
+    seed({ id: 'r2', name: 'Delete me' });
+    for (const id of ['r1', 'r2']) {
+      recordPracticeSession(id, { totalQuestions: 10, correctAnswers: 8 });
+      recordPracticeSessionHistory(id, { totalQuestions: 10, correctAnswers: 8 });
+    }
+    jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
+      buttons?.find((button) => button.style === 'destructive')?.onPress?.();
+    });
+
+    const { getByTestId, findByLabelText } = await render(<LibraryScreen />);
+    await fireEvent.press(getByTestId('manage-ranges'));
+    await fireEvent.press(await findByLabelText('Select Delete me'));
+    await findByLabelText('Deselect Delete me');
+    await fireEvent.press(getByTestId('delete-selected'));
+
+    // Left behind, the records outlived the range for good, so freeing space by
+    // deleting ranges did not actually free any.
+    await waitFor(() => expect(Object.keys(loadPracticeStats())).toEqual(['r1']));
+    expect(Object.keys(loadSessionHistory())).toEqual(['r1']);
   });
 
   it('bulk archives and unarchives selected ranges', async () => {

@@ -3,7 +3,8 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { LibraryScreen } from './LibraryScreen'
 import { loadSavedRanges, saveSavedRange } from '../storage/rangeStorage'
-import { recordPracticeSession } from '../storage/practiceStatsStorage'
+import { loadPracticeStats, recordPracticeSession } from '../storage/practiceStatsStorage'
+import { loadSessionHistory, recordPracticeSessionHistory } from '../storage/sessionHistoryStorage'
 import { saveReviewState } from '../storage/reviewStateStorage'
 import { STARTER_RANGE_TEMPLATES } from '../domain/starterRanges'
 import type { SavedRange } from '../types/range'
@@ -309,6 +310,27 @@ describe('LibraryScreen', () => {
 
     expect(loadSavedRanges().map((range) => range.name)).toEqual(['Keep'])
     expect(rowNames()).toEqual(['Keep'])
+  })
+
+  it('frees the deleted ranges\u2019 recorded stats, not just the range records', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange('a', 'Keep'))
+    saveSavedRange(makeRange('b', 'Delete one'))
+    for (const id of ['a', 'b']) {
+      recordPracticeSession(id, { totalQuestions: 10, correctAnswers: 8 })
+      recordPracticeSessionHistory(id, { totalQuestions: 10, correctAnswers: 8 })
+    }
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    render(<LibraryScreen onPlaySpots={vi.fn()} />)
+
+    await user.click(screen.getByRole('button', { name: 'Manage' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select Delete one' }))
+    await user.click(screen.getByRole('button', { name: 'Delete selected' }))
+
+    // Left behind, the records outlived the range for good \u2014 so the advice a
+    // full store gives ("delete some ranges to free space") did not free any.
+    expect(Object.keys(loadPracticeStats())).toEqual(['a'])
+    expect(Object.keys(loadSessionHistory())).toEqual(['a'])
   })
 
   it('bulk archives and unarchives selected ranges', async () => {
