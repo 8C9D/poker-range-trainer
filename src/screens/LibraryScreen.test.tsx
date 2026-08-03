@@ -85,6 +85,41 @@ describe('LibraryScreen', () => {
     expect(within(row).getByText('Not practiced')).toBeInTheDocument()
   })
 
+  it('announces what the row shows, not just the range name', () => {
+    saveSavedRange(
+      makeRange('a', 'UTG open', {
+        favorite: true,
+        tags: ['Starter'],
+        metadata: { position: 'utg', actionType: 'open' },
+      }),
+    )
+    recordPracticeSession('a', { totalQuestions: 10, correctAnswers: 9 }, new Date().toISOString())
+    render(<LibraryScreen onPlaySpots={vi.fn()} />)
+
+    // A row's own aria-label replaces its contents for a screen reader, so
+    // everything the row draws has to be pointed back at explicitly or it is
+    // announced to nobody.
+    const row = screen.getByRole('link', { name: 'Open range UTG open' })
+    const description = row.getAttribute('aria-describedby')
+    expect(description).toBeTruthy()
+    const spoken = description!
+      .split(' ')
+      .map((id) => document.getElementById(id)?.textContent ?? `MISSING:${id}`)
+      .join(' ')
+
+    expect(spoken).toContain('UTG')
+    expect(spoken).toContain('Open')
+    expect(spoken).toContain('1.2%')
+    expect(spoken).toContain('Starter')
+    expect(spoken).toContain('90%')
+    expect(spoken).not.toContain('MISSING')
+    // The star is drawn, so "favorite" has to be said rather than shown.
+    expect(within(row).getByRole('img', { name: 'Favorite' })).toBeInTheDocument()
+    expect(description).toContain(
+      within(row).getByRole('img', { name: 'Favorite' }).getAttribute('id'),
+    )
+  })
+
   it('shows accuracy and last practiced once a range has stats', () => {
     saveSavedRange(makeRange('a', 'UTG open'))
     recordPracticeSession(

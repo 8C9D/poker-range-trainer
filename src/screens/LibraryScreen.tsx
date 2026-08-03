@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import { RangeThumbnail } from '../components/RangeThumbnail'
 import { SpotCoverage } from '../components/SpotCoverage'
 import { formatDayDistance } from '../app/format'
@@ -56,6 +56,9 @@ interface LibraryScreenProps {
  * Range page, which navigating back from remounts this screen.
  */
 export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
+  // Prefix for the per-row ids the rows' descriptions are wired through; the
+  // row index completes it, so it never depends on a range id being id-safe.
+  const listId = useId()
   const [ranges, setRanges] = useState(() => loadSavedRanges())
   const [practiceStats] = useState(() => loadPracticeStats())
   const [reviewStates] = useState(() => loadReviewStates())
@@ -444,10 +447,23 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
             </p>
           ) : (
             <ul className="library-list" aria-label="Saved ranges">
-              {visibleRanges.map((range) => {
+              {visibleRanges.map((range, index) => {
                 const stats = practiceStats[range.id]
                 const percentage = rangeComboPercentage(range.hands, range.comboSelections)
                 const meta = range.metadata
+                // The row's own label replaces everything inside it for a screen
+                // reader, so without pointing back at them the chips and the
+                // practice line — seat, action, size, due, tags, accuracy — are
+                // announced to nobody. Ids rather than a hand-built sentence, so
+                // the spoken row cannot drift from the drawn one.
+                const rowId = `${listId}-${index}`
+                const describedBy = [
+                  range.favorite ? `${rowId}-favorite` : null,
+                  `${rowId}-chips`,
+                  `${rowId}-stats`,
+                ]
+                  .filter(Boolean)
+                  .join(' ')
                 return (
                   <li key={range.id} className="library-list-item">
                     {managing && (
@@ -470,18 +486,25 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
                       className="coach-card library-row"
                       href={routeHash({ screen: 'range', id: range.id, tab: 'overview' })}
                       aria-label={`Open range ${range.name}`}
+                      aria-describedby={describedBy}
                     >
                       <RangeThumbnail hands={range.hands} size={44} />
                       <div className="library-row-info">
                         <span className="library-row-name">
                           {range.favorite && (
-                            <span className="library-row-star" title="Favorite">
+                            <span
+                              className="library-row-star"
+                              id={`${rowId}-favorite`}
+                              role="img"
+                              aria-label="Favorite"
+                              title="Favorite"
+                            >
                               ★
                             </span>
                           )}
                           {range.name}
                         </span>
-                        <span className="library-row-chips">
+                        <span className="library-row-chips" id={`${rowId}-chips`}>
                           {meta?.position && (
                             <span className="coach-chip">
                               {POSITION_LABELS[meta.position]}
@@ -509,7 +532,7 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
                           ))}
                         </span>
                       </div>
-                      <div className="library-row-stats coach-tabular">
+                      <div className="library-row-stats coach-tabular" id={`${rowId}-stats`}>
                         {stats && stats.totalAttempts > 0 ? (
                           <>
                             <span className="library-row-accuracy">
