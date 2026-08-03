@@ -218,7 +218,11 @@ export function RecognitionDrill({
       <div className="drill-center" {...swipe}>
         {scenario && <p className="drill-scenario">{scenario}</p>}
         <PlayingCards cards={prompt.cards} />
-        <p className="sr-only" data-testid="drill-hand">
+        {/* The deal is the question, so it has to speak: without a live region a
+            screen reader announces the feedback and then goes silent on the next
+            hand, leaving the drill unplayable without sight. The scenario is the
+            same for every question here, so only the hand needs announcing. */}
+        <p className="sr-only" aria-live="polite" aria-atomic="true" data-testid="drill-hand">
           {prompt.hand}
         </p>
         <div className="drill-feedback" role="status">

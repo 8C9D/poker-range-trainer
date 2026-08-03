@@ -1,4 +1,5 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { AccessibilityInfo } from 'react-native';
 
 import type { RangeMetadata, SavedRange } from '@core/types/range';
 
@@ -54,6 +55,20 @@ describe('SpotDrill', () => {
     );
     expect(getByTestId('answer-yes')).toHaveTextContent('Open');
     expect(getByTestId('answer-no')).toHaveTextContent('Fold');
+  });
+
+  it('speaks the dealt spot and names each card face', async () => {
+    const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility');
+    const { getByTestId } = await renderDrill();
+
+    // Nothing moves focus when a drill advances, so the deal has to say itself
+    // or VoiceOver goes silent after the first answer.
+    await waitFor(() =>
+      expect(announce).toHaveBeenCalledWith('6-max, 100bb. Folded to you on the BTN. AA'),
+    );
+    // Suits are glyphs the reader skips, so each face carries its own label.
+    expect(getByTestId('card-As').props.accessibilityLabel).toBe('A of spades');
+    announce.mockRestore();
   });
 
   it('explains the empty state when the library covers no spot at this format', async () => {

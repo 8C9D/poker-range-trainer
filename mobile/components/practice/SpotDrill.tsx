@@ -21,6 +21,7 @@ import type { PracticeAttempt } from '@core/types/practice';
 import type { SavedRange, TableSize } from '@core/types/range';
 
 import { resolveSwipeAnswer } from '../swipeAnswer';
+import { useAnnouncedPrompt } from './announcePrompt';
 import { OverlayFrame } from './OverlayFrame';
 import { PlayingCards } from './PlayingCards';
 import {
@@ -95,6 +96,7 @@ export function SpotDrill({
   }
 
   const [prompt, setPrompt] = useState(draw);
+  useAnnouncedPrompt(prompt ? `${describeSpot(prompt.spot)} ${prompt.hand}` : '');
   const [answered, setAnswered] = useState<AnsweredSpot[]>([]);
   const [feedback, setFeedback] = useState<PracticeAttempt | null>(null);
   const answeredRef = useRef(answered);

@@ -51,6 +51,16 @@ describe('SpotDrill', () => {
     expect(screen.getByRole('button', { name: 'Fold' })).toBeInTheDocument()
   })
 
+  it('announces both the spot and the hand, since every question changes both', () => {
+    renderDrill()
+
+    expect(screen.getByText('6-max, 100bb. Folded to you on the BTN.')).toHaveAttribute(
+      'aria-live',
+      'polite',
+    )
+    expect(screen.getByTestId('drill-hand')).toHaveAttribute('aria-live', 'polite')
+  })
+
   it('holds a missed spot on screen until the user continues', () => {
     vi.useFakeTimers()
     // random 0 deals AA in the BTN open spot, so folding it is a miss.

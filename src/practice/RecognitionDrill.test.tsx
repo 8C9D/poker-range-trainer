@@ -39,6 +39,24 @@ describe('RecognitionDrill', () => {
     expect(currentHand()).toBe('AA')
   })
 
+  it('speaks each deal: named cards in a region that announces the next hand', () => {
+    render(
+      <RecognitionDrill range={RANGE} variant="standard" handPool={['AA']} onFinish={vi.fn()} />,
+    )
+
+    // Suits are drawn as glyphs, so each face carries its own name or the
+    // reader hears two bare ranks and cannot tell suited from offsuit.
+    const named = screen
+      .getByTestId('playing-cards')
+      .querySelectorAll('[role="img"][aria-label]')
+    expect(named).toHaveLength(2)
+    expect(named[0].getAttribute('aria-label')).toMatch(/^A of (spades|hearts|diamonds|clubs)$/)
+
+    // Answering announces the feedback; the hand itself has to announce the
+    // next question, or the drill goes silent after the first answer.
+    expect(screen.getByTestId('drill-hand')).toHaveAttribute('aria-live', 'polite')
+  })
+
   it('runs the weakness variant from an empty history and scores an answer', () => {
     render(
       <RecognitionDrill range={RANGE} variant="weakness" onFinish={vi.fn()} random={() => 0.5} />,

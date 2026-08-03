@@ -202,9 +202,16 @@ export function SpotDrill({
     >
       <div className="drill-center" {...swipe}>
         {prompt.chained && <p className="drill-chain">Same hand — the action continues.</p>}
-        <p className="drill-scenario">{describeSpot(prompt.spot)}</p>
+        {/* The seat and the action change with every question here, so the
+            scenario announces itself rather than only the hand. */}
+        <p className="drill-scenario" aria-live="polite" aria-atomic="true">
+          {describeSpot(prompt.spot)}
+        </p>
         <PlayingCards cards={prompt.cards} />
-        <p className="sr-only" data-testid="drill-hand">
+        {/* The deal is the question, so it has to speak: without a live region a
+            screen reader announces the feedback and then goes silent on the next
+            hand, leaving the drill unplayable without sight. */}
+        <p className="sr-only" aria-live="polite" aria-atomic="true" data-testid="drill-hand">
           {prompt.hand}
         </p>
         <div className="drill-feedback" role="status">

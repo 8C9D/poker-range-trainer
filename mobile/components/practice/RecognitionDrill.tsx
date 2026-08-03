@@ -13,6 +13,7 @@ import type { PracticeAttempt } from '@core/types/practice';
 import type { SavedRange } from '@core/types/range';
 
 import { resolveSwipeAnswer } from '../swipeAnswer';
+import { useAnnouncedPrompt } from './announcePrompt';
 import { OverlayFrame } from './OverlayFrame';
 import { PlayingCards } from './PlayingCards';
 import { explainHand } from '@core/domain/missExplanation';
@@ -81,6 +82,7 @@ export function RecognitionDrill({
   }
 
   const [prompt, setPrompt] = useState<Prompt>(() => drawPrompt([]));
+  useAnnouncedPrompt(prompt.hand);
   const [attempts, setAttempts] = useState<PracticeAttempt[]>([]);
   const [feedback, setFeedback] = useState<PracticeAttempt | null>(null);
   const attemptsRef = useRef(attempts);

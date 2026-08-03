@@ -6,11 +6,19 @@ import { fonts } from '../../theme/fonts';
 import { useTheme } from '../../theme/colors';
 
 const SUIT_GLYPHS: Record<Card['suit'], string> = { s: '♠', h: '♥', d: '♦', c: '♣' };
+const SUIT_NAMES: Record<Card['suit'], string> = {
+  s: 'spades',
+  h: 'hearts',
+  d: 'diamonds',
+  c: 'clubs',
+};
 
 /**
  * Two concrete playing-card faces for a drill prompt, using the 4-color deck tokens.
- * Cards read as real dealt cards (rank + suit glyph); the accessible label carries the
- * hand for screen readers and tests.
+ *
+ * Each face is one element with its own label ("A of spades"): the suit is drawn as a
+ * glyph, which VoiceOver reads as punctuation or skips, so without the label the prompt
+ * announced two bare ranks and the suits — half of what makes a hand suited — were lost.
  */
 export function PlayingCards({ cards }: { cards: Card[] }) {
   const theme = useTheme();
@@ -26,6 +34,9 @@ export function PlayingCards({ cards }: { cards: Card[] }) {
         <View
           key={card.rank + card.suit}
           testID={`card-${card.rank}${card.suit}`}
+          accessible
+          accessibilityRole="image"
+          accessibilityLabel={`${card.rank} of ${SUIT_NAMES[card.suit]}`}
           style={[styles.card, { backgroundColor: theme.cardface, borderColor: theme.line2 }]}
         >
           <Text style={[styles.rank, { color: suitColor[card.suit] }]}>{card.rank}</Text>
