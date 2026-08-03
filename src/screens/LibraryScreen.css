@@ -20,15 +20,17 @@
   letter-spacing: -0.02em;
 }
 
+/* 8px matches .library-toolbar below; the --space-* custom properties these once
+   referenced are defined nowhere, so the gap computed to `normal` and the header
+   buttons and bulk actions rendered flush against each other. */
 .library-header-actions,
 .library-bulk-actions {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 8px;
 }
 
 .library-bulk-actions {
-  margin-block: var(--space-3);
   flex-wrap: wrap;
 }
 
@@ -104,7 +106,7 @@
 .library-list-item {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 8px;
 }
 
 .library-list-item .library-row {
