@@ -130,32 +130,57 @@ export function parseRangeCsv(csv: string): { name?: string; hands: PokerHand[] 
 }
 
 /**
- * Action fill colors for the SVG export, mirroring `ActionPalette.css` so an
- * exported image matches the on-screen multi-color grid.
+ * The exported image's palette: the resolved light-theme values of the tokens
+ * `theme.css` gives the on-screen grid.
+ *
+ * Literals rather than `var(...)` because the file is opened outside the app,
+ * where no stylesheet defines the tokens and every cell would fall back to
+ * black. Light because that is the app's default theme and the one an image
+ * meant for printing and sharing should carry. They are kept honest by a guard
+ * test that reads the same declarations back out of `theme.css`.
  */
-const ACTION_COLORS: Record<RangeAction, string> = {
-  fold: '#6b7280',
-  call: '#1a7f37',
-  raise: '#d4a72c',
-  threeBet: '#cf222e',
-  fourBet: '#8250df',
-  jam: '#6e1423',
-  mixed: '#0969da',
-}
+export const SVG_PALETTE = {
+  '--act-fold': '#696a66',
+  '--act-call': '#287750',
+  '--act-raise': '#c2502f',
+  '--act-3bet': '#7261c9',
+  '--act-4bet': '#3469b4',
+  '--act-jam': '#785907',
+  '--act-mixed': '#555758',
+  /** Ink on any action fill. */
+  '--on-action': '#fffef9',
+  /** Fill for an in-range cell with no per-hand action, and its ink. */
+  '--gold-fill': '#d9ab33',
+  '--on-accent': '#241c05',
+  /** An out-of-range cell, and the same cell on the pocket-pair diagonal. */
+  '--cellbg': '#f1efe8',
+  '--pairbg': '#efede4',
+  /** Ink on either unselected fill. */
+  '--ink': '#22252a',
+  /** Cell border. */
+  '--line': '#dfdcd0',
+} as const
 
-/** Fill for an in-range cell with no per-hand action (the accent color). */
-const IN_RANGE_COLOR = '#aa3bff'
-/** Fill for an out-of-range cell. */
-const OUT_OF_RANGE_COLOR = '#2b2540'
+const ACTION_COLORS: Record<RangeAction, string> = {
+  fold: SVG_PALETTE['--act-fold'],
+  call: SVG_PALETTE['--act-call'],
+  raise: SVG_PALETTE['--act-raise'],
+  threeBet: SVG_PALETTE['--act-3bet'],
+  fourBet: SVG_PALETTE['--act-4bet'],
+  jam: SVG_PALETTE['--act-jam'],
+  mixed: SVG_PALETTE['--act-mixed'],
+}
 
 /**
  * Render a range's 13×13 grid as a standalone SVG image string.
  *
  * Pure and dependency-free: draws one square per starting hand in standard
- * matrix order with its hand label. In-range hands are filled with the accent
- * color; when `handActions` is present, each assigned hand uses its action color
- * (matching the on-screen palette). The result is a real, printable image users
- * can open in any browser or image viewer.
+ * matrix order with its hand label. In-range hands take the selected-cell fill;
+ * when `handActions` is present, each assigned hand uses its action color. Every
+ * fill is the on-screen one (see the palette above), so the downloaded image is
+ * the chart the user was just looking at rather than a differently-colored copy
+ * of it. The result is a real, printable image users can open in any browser or
+ * image viewer.
  */
 export function formatRangeSvg(range: SavedRange): string {
   const matrix = generateHandMatrix()
@@ -169,16 +194,18 @@ export function formatRangeSvg(range: SavedRange): string {
     row.forEach((hand, j) => {
       const x = j * cell
       const y = i * cell
-      let fill = OUT_OF_RANGE_COLOR
+      let fill: string = i === j ? SVG_PALETTE['--pairbg'] : SVG_PALETTE['--cellbg']
+      let textFill: string = SVG_PALETTE['--ink']
       const action = handActions?.[hand]
       if (action && RANGE_ACTIONS.includes(action)) {
         fill = ACTION_COLORS[action]
+        textFill = SVG_PALETTE['--on-action']
       } else if (inRange.has(hand)) {
-        fill = IN_RANGE_COLOR
+        fill = SVG_PALETTE['--gold-fill']
+        textFill = SVG_PALETTE['--on-accent']
       }
-      const textFill = fill === OUT_OF_RANGE_COLOR ? '#888' : '#fff'
       cells.push(
-        `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" fill="${fill}" stroke="#1a1626" stroke-width="1"/>` +
+        `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" fill="${fill}" stroke="${SVG_PALETTE['--line']}" stroke-width="1"/>` +
           `<text x="${x + cell / 2}" y="${y + cell / 2}" fill="${textFill}" font-family="sans-serif" font-size="11" text-anchor="middle" dominant-baseline="central">${xmlEscape(hand)}</text>`,
       )
     })

@@ -3,6 +3,7 @@ import type { SavedRange } from '../types/range'
 import {
   RANGE_EXPORT_KIND,
   RANGE_EXPORT_VERSION,
+  SVG_PALETTE,
   buildRangeExport,
   decodeRangeFromHash,
   encodeRangeToHash,
@@ -150,15 +151,32 @@ describe('formatRangeSvg', () => {
     expect((svg.match(/<text /g) ?? []).length).toBe(169)
   })
 
-  it('fills in-range hands with the accent color and others muted', () => {
+  it('fills in-range hands with the selected-cell fill and others muted', () => {
     const svg = formatRangeSvg(makeRange({ hands: ['AA'] }))
-    expect(svg).toContain('fill="#aa3bff"')
-    expect(svg).toContain('fill="#2b2540"')
+    expect(svg).toContain(`fill="${SVG_PALETTE['--gold-fill']}"`)
+    expect(svg).toContain(`fill="${SVG_PALETTE['--cellbg']}"`)
   })
 
   it('uses action colors when handActions are present', () => {
     const svg = formatRangeSvg(makeRange({ hands: ['AA'], handActions: { AA: 'raise' } }))
-    expect(svg).toContain('fill="#d4a72c"')
+    expect(svg).toContain(`fill="${SVG_PALETTE['--act-raise']}"`)
+  })
+
+  it('inks each fill with the color that reads on it', () => {
+    const svg = formatRangeSvg(makeRange({ hands: ['AA'], handActions: { KK: 'call' } }))
+    // AA is selected, KK carries an action, and the other 167 cells are plain.
+    expect(svg).toContain(`fill="${SVG_PALETTE['--on-accent']}"`)
+    expect(svg).toContain(`fill="${SVG_PALETTE['--on-action']}"`)
+    expect(svg).toContain(`fill="${SVG_PALETTE['--ink']}"`)
+    // The old export inked every unselected cell mid-grey on near-black.
+    expect(svg).not.toContain('fill="#888"')
+  })
+
+  it('shades the pocket-pair diagonal the way the on-screen grid does', () => {
+    const svg = formatRangeSvg(makeRange({ hands: [] }))
+    // 13 pairs on the diagonal, 156 hands off it.
+    expect((svg.match(new RegExp(`fill="${SVG_PALETTE['--pairbg']}"`, 'g')) ?? []).length).toBe(13)
+    expect((svg.match(new RegExp(`fill="${SVG_PALETTE['--cellbg']}"`, 'g')) ?? []).length).toBe(156)
   })
 
   it('escapes the range name in the title', () => {
