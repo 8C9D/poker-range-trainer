@@ -127,6 +127,6 @@ function makeStyles(theme: ThemeColors) {
     secondary: { backgroundColor: theme.card, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.line2 },
     buttonText: { fontFamily: fonts.bodySemibold, fontSize: 16, color: theme.onAccent },
     secondaryText: { fontFamily: fonts.bodySemibold, fontSize: 16, color: theme.ink },
-    status: { fontFamily: fonts.bodySemibold, fontSize: 14, color: theme.accent },
+    status: { fontFamily: fonts.bodySemibold, fontSize: 14, color: theme.accentStrong },
   });
 }

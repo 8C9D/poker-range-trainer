@@ -165,7 +165,7 @@ function makeStyles(theme: ThemeColors) {
       fontSize: 16,
     },
     status: {
-      color: theme.accent,
+      color: theme.accentStrong,
       fontFamily: fonts.bodySemibold,
       fontSize: 14,
     },

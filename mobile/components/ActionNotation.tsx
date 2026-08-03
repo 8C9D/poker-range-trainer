@@ -151,7 +151,7 @@ function makeStyles(theme: ThemeColors) {
       paddingVertical: 8,
     },
     smallButtonText: {
-      color: theme.accent,
+      color: theme.accentStrong,
       fontSize: 13,
       fontWeight: '600',
     },

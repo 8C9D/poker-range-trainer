@@ -50,7 +50,7 @@ export default function WorkoutScreen() {
             Nothing to train right now.
           </Text>
           <Link href="/" asChild>
-            <Text style={[styles.link, { color: theme.accent }]}>Back to Today</Text>
+            <Text style={[styles.link, { color: theme.accentStrong }]}>Back to Today</Text>
           </Link>
         </View>
       </Screen>

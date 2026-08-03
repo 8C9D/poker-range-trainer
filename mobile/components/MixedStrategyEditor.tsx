@@ -124,7 +124,7 @@ function makeStyles(theme: ThemeColors) {
       fontWeight: '600',
     },
     totalValid: {
-      color: theme.accent,
+      color: theme.accentStrong,
     },
   });
 }

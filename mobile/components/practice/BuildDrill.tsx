@@ -114,7 +114,7 @@ function makeStyles(theme: ThemeColors) {
     results: { gap: 12 },
     group: { gap: 6 },
     groupLabel: { fontSize: 14, fontWeight: '700' },
-    labelCorrect: { color: theme.accent },
+    labelCorrect: { color: theme.accentStrong },
     labelMissed: { color: theme.bad },
     labelExtra: { color: theme.ink2 },
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

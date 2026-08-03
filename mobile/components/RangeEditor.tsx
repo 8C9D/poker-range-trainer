@@ -399,7 +399,7 @@ function makeStyles(theme: ThemeColors) {
       paddingVertical: 8,
     },
     actionsLinkText: {
-      color: theme.accent,
+      color: theme.accentStrong,
       fontSize: 14,
       fontWeight: '600',
     },

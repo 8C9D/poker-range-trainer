@@ -148,7 +148,7 @@ function makeStyles(theme: ThemeColors) {
     },
     hand: { color: theme.ink, fontSize: 52, fontWeight: '700' },
     feedback: { fontSize: 16, color: theme.ink2, textAlign: 'center' },
-    feedbackCorrect: { color: theme.accent },
+    feedbackCorrect: { color: theme.accentStrong },
     feedbackWrong: { color: theme.bad },
     actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 },
     actionButton: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12 },
@@ -162,7 +162,7 @@ function makeStyles(theme: ThemeColors) {
       paddingHorizontal: 20,
       paddingVertical: 10,
     },
-    nextButtonText: { color: theme.accent, fontSize: 15, fontWeight: '600' },
+    nextButtonText: { color: theme.accentStrong, fontSize: 15, fontWeight: '600' },
     stats: { flexDirection: 'row', gap: 20, marginTop: 8 },
     stat: { color: theme.ink2, fontSize: 14 },
   });

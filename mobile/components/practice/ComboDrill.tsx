@@ -124,7 +124,7 @@ function makeStyles(theme: ThemeColors) {
     },
     error: { color: theme.bad, fontSize: 14 },
     empty: { color: theme.ink2, fontSize: 15 },
-    remaining: { color: theme.accent, fontSize: 16, fontWeight: '700' },
+    remaining: { color: theme.accentStrong, fontSize: 16, fontWeight: '700' },
     dealButton: {
       alignSelf: 'flex-start',
       backgroundColor: theme.goldFill,

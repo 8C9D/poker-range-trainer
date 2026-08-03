@@ -220,7 +220,7 @@ function makeStyles(theme: ThemeColors) {
       fontWeight: '600',
     },
     category: {
-      color: theme.accent,
+      color: theme.accentStrong,
       fontSize: 15,
       fontWeight: '600',
     },
@@ -268,7 +268,7 @@ function makeStyles(theme: ThemeColors) {
       textAlign: 'center',
     },
     feedbackCorrect: {
-      color: theme.accent,
+      color: theme.accentStrong,
     },
     feedbackWrong: {
       color: theme.bad,
@@ -288,7 +288,7 @@ function makeStyles(theme: ThemeColors) {
       borderColor: theme.line2,
     },
     nextButtonText: {
-      color: theme.accent,
+      color: theme.accentStrong,
       fontSize: 15,
       fontWeight: '600',
     },

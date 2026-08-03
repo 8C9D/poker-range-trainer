@@ -259,7 +259,7 @@ function makeStyles(theme: ThemeColors) {
     offline: { fontFamily: fonts.body, fontSize: 14, lineHeight: 21, color: theme.ink2 },
     block: { gap: 10 },
     label: { fontFamily: fonts.bodySemibold, fontSize: 14, color: theme.ink },
-    email: { fontFamily: fonts.displaySemibold, fontSize: 18, color: theme.accent },
+    email: { fontFamily: fonts.displaySemibold, fontSize: 18, color: theme.accentStrong },
     input: {
       backgroundColor: theme.card,
       borderWidth: StyleSheet.hairlineWidth,
@@ -280,7 +280,7 @@ function makeStyles(theme: ThemeColors) {
     divider: { height: StyleSheet.hairlineWidth, backgroundColor: theme.line, marginVertical: 8 },
     row: { flexDirection: 'row', gap: 10 },
     flex1: { flex: 1 },
-    status: { fontFamily: fonts.bodySemibold, fontSize: 14, color: theme.accent },
+    status: { fontFamily: fonts.bodySemibold, fontSize: 14, color: theme.accentStrong },
     deleteLink: { alignSelf: 'flex-start', paddingVertical: 6 },
     deleteText: { fontFamily: fonts.bodySemibold, fontSize: 14, color: theme.bad },
   });

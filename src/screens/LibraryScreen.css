@@ -148,7 +148,7 @@
 }
 
 .library-row-star {
-  color: var(--accent);
+  color: var(--accent-strong);
   margin-right: 6px;
 }
 

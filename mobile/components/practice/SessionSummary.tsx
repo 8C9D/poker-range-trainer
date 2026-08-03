@@ -114,7 +114,7 @@ function makeStyles(theme: ThemeColors) {
     },
     delta: { fontFamily: fonts.bodySemibold, fontSize: 15.5, color: theme.ink2, textAlign: 'center' },
     goal: { fontFamily: fonts.body, fontSize: 14, color: theme.ink2, textAlign: 'center' },
-    streak: { fontFamily: fonts.body, fontSize: 14, color: theme.accent, textAlign: 'center' },
+    streak: { fontFamily: fonts.body, fontSize: 14, color: theme.accentStrong, textAlign: 'center' },
     actions: { flexDirection: 'row', gap: 12, marginTop: 8 },
     primaryBtn: {
       backgroundColor: theme.goldFill,

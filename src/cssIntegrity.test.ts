@@ -426,6 +426,39 @@ describe('literal colors', () => {
 })
 
 /**
+ * The palette carries two golds, and only one of them is ink.
+ *
+ * `--accent` is the border/outline gold: at 3.1:1 on the page it clears the 3:1
+ * a UI component's boundary answers to and nothing more. `--accent-strong` is
+ * the same hue taken down to text contrast. The web app had them straight except
+ * for the Library's favourite star; the mobile port did not, and put `accent` on
+ * roughly thirty labels, links and counts that all rendered around 3.1–3.7:1 in
+ * light mode. Keeping the split mechanical is what stops that drifting back.
+ */
+describe('the two golds', () => {
+  it('never sets --accent as a text color', () => {
+    const offenders: string[] = []
+    for (const file of cssFiles(SRC)) {
+      const css = readFileSync(file, 'utf8')
+      // `(^|[;\s])` so `border-color: var(--accent)` is not read as a `color:`.
+      for (const match of css.matchAll(/(^|[;\s])color:\s*var\(\s*--accent\s*\)/g)) {
+        offenders.push(`${file.slice(SRC.length)}: ${match[0].trim()}`)
+      }
+    }
+    expect(offenders).toEqual([])
+  })
+
+  it('still uses --accent for the borders it is sized for', () => {
+    // Guards the guard: if the token fell out of use entirely the rule above
+    // would pass while saying nothing.
+    const css = cssFiles(SRC)
+      .map((file) => readFileSync(file, 'utf8'))
+      .join('\n')
+    expect(css.match(/border-color:\s*var\(\s*--accent\s*\)/g)?.length ?? 0).toBeGreaterThan(3)
+  })
+})
+
+/**
  * The seven multi-action fills, and the two ways they had gone wrong at once.
  *
  * A `background` on `.action-jam` and the one on `.action-cell` are both a single

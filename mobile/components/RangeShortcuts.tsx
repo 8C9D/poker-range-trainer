@@ -65,7 +65,7 @@ function makeStyles(theme: ThemeColors) {
       paddingVertical: 8,
     },
     buttonText: {
-      color: theme.accent,
+      color: theme.accentStrong,
       fontSize: 13,
       fontWeight: '600',
     },

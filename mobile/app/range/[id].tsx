@@ -516,7 +516,7 @@ function makeStyles(theme: ThemeColors) {
     scroll: { padding: 16, gap: 14, paddingBottom: 40 },
     notFound: { flex: 1, padding: 24, gap: 16 },
     notFoundText: { fontFamily: fonts.body, fontSize: 15, color: theme.ink2 },
-    back: { fontFamily: fonts.bodySemibold, fontSize: 15, color: theme.accent },
+    back: { fontFamily: fonts.bodySemibold, fontSize: 15, color: theme.accentStrong },
     headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     primaryBtn: {
@@ -544,7 +544,7 @@ function makeStyles(theme: ThemeColors) {
     },
     menuItem: { paddingHorizontal: 16, paddingVertical: 12 },
     menuItemText: { fontFamily: fonts.bodyMedium, fontSize: 15, color: theme.ink },
-    shareStatus: { fontFamily: fonts.bodySemibold, fontSize: 13, color: theme.accent },
+    shareStatus: { fontFamily: fonts.bodySemibold, fontSize: 13, color: theme.accentStrong },
     title: { fontFamily: fonts.display, fontSize: 28, color: theme.ink },
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
     tabBar: {
@@ -580,7 +580,7 @@ function makeStyles(theme: ThemeColors) {
     sourceLink: {
       fontFamily: fonts.body,
       fontSize: 14,
-      color: theme.accent,
+      color: theme.accentStrong,
       textDecorationLine: 'underline',
     },
     sectionTitle: { fontFamily: fonts.bodySemibold, fontSize: 14, color: theme.ink },

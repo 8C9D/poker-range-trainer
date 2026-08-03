@@ -128,7 +128,7 @@ function makeStyles(theme: ThemeColors) {
     },
     hand: { color: theme.ink, fontSize: 56, fontWeight: '700' },
     feedback: { fontSize: 16, color: theme.ink2, textAlign: 'center' },
-    feedbackCorrect: { color: theme.accent },
+    feedbackCorrect: { color: theme.accentStrong },
     feedbackWrong: { color: theme.bad },
     actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 },
     actionButton: { paddingHorizontal: 18, paddingVertical: 12, borderRadius: 12 },

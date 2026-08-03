@@ -86,7 +86,7 @@ export default function PracticeScreen() {
         <View style={styles.notFound}>
           <Text style={[styles.notFoundText, { color: theme.ink2 }]}>Range not found.</Text>
           <Link href="/library" asChild>
-            <Text style={[styles.link, { color: theme.accent }]}>Back to Library</Text>
+            <Text style={[styles.link, { color: theme.accentStrong }]}>Back to Library</Text>
           </Link>
         </View>
       </Screen>

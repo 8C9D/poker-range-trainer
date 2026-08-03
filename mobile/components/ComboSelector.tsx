@@ -77,7 +77,7 @@ function makeStyles(theme: ThemeColors) {
       gap: 8,
     },
     count: {
-      color: theme.accent,
+      color: theme.accentStrong,
       fontSize: 14,
       fontWeight: '700',
     },

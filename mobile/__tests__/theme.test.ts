@@ -1,3 +1,6 @@
+import { readFileSync, readdirSync } from 'fs';
+import { join } from 'path';
+
 import { actionColors } from '../theme/actionColors';
 import { dark, light } from '../theme/colors';
 
@@ -122,6 +125,39 @@ function blend(tint: string, surface: string): string {
     Math.round(alpha * ((t >>> (shift + 8)) & 255) + (1 - alpha) * ((s >>> shift) & 255));
   return `#${[16, 8, 0].map((shift) => channel(shift).toString(16).padStart(2, '0')).join('')}`;
 }
+
+/**
+ * The palette carries two golds and only one of them is ink: `accent` is the
+ * border/outline gold, sized for the 3:1 a component boundary answers to, and
+ * `accentStrong` is the same hue taken down to text contrast. The web app keeps
+ * them apart; this port had put `accent` on about thirty labels, links, counts
+ * and statuses, every one of them landing near 3.1–3.7:1 in light mode.
+ */
+describe('the two golds', () => {
+  const sources = readdirSync(join(__dirname, '..'), { recursive: true, encoding: 'utf8' })
+    .filter((entry) => entry.endsWith('.tsx') && !entry.startsWith('node_modules'))
+    .map((entry) => ({ entry, source: readFileSync(join(__dirname, '..', entry), 'utf8') }));
+
+  it('reads the whole app', () => {
+    // Guards the guard: an empty sweep would pass no matter what the styles say.
+    expect(sources.length).toBeGreaterThan(40);
+  });
+
+  it('never sets accent as a text color', () => {
+    // Only a style key literally named `color` matches; `borderColor` capitalizes.
+    const offenders = sources
+      .filter(({ source }) => /(?<![\w-])color:\s*theme\.accent(?![A-Za-z])/.test(source))
+      .map(({ entry }) => entry);
+    expect(offenders).toEqual([]);
+  });
+
+  it('still uses accent for the borders it is sized for', () => {
+    const borders = sources.filter(({ source }) =>
+      /borderColor:[^,;\n]*theme\.accent(?![A-Za-z])/.test(source),
+    );
+    expect(borders.length).toBeGreaterThan(3);
+  });
+});
 
 /**
  * The mirror of the web `text on a tint` sweep. `accentSoft` is a 12%-alpha gold,

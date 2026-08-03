@@ -124,7 +124,7 @@ function makeStyles(theme: ThemeColors) {
     content: { gap: 16 },
     notFound: { color: theme.ink2, fontSize: 16, marginTop: 32, textAlign: 'center' },
     hint: { color: theme.ink2, fontSize: 14 },
-    incomplete: { color: theme.accent, fontSize: 14, lineHeight: 20 },
+    incomplete: { color: theme.accentStrong, fontSize: 14, lineHeight: 20 },
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     chip: {
       flexDirection: 'row',

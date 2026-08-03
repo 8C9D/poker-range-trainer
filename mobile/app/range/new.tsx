@@ -29,7 +29,7 @@ export default function NewRangeScreen() {
       <View style={[styles.header, { borderBottomColor: theme.line }]}>
         <Link href="/library" asChild>
           <Pressable hitSlop={8}>
-            <Text style={[styles.back, { color: theme.accent }]}>← Library</Text>
+            <Text style={[styles.back, { color: theme.accentStrong }]}>← Library</Text>
           </Pressable>
         </Link>
         <Text accessibilityRole="header" style={[styles.title, { color: theme.ink }]}>New range</Text>

@@ -198,7 +198,7 @@ function makeStyles(theme: ThemeColors) {
     buttonDisabled: { opacity: 0.5 },
     buttonText: { fontFamily: fonts.bodySemibold, fontSize: 15, color: theme.onAccent },
     secondaryText: { fontFamily: fonts.bodySemibold, fontSize: 15, color: theme.ink },
-    status: { fontFamily: fonts.bodySemibold, fontSize: 14, color: theme.accent },
+    status: { fontFamily: fonts.bodySemibold, fontSize: 14, color: theme.accentStrong },
     error: { fontFamily: fonts.body, fontSize: 14, color: theme.bad },
   });
 }

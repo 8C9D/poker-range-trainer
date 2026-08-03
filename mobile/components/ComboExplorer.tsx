@@ -125,7 +125,7 @@ function makeStyles(theme: ThemeColors) {
       fontSize: 18,
     },
     error: { color: theme.bad, fontSize: 14 },
-    count: { color: theme.accent, fontSize: 16, fontWeight: '700' },
+    count: { color: theme.accentStrong, fontSize: 16, fontWeight: '700' },
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
     cell: {
       flexDirection: 'row',

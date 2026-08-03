@@ -177,7 +177,7 @@ function makeStyles(theme: ThemeColors) {
       alignItems: 'center',
     },
     primaryBtnText: { fontFamily: fonts.bodySemibold, fontSize: 16, color: theme.onAccent },
-    status: { fontFamily: fonts.bodySemibold, fontSize: 14, color: theme.accent },
+    status: { fontFamily: fonts.bodySemibold, fontSize: 14, color: theme.accentStrong },
     error: { fontFamily: fonts.body, fontSize: 14, color: theme.bad },
   });
 }
