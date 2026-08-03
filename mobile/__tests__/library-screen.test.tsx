@@ -108,6 +108,17 @@ describe('LibraryScreen', () => {
     expect(getByText('BTN Open')).toBeTruthy();
   });
 
+  it('searches by two words the name separates, in either order', async () => {
+    seed({ id: 'r1', name: 'UTG Open' });
+    seed({ id: 'r2', name: 'BTN 3-bet vs CO open' });
+
+    const { getByTestId, getByText, queryByText } = await render(<LibraryScreen />);
+    await fireEvent.changeText(getByTestId('library-search'), 'co btn');
+
+    await waitFor(() => expect(queryByText('UTG Open')).toBeNull());
+    expect(getByText('BTN 3-bet vs CO open')).toBeTruthy();
+  });
+
   it('filters by a position chip from the collapsed filters', async () => {
     seed({ id: 'r1', name: 'UTG Open', metadata: { position: 'utg' } });
     seed({ id: 'r2', name: 'BTN Open', metadata: { position: 'btn' } });

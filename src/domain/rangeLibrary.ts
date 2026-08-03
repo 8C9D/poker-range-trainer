@@ -44,21 +44,30 @@ export function filterFavoriteRanges<T extends { favorite?: boolean }>(
 }
 
 /**
- * Return the ranges whose name contains `query` as a case-insensitive
- * substring, preserving the input order.
+ * Return the ranges whose name contains every whitespace-separated term of
+ * `query`, case-insensitively and in any order, preserving the input order.
  *
- * The query is trimmed first, so surrounding whitespace is ignored and a blank
- * query (empty or whitespace-only) matches every range. A query that matches
- * nothing returns an empty array. The input array is never mutated; a fresh
- * array is always returned.
+ * Names read like sentences — "SB 3-bet vs BTN", "BB defend vs CO open" — so the
+ * two words a user remembers are usually separated by the ones they don't, and
+ * rarely in the order they type. Matching the query as one contiguous substring
+ * answered "btn sb" with nothing, which reads as "no such range" rather than
+ * "not in that order". Requiring every term keeps the filter as narrow as
+ * before for a single word while letting the terms fall anywhere in the name.
+ *
+ * A blank query (empty or whitespace-only) has no terms and matches every
+ * range. A query that matches nothing returns an empty array. The input array
+ * is never mutated; a fresh array is always returned.
  */
 export function filterRangesByName<T extends { name: string }>(
   ranges: T[],
   query: string,
 ): T[] {
-  const needle = query.trim().toLowerCase()
-  if (needle === '') return ranges.slice()
-  return ranges.filter((range) => range.name.toLowerCase().includes(needle))
+  const terms = query.toLowerCase().split(/\s+/).filter((term) => term !== '')
+  if (terms.length === 0) return ranges.slice()
+  return ranges.filter((range) => {
+    const name = range.name.toLowerCase()
+    return terms.every((term) => name.includes(term))
+  })
 }
 
 /**

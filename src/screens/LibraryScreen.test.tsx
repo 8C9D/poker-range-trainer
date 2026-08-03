@@ -155,6 +155,15 @@ describe('LibraryScreen', () => {
     expect(rowNames()).toEqual(['BTN defend'])
   })
 
+  it('searches by two words the name separates, in either order', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange('a', 'UTG open'))
+    saveSavedRange(makeRange('b', 'BTN 3-bet vs CO open'))
+    render(<LibraryScreen onPlaySpots={vi.fn()} />)
+    await user.type(screen.getByLabelText('Search ranges by name'), 'co btn')
+    expect(rowNames()).toEqual(['BTN 3-bet vs CO open'])
+  })
+
   it('shows a no-match message for a search without hits', async () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'UTG open'))

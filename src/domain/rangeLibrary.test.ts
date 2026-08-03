@@ -136,6 +136,29 @@ describe('filterRangesByName', () => {
     expect(filterRangesByName(ranges, 'zzz')).toEqual([])
   })
 
+  /**
+   * Range names read like sentences ("SB 3-bet vs BTN"), so the two words a user
+   * remembers are rarely adjacent in the order they type them. A single
+   * substring test answered "btn sb" with nothing at all, which reads as "you
+   * have no such range" rather than "not in that order".
+   */
+  it('matches the terms in any order rather than as one contiguous phrase', () => {
+    expect(filterRangesByName(ranges, 'btn sb')).toEqual([{ name: 'SB 3-bet vs BTN' }])
+    expect(filterRangesByName(ranges, 'co defend')).toEqual([{ name: 'BB defend vs CO' }])
+  })
+
+  it('still matches a query whose terms are adjacent and in order', () => {
+    expect(filterRangesByName(ranges, 'defend vs CO')).toEqual([{ name: 'BB defend vs CO' }])
+  })
+
+  it('requires every term, not just one of them', () => {
+    expect(filterRangesByName(ranges, 'defend zzz')).toEqual([])
+  })
+
+  it('collapses runs of whitespace between terms', () => {
+    expect(filterRangesByName(ranges, 'btn\t \n sb')).toEqual([{ name: 'SB 3-bet vs BTN' }])
+  })
+
   it('preserves the input order of the matches', () => {
     expect(filterRangesByName(ranges, 'b')).toEqual([
       { name: 'Button open' },
