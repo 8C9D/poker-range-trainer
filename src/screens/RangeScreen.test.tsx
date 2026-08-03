@@ -72,6 +72,48 @@ describe('RangeScreen header and menu', () => {
     expect(screen.getByText('Archived')).toBeInTheDocument()
   })
 
+  it('reports a menu action the store refused instead of leaving the item dead', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange())
+    render(<RangeScreen id="r1" tab="overview" onPractice={vi.fn()} />)
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError')
+    })
+
+    try {
+      await user.click(screen.getByRole('button', { name: 'More actions' }))
+      await user.click(screen.getByRole('menuitem', { name: 'Favorite' }))
+    } finally {
+      spy.mockRestore()
+    }
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/storage is full or unavailable/)
+    // The chip never appears for a favorite that was not stored.
+    expect(screen.queryByText('★ Favorite')).not.toBeInTheDocument()
+    expect(findSavedRangeById('r1')?.favorite).toBeUndefined()
+  })
+
+  it('stays on the range when a delete cannot be written', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    saveSavedRange(makeRange())
+    render(<RangeScreen id="r1" tab="overview" onPractice={vi.fn()} />)
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError')
+    })
+
+    try {
+      await user.click(screen.getByRole('button', { name: 'More actions' }))
+      await user.click(screen.getByRole('menuitem', { name: 'Delete' }))
+    } finally {
+      spy.mockRestore()
+    }
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/storage is full or unavailable/)
+    expect(loadSavedRanges()).toHaveLength(1)
+    expect(window.location.hash).not.toBe('#/library')
+  })
+
   it('closes the overflow menu on Escape and restores focus to the trigger', async () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange())
@@ -251,6 +293,27 @@ describe('RangeScreen tabs', () => {
 
     await user.click(screen.getByRole('button', { name: 'KK: unassigned' }))
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('does not claim a tab save the store refused', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange())
+    render(<RangeScreen id="r1" tab="actions" onPractice={vi.fn()} />)
+    await user.click(screen.getByRole('button', { name: 'Raise' }))
+    await user.click(screen.getByRole('button', { name: 'AA: unassigned' }))
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError')
+    })
+
+    try {
+      await user.click(screen.getByRole('button', { name: 'Save actions' }))
+    } finally {
+      spy.mockRestore()
+    }
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/storage is full or unavailable/)
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(findSavedRangeById('r1')?.handActions).toBeUndefined()
   })
 
   it('saves partial combo selections from the Combos tab', async () => {

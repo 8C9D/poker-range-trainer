@@ -53,6 +53,11 @@
   color: var(--ink-2);
 }
 
+.shared-range-error {
+  font-size: 13.5px;
+  color: var(--bad);
+}
+
 .shared-pack-range {
   border: 1px solid var(--line);
   border-radius: 14px;

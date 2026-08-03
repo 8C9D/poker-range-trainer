@@ -88,6 +88,12 @@
   color: var(--ink-2);
 }
 
+.range-screen-error {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--bad);
+}
+
 .range-screen-tabs {
   align-self: flex-start;
   max-width: 100%;

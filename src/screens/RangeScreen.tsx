@@ -91,6 +91,7 @@ export function RangeScreen({ id, tab, prefill, onPractice }: RangeScreenProps) 
   const [compareOtherId, setCompareOtherId] = useState('')
   // Cloud share status line + ids published this session (enables Unpublish).
   const [shareStatus, setShareStatus] = useState('')
+  const [actionError, setActionError] = useState<string | null>(null)
   const [publishedShareId, setPublishedShareId] = useState<string | null>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -178,6 +179,23 @@ export function RangeScreen({ id, tab, prefill, onPractice }: RangeScreenProps) 
     }
   }
 
+  /**
+   * Run a storage write, reporting a failure instead of losing it. The menu's
+   * actions persist from a click handler, where a throw from a full or blocked
+   * store escapes to nothing — the menu item just appears dead. Returns whether
+   * the write landed, so callers only navigate or refresh when it did.
+   */
+  function persist(write: () => void): boolean {
+    try {
+      write()
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Could not save that change.')
+      return false
+    }
+    setActionError(null)
+    return true
+  }
+
   async function handlePublish() {
     if (!range) return
     // OK = public (anyone with the link); Cancel = private (link carries a token).
@@ -251,7 +269,7 @@ export function RangeScreen({ id, tab, prefill, onPractice }: RangeScreenProps) 
             role="menuitem"
             onClick={menuAction(() => {
               const copy = duplicateRange(range, createRangeId(), new Date().toISOString())
-              saveSavedRange(copy)
+              if (!persist(() => saveSavedRange(copy))) return
               navigate({ screen: 'range', id: copy.id, tab: 'overview' })
             })}
           >
@@ -261,7 +279,7 @@ export function RangeScreen({ id, tab, prefill, onPractice }: RangeScreenProps) 
             type="button"
             role="menuitem"
             onClick={menuAction(() => {
-              saveSavedRange(setRangeFavorite(range, !range.favorite))
+              if (!persist(() => saveSavedRange(setRangeFavorite(range, !range.favorite)))) return
               refresh()
             })}
           >
@@ -271,7 +289,7 @@ export function RangeScreen({ id, tab, prefill, onPractice }: RangeScreenProps) 
             type="button"
             role="menuitem"
             onClick={menuAction(() => {
-              saveSavedRange(setRangeArchived(range, !range.archived))
+              if (!persist(() => saveSavedRange(setRangeArchived(range, !range.archived)))) return
               refresh()
             })}
           >
@@ -323,7 +341,7 @@ export function RangeScreen({ id, tab, prefill, onPractice }: RangeScreenProps) 
             className="range-screen-menu-danger"
             onClick={menuAction(() => {
               if (!window.confirm(`Delete "${range.name}"? This cannot be undone.`)) return
-              deleteSavedRange(range.id)
+              if (!persist(() => deleteSavedRange(range.id))) return
               navigate({ screen: 'library' })
             })}
           >
@@ -345,6 +363,11 @@ export function RangeScreen({ id, tab, prefill, onPractice }: RangeScreenProps) 
       {shareStatus && (
         <p className="range-screen-status" role="status">
           {shareStatus}
+        </p>
+      )}
+      {actionError && (
+        <p className="range-screen-error" role="alert">
+          {actionError}
         </p>
       )}
 
@@ -469,7 +492,7 @@ function ActionsTab({ range, onSaved }: { range: SavedRange; onSaved: () => void
   const [draft, setDraft] = useState<Record<PokerHand, RangeAction>>({
     ...(range.handActions ?? {}),
   })
-  const [saved, setSaved] = useState(false)
+  const status = useTabSave()
   return (
     <div className="range-tab-stack">
       <div className="range-tab-actions">
@@ -477,35 +500,80 @@ function ActionsTab({ range, onSaved }: { range: SavedRange; onSaved: () => void
           type="button"
           className="coach-btn"
           onClick={() => {
-            saveSavedRange({ ...range, handActions: draft, updatedAt: new Date().toISOString() })
-            onSaved()
-            setSaved(true)
+            const written = status.save(() =>
+              saveSavedRange({ ...range, handActions: draft, updatedAt: new Date().toISOString() }),
+            )
+            if (written) onSaved()
           }}
         >
           Save actions
         </button>
-        {saved && (
-          <p className="range-screen-status" role="status">
-            Actions saved.
-          </p>
-        )}
+        <TabSaveStatus saved={status.saved} error={status.error} label="Actions saved." />
       </div>
       <MultiActionEditor
         handActions={draft}
         onSetHandAction={(hand, action) => {
-          setSaved(false)
+          status.reset()
           setDraft((prev) => ({ ...prev, [hand]: action }))
         }}
       />
       <ActionNotation
         handActions={draft}
         onReplaceActions={(next) => {
-          setSaved(false)
+          status.reset()
           setDraft(next)
         }}
       />
     </div>
   )
+}
+
+/**
+ * The Save-button state the Actions, Combos and Frequencies tabs share: a write
+ * that lands shows "saved", one the store refuses shows why. Without this the
+ * confirmation appeared either way, so a full or blocked store looked like a
+ * successful save right up until the edits vanished on reload.
+ */
+function useTabSave() {
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  return {
+    saved,
+    error,
+    save(write: () => void) {
+      try {
+        write()
+      } catch (failure) {
+        setError(failure instanceof Error ? failure.message : 'Could not save this range.')
+        setSaved(false)
+        return false
+      }
+      setError(null)
+      setSaved(true)
+      return true
+    },
+    /** An edit invalidates the last outcome: neither line describes the draft now. */
+    reset() {
+      setSaved(false)
+      setError(null)
+    },
+  }
+}
+
+/** The Save button's outcome line: confirmation, or why the write was refused. */
+function TabSaveStatus({ saved, error, label }: { saved: boolean; error: string | null; label: string }) {
+  if (error) {
+    return (
+      <p className="range-screen-error" role="alert">
+        {error}
+      </p>
+    )
+  }
+  return saved ? (
+    <p className="range-screen-status" role="status">
+      {label}
+    </p>
+  ) : null
 }
 
 function CombosTab({ range, onSaved }: { range: SavedRange; onSaved: () => void }) {
@@ -517,10 +585,10 @@ function CombosTab({ range, onSaved }: { range: SavedRange; onSaved: () => void 
     }
     return initial
   })
-  const [saved, setSaved] = useState(false)
+  const status = useTabSave()
 
   function setDraftCombo(hand: PokerHand, combo: Card[]) {
-    setSaved(false)
+    status.reset()
     setDraft((prev) => ({
       ...prev,
       [hand]: toggleCombo(prev[hand] ?? allCombosForHand(hand), combo),
@@ -538,13 +606,14 @@ function CombosTab({ range, onSaved }: { range: SavedRange; onSaved: () => void 
         comboSelections[hand] = serializeComboSelection(selection)
       }
     }
-    saveSavedRange({
-      ...range,
-      comboSelections: Object.keys(comboSelections).length > 0 ? comboSelections : undefined,
-      updatedAt: new Date().toISOString(),
-    })
-    onSaved()
-    setSaved(true)
+    const written = status.save(() =>
+      saveSavedRange({
+        ...range,
+        comboSelections: Object.keys(comboSelections).length > 0 ? comboSelections : undefined,
+        updatedAt: new Date().toISOString(),
+      }),
+    )
+    if (written) onSaved()
   }
 
   // Hand classes never share a combo, so the per-hand sizes add up to the range
@@ -561,11 +630,7 @@ function CombosTab({ range, onSaved }: { range: SavedRange; onSaved: () => void 
         <button type="button" className="coach-btn" onClick={handleSave}>
           Save combos
         </button>
-        {saved && (
-          <p className="range-screen-status" role="status">
-            Combos saved.
-          </p>
-        )}
+        <TabSaveStatus saved={status.saved} error={status.error} label="Combos saved." />
       </div>
       <p className="range-combo-total coach-tabular">
         {selectedCombos} of {totalCombos} combos ·{' '}
@@ -590,7 +655,7 @@ function FrequenciesTab({ range, onSaved }: { range: SavedRange; onSaved: () => 
     ...(range.mixedStrategies ?? {}),
   })
   const [activeHand, setActiveHand] = useState<PokerHand | null>(range.hands[0] ?? null)
-  const [saved, setSaved] = useState(false)
+  const status = useTabSave()
 
   return (
     <div className="range-tab-stack">
@@ -599,22 +664,19 @@ function FrequenciesTab({ range, onSaved }: { range: SavedRange; onSaved: () => 
           type="button"
           className="coach-btn"
           onClick={() => {
-            saveSavedRange({
-              ...range,
-              mixedStrategies: draft,
-              updatedAt: new Date().toISOString(),
-            })
-            onSaved()
-            setSaved(true)
+            const written = status.save(() =>
+              saveSavedRange({
+                ...range,
+                mixedStrategies: draft,
+                updatedAt: new Date().toISOString(),
+              }),
+            )
+            if (written) onSaved()
           }}
         >
           Save frequencies
         </button>
-        {saved && (
-          <p className="range-screen-status" role="status">
-            Frequencies saved.
-          </p>
-        )}
+        <TabSaveStatus saved={status.saved} error={status.error} label="Frequencies saved." />
       </div>
       <MixedStrategyGrid mixedStrategies={draft} />
       <label className="range-freq-hand">
@@ -635,7 +697,7 @@ function FrequenciesTab({ range, onSaved }: { range: SavedRange; onSaved: () => 
         <MixedStrategyEditor
           strategy={draft[activeHand] ?? []}
           onChange={(next) => {
-            setSaved(false)
+            status.reset()
             setDraft((prev) => ({ ...prev, [activeHand]: next }))
           }}
         />
@@ -643,7 +705,7 @@ function FrequenciesTab({ range, onSaved }: { range: SavedRange; onSaved: () => 
       <MixedNotation
         mixedStrategies={draft}
         onReplace={(next) => {
-          setSaved(false)
+          status.reset()
           setDraft(next)
           setActiveHand(range.hands[0] ?? null)
         }}

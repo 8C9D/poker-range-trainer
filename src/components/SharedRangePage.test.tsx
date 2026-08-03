@@ -110,6 +110,27 @@ describe('SharedRangePage', () => {
     expect(screen.queryByRole('button', { name: 'Save to my library' })).not.toBeInTheDocument()
   })
 
+  it('reports a fork the local store refused instead of confirming it', async () => {
+    const user = userEvent.setup()
+    render(
+      <SharedRangePage
+        id="abc"
+        fetchSharedRange={vi.fn().mockResolvedValue(makeRange())}
+        cloudConfigured={configured}
+        onForkRange={() => {
+          throw new Error('Could not save: storage is full or unavailable.')
+        }}
+      />,
+    )
+
+    await user.click(await screen.findByRole('button', { name: 'Save to my library' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/storage is full or unavailable/)
+    expect(screen.queryByText('Saved to your library.')).not.toBeInTheDocument()
+    // The button stays, so the viewer can retry after freeing space.
+    expect(screen.getByRole('button', { name: 'Save to my library' })).toBeInTheDocument()
+  })
+
   it('shows no fork button when onForkRange is not provided', async () => {
     render(
       <SharedRangePage

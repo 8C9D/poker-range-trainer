@@ -49,8 +49,10 @@ export function SharedPackPage({
   const [state, setState] = useState<LoadState>(() =>
     cloudConfigured() ? { status: 'loading' } : { status: 'unconfigured' },
   )
-  // Whether the viewer has already forked this pack into their library.
+  // Whether the viewer has already forked this pack into their library, and why
+  // the save was refused when the store would not take it.
   const [forked, setForked] = useState(false)
+  const [forkError, setForkError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!cloudConfigured()) return
@@ -121,16 +123,33 @@ export function SharedPackPage({
             Saved {pack.ranges.length} range{pack.ranges.length === 1 ? '' : 's'} to your library.
           </p>
         ) : (
-          <button
-            type="button"
-            className="primary"
-            onClick={() => {
-              onForkPack(pack)
-              setForked(true)
-            }}
-          >
-            Save all to my library
-          </button>
+          <>
+            <button
+              type="button"
+              className="primary"
+              onClick={() => {
+                // The parent owns the write, so its failure surfaces here — the
+                // page must not claim a save the viewer's store refused.
+                try {
+                  onForkPack(pack)
+                } catch (error) {
+                  setForkError(
+                    error instanceof Error ? error.message : 'Could not save to your library.',
+                  )
+                  return
+                }
+                setForkError(null)
+                setForked(true)
+              }}
+            >
+              Save all to my library
+            </button>
+            {forkError && (
+              <p className="shared-range-error" role="alert">
+                {forkError}
+              </p>
+            )}
+          </>
         ))}
       {pack.ranges.length === 0 ? (
         <p>This pack has no ranges.</p>

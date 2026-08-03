@@ -124,6 +124,26 @@ describe('SharedPackPage', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('reports a fork the local store refused instead of confirming it', async () => {
+    const user = userEvent.setup()
+    render(
+      <SharedPackPage
+        id="abc"
+        fetchSharedPack={vi.fn().mockResolvedValue(makePack())}
+        cloudConfigured={configured}
+        onForkPack={() => {
+          throw new Error('Could not save: storage is full or unavailable.')
+        }}
+      />,
+    )
+
+    await user.click(await screen.findByRole('button', { name: 'Save all to my library' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/storage is full or unavailable/)
+    expect(screen.queryByText(/Saved 2 ranges to your library/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save all to my library' })).toBeInTheDocument()
+  })
+
   it('shows no fork button when onForkPack is not provided', async () => {
     render(
       <SharedPackPage
