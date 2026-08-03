@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { Backup } from '../storage/backup'
+import { validateBackup, type Backup } from '../storage/backup'
 import { CloudNotConfiguredError, getCurrentSession } from './auth'
 import { NotSignedInError } from './rangesRepo'
 import { getSupabaseClient } from './supabaseClient'
@@ -55,7 +55,14 @@ export async function deleteBackup(deps: BackupRepoDeps = {}): Promise<void> {
   if (error) throw error
 }
 
-/** Read back the user's backup, or null when none has been pushed yet. */
+/**
+ * Read back the user's backup, or null when none has been pushed yet.
+ *
+ * The row is validated exactly like an imported file. A pull REPLACES the whole
+ * local library, so a row this app cannot read — written by a newer version, or
+ * left partial — has to fail here, before the restore. Unchecked, the caller
+ * wrote it straight over a working library, which then read back as empty.
+ */
 export async function pullBackup(deps: BackupRepoDeps = {}): Promise<Backup | null> {
   const { client, userId } = await requireContext(deps)
   const { data, error } = await client
@@ -64,5 +71,6 @@ export async function pullBackup(deps: BackupRepoDeps = {}): Promise<Backup | nu
     .eq('user_id', userId)
     .maybeSingle()
   if (error) throw error
-  return data ? (data as { data: Backup }).data : null
+  if (!data) return null
+  return validateBackup((data as { data: unknown }).data)
 }

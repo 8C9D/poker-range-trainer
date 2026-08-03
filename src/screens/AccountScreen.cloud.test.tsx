@@ -100,6 +100,21 @@ describe('AccountScreen cloud sync (signed in)', () => {
     expect(loadSavedRanges().map((range) => range.name)).toEqual(['Local range'])
   })
 
+  it('keeps the local library when the cloud row cannot be read', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    // What the repo now raises for a row a newer app version wrote. Restoring it
+    // would have replaced a working library with something unreadable.
+    vi.mocked(pullBackup).mockRejectedValue(new Error('Unsupported backup version: 2.'))
+    saveSavedRange(makeRange('l1', 'Local range'))
+
+    render(<AccountScreen />)
+    await user.click(screen.getByRole('button', { name: 'Pull from cloud' }))
+
+    expect(await screen.findByText('Unsupported backup version: 2.')).toBeInTheDocument()
+    expect(loadSavedRanges().map((range) => range.name)).toEqual(['Local range'])
+  })
+
   it('delete cloud data still attempts every revocation and surfaces the failure', async () => {
     const user = userEvent.setup()
     vi.spyOn(window, 'confirm').mockReturnValue(true)

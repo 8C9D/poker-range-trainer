@@ -81,6 +81,38 @@ describe('pullBackup', () => {
     } as unknown as SupabaseClient
     await expect(pullBackup({ client, ...signedIn })).rejects.toBe(error)
   })
+
+  // A pull REPLACES the whole local library, so a row this app cannot read has
+  // to fail here rather than be written over a working one.
+  function clientReturning(row: unknown): SupabaseClient {
+    return {
+      from: () => ({
+        select: () => ({
+          eq: () => ({ maybeSingle: async () => ({ data: { data: row }, error: null }) }),
+        }),
+      }),
+    } as unknown as SupabaseClient
+  }
+
+  it('rejects a row written by a newer app version', async () => {
+    const client = clientReturning({ ...makeBackup(), version: 2 })
+    await expect(pullBackup({ client, ...signedIn })).rejects.toThrow(
+      /Unsupported backup version: 2/,
+    )
+  })
+
+  it('rejects a row missing a data slice', async () => {
+    const partial: Partial<Backup> = makeBackup()
+    delete partial.sessionHistory
+    const client = clientReturning(partial)
+    await expect(pullBackup({ client, ...signedIn })).rejects.toThrow(/sessionHistory/)
+  })
+
+  it('rejects a row whose data column is not an object', async () => {
+    await expect(pullBackup({ client: clientReturning(null), ...signedIn })).rejects.toThrow(
+      /not a backup object/,
+    )
+  })
 })
 
 describe('deleteBackup', () => {

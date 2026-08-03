@@ -91,6 +91,20 @@ export function parseBackup(json: string): Backup {
   } catch {
     throw new Error('Backup file is not valid JSON.')
   }
+  return validateBackup(parsed)
+}
+
+/**
+ * Validate an already-parsed value as a `Backup`, throwing the same readable
+ * errors `parseBackup` does.
+ *
+ * Split out because a backup does not only arrive as a file: the cloud pull
+ * fetches one as an object. Restoring REPLACES the whole local library, so the
+ * payload has to clear the same bar however it got here — a row written by a
+ * newer app version, or one left partial, would otherwise be written straight
+ * over a working library and read back as nothing.
+ */
+export function validateBackup(parsed: unknown): Backup {
   if (!isPlainObject(parsed)) {
     throw new Error('Backup file is not a backup object.')
   }
