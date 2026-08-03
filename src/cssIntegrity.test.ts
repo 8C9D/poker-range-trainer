@@ -49,8 +49,12 @@ describe('stylesheet custom properties', () => {
     const dangling: string[] = []
     for (const { file, css } of sources) {
       for (const match of css.matchAll(/var\(\s*(--[\w-]+)\s*(?:,[^)]*)?\)/g)) {
-        // A var() with a fallback still renders sensibly, so only bare ones count.
-        if (match[0].includes(',')) continue
+        // A fallback is not a defense, it is the failure: these stylesheets came
+        // from a purple pre-Coach theme and several kept its literal colors as
+        // fallbacks. `var(--error, #d33)` looked safe and was the only rule that
+        // ever ran, because nothing defines `--error` — so the sign-in error
+        // stayed the old red in both themes while every sibling followed the
+        // palette. A referenced token has to exist, fallback or not.
         if (!defined.has(match[1])) dangling.push(`${file}: ${match[1]}`)
       }
     }
