@@ -96,6 +96,13 @@ describe('suggestDecision', () => {
     expect(decide({ heroHand: '9s8d', flop: '7c6h5s', facing: 'checked to you' })).toBe('bet')
   })
 
+  it('plays a made flush for value rather than folding it as air', () => {
+    // AhKh on Qh7h2h is the nut flush. With no `flush` category it carried no
+    // tag at all, so the heuristic reached its last branch and folded it.
+    expect(decide({ heroHand: 'AhKh', flop: 'Qh7h2h', facing: 'villain bets' })).toBe('raise')
+    expect(decide({ heroHand: 'AhKh', flop: 'Qh7h2h', facing: 'checked to you' })).toBe('bet')
+  })
+
   it('calls draws versus a bet and semi-bluffs when checked to', () => {
     // AhKh on Qh7h2c = flush draw, no pair.
     expect(decide({ heroHand: 'AhKh', flop: 'Qh7h2c', facing: 'villain bets' })).toBe('call')

@@ -16,6 +16,14 @@ describe('RangeVsBoard', () => {
     expect(screen.getByText(/9 combos remaining/)).toBeInTheDocument()
   })
 
+  it('gives a made flush its own row on a monotone flop', async () => {
+    render(<RangeVsBoard hands={['AKs']} />)
+    await userEvent.type(screen.getByLabelText('Flop'), 'Qh7h2h')
+    // Only AhKh makes the flush; the other three AKs combos whiff entirely.
+    expect(screen.getByText('Flush').closest('tr')).toHaveTextContent('1')
+    expect(screen.getByText('Air').closest('tr')).toHaveTextContent('3')
+  })
+
   it('shows an inline error for an invalid board', async () => {
     render(<RangeVsBoard hands={['AA']} />)
     await userEvent.type(screen.getByLabelText('Flop'), 'Kd7c')

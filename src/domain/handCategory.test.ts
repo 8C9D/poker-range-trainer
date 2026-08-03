@@ -40,6 +40,17 @@ describe('categorizeHand', () => {
     expect(categorize('AhKh', 'Qh7h2c')).toEqual(['flushDraw'])
   })
 
+  it('tags a made flush, never as a draw', () => {
+    // A monotone flop plus two of the same suit is the only made flush a flop
+    // can give. Untagged, it fell through to `air` and the postflop heuristic
+    // read the nut flush as nothing and folded it.
+    expect(categorize('AhKh', 'Qh7h2h')).toEqual(['flush'])
+  })
+
+  it('tags a made flush alongside the pair it also holds', () => {
+    expect(categorize('QhJh', 'Qh7h2h')).toEqual(['flush', 'topPair'])
+  })
+
   it('tags a top pair plus flush draw', () => {
     expect(categorize('QhJh', 'Qh7h2c')).toEqual(expect.arrayContaining(['topPair', 'flushDraw']))
   })

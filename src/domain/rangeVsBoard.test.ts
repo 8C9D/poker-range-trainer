@@ -39,6 +39,17 @@ describe('bucketRangeOnBoard', () => {
     expect(tally.flushDraw).toBeGreaterThan(0)
   })
 
+  it('buckets a made flush as a flush, not as air', () => {
+    const flop = parseBoard('Qh7h2h')
+    // Of AKs' 4 combos only AhKh is hearts, so exactly one makes the flush; the
+    // other three miss the board entirely. Before the `flush` category the made
+    // one landed in `air` alongside them.
+    const tally = bucketRangeOnBoard(['AKs'], flop)
+    expect(tally.flush).toBe(1)
+    expect(tally.flushDraw).toBe(0)
+    expect(tally.air).toBe(3)
+  })
+
   it('buckets a completed straight as a straight, not a straight draw', () => {
     const flop = parseBoard('7c6h5s')
     // Every 98s combo makes the 5-6-7-8-9 straight on this board.

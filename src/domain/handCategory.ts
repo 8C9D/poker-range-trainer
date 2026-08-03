@@ -6,9 +6,11 @@ import { rankValue } from './cards'
  *
  * A hand can carry several tags (e.g. top pair + flush draw). Made-hand logic is
  * at the hand-class / 2-card level — full combo precision is later v4.1 work.
- * `categorizeHand` returns the applicable tags in `HAND_CATEGORIES` order.
+ * `categorizeHand` returns the applicable tags in `HAND_CATEGORIES` order, which
+ * runs strongest to weakest — so `flush` leads, ahead of `straight`.
  */
 export const HAND_CATEGORIES = [
+  'flush',
   'straight',
   'set',
   'trips',
@@ -44,7 +46,12 @@ export function categorizeHand(hand: Card[], flop: Card[]): HandCategory[] {
   const straightFill = bestStraightFill(holeValues, boardValues)
   if (straightFill >= 5) tags.add('straight')
 
-  if (hasFlushDraw(hand, flop)) tags.add('flushDraw')
+  // Five of a suit across the five cards is a made flush; four is a draw. Taken
+  // in that order for the same reason as the straight above — the made hand must
+  // never also read as a draw for it.
+  const suited = longestSuit(hand, flop)
+  if (suited >= 5) tags.add('flush')
+  else if (suited === 4) tags.add('flushDraw')
   if (straightFill === 4) tags.add('straightDraw')
 
   if (tags.size === 0) tags.add('air')
@@ -79,13 +86,13 @@ function madeTag(
   return 'middlePair'
 }
 
-/** Four to a flush across the five cards (exactly four of one suit). */
-function hasFlushDraw(hand: Card[], flop: Card[]): boolean {
+/** How many cards the most-represented suit holds across the five cards (0-5). */
+function longestSuit(hand: Card[], flop: Card[]): number {
   const counts = new Map<string, number>()
   for (const card of [...hand, ...flop]) {
     counts.set(card.suit, (counts.get(card.suit) ?? 0) + 1)
   }
-  return [...counts.values()].some((n) => n === 4)
+  return Math.max(0, ...counts.values())
 }
 
 /**
