@@ -35,28 +35,16 @@
 
 .heat-cell.heat-medium,
 .heat-swatch.heat-medium {
-  color: #241c05;
+  color: var(--h2c-ink);
   background: var(--h2c);
   border-color: var(--h2c);
 }
 
 .heat-cell.heat-high,
 .heat-swatch.heat-high {
-  color: #fffef9;
+  color: var(--h3c-ink);
   background: var(--h3c);
   border-color: var(--h3c);
-}
-
-@media (prefers-color-scheme: dark) {
-  .heat-cell.heat-medium,
-  .heat-swatch.heat-medium {
-    color: #e9eaec;
-  }
-
-  .heat-cell.heat-high,
-  .heat-swatch.heat-high {
-    color: #241c05;
-  }
 }
 
 .heatmap-legend {

@@ -34,6 +34,8 @@ export const light = {
   h1c: '#ecdfb6',
   h2c: '#d3ab4d',
   h3c: '#8a6608', // accuracy heat: low / mid / high
+  h2cInk: '#241c05',
+  h3cInk: '#fffef9',
   pairbg: '#efede4',
   cellbg: '#f1efe8',
   cardface: '#fffef9',
@@ -76,6 +78,8 @@ export const dark: ThemeColors = {
   h1c: '#4a3c1c',
   h2c: '#8a6a24',
   h3c: '#d9b04a',
+  h2cInk: '#fffef9',
+  h3cInk: '#241c05',
   pairbg: '#23272d',
   cellbg: '#1b1f24',
   cardface: '#f4f1e8',

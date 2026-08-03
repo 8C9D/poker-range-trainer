@@ -318,3 +318,63 @@ describe('playing card contrast', () => {
     expect(failures).toEqual([])
   })
 })
+
+/**
+ * A literal color in a component stylesheet is a color that cannot follow the
+ * theme, and these files still carried a drawer of them from the pre-Coach
+ * design. The worst read `color: #fff` over `background: var(--accent)` — fine
+ * against the old purple, and in dark mode white-on-gold at 1.9:1 on the button
+ * that ends a build-from-memory drill. Two error lines were frozen dark red and
+ * disappeared into the dark background the same way.
+ *
+ * A literal is legitimate only when the same rule pins the background under it,
+ * because then the pair is self-contained and no theme moves out from under it —
+ * that is how the action swatches and the accuracy heat ramp are built. So the
+ * rule is not "no literals", it is "no unpaired literals".
+ */
+
+/** Rules whose background is set by a sibling class rather than in the block. */
+const PAIRED_ELSEWHERE = new Map([
+  // Always rendered with an .action-* class, which supplies the fill this
+  // white sits on; on its own the swatch has no background at all.
+  ['/components/ActionPalette.css:.action-swatch', 'fill comes from the .action-* class'],
+])
+
+describe('literal colors', () => {
+  it('never sets a text color that no background in the same rule pins down', () => {
+    const sources = cssFiles(SRC)
+      .map((file) => ({ file: file.slice(SRC.length), css: readFileSync(file, 'utf8') }))
+      // theme.css is where literals belong: it *is* the palette.
+      .filter(({ file }) => file !== '/theme.css')
+    expect(sources.length).toBeGreaterThan(10)
+
+    const unpaired: string[] = []
+    let literals = 0
+    for (const { file, css } of sources) {
+      // `[^{}]` on both sides so a rule nested in an @media block is read as
+      // its own rule instead of being swallowed as the at-rule's body.
+      for (const rule of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const [, rawSelector, body] = rule
+        if (!/(^|[;\s])color:\s*#[0-9a-f]{3,8}/i.test(body)) continue
+        literals += 1
+        if (/(^|[;\s])background(-color)?:\s*#[0-9a-f]{3,8}/i.test(body)) continue
+        const selector = rawSelector.trim().split(/\s*,\s*/)[0].replace(/\s+/g, ' ')
+        if (PAIRED_ELSEWHERE.has(`${file}:${selector}`)) continue
+        unpaired.push(`${file}: ${selector}`)
+      }
+    }
+
+    // Guards the guard: a sweep that matched no literals would pass vacuously.
+    expect(literals).toBeGreaterThan(5)
+    expect(unpaired).toEqual([])
+  })
+
+  it('keeps the exception list honest', () => {
+    // An exception for a selector that no longer exists silently stops covering
+    // anything, so it has to be removed rather than left to rot.
+    for (const [entry] of PAIRED_ELSEWHERE) {
+      const [file, selector] = entry.split(':')
+      expect(readFileSync(join(SRC, file.slice(1)), 'utf8')).toContain(selector)
+    }
+  })
+})

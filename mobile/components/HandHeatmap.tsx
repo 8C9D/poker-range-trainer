@@ -4,7 +4,7 @@ import { generateHandMatrix } from '@core/domain/pokerHands';
 import { accuracyHeatLevel, handAccuracyRate, type HeatLevel } from '@core/domain/practice';
 import type { RangeHandAccuracy } from '@core/types/practice';
 
-import { dark, useTheme } from '../theme/colors';
+import { useTheme } from '../theme/colors';
 import type { ThemeColors } from '../theme/colors';
 
 // The 13×13 grid order comes straight from the reused core matrix; built once at module load.
@@ -16,14 +16,14 @@ interface HandHeatmapProps {
 }
 
 /** Background + label color for one heat level, mirroring the web HandHeatmap heat ramp. */
-function heatStyle(level: HeatLevel, theme: ThemeColors, isDark: boolean): { bg: string; fg: string } {
+function heatStyle(level: HeatLevel, theme: ThemeColors): { bg: string; fg: string } {
   switch (level) {
     case 'low':
       return { bg: theme.h1c, fg: theme.ink };
     case 'medium':
-      return { bg: theme.h2c, fg: isDark ? '#e9eaec' : '#241c05' };
+      return { bg: theme.h2c, fg: theme.h2cInk };
     case 'high':
-      return { bg: theme.h3c, fg: isDark ? '#241c05' : '#fffef9' };
+      return { bg: theme.h3c, fg: theme.h3cInk };
     case 'untested':
     default:
       return { bg: theme.cellbg, fg: theme.ink3 };
@@ -38,7 +38,6 @@ function heatStyle(level: HeatLevel, theme: ThemeColors, isDark: boolean): { bg:
  */
 export function HandHeatmap({ accuracy }: HandHeatmapProps) {
   const theme = useTheme();
-  const isDark = theme === dark;
   // No label on the grid itself: a View only carries one when it is
   // `accessible`, and making it so would collapse all 169 cells into a single
   // element and lose their per-hand labels. The "Accuracy heatmap" header above
@@ -50,7 +49,7 @@ export function HandHeatmap({ accuracy }: HandHeatmapProps) {
           {row.map((hand) => {
             const stat = accuracy[hand];
             const level = accuracyHeatLevel(stat);
-            const { bg, fg } = heatStyle(level, theme, isDark);
+            const { bg, fg } = heatStyle(level, theme);
             const label =
               stat && stat.attempts > 0
                 ? `${hand} ${handAccuracyRate(stat).toFixed(0)}%`

@@ -84,11 +84,5 @@
 .range-notation-error {
   margin: 8px 0 0;
   font-size: 13px;
-  color: #c0392b;
-}
-
-@media (prefers-color-scheme: dark) {
-  .range-notation-error {
-    color: #ff8a80;
-  }
+  color: var(--bad);
 }
