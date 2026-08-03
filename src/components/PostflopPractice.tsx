@@ -63,6 +63,7 @@ export function PostflopPractice({ scenario, onExit }: PostflopPracticeProps) {
           <button
             key={decision}
             type="button"
+            className="coach-btn"
             disabled={answered !== null}
             onClick={() => answer(decision)}
           >

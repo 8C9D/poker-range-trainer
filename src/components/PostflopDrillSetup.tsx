@@ -53,6 +53,7 @@ export function PostflopDrillSetup({ onStart, onExit }: PostflopDrillSetupProps)
           Your hand
           <input
             type="text"
+            className="coach-input"
             value={heroHand}
             placeholder="e.g. AsKh"
             onChange={(e) => setHeroHand(e.target.value)}
@@ -62,6 +63,7 @@ export function PostflopDrillSetup({ onStart, onExit }: PostflopDrillSetupProps)
           Flop
           <input
             type="text"
+            className="coach-input"
             value={flop}
             placeholder="e.g. Kd7c2h"
             onChange={(e) => setFlop(e.target.value)}
@@ -69,19 +71,30 @@ export function PostflopDrillSetup({ onStart, onExit }: PostflopDrillSetupProps)
         </label>
         <label>
           Pot size
-          <input type="number" value={potSize} onChange={(e) => setPotSize(e.target.value)} />
+          <input
+            type="number"
+            className="coach-input"
+            value={potSize}
+            onChange={(e) => setPotSize(e.target.value)}
+          />
         </label>
         <label>
           Stack depth
           <input
             type="number"
+            className="coach-input"
             value={stackDepth}
             onChange={(e) => setStackDepth(e.target.value)}
           />
         </label>
         <label>
           Facing
-          <input type="text" value={facing} onChange={(e) => setFacing(e.target.value)} />
+          <input
+            type="text"
+            className="coach-input"
+            value={facing}
+            onChange={(e) => setFacing(e.target.value)}
+          />
         </label>
 
         {error && (
@@ -90,7 +103,7 @@ export function PostflopDrillSetup({ onStart, onExit }: PostflopDrillSetupProps)
           </p>
         )}
 
-        <button type="submit" className="primary">
+        <button type="submit" className="coach-btn primary">
           Start drill
         </button>
       </form>
