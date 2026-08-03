@@ -13,7 +13,7 @@ export interface ComboEnumeration {
   hand: string;
   /** Every concrete combo of the hand class. */
   combos: Card[][];
-  /** `comboKey`s of combos removed by the dead cards (for dimming in the UI). */
+  /** `comboKey`s of combos removed by the dead cards (marked as blocked in the UI). */
   deadKeys: Set<string>;
   /** Total combos of the hand class (`combos.length`). */
   total: number;

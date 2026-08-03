@@ -76,11 +76,24 @@ export function ComboExplorer() {
               const key = comboKey(combo);
               const removed = result.deadKeys.has(key);
               return (
-                <View key={key} testID={`combo-cell-${key}`} style={[styles.cell, removed && styles.cellRemoved]}>
+                <View
+                  key={key}
+                  testID={`combo-cell-${key}`}
+                  // A plain View is not an accessibility element on iOS, so without
+                  // this VoiceOver reads the two card Texts and never says which
+                  // combos the dead cards knocked out.
+                  accessible
+                  accessibilityLabel={removed ? `${key}, blocked` : key}
+                  style={[styles.cell, removed && styles.cellRemoved]}
+                >
                   {combo.map((card) => (
                     <Text
                       key={formatCard(card)}
-                      style={[styles.cardText, (card.suit === 'h' || card.suit === 'd') && styles.redSuit]}
+                      style={[
+                        styles.cardText,
+                        (card.suit === 'h' || card.suit === 'd') && styles.redSuit,
+                        removed && styles.cardRemoved,
+                      ]}
                     >
                       {cardLabel(card)}
                     </Text>
@@ -124,8 +137,12 @@ function makeStyles(theme: ThemeColors) {
       paddingHorizontal: 12,
       paddingVertical: 10,
     },
-    cellRemoved: { opacity: 0.3 },
+    // Blocked combos are the answer the dead-card field was typed to get, so they
+    // are muted, not erased: at opacity 0.3 the card text composited to about
+    // 1.9:1 on the page. A struck-through label carries the state without colour.
+    cellRemoved: { backgroundColor: theme.well, borderColor: theme.line2 },
     cardText: { color: theme.ink, fontSize: 18, fontWeight: '700' },
+    cardRemoved: { color: theme.ink2, textDecorationLine: 'line-through' },
     redSuit: { color: theme.heart },
   });
 }
