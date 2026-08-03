@@ -44,7 +44,7 @@
 }
 
 .range-vs-board-table tr.is-zero {
-  opacity: 0.45;
+  color: var(--ink-3);
 }
 
 .range-vs-board-error {

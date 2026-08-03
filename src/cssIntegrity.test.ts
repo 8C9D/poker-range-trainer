@@ -378,3 +378,63 @@ describe('literal colors', () => {
     }
   })
 })
+
+/**
+ * Opacity is the quietest way to make text unreadable, because the number in the
+ * stylesheet says nothing about what it composites to. Four grids dimmed their
+ * *labelled* cells to 0.4–0.45 to mean "not selected" or "not in range", which in
+ * light mode left the hand names at roughly 2.5:1 against the card behind them —
+ * under the bar the palette itself is held to, and invisible to any check that
+ * only reads colors.
+ *
+ * 0.7 is the floor at which this app's ink still clears 4.5:1 once composited on
+ * its own surfaces, so anything dimmer has to say why.
+ */
+const DIM_FLOOR = 0.7
+
+/** Rules allowed below the floor, with the reason each is not body text. */
+const DIMMABLE = new Map([
+  // WCAG 1.4.3 exempts inactive controls, and a disabled button that still
+  // looked enabled would be the worse bug.
+  ['/theme.css:.coach-btn:disabled', 'disabled controls are exempt'],
+  // A bar with no text on it; the count is printed above it in full contrast.
+  ['/screens/ProgressScreen.css:.progress-chart-bar', 'decorative bar, value shown as text'],
+])
+
+describe('dimmed text', () => {
+  it('never dims a rule past the point its text stays readable', () => {
+    const sources = cssFiles(SRC).map((file) => ({
+      file: file.slice(SRC.length),
+      css: readFileSync(file, 'utf8'),
+    }))
+
+    const tooDim: string[] = []
+    let dimmed = 0
+    for (const { file, css } of sources) {
+      for (const rule of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const [, rawSelector, body] = rule
+        const opacity = /(^|[;\s])opacity:\s*([\d.]+)/.exec(body)
+        if (!opacity) continue
+        dimmed += 1
+        if (Number(opacity[2]) >= DIM_FLOOR) continue
+        const selector = rawSelector.trim().split(/\s*,\s*/)[0].replace(/\s+/g, ' ')
+        if (DIMMABLE.has(`${file}:${selector}`)) continue
+        tooDim.push(`${file}: ${selector} at ${opacity[2]}`)
+      }
+    }
+
+    // Guards the guard: a sweep that found no opacity at all would pass vacuously.
+    expect(dimmed).toBeGreaterThan(5)
+    expect(tooDim).toEqual([])
+  })
+
+  it('keeps the dimmable list honest', () => {
+    for (const [entry] of DIMMABLE) {
+      // Split on the FIRST colon only: a selector may carry a pseudo-class.
+      const separator = entry.indexOf(':')
+      const file = entry.slice(0, separator)
+      const selector = entry.slice(separator + 1)
+      expect(readFileSync(join(SRC, file.slice(1)), 'utf8')).toContain(selector)
+    }
+  })
+})

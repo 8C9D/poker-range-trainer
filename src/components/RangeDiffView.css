@@ -40,6 +40,8 @@
   color: #fff;
 }
 
+/* In neither range — quiet, but still a labelled cell the eye has to find:
+   0.4 composited the hand name down to about 2.3:1 on the card. */
 .range-diff-grid .action-cell.bucket-none {
-  opacity: 0.4;
+  opacity: 0.7;
 }

@@ -1,3 +1,5 @@
+/* A hand with no mixed strategy reads as background, but it is still a hand
+   the user has to find on the grid: 0.45 left the label at 2.6:1. */
 .mixed-strategy-grid .action-cell.is-muted {
-  opacity: 0.45;
+  opacity: 0.7;
 }
