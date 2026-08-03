@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, onTestFinished, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { RangeScreen } from './RangeScreen'
@@ -226,6 +226,27 @@ describe('RangeScreen tabs', () => {
       'href',
       '#/library/r1/stats',
     )
+  })
+
+  it('scrolls the active tab into view, since the strip scrolls sideways on a phone', () => {
+    // jsdom has no layout and no scrollIntoView, so stub it and assert the
+    // active tab is the one asked for: without this, landing on a tab past the
+    // strip's right edge left it scrolled to the start with nothing marked.
+    const scrollIntoView = vi.fn()
+    Element.prototype.scrollIntoView = scrollIntoView
+    onTestFinished(() => {
+      delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView
+    })
+
+    saveSavedRange(makeRange())
+    render(<RangeScreen id="r1" tab="stats" onPractice={vi.fn()} />)
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(1)
+    const scrolled = scrollIntoView.mock.instances[0] as HTMLElement
+    expect(scrolled).toHaveTextContent('Stats')
+    expect(scrolled).toHaveAttribute('aria-current', 'page')
+    // `nearest` so a tab already on screen stays put and the page never jumps.
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' })
   })
 
   it('shows overview facts and recent sessions', () => {

@@ -98,6 +98,19 @@ export function RangeScreen({ id, tab, prefill, onPractice }: RangeScreenProps) 
   const [publishedShareId, setPublishedShareId] = useState<string | null>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  const tabsRef = useRef<HTMLElement>(null)
+
+  // The tab strip scrolls sideways once the tabs stop fitting, which on a phone
+  // is always. Only a tap on a visible tab scrolls it; arriving any other way (a
+  // deep link, back/forward, a redirect after saving) leaves the strip at the
+  // start with the current tab off its right edge — so the screen shows a row of
+  // tabs with none of them marked, and no hint that it scrolls.
+  useEffect(() => {
+    const active = tabsRef.current?.querySelector('[aria-current="page"]')
+    // `nearest` keeps a tab that is already visible exactly where it is, and
+    // never scrolls the page vertically to reach it.
+    active?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
+  }, [tab])
 
   // While the overflow menu is open, let Escape close it (returning focus to the
   // trigger) and dismiss it on any click outside the menu or its button.
@@ -383,7 +396,7 @@ export function RangeScreen({ id, tab, prefill, onPractice }: RangeScreenProps) 
         />
       ) : (
         <>
-          <nav className="coach-seg range-screen-tabs" aria-label="Range sections">
+          <nav className="coach-seg range-screen-tabs" aria-label="Range sections" ref={tabsRef}>
             {visibleTabs.map((tabKey) => (
               <a
                 key={tabKey}
