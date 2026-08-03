@@ -196,13 +196,14 @@
   transition: border-color 120ms ease, filter 120ms ease;
 }
 
-.drill-answer.yes {
-  background: var(--gold-fill);
-  border-color: var(--gold-fill);
-  color: var(--on-accent);
-}
+/* The two answers are peers, so they are drawn as peers. Gold is the palette's
+   "single primary action on a screen" fill, and it sat on the yes button while
+   the drill was asking which of the two is right: a promoted answer nudges the
+   very judgement being measured, and the miss it produces is recorded as a
+   false positive that then feeds the leak report and the review schedule. */
 
-/* Shown alone in place of the two answers while a miss waits to be read. */
+/* Shown alone in place of the two answers while a miss waits to be read — the
+   one moment there IS a single action, so gold belongs here. */
 .drill-answer.next {
   grid-column: 1 / -1;
   background: var(--gold-fill);

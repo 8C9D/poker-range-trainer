@@ -240,10 +240,10 @@ export function SpotDrill({
             <Pressable
               testID="drill-next"
               accessibilityRole="button"
-              style={[styles.answer, styles.answerYes]}
+              style={[styles.answer, styles.answerNext]}
               onPress={() => advance(prompt, feedback)}
             >
-              <Text style={styles.answerYesText}>Next</Text>
+              <Text style={styles.answerNextText}>Next</Text>
             </Pressable>
           ) : (
             <>
@@ -252,20 +252,20 @@ export function SpotDrill({
                 disabled={feedback !== null}
                 style={[
                   styles.answer,
-                  styles.answerYes,
+                  styles.answerNeutral,
                   feedback !== null && styles.answerDisabled,
                 ]}
                 onPress={() => answer(true)}
               >
-                <Text style={styles.answerYesText}>{verbs.yes}</Text>
+                <Text style={styles.answerNeutralText}>{verbs.yes}</Text>
               </Pressable>
               <Pressable
                 testID="answer-no"
                 disabled={feedback !== null}
-                style={[styles.answer, styles.answerNo, feedback !== null && styles.answerDisabled]}
+                style={[styles.answer, styles.answerNeutral, feedback !== null && styles.answerDisabled]}
                 onPress={() => answer(false)}
               >
-                <Text style={styles.answerNoText}>{verbs.no}</Text>
+                <Text style={styles.answerNeutralText}>{verbs.no}</Text>
               </Pressable>
             </>
           )}
@@ -316,10 +316,14 @@ function makeStyles(theme: ThemeColors) {
       justifyContent: 'center',
       borderWidth: StyleSheet.hairlineWidth,
     },
-    answerYes: { backgroundColor: theme.goldFill, borderColor: theme.goldFill },
-    answerNo: { backgroundColor: theme.card, borderColor: theme.line2 },
+    // The two answers are peers, so they are drawn as peers: gold is the
+    // "single primary action" fill, and on the yes button it nudged the very
+    // judgement the drill exists to measure.
+    answerNeutral: { backgroundColor: theme.card, borderColor: theme.line2 },
+    // "Next" replaces both answers, so it IS the single action on the screen.
+    answerNext: { backgroundColor: theme.goldFill, borderColor: theme.goldFill },
     answerDisabled: { opacity: 0.85 },
-    answerYesText: { fontFamily: fonts.bodySemibold, fontSize: 17, color: theme.onAccent },
-    answerNoText: { fontFamily: fonts.bodySemibold, fontSize: 17, color: theme.ink },
+    answerNextText: { fontFamily: fonts.bodySemibold, fontSize: 17, color: theme.onAccent },
+    answerNeutralText: { fontFamily: fonts.bodySemibold, fontSize: 17, color: theme.ink },
   });
 }

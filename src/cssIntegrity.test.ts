@@ -426,6 +426,41 @@ describe('literal colors', () => {
 })
 
 /**
+ * A drill asks which of two answers is right, so neither may be dressed as the
+ * one to press. Gold is the palette's "single primary action on a screen" fill
+ * and it sat on the yes button, promoting one side of the very judgement being
+ * measured — and a nudged miss is not neutral data either: it lands as a false
+ * positive that feeds the leak report, the weakest-hands table and the review
+ * schedule. `.next` is the exception it looks like: it replaces both answers,
+ * so at that moment there really is a single action.
+ */
+describe('drill answers', () => {
+  it('gives the primary fill only to the button that stands alone', () => {
+    // Comments sit between rules, so they land in the selector capture and drag
+    // the following rule's body along with them; drop them first.
+    const css = readFileSync(join(SRC, 'practice', 'practice.css'), 'utf8').replace(
+      /\/\*[\s\S]*?\*\//g,
+      '',
+    )
+    const promoted: string[] = []
+    for (const rule of css.matchAll(/([^{}]*\.drill-answer[^{}]*)\{([^{}]*)\}/g)) {
+      const [, rawSelector, body] = rule
+      if (!body.includes('--gold-fill')) continue
+      const selector = rawSelector.trim().split(/\s*,\s*/)[0].replace(/\s+/g, ' ')
+      if (selector === '.drill-answer.next') continue
+      promoted.push(selector)
+    }
+    expect(promoted).toEqual([])
+  })
+
+  it('still gives it to that one', () => {
+    // Guards the guard: a renamed class would make the rule above vacuous.
+    const css = readFileSync(join(SRC, 'practice', 'practice.css'), 'utf8')
+    expect(css).toMatch(/\.drill-answer\.next\s*\{[^}]*--gold-fill/)
+  })
+})
+
+/**
  * The palette carries two golds, and only one of them is ink.
  *
  * `--accent` is the border/outline gold: at 3.1:1 on the page it clears the 3:1

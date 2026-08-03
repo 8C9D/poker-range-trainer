@@ -127,6 +127,27 @@ function blend(tint: string, surface: string): string {
 }
 
 /**
+ * The mirror of the web `drill answers` guard. A drill asks which of two answers
+ * is right, so neither may wear `goldFill` — the "single primary action" fill.
+ * It sat on the yes button, promoting one side of the judgement being measured,
+ * and a nudged miss is recorded as a false positive that feeds the leak report
+ * and the review schedule. "Next" replaces both answers, so it keeps the fill.
+ */
+describe('drill answers', () => {
+  const drills = ['RecognitionDrill', 'SpotDrill'].map((name) => ({
+    name,
+    source: readFileSync(join(__dirname, '..', 'components', 'practice', `${name}.tsx`), 'utf8'),
+  }));
+
+  it.each(drills)('leaves $name’s two answers evenly weighted', ({ source }) => {
+    const goldStyles = [...source.matchAll(/(\w+):\s*\{[^}]*theme\.goldFill[^}]*\}/g)].map(
+      (match) => match[1],
+    );
+    expect(goldStyles).toEqual(['answerNext']);
+  });
+});
+
+/**
  * The palette carries two golds and only one of them is ink: `accent` is the
  * border/outline gold, sized for the 3:1 a component boundary answers to, and
  * `accentStrong` is the same hue taken down to text contrast. The web app keeps
