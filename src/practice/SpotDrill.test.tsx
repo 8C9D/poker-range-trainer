@@ -46,7 +46,7 @@ describe('SpotDrill', () => {
   it('states the dealt spot and labels the answers with the range’s action', () => {
     renderDrill()
 
-    expect(screen.getByText('6-max, 100bb. Folded to you in the BTN.')).toBeInTheDocument()
+    expect(screen.getByText('6-max, 100bb. Folded to you on the BTN.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Open' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Fold' })).toBeInTheDocument()
   })
@@ -176,13 +176,13 @@ describe('SpotDrill chained spots', () => {
     // in the range; the follow-up is the covered BTN-vs-3-bet chart.
     renderDrill({ ranges: [btnOpen, vsBbThreeBet], random: () => 0 })
 
-    expect(screen.getByText('6-max, 100bb. Folded to you in the BTN.')).toBeInTheDocument()
+    expect(screen.getByText('6-max, 100bb. Folded to you on the BTN.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Open' }))
     act(() => vi.runAllTimers())
 
     expect(screen.getByText('Same hand — the action continues.')).toBeInTheDocument()
     expect(
-      screen.getByText('6-max, 100bb. You are in the BTN facing a 3-bet from the BB.'),
+      screen.getByText('6-max, 100bb. You are on the BTN facing a 3-bet from the BB.'),
     ).toBeInTheDocument()
     // Same hand, still AA.
     expect(screen.getByTestId('drill-hand')).toHaveTextContent('AA')

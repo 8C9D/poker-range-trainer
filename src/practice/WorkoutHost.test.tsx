@@ -184,7 +184,7 @@ describe('WorkoutHost', () => {
     expect(screen.getByText('Daily workout · Part 2 of 2')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Free play' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
-    expect(screen.getByText('6-max, 100bb. Folded to you in the BTN.')).toBeInTheDocument()
+    expect(screen.getByText('6-max, 100bb. Folded to you on the BTN.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Open' }))
     act(() => vi.advanceTimersByTime(HIT_DWELL_MS))
 
@@ -228,6 +228,6 @@ describe('WorkoutHost', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Start' }))
     // The BTN-open library covers several spots; the restriction deals just this one.
-    expect(screen.getByText('6-max, 100bb. Folded to you in the BTN.')).toBeInTheDocument()
+    expect(screen.getByText('6-max, 100bb. Folded to you on the BTN.')).toBeInTheDocument()
   })
 })

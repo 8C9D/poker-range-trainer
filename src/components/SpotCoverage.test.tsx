@@ -38,7 +38,7 @@ describe('SpotCoverage', () => {
     await user.click(screen.getByRole('button', { name: btnOpenCell }))
 
     const detail = screen.getByRole('list', { name: 'Spots in the selected cell' })
-    expect(within(detail).getByText('6-max, 100bb. Folded to you in the BTN.')).toBeVisible()
+    expect(within(detail).getByText('6-max, 100bb. Folded to you on the BTN.')).toBeVisible()
     expect(within(detail).getByRole('link', { name: 'BTN open' })).toHaveAttribute(
       'href',
       '#/library/BTN%20open',

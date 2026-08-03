@@ -1,5 +1,4 @@
 import {
-  POSITION_LABELS,
   POSITIONS,
   TABLE_SIZE_LABELS,
   TABLE_SIZES,
@@ -177,19 +176,45 @@ export function parseSpotKey(key: string): Spot | null {
   }
 }
 
+/**
+ * Hero's seat with the preposition that seat takes: "under the gun" already
+ * carries its own article, and the button is one you sit *on*. A single
+ * "in the ${seat}" template gets both wrong ("in the UTG").
+ */
+const HERO_SEAT_PHRASES: Record<Position, string> = {
+  utg: 'UTG',
+  hj: 'in the HJ',
+  co: 'in the CO',
+  btn: 'on the BTN',
+  sb: 'in the SB',
+  bb: 'in the BB',
+}
+
+/** The same seats named as the other player, e.g. "an open from the CO". */
+const VILLAIN_SEAT_PHRASES: Record<Position, string> = {
+  utg: 'UTG',
+  hj: 'the HJ',
+  co: 'the CO',
+  btn: 'the BTN',
+  sb: 'the SB',
+  bb: 'the BB',
+}
+
 /** The spot in plain words, as it would be described at the table. */
 export function describeSpot(spot: Spot): string {
   const table = `${TABLE_SIZE_LABELS[spot.tableSize]}, ${spot.stackDepthBb}bb.`
-  const seat = POSITION_LABELS[spot.position]
-  if (spot.situation === 'foldedToYou') return `${table} Folded to you in the ${seat}.`
-  const villain = spot.versusPosition ? ` from the ${POSITION_LABELS[spot.versusPosition]}` : ''
+  const seat = HERO_SEAT_PHRASES[spot.position]
+  if (spot.situation === 'foldedToYou') return `${table} Folded to you ${seat}.`
+  const villain = spot.versusPosition
+    ? ` from ${VILLAIN_SEAT_PHRASES[spot.versusPosition]}`
+    : ''
   const facing: Record<Exclude<SpotSituation, 'foldedToYou'>, string> = {
     facingOpen: 'an open',
     facingThreeBet: 'a 3-bet',
     facingFourBet: 'a 4-bet',
     facingJam: 'a jam',
   }
-  return `${table} You are in the ${seat} facing ${facing[spot.situation]}${villain}.`
+  return `${table} You are ${seat} facing ${facing[spot.situation]}${villain}.`
 }
 
 /**

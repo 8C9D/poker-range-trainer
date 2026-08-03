@@ -45,7 +45,7 @@ describe('SpotCoverage', () => {
     );
 
     await fireEvent.press(getByTestId('coverage-btn-foldedToYou'));
-    expect(await findByText('6-max, 100bb. Folded to you in the BTN.')).toBeTruthy();
+    expect(await findByText('6-max, 100bb. Folded to you on the BTN.')).toBeTruthy();
     expect(getByText('BTN open')).toBeTruthy();
 
     await fireEvent.press(getByTestId('coverage-btn-foldedToYou'));

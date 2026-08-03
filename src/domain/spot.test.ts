@@ -126,11 +126,25 @@ describe('parseSpotKey', () => {
 
 describe('describeSpot', () => {
   it('describes a pot folded to hero without an opponent', () => {
-    expect(describeSpot(btnOpen)).toBe('6-max, 100bb. Folded to you in the BTN.')
+    expect(describeSpot(btnOpen)).toBe('6-max, 100bb. Folded to you on the BTN.')
   })
 
   it('names the opponent and the action faced', () => {
     expect(describeSpot(bbVsCo)).toBe('6-max, 100bb. You are in the BB facing an open from the CO.')
+  })
+
+  it('gives each seat the wording it takes at a table', () => {
+    // "UTG" is already "under the gun", so an article reads as "in the under
+    // the gun"; the button is a seat you sit *on*.
+    expect(describeSpot({ ...btnOpen, position: 'utg' })).toBe(
+      '6-max, 100bb. Folded to you UTG.',
+    )
+    expect(describeSpot({ ...btnOpen, position: 'co' })).toBe(
+      '6-max, 100bb. Folded to you in the CO.',
+    )
+    expect(describeSpot({ ...bbVsCo, position: 'btn', versusPosition: 'utg' })).toBe(
+      '6-max, 100bb. You are on the BTN facing an open from UTG.',
+    )
   })
 })
 

@@ -186,7 +186,7 @@ describe('WorkoutHost', () => {
     await user.press(getByTestId('workout-continue'));
 
     expect(getByTestId('spot-scenario')).toHaveTextContent(
-      '6-max, 100bb. Folded to you in the BTN.',
+      '6-max, 100bb. Folded to you on the BTN.',
     );
     await user.press(getByTestId('answer-yes'));
 
@@ -231,7 +231,7 @@ describe('WorkoutHost', () => {
     await user.press(getByTestId('workout-continue'));
     // The BTN-open library covers several spots; the restriction deals just this one.
     expect(getByTestId('spot-scenario')).toHaveTextContent(
-      '6-max, 100bb. Folded to you in the BTN.',
+      '6-max, 100bb. Folded to you on the BTN.',
     );
   });
 });

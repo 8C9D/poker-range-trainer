@@ -50,7 +50,7 @@ describe('SpotDrill', () => {
     const { getByTestId } = await renderDrill();
 
     expect(getByTestId('spot-scenario')).toHaveTextContent(
-      '6-max, 100bb. Folded to you in the BTN.',
+      '6-max, 100bb. Folded to you on the BTN.',
     );
     expect(getByTestId('answer-yes')).toHaveTextContent('Open');
     expect(getByTestId('answer-no')).toHaveTextContent('Fold');

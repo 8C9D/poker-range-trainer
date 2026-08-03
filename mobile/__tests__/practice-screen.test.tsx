@@ -319,7 +319,7 @@ describe('PracticeScreen spot drill', () => {
     const { getByTestId, findByTestId, getByText } = await render(<PracticeScreen />);
 
     expect(getByTestId('spot-scenario')).toHaveTextContent(
-      '6-max, 100bb. Folded to you in the BTN.',
+      '6-max, 100bb. Folded to you on the BTN.',
     );
     fireEvent.press(getByTestId('answer-yes'));
     await findByTestId('drill-feedback');

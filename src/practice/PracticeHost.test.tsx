@@ -394,7 +394,7 @@ describe('PracticeHost spot drill', () => {
     )
 
     expect(screen.getByText('Play the spot')).toBeInTheDocument()
-    expect(screen.getByText('6-max, 100bb. Folded to you in the BTN.')).toBeInTheDocument()
+    expect(screen.getByText('6-max, 100bb. Folded to you on the BTN.')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Open' }))
     fireEvent.click(screen.getByRole('button', { name: 'Close practice' }))
