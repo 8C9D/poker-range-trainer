@@ -69,7 +69,7 @@ function makeStyles(theme: ThemeColors) {
       fontWeight: '600',
     },
     chipTextActive: {
-      color: theme.onAccent,
+      color: theme.onAction,
     },
   });
 }

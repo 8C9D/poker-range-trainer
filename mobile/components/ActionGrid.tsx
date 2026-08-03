@@ -89,7 +89,7 @@ function makeStyles(theme: ThemeColors) {
       fontWeight: '600',
     },
     labelAssigned: {
-      color: theme.onAccent,
+      color: theme.onAction,
     },
     labelUnassigned: {
       color: theme.ink2,

@@ -153,7 +153,7 @@ function makeStyles(theme: ThemeColors) {
     actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 },
     actionButton: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12 },
     actionButtonDisabled: { opacity: 0.4 },
-    actionButtonText: { color: theme.onAccent, fontSize: 15, fontWeight: '600' },
+    actionButtonText: { color: theme.onAction, fontSize: 15, fontWeight: '600' },
     nextButton: {
       backgroundColor: theme.surface,
       borderWidth: StyleSheet.hairlineWidth,

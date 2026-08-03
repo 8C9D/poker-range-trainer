@@ -132,7 +132,7 @@ function makeStyles(theme: ThemeColors) {
     feedbackWrong: { color: theme.bad },
     actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 },
     actionButton: { paddingHorizontal: 18, paddingVertical: 12, borderRadius: 12 },
-    actionButtonText: { color: theme.onAccent, fontSize: 15, fontWeight: '600' },
+    actionButtonText: { color: theme.onAction, fontSize: 15, fontWeight: '600' },
     stats: { flexDirection: 'row', gap: 20, marginTop: 8 },
     stat: { color: theme.ink2, fontSize: 14 },
   });

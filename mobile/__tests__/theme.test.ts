@@ -21,6 +21,7 @@ describe('theme colors', () => {
       accentStrong: '#876408',
       accentSoft: '#a97e1420',
       onAccent: '#241c05',
+      onAction: '#fffef9',
       goldFill: '#d9ab33',
       raise: '#c2502f',
       call: '#2e8a5c',
@@ -61,6 +62,7 @@ describe('theme colors', () => {
       accentStrong: '#efc75f',
       accentSoft: '#e2b64d1f',
       onAccent: '#241c05',
+      onAction: '#241c05',
       goldFill: '#d9ab33',
       raise: '#e0603c',
       call: '#35a068',
@@ -92,14 +94,32 @@ describe('theme colors', () => {
   });
 });
 
+/** Relative luminance per WCAG 2.x. */
+function luminance(hex: string): number {
+  const value = parseInt(hex.slice(1), 16);
+  const channel = (raw: number) => {
+    const c = raw / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  };
+  return (
+    0.2126 * channel((value >> 16) & 255) +
+    0.7152 * channel((value >> 8) & 255) +
+    0.0722 * channel(value & 255)
+  );
+}
+
+function contrast(a: string, b: string): number {
+  const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (high + 0.05) / (low + 0.05);
+}
+
 // The three primary actions map straight onto the Coach action tokens; the rest are
 // palette-derived. Both themes are checked so the mapping tracks light/dark.
 describe('action colors', () => {
-  it('maps raise/call/threeBet onto the Coach action tokens', () => {
+  it('maps raise/threeBet onto the Coach action tokens', () => {
     for (const theme of [light, dark]) {
       const map = actionColors(theme);
       expect(map.raise).toBe(theme.raise);
-      expect(map.call).toBe(theme.call);
       expect(map.threeBet).toBe(theme.bet3);
     }
   });
@@ -109,5 +129,34 @@ describe('action colors', () => {
     const keys = Object.keys(map);
     expect(keys).toEqual(['fold', 'call', 'raise', 'threeBet', 'fourBet', 'jam', 'mixed']);
     expect(new Set(Object.values(map)).size).toBe(keys.length);
+  });
+
+  // The web mirror of these two lives in `src/cssIntegrity.test.ts`. An action fill
+  // has two jobs and had been failing the second: the grid cell has to read as
+  // assigned (3:1 from an unassigned one), and the hand label printed on it has to
+  // stay readable. Every fill carried `onAccent`, which on the light palette's
+  // darker fills ran 2.3–4.0:1 — the label was the darkest thing on a dark tile.
+  it.each([
+    ['light', light],
+    ['dark', dark],
+  ])('keeps an assigned cell 3:1 from an unassigned one in %s', (_name, theme) => {
+    const failures: string[] = [];
+    for (const [action, fill] of Object.entries(actionColors(theme))) {
+      const ratio = contrast(fill, theme.cellbg);
+      if (ratio < 3) failures.push(`${action} (${fill}) on cellbg: ${ratio.toFixed(2)}`);
+    }
+    expect(failures).toEqual([]);
+  });
+
+  it.each([
+    ['light', light],
+    ['dark', dark],
+  ])('keeps the label readable on every action fill in %s', (_name, theme) => {
+    const failures: string[] = [];
+    for (const [action, fill] of Object.entries(actionColors(theme))) {
+      const ratio = contrast(theme.onAction, fill);
+      if (ratio < 4.5) failures.push(`onAction on ${action} (${fill}): ${ratio.toFixed(2)}`);
+    }
+    expect(failures).toEqual([]);
   });
 });

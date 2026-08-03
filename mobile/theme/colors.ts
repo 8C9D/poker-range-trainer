@@ -21,6 +21,9 @@ export const light = {
   accentStrong: '#876408',
   accentSoft: '#a97e1420',
   onAccent: '#241c05',
+  // Ink for text sitting on an action fill. It inverts between the themes
+  // because the fills do: dark mid-tones in light mode, light ones in dark.
+  onAction: '#fffef9',
   goldFill: '#d9ab33', // selected cells, primary buttons, bars
   raise: '#c2502f',
   call: '#2e8a5c',
@@ -65,6 +68,7 @@ export const dark: ThemeColors = {
   accentStrong: '#efc75f',
   accentSoft: '#e2b64d1f',
   onAccent: '#241c05',
+  onAction: '#241c05',
   goldFill: '#d9ab33',
   raise: '#e0603c',
   call: '#35a068',
