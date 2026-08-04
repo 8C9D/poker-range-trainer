@@ -165,36 +165,37 @@ The **in-repo store-metadata drafts** are now written (slice 64 — `docs/ios-st
 listing copy + a truthful App Privacy questionnaire, and `docs/privacy-policy.md`, both consistent with
 the privacy manifest and with all user-supplied fields marked TODO).
 
-**All automatable M8 slices are COMPLETE (slices 61–64).** The loop has reached the M8 wall: everything
-remaining is a **design decision** (app icon + splash artwork) or a **user-action checkpoint** (Apple
-Developer enrollment, bundle identifier, signing, App Store Connect record, `eas build`, TestFlight,
-screenshots, `eas submit`). Per the skill, the loop **STOPS here and hands off** — see the Next slice
-block for the exact steps. Re-invoking `build-ios-app` will re-hit this same gate until the user
-supplies the design assets / Apple-side actions.
+The **app icon + launch screen** are now the app's own (slice 65).
+`mobile/assets/` carries the Coach mark - the spade in `onAccent` on a `goldFill` plate - as a 1024×1024
+opaque `icon.png`, an Android adaptive/monochrome set, a 48px favicon, and `splash-icon.png`; all six
+replace the Expo scaffold placeholders that had shipped since the app was scaffolded.
+`expo-splash-screen` is now a dependency and a configured plugin (`image`, `imageWidth: 200`,
+`backgroundColor` on the light theme `bg`, `dark.backgroundColor` on the dark one), which replaces a
+dead top-level `splash` key that SDK 56 no longer reads.
+Without that plugin there was no native launch screen at all: `expo-router`'s `SplashScreen` resolves
+`ExpoSplashScreen` optionally, so the `preventAutoHideAsync`/`hideAsync` pair in `app/_layout.tsx` was
+quietly a no-op and the app opened on a system-white frame while the fonts loaded.
+`mobile/__tests__/app-icons.test.ts` decodes the PNGs and holds them to the palette, keeps the iOS icon
+free of transparency, and fails if an asset is shipped unreferenced or referenced unshipped.
+
+**All automatable M8 slices are COMPLETE (slices 61–65).** The loop has reached the M8 wall: everything
+remaining is a **user-action checkpoint** (Apple Developer enrollment, bundle identifier, signing, App
+Store Connect record, `eas build`, TestFlight, screenshots, `eas submit`). Per the skill, the loop
+**STOPS here and hands off** — see the Next slice block for the exact steps. Re-invoking
+`build-ios-app` will re-hit this same gate until the user takes the Apple-side actions.
 
 ## Next slice
 
 **🛑 BLOCKED — the loop has reached the M8 wall. No automatable slice remains.**
 
-Slices 1–64 are done: M0–M7 in full, plus every **automatable** M8 slice (error boundary, privacy
-manifest + build number, `eas.json` profiles, store-metadata + privacy-policy drafts). The app is
-feature-complete and validates headlessly (mobile `lint` / `typecheck` / `test:run` / `bundle-check`
-all green; web app untouched). What's left **cannot be done by the agent** — it requires design assets
-and your Apple-side accounts/actions. A re-invocation of `build-ios-app` will stop right here until
-these are resolved.
+Slices 1–65 are done: M0–M7 in full, plus every **automatable** M8 slice (error boundary, privacy
+manifest + build number, `eas.json` profiles, store-metadata + privacy-policy drafts, app icon +
+launch screen). The app is feature-complete and validates headlessly (mobile `lint` / `typecheck` /
+`test:run` / `bundle-check` all green; web app untouched). What's left **cannot be done by the agent**
+— it requires your Apple-side accounts/actions. A re-invocation of `build-ios-app` will stop right here
+until these are resolved.
 
-### 1. Design decision — app icon + splash artwork (do first; `eas build` needs an icon)
-
-`mobile/app.json` still points at the scaffold placeholder `./assets/icon.png`. Provide real artwork
-(or a brief and have it produced):
-- A **1024×1024** app icon (PNG, no alpha) at `mobile/assets/icon.png`.
-- A splash image + background color (wire via `expo-splash-screen` in `app.json`), ideally matching the
-  dark theme (`#1a1626` / `#16171d`).
-Once the assets exist, a small **automatable** follow-up slice can wire them into `app.json` (icon,
-splash, iOS `userInterfaceStyle: "dark"`) and re-run the toolchain. Hand the agent the files (or an
-approved design) to unblock that slice.
-
-### 2. User-action checkpoints — Apple accounts, signing, build, submit (you must run these)
+### User-action checkpoints — Apple accounts, signing, build, submit (you must run these)
 
 The agent must NOT fake or run these. Exact steps:
 
@@ -219,14 +220,12 @@ The agent must NOT fake or run these. Exact steps:
 
 ### What to do next
 
-- To unblock **design**: give the agent the icon/splash assets (or approve a brief), and it will wire
-  them into `app.json` as the next slice.
 - To unblock **submission**: run the steps above; when you have the **bundle id**, ask the agent to set
   it and it can also adjust `eas.json`/`app.json` as needed.
 - Until then, there is **no further code to write** — the iOS app build is complete up to the App Store
   pipeline.
 
-(No commit is produced for a blocked/hand-off state — slice 64 was the last committed slice.)
+(No commit is produced for a blocked/hand-off state — slice 65 was the last committed slice.)
 
 ---
 
