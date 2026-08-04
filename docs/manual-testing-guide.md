@@ -6,7 +6,7 @@ feature-by-feature checklist of what to test.
 
 This guide reflects the app through the **full v1–v9 roadmap** — every roadmap
 version is implemented (the only intentionally deferred items are the heavy v5.1
-community features; see §4) — plus post-roadmap additions (range tags). The older, narrower [`manual-testing-checklist.md`](./manual-testing-checklist.md)
+community features; see §4) — plus post-roadmap additions (range tags). The older, narrower [`archive/manual-testing-checklist.md`](./archive/manual-testing-checklist.md)
 only covers v1–v1.3 and is superseded by this document.
 
 ---

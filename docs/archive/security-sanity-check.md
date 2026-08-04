@@ -1,5 +1,7 @@
 # Security Sanity Check Report
 
+> Historical record: the repository as it stood on 2026-06-13. Kept for history; not a description of the current app.
+
 _Date: 2026-06-13 · Branch: main_
 
 This is a practical security hygiene review, not a formal penetration test or full audit.

@@ -1,5 +1,7 @@
 # Test Coverage Improvement Report
 
+> Historical record: the repository as it stood on 2026-06-21. Kept for history; not a description of the current app.
+
 ## 1. Repository Test Overview
 
 - Stack: React 19 + TypeScript + Vite, tested with Vitest (`jsdom`) and Testing Library.

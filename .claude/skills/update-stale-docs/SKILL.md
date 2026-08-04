@@ -47,13 +47,14 @@ hardcoded list — new docs get classified the same way. The current mapping:
 
 **Frozen records — do NOT rewrite to match current code:**
 
-- `docs/v1-acceptance-review.md`, `docs/v1.2-acceptance-review.md` — point-in-time
-  reviews pinned to a specific commit and date. They are historical records; editing
-  them to reflect later work falsifies the record. Leave them. (Fix only an outright
-  mechanical error like a broken relative link, never their findings.)
-- `docs/manual-testing-checklist.md` — explicitly **superseded** by the guide (covers
-  only v1–v1.3). Do not expand it to current; the guide is where current testing
-  lives.
+- `docs/archive/` — everything under it is a finished point-in-time report, including
+  `v1-acceptance-review.md` and `v1.2-acceptance-review.md`, which are pinned to a
+  specific commit and date. They are historical records; editing them to reflect later
+  work falsifies the record. Leave them. (Fix only an outright mechanical error like a
+  broken relative link, never their findings.)
+- `docs/archive/manual-testing-checklist.md` — explicitly **superseded** by the guide
+  (covers only v1–v1.3). Do not expand it to current; the guide is where current
+  testing lives.
 - `docs/roadmap-progress.md` — **machine-owned** state file for the `roadmap-slice` /
   `finish-v2` skills. Those skills rewrite it. This skill does not touch it (but it is
   an excellent *source of truth* for what is actually built — read it).

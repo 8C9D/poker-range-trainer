@@ -1,5 +1,7 @@
 # Codebase Docs Sync
 
+> Historical record: the repository as it stood on 2026-06-13. Kept for history; not a description of the current app.
+
 ## Date
 
 2026-06-13

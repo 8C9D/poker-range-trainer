@@ -1,5 +1,7 @@
 # Manual Testing Checklist
 
+> Historical record: the v1-v1.3 checklist as it stood on 2026-05-06. Superseded by [`manual-testing-guide.md`](../manual-testing-guide.md); kept for history.
+
 ## Baseline
 
 - [ ] App starts with npm run dev.

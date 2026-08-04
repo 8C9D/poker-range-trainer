@@ -1,5 +1,7 @@
 # Refactor Opportunities Report
 
+> Historical record: the repository as it stood on 2026-06-13. Kept for history; not a description of the current app.
+
 _Updated by the repo-cleanup-autopilot skill on 2026-06-13. Branch: `main`._
 
 _Supersedes the 2026-06-08 pass, whose four cleanups (A–D) were all implemented

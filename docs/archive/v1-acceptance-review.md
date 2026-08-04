@@ -1,5 +1,7 @@
 # v1 Acceptance Review
 
+> Historical record: the repository as it stood on 2026-06-02. Kept for history; not a description of the current app.
+
 - **Date:** 2026-06-02
 - **Commit reviewed:** `0928b39` (`0928b39e4e946a74fa511501e9db9caab3a60539`) — _feat: add basic practice mode UI_
 - **Branch:** main
