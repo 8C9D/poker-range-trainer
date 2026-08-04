@@ -235,8 +235,8 @@ export function LibraryScreen({ onPlaySpots, onPracticeSelected }: LibraryScreen
               className="coach-input library-search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search ranges"
-              aria-label="Search ranges by name, tag or notes"
+              placeholder="Search ranges or a hand (A5s)"
+              aria-label="Search ranges by name, tag, notes or a hand"
             />
             <button
               type="button"

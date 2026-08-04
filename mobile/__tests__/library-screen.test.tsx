@@ -127,6 +127,18 @@ describe('LibraryScreen', () => {
     expect(getByText('BTN 3-bet vs CO open')).toBeTruthy();
   });
 
+  it('searches for the charts that play a hand', async () => {
+    seed({ id: 'r1', name: 'UTG Open', hands: ['AA', 'KK'] });
+    seed({ id: 'r2', name: 'BTN Open', hands: ['AA', 'KK', 'A5s'] });
+
+    const { getByTestId, getByText, queryByText } = await render(<LibraryScreen />);
+    // "How do I play A5s?" — the library is the only screen that can answer it.
+    await fireEvent.changeText(getByTestId('library-search'), 'a5s');
+
+    await waitFor(() => expect(queryByText('UTG Open')).toBeNull());
+    expect(getByText('BTN Open')).toBeTruthy();
+  });
+
   it('searches by tag, so the box agrees with the tag filter beside it', async () => {
     seed({ id: 'r1', name: 'UTG Open', tags: ['MTT'] });
     seed({ id: 'r2', name: 'BTN Open', tags: ['cash'] });

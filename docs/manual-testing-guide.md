@@ -145,7 +145,8 @@ is the easiest fully-clean environment.
   metadata chips (position, action, % of hands, plus **Due** / **Archived** and any
   tags when they apply), and a practice line (accuracy · last practiced, or "Not
   practiced"). Clicking a row opens that range's page.
-- **Search** by name.
+- **Search** by name, tag, scenario notes — or by a hand ("a5s", "TT"), which narrows
+  to the charts that play it, so "how do I play A5s?" is answerable from the library.
 - **Filter** by position, action type, stack depth, game type, tag (the tag filter
   appears only when at least one range carries a tag).
 - **Sort** by name, recently edited, recently practiced, accuracy (default = storage
@@ -477,6 +478,8 @@ from a known state (see §2).
 ### 5.7 Library: search / filter / sort (v1.4)
 
 - [ ] Search narrows by name; a no-match shows the "No ranges match …" message.
+- [ ] Typing a hand ("a5s", "5As", "TT") narrows to the charts that PLAY it; terms
+      combine ("btn a5s"), and a term that is also a word still matches names/tags.
 - [ ] Each filter (position, action, stack depth, game type, tag) narrows correctly and
       they compose together.
 - [ ] Stack-depth options reflect the depths actually saved.

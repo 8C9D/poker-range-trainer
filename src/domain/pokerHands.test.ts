@@ -7,6 +7,7 @@ import {
   comboCount,
   isValidHand,
   areValidHands,
+  parseHandInput,
 } from './pokerHands'
 
 describe('RANKS', () => {
@@ -134,5 +135,43 @@ describe('areValidHands', () => {
     expect(areValidHands(null)).toBe(false)
     expect(areValidHands('AA')).toBe(false)
     expect(areValidHands({ 0: 'AA' })).toBe(false)
+  })
+})
+
+describe('parseHandInput', () => {
+  it('reads every canonical hand back unchanged', () => {
+    for (const hand of ALL_HANDS) {
+      expect(parseHandInput(hand)).toBe(hand)
+    }
+  })
+
+  it('ignores case and surrounding space', () => {
+    expect(parseHandInput('a5s')).toBe('A5s')
+    expect(parseHandInput(' ako ')).toBe('AKo')
+    expect(parseHandInput('tt')).toBe('TT')
+  })
+
+  it('accepts the ranks in either order', () => {
+    expect(parseHandInput('5As')).toBe('A5s')
+    expect(parseHandInput('2ko')).toBe('K2o')
+  })
+
+  it('rejects a pair with a suit suffix, since no such hand exists', () => {
+    expect(parseHandInput('AAs')).toBeNull()
+    expect(parseHandInput('99o')).toBeNull()
+  })
+
+  it('rejects two ranks with no suit, which name two different hands', () => {
+    expect(parseHandInput('A5')).toBeNull()
+    expect(parseHandInput('KQ')).toBeNull()
+  })
+
+  it('rejects anything that is not a hand', () => {
+    expect(parseHandInput('')).toBeNull()
+    expect(parseHandInput('btn')).toBeNull()
+    expect(parseHandInput('A')).toBeNull()
+    expect(parseHandInput('AKss')).toBeNull()
+    expect(parseHandInput('1As')).toBeNull()
+    expect(parseHandInput('A5x')).toBeNull()
   })
 })

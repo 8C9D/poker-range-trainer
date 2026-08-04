@@ -152,7 +152,7 @@ describe('LibraryScreen', () => {
     saveSavedRange(makeRange('a', 'UTG open'))
     saveSavedRange(makeRange('b', 'BTN defend'))
     render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
-    await user.type(screen.getByLabelText('Search ranges by name, tag or notes'), 'btn')
+    await user.type(screen.getByLabelText('Search ranges by name, tag, notes or a hand'), 'btn')
     expect(rowNames()).toEqual(['BTN defend'])
   })
 
@@ -161,8 +161,20 @@ describe('LibraryScreen', () => {
     saveSavedRange(makeRange('a', 'UTG open'))
     saveSavedRange(makeRange('b', 'BTN 3-bet vs CO open'))
     render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
-    await user.type(screen.getByLabelText('Search ranges by name, tag or notes'), 'co btn')
+    await user.type(screen.getByLabelText('Search ranges by name, tag, notes or a hand'), 'co btn')
     expect(rowNames()).toEqual(['BTN 3-bet vs CO open'])
+  })
+
+  it('searches for the charts that play a hand', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange('a', 'UTG open', { hands: ['AA', 'KK'] }))
+    saveSavedRange(makeRange('b', 'BTN open', { hands: ['AA', 'KK', 'A5s'] }))
+    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+
+    // "How do I play A5s?" — the library is the only screen that can answer it.
+    await user.type(screen.getByLabelText('Search ranges by name, tag, notes or a hand'), 'a5s')
+
+    expect(rowNames()).toEqual(['BTN open'])
   })
 
   it('searches by tag, so the box agrees with the tag filter beside it', async () => {
@@ -170,7 +182,7 @@ describe('LibraryScreen', () => {
     saveSavedRange(makeRange('a', 'UTG open', { tags: ['MTT'] }))
     saveSavedRange(makeRange('b', 'BTN open', { tags: ['cash'] }))
     render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
-    await user.type(screen.getByLabelText('Search ranges by name, tag or notes'), 'mtt')
+    await user.type(screen.getByLabelText('Search ranges by name, tag, notes or a hand'), 'mtt')
     expect(rowNames()).toEqual(['UTG open'])
   })
 
@@ -179,7 +191,7 @@ describe('LibraryScreen', () => {
     saveSavedRange(makeRange('a', 'UTG open', { metadata: { notes: 'Widen vs a nitty BB.' } }))
     saveSavedRange(makeRange('b', 'BTN open'))
     render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
-    await user.type(screen.getByLabelText('Search ranges by name, tag or notes'), 'nitty')
+    await user.type(screen.getByLabelText('Search ranges by name, tag, notes or a hand'), 'nitty')
     expect(rowNames()).toEqual(['UTG open'])
   })
 
@@ -187,7 +199,7 @@ describe('LibraryScreen', () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'UTG open'))
     render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
-    await user.type(screen.getByLabelText('Search ranges by name, tag or notes'), 'zzz')
+    await user.type(screen.getByLabelText('Search ranges by name, tag, notes or a hand'), 'zzz')
     expect(screen.getByText(/No ranges match “zzz”/)).toBeInTheDocument()
   })
 
@@ -257,14 +269,14 @@ describe('LibraryScreen', () => {
     saveSavedRange(makeRange('b', 'Alpha', { metadata: { position: 'btn' } }))
     render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
 
-    await user.type(screen.getByLabelText('Search ranges by name, tag or notes'), 'alpha')
+    await user.type(screen.getByLabelText('Search ranges by name, tag, notes or a hand'), 'alpha')
     await user.selectOptions(screen.getByLabelText('Sort ranges'), 'name')
     await user.click(screen.getByRole('button', { name: 'Filters' }))
     await user.selectOptions(screen.getByLabelText('Filter ranges by position'), 'btn')
     expect(rowNames()).toEqual(['Alpha'])
 
     await user.click(screen.getByRole('button', { name: 'Clear filters' }))
-    expect(screen.getByLabelText('Search ranges by name, tag or notes')).toHaveValue('')
+    expect(screen.getByLabelText('Search ranges by name, tag, notes or a hand')).toHaveValue('')
     expect(screen.getByLabelText('Sort ranges')).toHaveValue('')
     expect(rowNames()).toEqual(['Zebra', 'Alpha'])
   })
@@ -452,7 +464,7 @@ describe('LibraryScreen', () => {
 
     await user.click(screen.getByRole('button', { name: 'Manage' }))
     await user.click(screen.getByRole('checkbox', { name: 'Select Hide me' }))
-    await user.type(screen.getByLabelText('Search ranges by name, tag or notes'), 'keep')
+    await user.type(screen.getByLabelText('Search ranges by name, tag, notes or a hand'), 'keep')
 
     expect(screen.getByText('0 selected')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Practice selected' })).toBeDisabled()
@@ -492,7 +504,7 @@ describe('LibraryScreen', () => {
 
     await user.click(screen.getByRole('button', { name: 'Manage' }))
     await user.click(screen.getByRole('button', { name: 'Select visible' }))
-    await user.type(screen.getByLabelText('Search ranges by name, tag or notes'), 'keep')
+    await user.type(screen.getByLabelText('Search ranges by name, tag, notes or a hand'), 'keep')
     await user.click(screen.getByRole('button', { name: 'Practice selected' }))
 
     expect(onPracticeSelected.mock.calls[0][0].map((range: SavedRange) => range.name)).toEqual([

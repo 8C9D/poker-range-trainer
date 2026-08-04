@@ -24,7 +24,8 @@ The app implements the full roadmap (**v1–v9**). At a glance:
 - **Starter ranges** — an empty library fills itself with nine standard 6-max
   100bb charts in one tap, so every drill, spot, and workout works on day one.
   They are ordinary editable ranges, tagged `Starter`.
-- **Range library** — saved ranges as cards with search, filtering
+- **Range library** — saved ranges as cards with search (by name, tag, notes, or by a
+  hand — type "a5s" to see every chart that plays it), filtering
   (position / action / stack depth / game type / tag), sorting, favorite, archive, and
   duplicate; each card summarizes combos, scenario, source, hand-notes, and
   practice accuracy. Tick several (or a whole filtered group) and practice them back

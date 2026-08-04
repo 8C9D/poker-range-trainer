@@ -1,3 +1,5 @@
+import { parseHandInput, type PokerHand } from './pokerHands'
+
 /**
  * Pure helpers for managing a library of saved ranges.
  *
@@ -61,20 +63,37 @@ export function filterFavoriteRanges<T extends { favorite?: boolean }>(
  * who typed "mtt". A term may match in any of the three fields, so "btn mtt"
  * finds a BTN range carrying the MTT tag.
  *
+ * A term that names a hand ("a5s", "TT", "5as") ALSO matches any range that
+ * plays it. "How do I play A5s?" is a question about the charts themselves, and
+ * the library is the only place that can answer it — before this, typing a hand
+ * into the box that sits above every chart returned nothing. Text still counts,
+ * so a range named or tagged for the hand is not lost to the hand lookup, and
+ * the terms still combine: "btn a5s" is a BTN chart that plays A5s.
+ *
  * A blank query (empty or whitespace-only) has no terms and matches every
  * range. A query that matches nothing returns an empty array. The input array
  * is never mutated; a fresh array is always returned.
  */
 export function filterRangesBySearch<
-  T extends { name: string; tags?: string[]; metadata?: { notes?: string } },
+  T extends {
+    name: string
+    hands?: PokerHand[]
+    tags?: string[]
+    metadata?: { notes?: string }
+  },
 >(ranges: T[], query: string): T[] {
   const terms = query.toLowerCase().split(/\s+/).filter((term) => term !== '')
   if (terms.length === 0) return ranges.slice()
+  const handTerms = terms.map((term) => parseHandInput(term))
   return ranges.filter((range) => {
     const haystack = [range.name, ...(range.tags ?? []), range.metadata?.notes ?? '']
       .join(' ')
       .toLowerCase()
-    return terms.every((term) => haystack.includes(term))
+    const played = new Set(range.hands ?? [])
+    return terms.every(
+      (term, index) =>
+        haystack.includes(term) || (handTerms[index] !== null && played.has(handTerms[index]!)),
+    )
   })
 }
 

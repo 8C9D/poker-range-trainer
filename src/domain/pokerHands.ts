@@ -51,6 +51,32 @@ export function isValidHand(hand: PokerHand): boolean {
   return HAND_SET.has(hand)
 }
 
+const RANK_ORDER = new Map(RANKS.map((rank, index) => [rank as string, index]))
+
+/**
+ * Read a hand a user typed into its canonical form, or null when what they
+ * typed is not a hand.
+ *
+ * Case is ignored and either rank order is accepted ("a5s" and "5as" both mean
+ * A5s): a search box is typed quickly, and the grid's higher-rank-first
+ * convention is not something a player thinks about mid-search. A pair takes no
+ * suffix ("tt" -> "TT") and rejects one, since "AAs" is not a hand; every other
+ * hand must say suited or offsuit, because "A5" alone names two different ones.
+ */
+export function parseHandInput(input: string): PokerHand | null {
+  const text = input.trim().toUpperCase()
+  if (text.length !== 2 && text.length !== 3) return null
+  const first = RANK_ORDER.get(text[0])
+  const second = RANK_ORDER.get(text[1])
+  if (first === undefined || second === undefined) return null
+  const [high, low] = first <= second ? [text[0], text[1]] : [text[1], text[0]]
+  if (text.length === 2) return first === second ? `${high}${high}` : null
+  const suffix = text[2] === 'S' ? 's' : text[2] === 'O' ? 'o' : null
+  if (suffix === null || first === second) return null
+  const hand = `${high}${low}${suffix}`
+  return isValidHand(hand) ? hand : null
+}
+
 /**
  * True when `hands` is an array whose every entry is a canonical starting hand.
  * A runtime guard for untrusted payloads (e.g. cloud-fetched shared ranges)

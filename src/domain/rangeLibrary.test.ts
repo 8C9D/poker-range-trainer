@@ -213,6 +213,40 @@ describe('filterRangesBySearch', () => {
     const tagged = [{ name: 'Button open', tags: ['MTT'], metadata: { notes: 'Short stack.' } }]
     expect(filterRangesBySearch(tagged, 'zzz')).toEqual([])
   })
+
+  it('matches the charts that play a hand the query names', () => {
+    const charts = [
+      { name: 'Button open', hands: ['AA', 'A5s', 'KQo'] },
+      { name: 'UTG open', hands: ['AA', 'KK'] },
+    ]
+    expect(filterRangesBySearch(charts, 'A5s')).toEqual([charts[0]])
+    // Typed as it comes out of the head: any case, either rank first.
+    expect(filterRangesBySearch(charts, '5as')).toEqual([charts[0]])
+    expect(filterRangesBySearch(charts, 'aa')).toEqual(charts)
+  })
+
+  it('combines a hand term with the words beside it', () => {
+    const charts = [
+      { name: 'BTN open', hands: ['AA', 'A5s'] },
+      { name: 'SB open', hands: ['AA', 'A5s'] },
+      { name: 'BTN 3-bet', hands: ['AA'] },
+    ]
+    expect(filterRangesBySearch(charts, 'btn a5s')).toEqual([charts[0]])
+  })
+
+  it('still matches text when the term also reads as a hand', () => {
+    const charts = [
+      { name: 'TT bluff notes', hands: ['AA'] },
+      { name: 'Button open', hands: ['TT'] },
+    ]
+    // A hand term never costs a text match — both kinds of hit count.
+    expect(filterRangesBySearch(charts, 'tt')).toEqual(charts)
+  })
+
+  it('matches nothing on a hand no chart plays', () => {
+    const charts = [{ name: 'Button open', hands: ['AA', 'KK'] }]
+    expect(filterRangesBySearch(charts, '72o')).toEqual([])
+  })
 })
 
 /** Mixed metadata so each filtering branch has a distinct case. */

@@ -400,7 +400,7 @@ export default function LibraryScreen() {
             style={styles.search}
             value={query}
             onChangeText={setQuery}
-            placeholder="Search ranges"
+            placeholder="Search ranges or a hand (A5s)"
             placeholderTextColor={theme.ink3}
             autoCapitalize="none"
             autoCorrect={false}
