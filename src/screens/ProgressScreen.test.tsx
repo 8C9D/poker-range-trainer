@@ -232,6 +232,31 @@ describe('ProgressScreen', () => {
     expect(seats[1]).toHaveTextContent('UTG plays too many hands (7 of 8 misses)')
   })
 
+  it('drills a seat lean over just the hands missed that way', async () => {
+    const user = userEvent.setup()
+    saveSavedRange({ ...makeRange('a', 'UTG open'), metadata: { position: 'utg' } })
+    saveSavedRange({ ...makeRange('b', 'UTG 3-bet'), metadata: { position: 'utg' } })
+    recordHandAccuracy('a', [
+      { hand: 'T8s', attempts: 5, correct: 0, falsePositives: 5, falseNegatives: 0 },
+      // Missed the other way at the same seat — not the leak the row names.
+      { hand: 'AJs', attempts: 3, correct: 0, falsePositives: 0, falseNegatives: 3 },
+    ])
+    recordHandAccuracy('b', [
+      { hand: 'K9o', attempts: 2, correct: 0, falsePositives: 2, falseNegatives: 0 },
+    ])
+    const onDrillWeakHands = vi.fn()
+    render(<ProgressScreen onDrillWeakHands={onDrillWeakHands} onDrillSpot={vi.fn()} />)
+
+    const card = screen.getByRole('region', { name: 'Which way you miss' })
+    await user.click(
+      within(card).getByRole('button', { name: 'Drill the hands you play too often from UTG' }),
+    )
+    expect(onDrillWeakHands).toHaveBeenCalledTimes(1)
+    const [queue, pools] = onDrillWeakHands.mock.calls[0]
+    expect(queue.map((range: SavedRange) => range.id)).toEqual(['a', 'b'])
+    expect(pools).toEqual({ a: ['T8s'], b: ['K9o'] })
+  })
+
   it('waits for enough misses before calling a direction', () => {
     saveSavedRange(makeRange('a', 'UTG open'))
     recordHandAccuracy('a', [

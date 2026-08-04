@@ -751,6 +751,9 @@ from a known state (see §2).
 - [ ] Under 6 recorded misses it says so instead, and shows no bar or counts.
 - [ ] Seats whose own misses lean decisively are listed under the bar
       ("UTG plays too many hands"), most lopsided first.
+- [ ] **Drill** on a seat row runs a recognition drill over every chart at that seat,
+      restricted to the hands missed *in that direction* — a loose seat deals the hands
+      you wrongly played, not the ones you wrongly folded.
 
 ### 5.36 Weakest spots (v8.6)
 

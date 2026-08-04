@@ -6,7 +6,9 @@ import {
   describeMistakeBias,
   describePositionBias,
   mistakeBiasByPosition,
+  positionBiasPools,
   summarizeMistakeBias,
+  type PositionMistakeBias,
 } from '../domain/mistakeBias'
 import { currentStreak } from '../domain/spacedRepetition'
 import {
@@ -97,6 +99,14 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
     const queue = ranges.filter((range) => leak.pools[range.id]?.length)
     if (queue.length === 0) return
     onDrillWeakHands(queue, leak.pools)
+  }
+
+  /** Drill a seat's lean over just the hands it missed in that direction. */
+  function drillSeatBias(lean: PositionMistakeBias) {
+    const pools = positionBiasPools(ranges, liveAccuracy, lean)
+    const queue = ranges.filter((range) => pools[range.id]?.length)
+    if (queue.length === 0) return
+    onDrillWeakHands(queue, pools)
   }
 
   function drillWeakHands() {
@@ -289,13 +299,29 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
             {seatBias.length > 0 && (
               <ul className="progress-bias-seats">
                 {seatBias.map((lean) => (
-                  <li key={lean.position}>
-                    <strong>{POSITION_LABELS[lean.position]}</strong> {describePositionBias(lean)} (
-                    <span className="coach-tabular">
-                      {lean.summary.bias === 'loose' ? lean.summary.loose : lean.summary.tight} of{' '}
-                      {lean.summary.mistakes}
+                  <li key={lean.position} className="progress-bias-seat-row">
+                    <span className="progress-bias-seat-text">
+                      <strong>{POSITION_LABELS[lean.position]}</strong> {describePositionBias(lean)}{' '}
+                      (
+                      <span className="coach-tabular">
+                        {lean.summary.bias === 'loose' ? lean.summary.loose : lean.summary.tight} of{' '}
+                        {lean.summary.mistakes}
+                      </span>
+                      {' misses)'}
                     </span>
-                    {' misses)'}
+                    {/* Every sibling report on this screen can be acted on from
+                        where it is named; a lean with no drill sends the user off
+                        to work out which charts it meant. */}
+                    <button
+                      type="button"
+                      className="coach-btn progress-bias-drill"
+                      onClick={() => drillSeatBias(lean)}
+                      aria-label={`Drill the hands you ${
+                        lean.summary.bias === 'loose' ? 'play too often' : 'fold too often'
+                      } from ${POSITION_LABELS[lean.position]}`}
+                    >
+                      Drill
+                    </button>
                   </li>
                 ))}
               </ul>

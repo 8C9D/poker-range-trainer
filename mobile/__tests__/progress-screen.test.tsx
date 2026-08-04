@@ -233,6 +233,33 @@ describe('ProgressScreen', () => {
     expect(getByTestId('bias-seat-utg')).toHaveTextContent('UTG plays too many hands (7 of 8 misses)');
   });
 
+  it('drills a seat lean over just the hands missed that way', async () => {
+    saveSavedRange({
+      id: 'utg',
+      name: 'UTG open',
+      hands: ['AA', 'KK'],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      metadata: { position: 'utg' },
+    });
+    recordHandAccuracy('utg', [
+      { hand: 'T8s', attempts: 6, correct: 0, falsePositives: 6, falseNegatives: 0 },
+      // Missed the other way at the same seat — not the leak the row names.
+      { hand: 'AJs', attempts: 3, correct: 0, falsePositives: 0, falseNegatives: 3 },
+    ]);
+
+    const { getByTestId } = await render(<ProgressScreen />);
+
+    expect(getByTestId('drill-bias-utg').props.href).toEqual({
+      pathname: '/practice',
+      params: {
+        queue: 'utg',
+        mode: 'recognize',
+        pools: JSON.stringify({ utg: ['T8s'] }),
+      },
+    });
+  });
+
   it('waits for enough misses before calling a direction', async () => {
     seed('r1', 'UTG Open');
     recordHandAccuracy('r1', [

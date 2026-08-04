@@ -3,6 +3,7 @@ import {
   describeMistakeBias,
   describePositionBias,
   mistakeBiasByPosition,
+  positionBiasPools,
   summarizeMistakeBias,
 } from './mistakeBias'
 import type { HandAccuracyStat, RangeHandAccuracy } from '../types/practice'
@@ -129,6 +130,61 @@ describe('mistakeBiasByPosition', () => {
       deleted: handsFor(stat('KK', 0, 9)),
     })
     expect(leans.map((lean) => lean.position)).toEqual(['hj'])
+  })
+})
+
+describe('positionBiasPools', () => {
+  it('pools only the hands missed in the leaning direction', () => {
+    const ranges = [range('open', 'utg')]
+    const accuracy = {
+      open: handsFor(
+        stat('T8s', 5, 0),
+        stat('K9o', 2, 0),
+        // Missed the other way at the same seat: a real miss, but not this leak.
+        stat('AJs', 0, 3),
+        stat('QQ', 0, 0, 4),
+      ),
+    }
+    const [lean] = mistakeBiasByPosition(ranges, accuracy)
+    expect(lean.summary.bias).toBe('loose')
+    expect(positionBiasPools(ranges, accuracy, lean)).toEqual({ open: ['T8s', 'K9o'] })
+  })
+
+  it('pools the folded hands for a tight seat', () => {
+    const ranges = [range('defend', 'bb')]
+    const accuracy = { defend: handsFor(stat('K4o', 0, 7), stat('72o', 2, 0)) }
+    const [lean] = mistakeBiasByPosition(ranges, accuracy)
+    expect(lean.summary.bias).toBe('tight')
+    expect(positionBiasPools(ranges, accuracy, lean)).toEqual({ defend: ['K4o'] })
+  })
+
+  it('spans every live chart at that seat and skips ones with nothing to drill', () => {
+    const ranges = [range('open', 'co'), range('threeBet', 'co'), range('clean', 'co')]
+    const accuracy = {
+      open: handsFor(stat('K9o', 3, 1)),
+      threeBet: handsFor(stat('A2s', 2, 0)),
+      clean: handsFor(stat('AA', 0, 0, 6)),
+    }
+    const [lean] = mistakeBiasByPosition(ranges, accuracy)
+    expect(positionBiasPools(ranges, accuracy, lean)).toEqual({
+      open: ['K9o'],
+      threeBet: ['A2s'],
+    })
+  })
+
+  it('leaves out archived charts and other seats', () => {
+    const ranges = [
+      range('live', 'utg'),
+      range('archived', 'utg', { archived: true }),
+      range('elsewhere', 'btn'),
+    ]
+    const accuracy = {
+      live: handsFor(stat('T8s', 6, 0)),
+      archived: handsFor(stat('KK', 4, 0)),
+      elsewhere: handsFor(stat('QQ', 4, 0)),
+    }
+    const [lean] = mistakeBiasByPosition(ranges, accuracy)
+    expect(positionBiasPools(ranges, accuracy, lean)).toEqual({ live: ['T8s'] })
   })
 })
 

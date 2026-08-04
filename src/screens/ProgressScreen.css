@@ -325,11 +325,31 @@
 }
 
 .progress-bias-seats {
+  list-style: none;
   margin: 12px 0 0;
-  padding-left: 18px;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 7px;
   font-size: 13px;
   color: var(--ink-2);
+}
+
+.progress-bias-seat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.progress-bias-seat-text {
+  min-width: 0;
+}
+
+/* Sized down from the standard button, like the seat-column shortcut it sits
+   alongside, so it follows the sentence rather than dominating it. */
+.progress-bias-drill {
+  flex: none;
+  padding: 3px 9px;
+  font-size: 12px;
 }

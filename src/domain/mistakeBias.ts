@@ -1,3 +1,4 @@
+import type { PokerHand } from './pokerHands'
 import { POSITIONS, type Position, type SavedRange } from '../types/range'
 import type { HandAccuracyStat, RangeHandAccuracy } from '../types/practice'
 
@@ -127,6 +128,34 @@ export function mistakeBiasByPosition(
       b.summary.mistakes - a.summary.mistakes ||
       POSITIONS.indexOf(a.position) - POSITIONS.indexOf(b.position),
   )
+}
+
+/**
+ * The hands behind one seat's lean, per range — the pool its drill deals from.
+ *
+ * Only the hands missed in the leaning direction: a seat called loose is drilled
+ * on the hands it wrongly played, not on every hand it ever missed there. The
+ * other direction's misses are real but they are not the leak being named, and
+ * mixing them in makes the drill answer a different claim than the one on
+ * screen. Same filter as {@link mistakeBiasByPosition}, so the pools cover
+ * exactly the records that produced the number.
+ */
+export function positionBiasPools(
+  ranges: SavedRange[],
+  handAccuracy: Record<string, RangeHandAccuracy>,
+  lean: PositionMistakeBias,
+): Record<string, PokerHand[]> {
+  const pools: Record<string, PokerHand[]> = {}
+  for (const range of ranges) {
+    if (range.archived || range.metadata?.position !== lean.position) continue
+    const hands = Object.values(handAccuracy[range.id] ?? {})
+      .filter(
+        (stat) => (lean.summary.bias === 'loose' ? stat.falsePositives : stat.falseNegatives) > 0,
+      )
+      .map((stat) => stat.hand)
+    if (hands.length > 0) pools[range.id] = hands
+  }
+  return pools
 }
 
 /** The lean in plain words, shared by both platforms. */

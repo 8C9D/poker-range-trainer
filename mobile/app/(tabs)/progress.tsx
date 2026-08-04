@@ -9,6 +9,7 @@ import {
   describeMistakeBias,
   describePositionBias,
   mistakeBiasByPosition,
+  positionBiasPools,
   summarizeMistakeBias,
 } from '@core/domain/mistakeBias';
 import { currentStreak } from '@core/domain/spacedRepetition';
@@ -90,7 +91,12 @@ function loadProgressState() {
   const seatGroups = accuracyByPosition(ranges, practiceStats);
   const actionGroups = accuracyByActionType(ranges, practiceStats);
   const bias = summarizeMistakeBias(liveAccuracy);
-  const seatBias = mistakeBiasByPosition(ranges, liveAccuracy);
+  // Each lean carries its own drill pool: a Link needs its destination up front,
+  // unlike the web card, which can build the pool when the button is pressed.
+  const seatBias = mistakeBiasByPosition(ranges, liveAccuracy).map((lean) => ({
+    lean,
+    pools: positionBiasPools(ranges, liveAccuracy, lean),
+  }));
   return {
     ranges,
     practiceStats,
@@ -375,13 +381,40 @@ export default function ProgressScreen() {
               <Text testID="bias-counts" style={styles.biasCounts}>
                 {`${bias.loose} played too many · ${bias.tight} folded too many`}
               </Text>
-              {seatBias.map((lean) => (
-                <Text key={lean.position} testID={`bias-seat-${lean.position}`} style={styles.biasSeat}>
-                  {`${POSITION_LABELS[lean.position]} ${describePositionBias(lean)} (${
-                    lean.summary.bias === 'loose' ? lean.summary.loose : lean.summary.tight
-                  } of ${lean.summary.mistakes} misses)`}
-                </Text>
-              ))}
+              {seatBias.map(({ lean, pools }) => {
+                const queue = ranges.filter((range) => pools[range.id]?.length);
+                return (
+                  <View key={lean.position} style={styles.biasSeatRow}>
+                    <Text testID={`bias-seat-${lean.position}`} style={styles.biasSeat}>
+                      {`${POSITION_LABELS[lean.position]} ${describePositionBias(lean)} (${
+                        lean.summary.bias === 'loose' ? lean.summary.loose : lean.summary.tight
+                      } of ${lean.summary.mistakes} misses)`}
+                    </Text>
+                    {/* Every sibling report on this screen can be acted on from
+                        where it is named; a lean with no drill sends the user off
+                        to work out which charts it meant. */}
+                    {queue.length > 0 ? (
+                      <Link
+                        href={{
+                          pathname: '/practice',
+                          params: {
+                            queue: queue.map((range) => range.id).join(','),
+                            mode: 'recognize',
+                            pools: JSON.stringify(
+                              Object.fromEntries(queue.map((range) => [range.id, pools[range.id]])),
+                            ),
+                          },
+                        }}
+                        asChild
+                      >
+                        <Text testID={`drill-bias-${lean.position}`} style={styles.drillBtn}>
+                          Drill
+                        </Text>
+                      </Link>
+                    ) : null}
+                  </View>
+                );
+              })}
             </>
           ) : null}
         </View>
@@ -608,7 +641,8 @@ function makeStyles(theme: ThemeColors) {
     biasBar: { height: 9, borderRadius: 5, backgroundColor: theme.ink3, overflow: 'hidden' },
     biasLoose: { height: '100%', backgroundColor: theme.raise },
     biasCounts: { fontFamily: fonts.body, fontSize: 12.5, color: theme.ink2, ...tabular },
-    biasSeat: { fontFamily: fonts.body, fontSize: 13, color: theme.ink2 },
+    biasSeatRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+    biasSeat: { flex: 1, fontFamily: fonts.body, fontSize: 13, color: theme.ink2 },
     seatColumn: { gap: 7 },
     seatHeading: { fontFamily: fonts.bodySemibold, fontSize: 12, color: theme.ink3 },
     seatRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
