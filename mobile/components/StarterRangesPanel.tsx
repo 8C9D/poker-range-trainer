@@ -1,8 +1,9 @@
 import { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { buildStarterRanges, starterRangesMissingFrom } from '@core/domain/starterRanges';
 import { loadSavedRanges, saveSavedRanges } from '@core/storage/rangeStorage';
+import { resetPracticeRecords } from '@core/storage/statsReset';
 
 import { createRangeId } from '../platform/createRangeId';
 import { fonts } from '../theme/fonts';
@@ -10,12 +11,14 @@ import { useTheme } from '../theme/colors';
 import type { ThemeColors } from '../theme/colors';
 
 /**
- * Adds the built-in starter charts from the Account tab.
+ * The Account tab's two library-wide actions: adding the built-in starter charts,
+ * and clearing the practice record.
  *
- * The Library's empty state offers them too, but that offer disappears the moment
- * the user saves anything of their own, which is exactly when a beginner realises
- * they want a baseline. Only the charts the library does not already hold are
- * added, so running this twice is a no-op rather than a duplicate pack.
+ * The Library's empty state offers the starter charts too, but that offer
+ * disappears the moment the user saves anything of their own, which is exactly
+ * when a beginner realises they want a baseline. Only the charts the library does
+ * not already hold are added, so running it twice is a no-op rather than a
+ * duplicate pack.
  */
 export function StarterRangesPanel() {
   const theme = useTheme();
@@ -40,6 +43,31 @@ export function StarterRangesPanel() {
     setStatus(`Added ${missing.length} starter chart${missing.length === 1 ? '' : 's'}.`);
   }, []);
 
+  const handleReset = useCallback(() => {
+    Alert.alert(
+      'Reset practice stats',
+      'Clear all practice stats, history, review schedules and spot accuracy? Your ranges and daily goal are kept. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: () => {
+            setError('');
+            try {
+              resetPracticeRecords();
+            } catch (err) {
+              setStatus('');
+              setError(err instanceof Error ? err.message : 'Could not reset your practice stats.');
+              return;
+            }
+            setStatus('Practice stats cleared — your ranges are untouched.');
+          },
+        },
+      ],
+    );
+  }, []);
+
   return (
     <View style={styles.panel}>
       <Text accessibilityRole="header" style={styles.sectionTitle}>Starter ranges</Text>
@@ -49,6 +77,11 @@ export function StarterRangesPanel() {
       </Text>
       <Pressable testID="add-starter-ranges" accessibilityRole="button" style={styles.button} onPress={handleAdd}>
         <Text style={styles.buttonText}>Add starter ranges</Text>
+      </Pressable>
+      {/* The only clean slate that keeps the charts: deleting ranges takes their
+          records with them, and clearing app data takes everything. */}
+      <Pressable testID="reset-practice-stats" accessibilityRole="button" style={styles.button} onPress={handleReset}>
+        <Text style={styles.buttonText}>Reset practice stats</Text>
       </Pressable>
       {status ? (
         <Text testID="starter-status" style={styles.status}>

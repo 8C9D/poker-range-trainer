@@ -583,7 +583,11 @@ from a known state (see §2).
 ### 5.19 Import / export files (v3, v3.2)
 
 - [ ] The **Account** screen's **Data** section shows: Export backup, Import backup,
-      Import range, Import CSV, Export pack, Import pack.
+      Import range, Import CSV, Export pack, Import pack, Add starter ranges,
+      Reset practice stats.
+- [ ] **Reset practice stats** confirms first, then clears stats, history, per-hand and
+      per-action accuracy, review schedules, spot accuracy and the workout flag — while
+      keeping every range and the daily goal. Progress falls back to its empty states.
 - [ ] "Export backup" downloads a dated JSON; "Import backup" confirms, then
       **replaces** all local data with the file's contents.
 - [ ] Practise a few spots, export, clear site data, then import: the Progress screen's

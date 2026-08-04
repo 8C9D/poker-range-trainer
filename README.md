@@ -73,7 +73,8 @@ The app implements the full roadmap (**v1–v9**). At a glance:
 - **Postflop training** — flop texture tagging, a range-vs-board made-hand/draw
   breakdown, and a self-graded postflop decision drill.
 - **Import / export & sharing** — per-range JSON / CSV / SVG export and JSON/CSV
-  import, a full backup file (export + import), range packs (export/import),
+  import, a full backup file (export + import), a "reset practice stats" clean
+  slate that keeps your charts, range packs (export/import),
   shareable range and pack links (public or private), and "save to my library"
   forking of shared ranges and packs.
 - **Optional accounts & cloud sync** — sign in (Supabase email/OAuth) to push/pull

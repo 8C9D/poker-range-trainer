@@ -20,6 +20,7 @@ import {
 } from '../domain/rangeTransfer'
 import { buildBackup, parseBackup, restoreBackup, serializeBackup } from '../storage/backup'
 import { loadSavedRanges, saveSavedRange, saveSavedRanges } from '../storage/rangeStorage'
+import { resetPracticeRecords } from '../storage/statsReset'
 import type { PokerHand } from '../domain/pokerHands'
 import type { SavedRange } from '../types/range'
 import './AccountScreen.css'
@@ -162,6 +163,18 @@ export function AccountScreen() {
     )
     if (!written) return
     setDataStatus(`Added ${missing.length} starter chart${missing.length === 1 ? '' : 's'}.`)
+  }
+
+  function handleResetStats() {
+    if (
+      !window.confirm(
+        'Clear all practice stats, history, review schedules and spot accuracy? Your ranges and daily goal are kept. This cannot be undone.',
+      )
+    ) {
+      return
+    }
+    if (!persist(() => resetPracticeRecords(), 'Could not reset your practice stats.')) return
+    setDataStatus('Practice stats cleared — your ranges are untouched.')
   }
 
   function handleExportBackup() {
@@ -362,6 +375,11 @@ export function AccountScreen() {
           </label>
           <button type="button" className="coach-btn" onClick={handleAddStarterRanges}>
             Add starter ranges
+          </button>
+          {/* The only clean slate that keeps the charts: deleting ranges takes
+              their records with them, and clearing site data takes everything. */}
+          <button type="button" className="coach-btn" onClick={handleResetStats}>
+            Reset practice stats
           </button>
         </div>
         {dataStatus && (
