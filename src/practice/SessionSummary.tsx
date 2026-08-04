@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
-import type { MissRecap } from '../domain/missRecap'
+import type { ActionMissRecap, MissRecap } from '../domain/missRecap'
+import type { PokerHand } from '../domain/pokerHands'
+import { RANGE_ACTION_LABELS } from '../types/range'
 
 export interface SessionSummaryData {
   totalQuestions: number
@@ -14,6 +16,8 @@ export interface SessionSummaryData {
   streakLine: string | null
   /** The session's missed hands, or null when nothing was missed. */
   misses?: MissRecap | null
+  /** The same for an action quiz, whose misses group by the action wanted. */
+  actionMisses?: ActionMissRecap | null
   /** Why the run could not be persisted, or null when it saved. */
   saveError?: string | null
 }
@@ -113,7 +117,25 @@ export function SessionSummary({
       {data.deltaLine && <p className="session-summary-delta">{data.deltaLine}</p>}
       {data.goalLine && <p className="session-summary-goal">{data.goalLine}</p>}
       {data.streakLine && <p className="session-summary-streak">{data.streakLine}</p>}
-      {data.misses && <MissRecapList misses={data.misses} onDrill={onDrillMisses} />}
+      {data.misses && (
+        <MissRecapList
+          groups={[
+            { label: 'Play these', hands: data.misses.shouldPlay },
+            { label: 'Fold these', hands: data.misses.shouldFold },
+          ]}
+          hiddenCount={data.misses.hiddenCount}
+          onDrill={onDrillMisses}
+        />
+      )}
+      {data.actionMisses && (
+        <MissRecapList
+          groups={data.actionMisses.groups.map((group) => ({
+            label: `${RANGE_ACTION_LABELS[group.action]} these`,
+            hands: group.hands,
+          }))}
+          hiddenCount={data.actionMisses.hiddenCount}
+        />
+      )}
       {data.saveError && (
         <p className="session-summary-error" role="alert">
           {data.saveError}
@@ -150,31 +172,35 @@ export function SessionSummary({
 }
 
 /**
- * The hands the session got wrong, as the two lists that are actually
- * actionable. Directions the run never missed are omitted rather than shown
- * empty, so a one-sided session reads as one line.
+ * The hands the session got wrong, as the lists that are actually actionable —
+ * one per lesson ("Play these", "3-bet these"). Groups the run never missed are
+ * omitted rather than shown empty, so a one-sided session reads as one line.
  */
-function MissRecapList({ misses, onDrill }: { misses: MissRecap; onDrill?: () => void }) {
+function MissRecapList({
+  groups,
+  hiddenCount,
+  onDrill,
+}: {
+  groups: { label: string; hands: PokerHand[] }[]
+  hiddenCount: number
+  onDrill?: () => void
+}) {
   return (
     <section className="session-summary-misses" aria-label="What you missed">
       {/* h2, matching the workout hand-off: the overlay's own title is a span,
           so this is the first heading inside the dialog. */}
       <h2>What you missed</h2>
-      {misses.shouldPlay.length > 0 && (
-        <p>
-          <span className="session-summary-miss-label">Play these:</span>{' '}
-          <span className="coach-tabular">{misses.shouldPlay.join(', ')}</span>
-        </p>
-      )}
-      {misses.shouldFold.length > 0 && (
-        <p>
-          <span className="session-summary-miss-label">Fold these:</span>{' '}
-          <span className="coach-tabular">{misses.shouldFold.join(', ')}</span>
-        </p>
-      )}
-      {misses.hiddenCount > 0 && (
+      {groups
+        .filter((group) => group.hands.length > 0)
+        .map((group) => (
+          <p key={group.label}>
+            <span className="session-summary-miss-label">{group.label}:</span>{' '}
+            <span className="coach-tabular">{group.hands.join(', ')}</span>
+          </p>
+        ))}
+      {hiddenCount > 0 && (
         <p className="session-summary-miss-more">
-          and {misses.hiddenCount} more — the drill will bring them back.
+          and {hiddenCount} more — the drill will bring them back.
         </p>
       )}
       {/* Reading the list is the lesson; drilling it right away is the practice.

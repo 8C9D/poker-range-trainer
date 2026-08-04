@@ -443,6 +443,43 @@ describe('PracticeHost action quiz', () => {
     expect(screen.queryByText(/baseline/)).not.toBeInTheDocument()
     expect(Object.keys(loadActionAccuracy())).toEqual(['a'])
   })
+
+  it('recaps a missed action under the action the hand wanted', () => {
+    render(
+      <PracticeHost
+        request={{
+          ranges: [makeRange('a', 'UTG open', { handActions: { AA: 'raise' } })],
+          mode: 'action',
+        }}
+        onClose={vi.fn()}
+      />,
+    )
+
+    // Only AA is assigned, so calling it is a miss the recap has to explain.
+    fireEvent.click(screen.getByRole('button', { name: 'Call' }))
+    fireEvent.click(screen.getByRole('button', { name: 'End quiz' }))
+
+    expect(screen.getByRole('region', { name: 'What you missed' })).toHaveTextContent(
+      'Raise these: AA',
+    )
+  })
+
+  it('leaves the recap off a clean action quiz', () => {
+    render(
+      <PracticeHost
+        request={{
+          ranges: [makeRange('a', 'UTG open', { handActions: { AA: 'raise' } })],
+          mode: 'action',
+        }}
+        onClose={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Raise' }))
+    fireEvent.click(screen.getByRole('button', { name: 'End quiz' }))
+
+    expect(screen.queryByRole('region', { name: 'What you missed' })).not.toBeInTheDocument()
+  })
 })
 
 describe('PracticeHost spot drill', () => {

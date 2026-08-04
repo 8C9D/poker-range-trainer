@@ -10,7 +10,7 @@ import { RangeVsBoard } from '../components/RangeVsBoard'
 import { accuracyPercentage } from '../domain/accuracy'
 import { summarizeActionAccuracy } from '../domain/actionRange'
 import { selectionForRange } from '../domain/comboSelection'
-import { recapMisses } from '../domain/missRecap'
+import { recapActionMisses, recapMisses } from '../domain/missRecap'
 import type { PokerHand } from '../domain/pokerHands'
 import type { SpotSessionResult } from '../domain/spotDrill'
 import type { PostflopScenario } from '../domain/postflopScenario'
@@ -206,6 +206,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
         accuracy: accuracyPercentage(correct, attempts.length),
         deltaLine: null,
         streakLine: null,
+        actionMisses: recapActionMisses(attempts),
         saveError,
       },
       // The action quiz grades chosen actions, not in/out of range, so its
