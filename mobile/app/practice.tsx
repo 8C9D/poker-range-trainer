@@ -36,6 +36,11 @@ function handList(value: string | undefined): PokerHand[] {
   return commaList(value).filter(isValidHand);
 }
 
+function positiveNumber(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 /** Parse the per-range weak-hand pools (`pools` = JSON of Record<rangeId, hand[]>). */
 function parsePools(value: string | undefined): Record<string, PokerHand[]> | undefined {
   if (!value) return undefined;
@@ -116,7 +121,7 @@ export default function PracticeScreen() {
             tableSize: (TABLE_SIZES as readonly string[]).includes(params.table ?? '')
               ? (params.table as TableSize)
               : 'sixMax',
-            stackDepthBb: Number(params.stack) > 0 ? Number(params.stack) : 100,
+            stackDepthBb: positiveNumber(params.stack, 100),
           }
         : undefined,
     spotKeys: mode === 'spots' && params.spot ? [params.spot] : undefined,

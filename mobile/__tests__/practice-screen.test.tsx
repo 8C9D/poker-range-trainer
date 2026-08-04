@@ -341,6 +341,22 @@ describe('PracticeScreen spot drill', () => {
     expect(loadSpotAccuracy()['sixMax|btn|foldedToYou|-|100']).toMatchObject({ attempts: 1 });
   });
 
+  it('falls back to 100bb when a deep link has a non-finite stack', async () => {
+    saveSavedRange({
+      id: 'btn',
+      name: 'BTN open',
+      hands: generateHandMatrix().flat(),
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      metadata: { position: 'btn', actionType: 'open' },
+    });
+    mockParams.mockReturnValue({ mode: 'spots', table: 'sixMax', stack: 'Infinity' });
+
+    const { getByTestId } = await render(<PracticeScreen />);
+
+    expect(getByTestId('spot-scenario')).toHaveTextContent(/^6-max, 100bb\./);
+  });
+
   it('explains an uncovered format instead of dealing', async () => {
     saveSavedRange({
       id: 'r1',
