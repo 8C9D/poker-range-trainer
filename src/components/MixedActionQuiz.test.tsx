@@ -167,4 +167,21 @@ describe('MixedActionQuiz', () => {
     expect(screen.queryByText('Correct!')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Raise' })).toBeInTheDocument()
   })
+
+  it('hands back the user’s own note on a wrong primary action', () => {
+    render(
+      <MixedActionQuiz
+        range={makeRange({ mixedStrategies: MIX_AA, handNotes: { AA: 'Mostly raise, mix in a call.' } })}
+        onExit={vi.fn()}
+        random={() => 0}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fold' }))
+    expect(screen.getByText('Your note: Mostly raise, mix in a call.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next hand' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Raise' }))
+    expect(screen.queryByText(/Your note:/)).not.toBeInTheDocument()
+  })
 })

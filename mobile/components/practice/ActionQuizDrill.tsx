@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { accuracyPercentage } from '@core/domain/accuracy';
 import { assignedHands, correctActionFor, summarizeActionAccuracy } from '@core/domain/actionRange';
+import { handNoteFor } from '@core/domain/missExplanation';
 import { getRandomHandFrom } from '@core/domain/practice';
 import type { PokerHand } from '@core/domain/pokerHands';
 import { recordActionAccuracy } from '@core/storage/actionAccuracyStorage';
@@ -94,6 +95,10 @@ export function ActionQuizDrill({
   const total = attempts.length;
   const correct = attempts.filter((attempt) => attempt.correct).length;
   const accuracy = accuracyPercentage(correct, total);
+  // What the user wrote about the hand they just got wrong — the last ANSWERED
+  // hand, since the prompt has already moved on to the next one.
+  const missNote =
+    lastAttempt && !lastAttempt.correct ? handNoteFor(range, lastAttempt.hand) : null;
 
   return (
     <View style={styles.body}>
@@ -115,6 +120,13 @@ export function ActionQuizDrill({
       ) : (
         <Text style={styles.feedback}>What is the correct action?</Text>
       )}
+
+      {/* A miss hands back whatever the user wrote about that hand. */}
+      {missNote ? (
+        <Text testID="quiz-note" style={styles.note}>
+          Your note: {missNote}
+        </Text>
+      ) : null}
 
       <View style={styles.actions}>
         {RANGE_ACTIONS.map((action) => (
@@ -161,6 +173,15 @@ function makeStyles(theme: ThemeColors) {
     feedback: { fontSize: 16, color: theme.ink2, textAlign: 'center' },
     feedbackCorrect: { color: theme.accentStrong },
     feedbackWrong: { color: theme.bad },
+    // The user's own words about the hand, set apart from the graded answer.
+    note: {
+      fontSize: 14,
+      fontWeight: '600',
+      lineHeight: 19,
+      color: theme.ink,
+      textAlign: 'center',
+      paddingHorizontal: 12,
+    },
     actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 },
     actionButton: { paddingHorizontal: 18, paddingVertical: 12, borderRadius: 12 },
     actionButtonText: { color: theme.onAction, fontSize: 15, fontWeight: '600' },

@@ -5,7 +5,7 @@ import * as Haptics from 'expo-haptics';
 
 import { drawPracticeCombo } from '@core/domain/blockerPractice';
 import type { Card } from '@core/domain/cards';
-import { explainHand } from '@core/domain/missExplanation';
+import { explainHand, handNoteFor } from '@core/domain/missExplanation';
 import { createPracticeAttempt } from '@core/domain/practice';
 import { describeSpot, spotKey } from '@core/domain/spot';
 import {
@@ -189,6 +189,8 @@ export function SpotDrill({
   }
 
   const verbs = answerVerbs(prompt.range);
+  // What the user wrote about the missed hand on the chart that graded it.
+  const missNote = feedback && !feedback.correct ? handNoteFor(prompt.range, feedback.hand) : null;
 
   return (
     <OverlayFrame
@@ -226,6 +228,11 @@ export function SpotDrill({
                       ? `That spot is your “${prompt.range.name}”.`
                       : `${explainHand(feedback.hand, prompt.range.hands).line} (from “${prompt.range.name}”)`}
                   </Text>
+                  {missNote ? (
+                    <Text testID="drill-note" style={styles.note}>
+                      Your note: {missNote}
+                    </Text>
+                  ) : null}
                 </>
               ) : (
                 <Text style={styles.swipeHint}>
@@ -305,6 +312,15 @@ function makeStyles(theme: ThemeColors) {
       lineHeight: 18,
       color: theme.ink2,
       textAlign: 'center',
+    },
+    // The user's own words about the hand, set apart from the derived explanation.
+    note: {
+      fontFamily: fonts.bodySemibold,
+      fontSize: 13,
+      lineHeight: 18,
+      color: theme.ink,
+      textAlign: 'center',
+      paddingHorizontal: 12,
     },
     swipeHint: { fontFamily: fonts.body, fontSize: 12.5, color: theme.ink3, textAlign: 'center' },
     answers: { flexDirection: 'row', gap: 12, paddingTop: 8 },

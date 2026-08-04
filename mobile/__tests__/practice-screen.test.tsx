@@ -105,6 +105,34 @@ describe('PracticeScreen (overlay host)', () => {
     expect(await findByTestId('drill-why')).toHaveTextContent(/this range plays \d+ of \d+/);
   });
 
+  it('hands back the user’s own note on a missed hand', async () => {
+    saveSavedRange({
+      id: 'r1',
+      name: 'Pairs',
+      hands: ['AA'],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      handNotes: { AA: 'Only 4-bet vs a nit.' },
+    });
+    // Deal only AA, which the chart plays, so folding it is a miss.
+    mockParams.mockReturnValue({ id: 'r1', mode: 'recognize', pool: 'AA' });
+    const { getByTestId, findByTestId } = await render(<PracticeScreen />);
+
+    fireEvent.press(getByTestId('answer-no'));
+
+    expect(await findByTestId('drill-note')).toHaveTextContent('Your note: Only 4-bet vs a nit.');
+  });
+
+  it('says nothing about a missed hand the user never noted', async () => {
+    seedAllHandsRange();
+    const { getByTestId, findByTestId, queryByTestId } = await render(<PracticeScreen />);
+
+    fireEvent.press(getByTestId('answer-no'));
+    await findByTestId('drill-why');
+
+    expect(queryByTestId('drill-note')).toBeNull();
+  });
+
   it('holds a missed hand until the user taps Next', async () => {
     // Every hand is in range, so answering "fold" is always a miss.
     seedAllHandsRange();

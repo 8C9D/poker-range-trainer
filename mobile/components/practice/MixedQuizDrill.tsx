@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { accuracyPercentage } from '@core/domain/accuracy';
+import { handNoteFor } from '@core/domain/missExplanation';
 import { handsWithMixedStrategy, primaryAction, type HandMixedStrategy } from '@core/domain/mixedStrategy';
 import { getRandomHandFrom } from '@core/domain/practice';
 import type { PokerHand } from '@core/domain/pokerHands';
@@ -105,6 +106,8 @@ export function MixedQuizDrill({
   }
 
   const accuracy = accuracyPercentage(correct, total);
+  // What the user wrote about the hand they just got wrong, if anything.
+  const missNote = answered && !answered.correct ? handNoteFor(range, hand) : null;
 
   return (
     <View style={styles.body}>
@@ -127,6 +130,13 @@ export function MixedQuizDrill({
       ) : (
         <Text style={styles.feedback}>Pick the most frequent action.</Text>
       )}
+
+      {/* A miss hands back whatever the user wrote about this hand. */}
+      {missNote ? (
+        <Text testID="quiz-note" style={styles.note}>
+          Your note: {missNote}
+        </Text>
+      ) : null}
 
       <View style={styles.actions}>
         {RANGE_ACTIONS.map((action) => (
@@ -187,6 +197,15 @@ function makeStyles(theme: ThemeColors) {
     feedback: { fontSize: 16, color: theme.ink2, textAlign: 'center' },
     feedbackCorrect: { color: theme.accentStrong },
     feedbackWrong: { color: theme.bad },
+    // The user's own words about the hand, set apart from the graded answer.
+    note: {
+      fontSize: 14,
+      fontWeight: '600',
+      lineHeight: 19,
+      color: theme.ink,
+      textAlign: 'center',
+      paddingHorizontal: 12,
+    },
     actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 },
     actionButton: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12 },
     actionButtonDisabled: { opacity: 0.4 },

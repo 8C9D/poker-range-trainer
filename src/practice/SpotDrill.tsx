@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSwipe } from '../components/useSwipe'
 import { drawPracticeCombo } from '../domain/blockerPractice'
 import type { Card } from '../domain/cards'
-import { explainHand } from '../domain/missExplanation'
+import { explainHand, handNoteFor } from '../domain/missExplanation'
 import { createPracticeAttempt } from '../domain/practice'
 import { describeSpot, spotKey } from '../domain/spot'
 import {
@@ -193,6 +193,8 @@ export function SpotDrill({
   }
 
   const verbs = answerVerbs(prompt.range)
+  // What the user wrote about the missed hand on the chart that graded it.
+  const missNote = feedback && !feedback.correct ? handNoteFor(prompt.range, feedback.hand) : null
 
   return (
     <OverlayFrame
@@ -226,6 +228,7 @@ export function SpotDrill({
                   ? `That spot is your “${prompt.range.name}”.`
                   : `${explainHand(feedback.hand, prompt.range.hands).line} (from “${prompt.range.name}”)`}
               </p>
+              {missNote && <p className="drill-note">Your note: {missNote}</p>}
             </>
           )}
         </div>

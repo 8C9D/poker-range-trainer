@@ -146,6 +146,18 @@
   color: var(--text);
 }
 
+/* The user's own words about the hand, set apart from the graded answer. */
+.practice-note {
+  margin: 0;
+  padding-left: 10px;
+  border-left: 2px solid var(--accent-strong);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-h);
+  max-width: 44ch;
+  text-align: left;
+}
+
 .practice-review {
   display: flex;
   flex-direction: column;

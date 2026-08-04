@@ -87,6 +87,19 @@ describe('SpotDrill', () => {
     expect(getByTestId('drill-why')).toHaveTextContent('That spot is your “BTN open”.');
   });
 
+  it('hands back the note the grading chart carries for a missed hand', async () => {
+    const { getByTestId, findByTestId } = await renderDrill({
+      ranges: [{ ...btnOpen, handNotes: { AA: 'Always open — even into a 3-bettor.' } }],
+    });
+
+    // The first draw is AA, which this chart opens, so folding it is a miss.
+    fireEvent.press(getByTestId('answer-no'));
+
+    expect(await findByTestId('drill-note')).toHaveTextContent(
+      'Your note: Always open — even into a 3-bettor.',
+    );
+  });
+
   it('groups the finished attempts by the range that graded them', async () => {
     // The first draw picks the first covered spot; every later draw picks the last,
     // so the two questions are graded by different ranges.

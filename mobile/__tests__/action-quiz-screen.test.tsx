@@ -65,6 +65,29 @@ describe('ActionQuizScreen', () => {
     });
   });
 
+  it('hands back the user’s own note on a wrong action', async () => {
+    saveSavedRange({
+      id: 'r1',
+      name: 'UTG Open',
+      hands: ['AA'],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      handActions: { AA: 'raise' },
+      handNotes: { AA: 'Slow-play it 4-handed.' },
+    });
+    const { getByTestId, queryByTestId } = await render(<ActionQuizDrill id="r1" />);
+
+    fireEvent.press(getByTestId('quiz-action-fold'));
+
+    await waitFor(() =>
+      expect(getByTestId('quiz-note')).toHaveTextContent('Your note: Slow-play it 4-handed.'),
+    );
+
+    // A right answer needs no reminder.
+    fireEvent.press(getByTestId('quiz-action-raise'));
+    await waitFor(() => expect(queryByTestId('quiz-note')).toBeNull());
+  });
+
   it('ends itself at the drill length instead of dealing forever', async () => {
     seedRange(ALL_RAISE);
     const onComplete = jest.fn();

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { accuracyPercentage } from '../domain/accuracy'
 import { assignedHands, correctActionFor } from '../domain/actionRange'
+import { handNoteFor } from '../domain/missExplanation'
 import { getRandomHandFrom } from '../domain/practice'
 import type { PokerHand } from '../domain/pokerHands'
 import type { ActionAttempt } from '../types/practice'
@@ -139,6 +140,8 @@ export function ActionQuiz({
   }
 
   const accuracy = Math.round(accuracyPercentage(correct, total))
+  // What the user wrote about the hand they just got wrong, if anything.
+  const missNote = answered && !answered.correct ? handNoteFor(range, currentHand) : null
 
   return (
     <section className="practice-session" aria-label="Action quiz">
@@ -174,6 +177,8 @@ export function ActionQuiz({
           <p className="practice-expected">
             Correct action: {RANGE_ACTION_LABELS[answered.expected]}
           </p>
+          {/* A miss hands back whatever the user wrote about this hand. */}
+          {missNote && <p className="practice-note">Your note: {missNote}</p>}
           <button
             type="button"
             className="primary"

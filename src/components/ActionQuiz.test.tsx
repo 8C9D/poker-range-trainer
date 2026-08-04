@@ -170,4 +170,21 @@ describe('ActionQuiz', () => {
     expect(screen.queryByText('Correct!')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Raise' })).toBeInTheDocument()
   })
+
+  it('hands back the user’s own note on a wrong action, but not on a right one', () => {
+    render(
+      <ActionQuiz
+        range={makeRange({ handActions: RAISE_AA, handNotes: { AA: 'Slow-play it 4-handed.' } })}
+        onExit={vi.fn()}
+        random={() => 0}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fold' }))
+    expect(screen.getByText('Your note: Slow-play it 4-handed.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next hand' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Raise' }))
+    expect(screen.queryByText(/Your note:/)).not.toBeInTheDocument()
+  })
 })

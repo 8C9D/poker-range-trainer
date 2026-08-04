@@ -36,7 +36,8 @@ The app implements the full roadmap (**v1–v9**). At a glance:
   the chart, how much of its hand type the range plays, and whether it is on the
   range edge — and holds on screen until you continue, so the explanation is
   actually readable (correct answers advance on their own; the timed drill never
-  stops).
+  stops). If you wrote a note on the hand, the miss hands it straight back to
+  you.
 - **Play the spot** — train the preflop game rather than one range at a time: the
   app deals a table situation (seat, action in front of you, stack depth), finds
   the range in your library that covers it, and grades your decision — naming the

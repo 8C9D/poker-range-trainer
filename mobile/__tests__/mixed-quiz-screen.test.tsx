@@ -68,6 +68,25 @@ describe('MixedQuizScreen', () => {
     });
   });
 
+  it('hands back the user’s own note on a wrong primary action', async () => {
+    saveSavedRange({
+      id: 'r1',
+      name: 'UTG Open',
+      hands: ['AA'],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      mixedStrategies: ONE_STRATEGY,
+      handNotes: { AA: 'Mostly raise, mix in a call.' },
+    });
+    const { getByTestId } = await render(<MixedQuizDrill id="r1" />);
+
+    fireEvent.press(getByTestId('mixed-action-fold'));
+
+    await waitFor(() =>
+      expect(getByTestId('quiz-note')).toHaveTextContent('Your note: Mostly raise, mix in a call.'),
+    );
+  });
+
   it('ends itself at the drill length instead of dealing forever', async () => {
     seedRange(ONE_STRATEGY);
     const onComplete = jest.fn();

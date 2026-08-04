@@ -16,7 +16,7 @@ import { resolveSwipeAnswer } from '../swipeAnswer';
 import { useAnnouncedPrompt } from './announcePrompt';
 import { OverlayFrame } from './OverlayFrame';
 import { PlayingCards } from './PlayingCards';
-import { explainHand } from '@core/domain/missExplanation';
+import { explainHand, handNoteFor } from '@core/domain/missExplanation';
 
 import {
   DRILL_QUESTION_COUNT,
@@ -184,6 +184,9 @@ export function RecognitionDrill({
       ? 1 - (remainingSeconds ?? 0) / durationSeconds
       : attempts.length / questionCount;
 
+  // What the user wrote about the hand they just missed, if anything.
+  const missNote = feedback && !feedback.correct ? handNoteFor(range, feedback.hand) : null;
+
   return (
     <OverlayFrame
       title={range.name || 'Untitled'}
@@ -214,10 +217,16 @@ export function RecognitionDrill({
                   >
                     {feedbackLine(feedback.hand, feedback.expectedInRange, feedback.correct, verbs)}
                   </Text>
-                  {/* A miss is the teachable moment: say where the hand sits in the chart. */}
+                  {/* A miss is the teachable moment: say where the hand sits in the
+                      chart, then hand back whatever the user wrote about it. */}
                   {!feedback.correct ? (
                     <Text testID="drill-why" style={styles.why}>
                       {explainHand(feedback.hand, range.hands).line}
+                    </Text>
+                  ) : null}
+                  {missNote ? (
+                    <Text testID="drill-note" style={styles.note}>
+                      Your note: {missNote}
                     </Text>
                   ) : null}
                 </>
@@ -297,6 +306,15 @@ function makeStyles(theme: ThemeColors) {
       lineHeight: 18,
       color: theme.ink2,
       textAlign: 'center',
+    },
+    // The user's own words about the hand, set apart from the derived explanation.
+    note: {
+      fontFamily: fonts.bodySemibold,
+      fontSize: 13,
+      lineHeight: 18,
+      color: theme.ink,
+      textAlign: 'center',
+      paddingHorizontal: 12,
     },
     feedback: { fontFamily: fonts.bodySemibold, fontSize: 17, textAlign: 'center' },
     swipeHint: { fontFamily: fonts.body, fontSize: 12.5, color: theme.ink3, textAlign: 'center' },

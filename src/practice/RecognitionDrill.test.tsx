@@ -86,6 +86,31 @@ describe('RecognitionDrill', () => {
     expect(screen.getByRole('button', { name: 'Open' })).toBeEnabled()
   })
 
+  it('hands back the user’s own note on a missed hand, and nothing on a hit', () => {
+    const noted: SavedRange = { ...RANGE, handNotes: { AA: 'Only 4-bet vs a nit.' } }
+    render(
+      <RecognitionDrill range={noted} variant="standard" handPool={['AA']} onFinish={vi.fn()} />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fold' }))
+    expect(screen.getByText('Your note: Only 4-bet vs a nit.')).toBeInTheDocument()
+
+    // Playing it correctly next time needs no reminder.
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }))
+    expect(screen.queryByText(/Your note:/)).not.toBeInTheDocument()
+  })
+
+  it('says nothing about a missed hand the user never noted', () => {
+    render(
+      <RecognitionDrill range={RANGE} variant="standard" handPool={['AA']} onFinish={vi.fn()} />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fold' }))
+
+    expect(screen.queryByText(/Your note:/)).not.toBeInTheDocument()
+  })
+
   it('continues a held miss on Enter', () => {
     render(
       <RecognitionDrill range={RANGE} variant="standard" handPool={['AA']} onFinish={vi.fn()} />,

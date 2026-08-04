@@ -314,7 +314,10 @@ Split between the **Account** screen's **Data** section and the range page's **�
   course / solver sim / book / personal study) plus an optional citation; it shows on
   the range's **Overview** tab.
 - **Edit notes** (range page **Edit** tab) — attach free-text notes to individual
-  hands; the **Overview** tab shows a hand-notes count.
+  hands; the **Overview** tab shows a hand-notes count. A note comes back when you
+  get that hand wrong in practice (recognition, spots, and both quizzes), under the
+  app's own explanation and cut to ~140 characters. Notes only attach to hands the
+  chart plays, so a hand you wrongly *play* has none to show.
 
 ### Onboarding & analytics (v6)
 
@@ -672,6 +675,9 @@ from a known state (see §2).
       citation) saves and shows on the range's **Overview** tab.
 - [ ] The **Edit** tab's per-hand notes attach to individual hands, persist, and the
       **Overview** tab shows a hand-notes count.
+- [ ] Missing a noted hand in practice shows "Your note: …" under the explanation
+      (recognition drill, spot drill, action quiz, frequency quiz); a correct answer
+      on the same hand shows nothing.
 
 ### 5.27 Onboarding & library analytics (v6)
 

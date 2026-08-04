@@ -158,6 +158,17 @@ describe('SpotDrill', () => {
     vi.useRealTimers()
   })
 
+  it('hands back the note the grading chart carries for a missed hand', () => {
+    renderDrill({
+      ranges: [{ ...btnOpen, handNotes: { AA: 'Always open — even into a 3-bettor.' } }],
+    })
+
+    // The first draw is AA, which this chart opens, so folding it is a miss.
+    fireEvent.click(screen.getByRole('button', { name: 'Fold' }))
+
+    expect(screen.getByText('Your note: Always open — even into a 3-bettor.')).toBeInTheDocument()
+  })
+
   it('reports the attempts answered so far when closed early', () => {
     const onFinish = renderDrill()
 
