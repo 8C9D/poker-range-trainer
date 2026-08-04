@@ -180,6 +180,7 @@ function CoachApp() {
           onPlaySpots={(spotFormat) =>
             setPractice({ ranges: loadSavedRanges(), mode: 'spots', spotFormat })
           }
+          onPracticeSelected={startReview}
         />
       ) : route.screen === 'range' ? (
         <RangeScreen key={route.id} id={route.id} tab={route.tab} onPractice={startPractice} />

@@ -153,6 +153,11 @@ is the easiest fully-clean environment.
 - **Favorite / Unfavorite** (badge + "Favorites only" toggle).
 - **Archive / Unarchive** (hidden by default behind a "Show archived" toggle).
 - **Duplicate** a range into an independent copy.
+- **Manage** — tick several ranges (or "Select visible") and act on the lot:
+  **Practice selected** drills them back to back as one recognition queue (filter to a
+  group first — every 3-bet chart, every BTN spot — and drill exactly that), plus bulk
+  favorite, archive, and delete. A selection that a search or filter hides drops out of
+  every one of those actions.
 - Opening a row leads to the **range page**, whose header **Practice** button, **⋯**
   overflow menu (Duplicate, Favorite, Archive, Compare…, Export JSON/CSV/SVG, Copy
   share link, Publish/Unpublish link, Delete), and tabs (Overview / Edit / Actions /
@@ -488,6 +493,11 @@ from a known state (see §2).
       filter reveals it with an "Archived" chip; Unarchive (**⋯** menu) restores it.
 - [ ] Duplicate (range page **⋯** menu) creates an independent copy (editing one doesn't change the other).
 - [ ] All four flags survive a page reload.
+- [ ] **Manage** → tick two ranges → **Practice selected** runs them as one queue: the
+      first range's recognition drill, then **Next range** carries on to the second,
+      and each range's stats update.
+- [ ] With nothing ticked (or after a search hides the ticked ranges), **Practice
+      selected** is disabled.
 
 ### 5.9 Practice — recognition + session summary (v1, v2 mode 4)
 

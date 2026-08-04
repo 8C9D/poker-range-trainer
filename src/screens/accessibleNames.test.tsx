@@ -57,7 +57,7 @@ describe('accessible names', () => {
   it('has something to check', () => {
     // Guards the guard: a screen that rendered nothing would pass every case.
     seed('a', 'BTN open')
-    render(<LibraryScreen onPlaySpots={vi.fn()} />)
+    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
     expect(document.querySelectorAll('[aria-label]').length).toBeGreaterThan(3)
   })
 
@@ -69,7 +69,7 @@ describe('accessible names', () => {
 
   it('never labels an element that cannot carry a name on Library', () => {
     seed('a', 'BTN open')
-    render(<LibraryScreen onPlaySpots={vi.fn()} />)
+    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
     expect(droppedLabels()).toEqual([])
   })
 

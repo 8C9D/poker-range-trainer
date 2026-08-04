@@ -27,7 +27,8 @@ The app implements the full roadmap (**v1–v9**). At a glance:
 - **Range library** — saved ranges as cards with search, filtering
   (position / action / stack depth / game type / tag), sorting, favorite, archive, and
   duplicate; each card summarizes combos, scenario, source, hand-notes, and
-  practice accuracy.
+  practice accuracy. Tick several (or a whole filtered group) and practice them back
+  to back as one queue, or bulk favorite / archive / delete them.
 - **Practice modes** — recognize-hands (in/out) with a missing-hands review,
   build-from-memory, timed drill, weakness-focused drill, an edge drill (only the
   hands on the range boundary), a "pick the correct action" quiz (for action

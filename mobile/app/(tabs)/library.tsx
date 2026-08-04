@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Link, useFocusEffect } from 'expo-router';
+import { Link, useFocusEffect, useRouter } from 'expo-router';
 
 import {
   collectRangeTags,
@@ -84,6 +84,7 @@ function loadLibraryState() {
 export default function LibraryScreen() {
   const theme = useTheme();
   const styles = makeStyles(theme);
+  const router = useRouter();
 
   const [{ ranges, practiceStats, reviewStates, nowIso }, setData] = useState(loadLibraryState);
   useFocusEffect(
@@ -289,6 +290,27 @@ export default function LibraryScreen() {
                 </Text>
               </Pressable>
               <Text style={styles.selectionCount}>{visibleSelectedIds.size} selected</Text>
+              {/* Filter to a group — every 3-bet chart, every BTN spot — and drill
+                  exactly that, instead of opening each range in turn. Recognition
+                  straight through, like the review queue a multi-range run is. */}
+              <Pressable
+                testID="practice-selected"
+                accessibilityRole="button"
+                accessibilityState={{ disabled: visibleSelectedIds.size === 0 }}
+                disabled={visibleSelectedIds.size === 0}
+                style={[styles.ghostBtn, visibleSelectedIds.size === 0 && styles.disabled]}
+                onPress={() =>
+                  router.push({
+                    pathname: '/practice',
+                    params: {
+                      queue: visibleSelectedRanges.map((range) => range.id).join(','),
+                      mode: 'recognize',
+                    },
+                  })
+                }
+              >
+                <Text style={styles.ghostBtnText}>Practice</Text>
+              </Pressable>
               <Pressable
                 testID="favorite-selected"
                 accessibilityRole="button"

@@ -67,7 +67,7 @@ describe('heading outline', () => {
 
   it('never skips a level on Library', () => {
     seed('a', 'BTN open')
-    render(<LibraryScreen onPlaySpots={vi.fn()} />)
+    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
 
     const levels = outline()
     expect(levels[0]).toBe(1)

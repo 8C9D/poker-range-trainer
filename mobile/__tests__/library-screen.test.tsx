@@ -20,8 +20,11 @@ import { installLocalStorage, localStorageShim } from '../platform/localStorageS
 // range page); management actions now live there, not on the row.
 jest.mock('react-native-mmkv');
 jest.mock('expo-crypto');
+// Named `mock*` so Jest allows the hoisted factory below to close over it.
+const mockPush = jest.fn();
 jest.mock('expo-router', () => ({
   useFocusEffect: () => {},
+  useRouter: () => ({ push: mockPush }),
   Link: ({ children }: { children: ReactNode }) => children,
 }));
 
@@ -41,6 +44,7 @@ describe('LibraryScreen', () => {
 
   beforeEach(() => {
     localStorageShim.clear();
+    mockPush.mockClear();
   });
 
   afterEach(async () => {
@@ -392,5 +396,25 @@ describe('LibraryScreen', () => {
     expect(await findByText('0 selected')).toBeTruthy();
     await findByLabelText('Select One');
     await findByLabelText('Select Two');
+  });
+
+  it('drills the selected ranges as one queue', async () => {
+    seed({ id: 'r1', name: 'BTN 3-bet' });
+    seed({ id: 'r2', name: 'Skip me' });
+    seed({ id: 'r3', name: 'SB 3-bet' });
+
+    const { getByTestId, findByLabelText } = await render(<LibraryScreen />);
+    await fireEvent.press(getByTestId('manage-ranges'));
+    await fireEvent.press(await findByLabelText('Select SB 3-bet'));
+    await fireEvent.press(await findByLabelText('Select BTN 3-bet'));
+    await fireEvent.press(getByTestId('practice-selected'));
+
+    await waitFor(() =>
+      expect(mockPush).toHaveBeenCalledWith({
+        pathname: '/practice',
+        // The queue follows the list, not the order the boxes were ticked.
+        params: { queue: 'r1,r3', mode: 'recognize' },
+      }),
+    );
   });
 });

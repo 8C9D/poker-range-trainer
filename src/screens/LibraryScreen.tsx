@@ -40,6 +40,7 @@ import {
   type ActionType,
   type GameType,
   type Position,
+  type SavedRange,
   type TableSize,
 } from '../types/range'
 import './LibraryScreen.css'
@@ -49,6 +50,8 @@ type SortOrder = '' | 'name' | 'recent' | 'practiced' | 'accuracy'
 interface LibraryScreenProps {
   /** Start the v8.2 spot drill over the whole library at the given format. */
   onPlaySpots: (format: { tableSize: TableSize; stackDepthBb: number }) => void
+  /** Drill the selected ranges back to back, as one queued recognition run. */
+  onPracticeSelected: (queue: SavedRange[]) => void
 }
 
 /**
@@ -56,7 +59,7 @@ interface LibraryScreenProps {
  * per-range page. Data is loaded once on mount; every mutation lives on the
  * Range page, which navigating back from remounts this screen.
  */
-export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
+export function LibraryScreen({ onPlaySpots, onPracticeSelected }: LibraryScreenProps) {
   // Prefix for the per-row ids the rows' descriptions are wired through; the
   // row index completes it, so it never depends on a range id being id-safe.
   const listId = useId()
@@ -282,6 +285,17 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
                 {allVisibleSelected ? 'Deselect visible' : 'Select visible'}
               </button>
               <span className="coach-tabular">{visibleSelectedIds.size} selected</span>
+              {/* Filter to a group — every 3-bet chart, every BTN spot — and drill
+                  exactly that, instead of opening each range in turn. Recognition
+                  straight through, like the review queue a multi-range run is. */}
+              <button
+                type="button"
+                className="coach-btn primary"
+                disabled={visibleSelectedIds.size === 0}
+                onClick={() => onPracticeSelected(visibleSelectedRanges)}
+              >
+                Practice selected
+              </button>
               <button
                 type="button"
                 className="coach-btn"
