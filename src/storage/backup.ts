@@ -43,6 +43,7 @@ import {
   loadTrainingGoal,
   normalizeTrainingGoal,
 } from './trainingGoalStorage'
+import { isValidTimestamp } from './storageHelpers'
 
 /** Current backup-file schema version. Bump when the shape changes incompatibly. */
 export const BACKUP_VERSION = 1
@@ -138,6 +139,9 @@ export function validateBackup(parsed: unknown): Backup {
   }
   if (parsed.version !== BACKUP_VERSION) {
     throw new Error(`Unsupported backup version: ${String(parsed.version)}.`)
+  }
+  if (!isValidTimestamp(parsed.exportedAt)) {
+    throw new Error('Backup file has an invalid exportedAt timestamp.')
   }
   if (!Array.isArray(parsed.ranges)) {
     throw new Error('Backup file is missing its ranges list.')

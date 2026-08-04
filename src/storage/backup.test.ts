@@ -153,13 +153,28 @@ describe('parseBackup', () => {
     expect(() => parseBackup(JSON.stringify({ version: 999 }))).toThrow(/version/)
   })
 
+  it('rejects a missing or invalid export timestamp', () => {
+    const backup = buildBackup('2026-06-08T00:00:00.000Z')
+    expect(() => parseBackup(JSON.stringify({ ...backup, exportedAt: 'not-a-date' }))).toThrow(
+      /exportedAt/,
+    )
+    const withoutTimestamp: Record<string, unknown> = { ...backup }
+    delete withoutTimestamp.exportedAt
+    expect(() => parseBackup(JSON.stringify(withoutTimestamp))).toThrow(/exportedAt/)
+  })
+
   it('rejects a payload missing its ranges list', () => {
-    expect(() => parseBackup(JSON.stringify({ version: BACKUP_VERSION }))).toThrow(/ranges/)
+    expect(() =>
+      parseBackup(
+        JSON.stringify({ version: BACKUP_VERSION, exportedAt: '2026-06-08T00:00:00.000Z' }),
+      ),
+    ).toThrow(/ranges/)
   })
 
   it('rejects a payload missing a data map', () => {
     const incomplete = {
       version: BACKUP_VERSION,
+      exportedAt: '2026-06-08T00:00:00.000Z',
       ranges: [],
       practiceStats: {},
       handAccuracy: {},
