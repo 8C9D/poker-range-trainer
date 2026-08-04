@@ -514,6 +514,121 @@ describe('PracticeHost action quiz', () => {
   })
 })
 
+describe('PracticeHost frequency quiz', () => {
+  const mixedRange = (mixedStrategies: SavedRange['mixedStrategies']) =>
+    makeRange('a', 'UTG open', { mixedStrategies })
+
+  it('ends on a summary that recaps the misses under the primary action', () => {
+    render(
+      <PracticeHost
+        request={{
+          ranges: [
+            mixedRange({
+              AA: [
+                { action: 'raise', frequency: 70 },
+                { action: 'call', frequency: 30 },
+              ],
+            }),
+          ],
+          mode: 'mixed',
+        }}
+        onClose={vi.fn()}
+      />,
+    )
+
+    // Calling AA is wrong: raise is the more frequent (primary) action.
+    fireEvent.click(screen.getByRole('button', { name: 'Call' }))
+    fireEvent.click(screen.getByRole('button', { name: 'End quiz' }))
+
+    expect(screen.getByLabelText('Session summary')).toBeInTheDocument()
+    expect(screen.getByText('0 of 1 correct')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'What you missed' })).toHaveTextContent(
+      'Raise these: AA',
+    )
+  })
+
+  it('re-quizzes only the hands whose primary action went wrong', () => {
+    render(
+      <PracticeHost
+        request={{
+          ranges: [
+            mixedRange({
+              AA: [
+                { action: 'raise', frequency: 70 },
+                { action: 'call', frequency: 30 },
+              ],
+              KK: [
+                { action: 'raise', frequency: 60 },
+                { action: 'call', frequency: 40 },
+              ],
+            }),
+          ],
+          mode: 'mixed',
+        }}
+        onClose={vi.fn()}
+      />,
+    )
+
+    // Folding is never primary here, so whichever hand was prompted misses.
+    const promptedHand = () =>
+      screen.getByText('What is the primary action?').nextElementSibling?.textContent ?? ''
+    const missed = promptedHand()
+    fireEvent.click(screen.getByRole('button', { name: 'Fold' }))
+    fireEvent.click(screen.getByRole('button', { name: 'End quiz' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Drill these now' }))
+
+    // A pool of one, so the re-quiz keeps asking about the hand that went wrong.
+    expect(screen.queryByLabelText('Session summary')).not.toBeInTheDocument()
+    expect(promptedHand()).toBe(missed)
+    fireEvent.click(screen.getByRole('button', { name: 'Fold' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next hand' }))
+    expect(promptedHand()).toBe(missed)
+  })
+
+  it('leaves the recap and the re-quiz off a clean run', () => {
+    render(
+      <PracticeHost
+        request={{
+          ranges: [
+            mixedRange({
+              AA: [
+                { action: 'raise', frequency: 70 },
+                { action: 'call', frequency: 30 },
+              ],
+            }),
+          ],
+          mode: 'mixed',
+        }}
+        onClose={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Raise' }))
+    fireEvent.click(screen.getByRole('button', { name: 'End quiz' }))
+
+    expect(screen.getByText('1 of 1 correct')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'What you missed' })).not.toBeInTheDocument()
+  })
+
+  it('abandons a run that answered nothing instead of summarizing it', () => {
+    const onClose = vi.fn()
+    render(
+      <PracticeHost
+        request={{
+          ranges: [mixedRange({ AA: [{ action: 'raise', frequency: 100 }] })],
+          mode: 'mixed',
+        }}
+        onClose={onClose}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'End quiz' }))
+
+    expect(onClose).toHaveBeenCalled()
+    expect(screen.queryByLabelText('Session summary')).not.toBeInTheDocument()
+  })
+})
+
 describe('PracticeHost spot drill', () => {
   const btnOpen = makeRange('a', 'BTN open', {
     metadata: { position: 'btn', actionType: 'open' },

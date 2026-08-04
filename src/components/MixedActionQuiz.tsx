@@ -3,6 +3,7 @@ import { accuracyPercentage } from '../domain/accuracy'
 import { getRandomHandFrom } from '../domain/practice'
 import { handsWithMixedStrategy, primaryAction } from '../domain/mixedStrategy'
 import type { PokerHand } from '../domain/pokerHands'
+import type { ActionAttempt } from '../types/practice'
 import {
   RANGE_ACTIONS,
   RANGE_ACTION_LABELS,
@@ -16,8 +17,17 @@ import './PracticeSession.css'
 interface MixedActionQuizProps {
   /** The range being quizzed (its `mixedStrategies` define the primary answers). */
   range: SavedRange
-  /** Leave the quiz. */
-  onExit: () => void
+  /**
+   * Ask about only these hands instead of every mixed-strategy hand — set when
+   * re-quizzing a run's misses. Grading is unchanged: the strategies still say
+   * what the primary action is.
+   */
+  handPool?: PokerHand[]
+  /**
+   * Leave the quiz, handing back every answered attempt so the caller can build
+   * the end-of-run summary. Empty when nothing was answered.
+   */
+  onExit: (attempts: ActionAttempt[]) => void
   /** Source of randomness for drawing prompts; injectable for tests. */
   random?: () => number
 }
@@ -32,17 +42,25 @@ interface AnsweredState {
  * Mixed-frequency practice: quizzes the PRIMARY action of each hand that carries
  * a mixed strategy. The correct answer is `primaryAction` of the hand's strategy.
  * Scoring + ordering live in the `mixedStrategy` domain; this component only
- * orchestrates state and rendering. No persistence in this slice.
+ * orchestrates state and rendering. Nothing is persisted — the strategies are the
+ * source of truth, and the run is handed back to the host for its summary.
  */
-export function MixedActionQuiz({ range, onExit, random = Math.random }: MixedActionQuizProps) {
+export function MixedActionQuiz({
+  range,
+  handPool,
+  onExit,
+  random = Math.random,
+}: MixedActionQuizProps) {
   const mixedStrategies = range.mixedStrategies ?? {}
-  const pool = handsWithMixedStrategy(mixedStrategies)
+  const pool = handPool ?? handsWithMixedStrategy(mixedStrategies)
   const [currentHand, setCurrentHand] = useState<PokerHand>(() =>
     pool.length > 0 ? getRandomHandFrom(pool, random) : '',
   )
   const [answered, setAnswered] = useState<AnsweredState | null>(null)
   const [total, setTotal] = useState(0)
   const [correct, setCorrect] = useState(0)
+  // Every answered question, handed back on exit so the host can recap the misses.
+  const [attempts, setAttempts] = useState<ActionAttempt[]>([])
   const answeringRef = useRef(false)
 
   function answer(chosen: RangeAction) {
@@ -51,6 +69,7 @@ export function MixedActionQuiz({ range, onExit, random = Math.random }: MixedAc
     const expected = primaryAction(mixedStrategies[currentHand] ?? []) ?? 'fold'
     const isCorrect = chosen === expected
     setAnswered({ chosen, expected, correct: isCorrect })
+    setAttempts((prev) => [...prev, { hand: currentHand, chosen, expected, correct: isCorrect }])
     setTotal((value) => value + 1)
     if (isCorrect) setCorrect((value) => value + 1)
   }
@@ -93,7 +112,7 @@ export function MixedActionQuiz({ range, onExit, random = Math.random }: MixedAc
       <section className="practice-session" aria-label="Mixed action quiz">
         <header className="practice-header">
           <h2>Frequency quiz: {range.name}</h2>
-          <button type="button" onClick={onExit}>
+          <button type="button" onClick={() => onExit([])}>
             Back to library
           </button>
         </header>
@@ -110,7 +129,7 @@ export function MixedActionQuiz({ range, onExit, random = Math.random }: MixedAc
     <section className="practice-session" aria-label="Mixed action quiz">
       <header className="practice-header">
         <h2>Frequency quiz: {range.name}</h2>
-        <button type="button" onClick={onExit}>
+        <button type="button" onClick={() => onExit(attempts)}>
           End quiz
         </button>
       </header>

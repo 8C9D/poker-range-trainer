@@ -261,6 +261,87 @@ describe('PracticeScreen (overlay host)', () => {
     await waitFor(() => expect(queryByTestId('summary-done')).toBeNull());
   });
 
+  it('ends the frequency quiz on a summary recapping the primary action', async () => {
+    saveSavedRange({
+      id: 'r1',
+      name: 'Mixed',
+      hands: ['AA'],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      mixedStrategies: {
+        AA: [
+          { action: 'raise', frequency: 70 },
+          { action: 'call', frequency: 30 },
+        ],
+      },
+    });
+    mockParams.mockReturnValue({ id: 'r1', mode: 'mixed' });
+    const { getByTestId, getByText, findByTestId } = await render(<PracticeScreen />);
+
+    // Calling AA is wrong: raise is the more frequent (primary) action.
+    fireEvent.press(getByTestId('mixed-action-call'));
+    await findByTestId('quiz-feedback');
+    fireEvent.press(getByTestId('overlay-close'));
+
+    await findByTestId('summary-done');
+    expect(getByText('0 of 1 correct')).toBeTruthy();
+    expect(getByTestId('summary-misses')).toHaveTextContent(/Raise these: AA/);
+  });
+
+  it('re-quizzes only the hands whose primary action went wrong', async () => {
+    saveSavedRange({
+      id: 'r1',
+      name: 'Mixed',
+      hands: ['AA', 'KK'],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      mixedStrategies: {
+        AA: [
+          { action: 'raise', frequency: 70 },
+          { action: 'call', frequency: 30 },
+        ],
+        KK: [
+          { action: 'raise', frequency: 60 },
+          { action: 'call', frequency: 40 },
+        ],
+      },
+    });
+    mockParams.mockReturnValue({ id: 'r1', mode: 'mixed' });
+    const { getByTestId, findByTestId, queryByTestId } = await render(<PracticeScreen />);
+
+    // Folding is never primary here, so whichever hand was prompted misses.
+    const missed = getByTestId('quiz-hand').props.children;
+    fireEvent.press(getByTestId('mixed-action-fold'));
+    await findByTestId('quiz-feedback');
+    fireEvent.press(getByTestId('overlay-close'));
+
+    fireEvent.press(await findByTestId('summary-drill-misses'));
+
+    // Back in the quiz over a pool of one, so the next question repeats the hand.
+    await waitFor(() => expect(queryByTestId('summary-done')).toBeNull());
+    expect(getByTestId('quiz-hand')).toHaveTextContent(missed);
+    fireEvent.press(getByTestId('mixed-action-fold'));
+    fireEvent.press(await findByTestId('mixed-next'));
+    expect(getByTestId('quiz-hand')).toHaveTextContent(missed);
+  });
+
+  it('abandons the frequency quiz when closed before any answer', async () => {
+    saveSavedRange({
+      id: 'r1',
+      name: 'Mixed',
+      hands: ['AA'],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      mixedStrategies: { AA: [{ action: 'raise', frequency: 100 }] },
+    });
+    mockParams.mockReturnValue({ id: 'r1', mode: 'mixed' });
+    const { getByTestId, queryByTestId } = await render(<PracticeScreen />);
+
+    fireEvent.press(getByTestId('overlay-close'));
+
+    await waitFor(() => expect(queryByTestId('summary-done')).toBeNull());
+  });
+
   it('finishes a session into the summary and records every store', async () => {
     seedAllHandsRange();
     const { getByTestId, getByText, findByTestId } = await render(<PracticeScreen />);

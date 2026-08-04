@@ -32,7 +32,53 @@ describe('MixedActionQuiz', () => {
 
     expect(screen.getByText(/no mixed frequencies yet/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Back to library' }))
-    expect(onExit).toHaveBeenCalled()
+    expect(onExit).toHaveBeenCalledWith([])
+  })
+
+  it('hands back every answered attempt when the quiz ends', async () => {
+    const user = userEvent.setup()
+    const onExit = vi.fn()
+    render(
+      <MixedActionQuiz
+        range={makeRange({ mixedStrategies: MIX_AA })}
+        onExit={onExit}
+        random={() => 0}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Fold' }))
+    await user.click(screen.getByRole('button', { name: 'Next hand' }))
+    await user.click(screen.getByRole('button', { name: 'Raise' }))
+    await user.click(screen.getByRole('button', { name: 'End quiz' }))
+
+    expect(onExit).toHaveBeenCalledWith([
+      { hand: 'AA', chosen: 'fold', expected: 'raise', correct: false },
+      { hand: 'AA', chosen: 'raise', expected: 'raise', correct: true },
+    ])
+  })
+
+  it('quizzes only the hand pool it is given', async () => {
+    const user = userEvent.setup()
+    const onExit = vi.fn()
+    const mixed: Record<string, HandMixedStrategy> = {
+      ...MIX_AA,
+      KK: [
+        { action: 'call', frequency: 70 },
+        { action: 'fold', frequency: 30 },
+      ],
+    }
+    render(
+      <MixedActionQuiz
+        range={makeRange({ mixedStrategies: mixed })}
+        handPool={['KK']}
+        onExit={onExit}
+        random={() => 0}
+      />,
+    )
+
+    expect(screen.getByText('KK')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Call' }))
+    expect(screen.getByText('Correct!')).toBeInTheDocument()
   })
 
   it('scores the primary action as correct', async () => {

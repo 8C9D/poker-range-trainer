@@ -76,6 +76,8 @@ type Redrill =
   | { kind: 'hands'; hands: PokerHand[] }
   /** Re-run the action quiz over the hands whose action it got wrong. */
   | { kind: 'actionHands'; hands: PokerHand[] }
+  /** Re-run the frequency quiz over the hands whose primary action it got wrong. */
+  | { kind: 'mixedHands'; hands: PokerHand[] }
   /** Re-run a queue of ranges, each over its own misses (a spot run spans several). */
   | { kind: 'queue'; ranges: SavedRange[]; handPools: Record<string, PokerHand[]> };
 
@@ -169,9 +171,10 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     handPools: request.handPools,
   }));
   const [index, setIndex] = useState(0);
-  // A ref, not state: the action quiz's answers are only ever read when the run
-  // ends, so accumulating them must not re-render the drill mid-question.
+  // Refs, not state: the quizzes' answers are only ever read when the run ends,
+  // so accumulating them must not re-render the drill mid-question.
   const actionAttemptsRef = useRef<ActionAttempt[]>([]);
+  const mixedAttemptsRef = useRef<ActionAttempt[]>([]);
   // Bumped for every drill start so a re-drill of the same range remounts the
   // component instead of resuming the finished session behind the summary.
   const [run, setRun] = useState(0);
@@ -275,6 +278,42 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
   };
 
   /**
+   * End the frequency quiz on the same peak-end summary every other mode gets.
+   *
+   * Its misses group by the action each hand wanted, exactly like the action
+   * quiz's — the question differs (the PRIMARY action of a mixed strategy rather
+   * than the chart's assigned one), the lesson does not. Nothing is persisted:
+   * mixed strategies have no accuracy store, and inventing one here would fold
+   * frequency answers into the action quiz's numbers.
+   */
+  const finishMixedQuiz = () => {
+    const attempts = mixedAttemptsRef.current;
+    // Closing before answering anything abandons the run, as in every mode.
+    if (attempts.length === 0) {
+      onClose();
+      return;
+    }
+    // Start the next quiz from empty, so a re-drill of these misses or the next
+    // range in a queue does not report this run's answers all over again.
+    mixedAttemptsRef.current = [];
+    const correct = attempts.filter((attempt) => attempt.correct).length;
+    const missedHands = missedActionHandsOf(attempts);
+    setPhase({
+      kind: 'summary',
+      data: {
+        totalQuestions: attempts.length,
+        correctAnswers: correct,
+        accuracy: accuracyPercentage(correct, attempts.length),
+        deltaLine: null,
+        // Nothing is recorded, so no session and no streak to claim.
+        streakLine: null,
+        actionMisses: recapActionMisses(attempts),
+      },
+      redrill: missedHands ? { kind: 'mixedHands', hands: missedHands } : null,
+    });
+  };
+
+  /**
    * The spot drill answers questions from several ranges in one session, so each
    * range's attempts are recorded as its own session and the summary sums them.
    */
@@ -338,12 +377,31 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     setPhase({ kind: 'drill', mode: 'action', durationSeconds: DEFAULT_DRILL_SECONDS, handPool });
   };
 
+  /** Re-run the frequency quiz over just the hands whose primary action went wrong. */
+  const drillMixedMisses = (handPool: PokerHand[]) => {
+    setRun(run + 1);
+    setPhase({ kind: 'drill', mode: 'mixed', durationSeconds: DEFAULT_DRILL_SECONDS, handPool });
+  };
+
   /** Replace the queue with a recognition run over each range's own misses. */
   const drillQueue = (ranges: SavedRange[], handPools: Record<string, PokerHand[]>) => {
     setQueue({ ranges, mode: 'recognize', handPools });
     setIndex(0);
     setRun(run + 1);
     setPhase({ kind: 'drill', mode: 'recognize', durationSeconds: DEFAULT_DRILL_SECONDS });
+  };
+
+  const startRedrill = (redrill: Redrill) => {
+    switch (redrill.kind) {
+      case 'hands':
+        return drillMisses(redrill.hands);
+      case 'actionHands':
+        return drillActionMisses(redrill.hands);
+      case 'mixedHands':
+        return drillMixedMisses(redrill.hands);
+      case 'queue':
+        return drillQueue(redrill.ranges, redrill.handPools);
+    }
   };
 
   if (phase.kind === 'picker') {
@@ -370,16 +428,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
           hasNext={!spots && hasNext}
           onNext={nextRange}
           onDone={onClose}
-          onDrillMisses={
-            redrill
-              ? () =>
-                  redrill.kind === 'hands'
-                    ? drillMisses(redrill.hands)
-                    : redrill.kind === 'actionHands'
-                      ? drillActionMisses(redrill.hands)
-                      : drillQueue(redrill.ranges, redrill.handPools)
-              : undefined
-          }
+          onDrillMisses={redrill ? () => startRedrill(redrill) : undefined}
         />
       </OverlayFrame>
     );
@@ -421,8 +470,16 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
   }
   if (phase.mode === 'mixed') {
     return (
-      <OverlayFrame title={`${range.name || 'Untitled'} — frequency quiz`} onClose={onClose}>
-        <MixedQuizDrill id={range.id} />
+      <OverlayFrame
+        title={`${range.name || 'Untitled'} — frequency quiz`}
+        onClose={finishMixedQuiz}
+      >
+        <MixedQuizDrill
+          key={`${range.id}-${run}`}
+          id={range.id}
+          handPool={phase.handPool}
+          onAttempt={(attempt) => mixedAttemptsRef.current.push(attempt)}
+        />
       </OverlayFrame>
     );
   }

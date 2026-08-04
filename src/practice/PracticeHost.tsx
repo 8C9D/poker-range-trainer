@@ -57,6 +57,8 @@ type Redrill =
   | { kind: 'hands'; hands: PokerHand[] }
   /** Re-run the action quiz over the hands whose action it got wrong. */
   | { kind: 'actionHands'; hands: PokerHand[] }
+  /** Re-run the frequency quiz over the hands whose primary action it got wrong. */
+  | { kind: 'mixedHands'; hands: PokerHand[] }
   /** Re-run a queue of ranges, each over its own misses (a spot run spans several). */
   | { kind: 'queue'; ranges: SavedRange[]; handPools: Record<string, PokerHand[]> }
 
@@ -225,6 +227,37 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
   }
 
   /**
+   * End the frequency quiz on the same peak-end summary every other mode gets.
+   *
+   * Its misses group by the action each hand wanted, exactly like the action
+   * quiz's — the question differs (the PRIMARY action of a mixed strategy rather
+   * than the chart's assigned one), the lesson does not. Nothing is persisted:
+   * mixed strategies have no accuracy store, and inventing one here would fold
+   * frequency answers into the action quiz's numbers.
+   */
+  const finishMixedQuiz = (attempts: ActionAttempt[]) => {
+    if (attempts.length === 0) {
+      onClose()
+      return
+    }
+    const correct = attempts.filter((attempt) => attempt.correct).length
+    const missedHands = missedActionHandsOf(attempts)
+    setPhase({
+      kind: 'summary',
+      data: {
+        totalQuestions: attempts.length,
+        correctAnswers: correct,
+        accuracy: accuracyPercentage(correct, attempts.length),
+        deltaLine: null,
+        // Nothing is recorded, so no session and no streak to claim.
+        streakLine: null,
+        actionMisses: recapActionMisses(attempts),
+      },
+      redrill: missedHands ? { kind: 'mixedHands', hands: missedHands } : null,
+    })
+  }
+
+  /**
    * The spot drill answers questions from several ranges in one session, so each
    * range's attempts are recorded as its own session and the summary sums them.
    */
@@ -290,6 +323,12 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     setPhase({ kind: 'drill', mode: 'action', durationSeconds: DEFAULT_DRILL_SECONDS, handPool })
   }
 
+  /** Re-run the frequency quiz over just the hands whose primary action went wrong. */
+  const drillMixedMisses = (handPool: PokerHand[]) => {
+    setRun(run + 1)
+    setPhase({ kind: 'drill', mode: 'mixed', durationSeconds: DEFAULT_DRILL_SECONDS, handPool })
+  }
+
   /** Replace the queue with a recognition run over each range's own misses. */
   const drillQueue = (ranges: SavedRange[], handPools: Record<string, PokerHand[]>) => {
     setQueue({ ranges, mode: 'recognize', handPools })
@@ -315,6 +354,19 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     )
   }
 
+  const startRedrill = (redrill: Redrill) => {
+    switch (redrill.kind) {
+      case 'hands':
+        return drillMisses(redrill.hands)
+      case 'actionHands':
+        return drillActionMisses(redrill.hands)
+      case 'mixedHands':
+        return drillMixedMisses(redrill.hands)
+      case 'queue':
+        return drillQueue(redrill.ranges, redrill.handPools)
+    }
+  }
+
   if (phase.kind === 'summary') {
     // A spot session spans the library, so it is not titled after one range.
     const spots = queue.mode === 'spots'
@@ -331,16 +383,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
           hasNext={!spots && hasNext}
           onNext={nextRange}
           onDone={onClose}
-          onDrillMisses={
-            redrill
-              ? () =>
-                  redrill.kind === 'hands'
-                    ? drillMisses(redrill.hands)
-                    : redrill.kind === 'actionHands'
-                      ? drillActionMisses(redrill.hands)
-                      : drillQueue(redrill.ranges, redrill.handPools)
-              : undefined
-          }
+          onDrillMisses={redrill ? () => startRedrill(redrill) : undefined}
         />
       </OverlayFrame>
     )
@@ -420,7 +463,12 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     case 'mixed':
       return (
         <OverlayFrame title={`${range.name} — frequency quiz`} onClose={onClose}>
-          <MixedActionQuiz range={range} onExit={onClose} />
+          <MixedActionQuiz
+            key={`${range.id}-${run}`}
+            range={range}
+            handPool={phase.handPool}
+            onExit={finishMixedQuiz}
+          />
         </OverlayFrame>
       )
     case 'combo':

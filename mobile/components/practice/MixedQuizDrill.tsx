@@ -6,6 +6,7 @@ import { handsWithMixedStrategy, primaryAction, type HandMixedStrategy } from '@
 import { getRandomHandFrom } from '@core/domain/practice';
 import type { PokerHand } from '@core/domain/pokerHands';
 import { findSavedRangeById } from '@core/storage/rangeStorage';
+import type { ActionAttempt } from '@core/types/practice';
 import { RANGE_ACTIONS, RANGE_ACTION_LABELS, type RangeAction } from '@core/types/range';
 
 import { actionColors } from '../../theme/actionColors';
@@ -24,14 +25,34 @@ interface AnsweredState {
  * Mixed-frequency quiz body: quizzes the primary action of each hand carrying a mixed
  * strategy. Running stats only (the strategies are the source of truth). Shared by the flat
  * frequency-quiz route and the practice overlay's frequency mode.
+ *
+ * `onAttempt` reports each answer as it is scored. The overlay's close button lives in the
+ * frame around this component, so the host cannot ask for the run when it ends — it
+ * accumulates the answers instead, and builds its summary from them.
  */
-export function MixedQuizDrill({ id }: { id?: string }) {
+export function MixedQuizDrill({
+  id,
+  handPool,
+  onAttempt,
+}: {
+  id?: string;
+  /**
+   * Ask about only these hands instead of every mixed-strategy hand — set when
+   * re-quizzing a run's misses. Grading is unchanged: the strategies still say
+   * what the primary action is.
+   */
+  handPool?: PokerHand[];
+  onAttempt?: (attempt: ActionAttempt) => void;
+}) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const ACTION_COLORS = actionColors(theme);
   const [range] = useState(() => (id ? findSavedRangeById(id) : undefined));
   const mixedStrategies = range?.mixedStrategies ?? EMPTY_STRATEGIES;
-  const pool = useMemo(() => handsWithMixedStrategy(mixedStrategies), [mixedStrategies]);
+  const pool = useMemo(
+    () => handPool ?? handsWithMixedStrategy(mixedStrategies),
+    [handPool, mixedStrategies],
+  );
 
   const [hand, setHand] = useState<PokerHand | null>(() =>
     pool.length > 0 ? getRandomHandFrom(pool) : null,
@@ -48,8 +69,9 @@ export function MixedQuizDrill({ id }: { id?: string }) {
       setAnswered({ chosen, expected, correct: isCorrect });
       setTotal((value) => value + 1);
       if (isCorrect) setCorrect((value) => value + 1);
+      onAttempt?.({ hand, chosen, expected, correct: isCorrect });
     },
-    [answered, hand, mixedStrategies],
+    [answered, hand, mixedStrategies, onAttempt],
   );
 
   const nextHand = useCallback(() => {
