@@ -19,5 +19,3 @@ export const fonts = {
   /** Heaviest UI weight. */
   bodyBold: 'InstrumentSans_700Bold',
 } as const;
-
-export type FontFamily = (typeof fonts)[keyof typeof fonts];

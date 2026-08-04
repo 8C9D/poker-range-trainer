@@ -17,9 +17,6 @@ import {
  * and both platforms share one vocabulary check. Pure.
  */
 
-/** The parameter names, kept short because they show up in a visible URL. */
-export const SCENARIO_PARAM_KEYS = ['position', 'action', 'vs', 'table', 'stack'] as const
-
 /** Loose shape of a router's parsed parameters, on either platform. */
 export type ScenarioParams = Record<string, string | string[] | undefined>
 
