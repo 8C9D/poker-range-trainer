@@ -72,6 +72,15 @@ describe('PracticeScreen (overlay host)', () => {
     expect(await findByTestId('drill-feedback')).toHaveTextContent(/^Correct —/);
   });
 
+  it('drops invalid hands from a deep-linked practice pool', async () => {
+    seedAllHandsRange();
+    mockParams.mockReturnValue({ id: 'r1', mode: 'recognize', pool: 'not-a-hand,AA' });
+
+    const { getByTestId } = await render(<PracticeScreen />);
+
+    expect(getByTestId('drill-hand')).toHaveTextContent('AA');
+  });
+
   it('explains a missed hand and stays quiet after a hit', async () => {
     // Every hand is in range, so answering "fold" is always a miss.
     seedAllHandsRange();

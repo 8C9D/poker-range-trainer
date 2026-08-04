@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { Link, Stack, useLocalSearchParams, useRouter } from 'expo-router';
 
-import type { PokerHand } from '@core/domain/pokerHands';
+import { isValidHand, type PokerHand } from '@core/domain/pokerHands';
 import { findSavedRangeById, loadSavedRanges } from '@core/storage/rangeStorage';
 import { TABLE_SIZES, type SavedRange, type TableSize } from '@core/types/range';
 
@@ -32,12 +32,26 @@ function commaList(value: string | undefined): string[] {
   return value ? value.split(',').filter(Boolean) : [];
 }
 
+function handList(value: string | undefined): PokerHand[] {
+  return commaList(value).filter(isValidHand);
+}
+
 /** Parse the per-range weak-hand pools (`pools` = JSON of Record<rangeId, hand[]>). */
 function parsePools(value: string | undefined): Record<string, PokerHand[]> | undefined {
   if (!value) return undefined;
   try {
-    const parsed = JSON.parse(value) as Record<string, PokerHand[]>;
-    return parsed && typeof parsed === 'object' ? parsed : undefined;
+    const parsed: unknown = JSON.parse(value);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined;
+
+    const pools: Record<string, PokerHand[]> = {};
+    for (const [rangeId, hands] of Object.entries(parsed)) {
+      if (!Array.isArray(hands)) continue;
+      const validHands = hands.filter(
+        (hand): hand is PokerHand => typeof hand === 'string' && isValidHand(hand),
+      );
+      if (validHands.length > 0) pools[rangeId] = validHands;
+    }
+    return Object.keys(pools).length > 0 ? pools : undefined;
   } catch {
     return undefined;
   }
@@ -72,7 +86,7 @@ export default function PracticeScreen() {
       : ids
           .map((id) => findSavedRangeById(id))
           .filter((range): range is SavedRange => range !== undefined);
-  const handPool = commaList(params.pool) as PokerHand[];
+  const handPool = handList(params.pool);
 
   const close = () => {
     if (router.canGoBack()) router.back();
