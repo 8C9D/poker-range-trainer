@@ -24,25 +24,34 @@ const MODES: PracticeMode[] = [
   'board',
 ];
 
-function asMode(value: string | undefined): PracticeMode | null {
+type RouteValue = string | string[] | undefined;
+
+function single(value: RouteValue): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function asMode(value: RouteValue): PracticeMode | null {
+  value = single(value);
   return value && (MODES as string[]).includes(value) ? (value as PracticeMode) : null;
 }
 
-function commaList(value: string | undefined): string[] {
+function commaList(value: RouteValue): string[] {
+  value = single(value);
   return value ? value.split(',').filter(Boolean) : [];
 }
 
-function handList(value: string | undefined): PokerHand[] {
+function handList(value: RouteValue): PokerHand[] {
   return commaList(value).filter(isValidHand);
 }
 
-function positiveNumber(value: string | undefined, fallback: number): number {
-  const parsed = Number(value);
+function positiveNumber(value: RouteValue, fallback: number): number {
+  const parsed = Number(single(value));
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
 /** Parse the per-range weak-hand pools (`pools` = JSON of Record<rangeId, hand[]>). */
-function parsePools(value: string | undefined): Record<string, PokerHand[]> | undefined {
+function parsePools(value: RouteValue): Record<string, PokerHand[]> | undefined {
+  value = single(value);
   if (!value) return undefined;
   try {
     const parsed: unknown = JSON.parse(value);
@@ -72,19 +81,19 @@ export default function PracticeScreen() {
   const theme = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{
-    id?: string;
-    queue?: string;
-    mode?: string;
-    pool?: string;
-    pools?: string;
-    table?: string;
-    stack?: string;
-    spot?: string;
+    id?: RouteValue;
+    queue?: RouteValue;
+    mode?: RouteValue;
+    pool?: RouteValue;
+    pools?: RouteValue;
+    table?: RouteValue;
+    stack?: RouteValue;
+    spot?: RouteValue;
   }>();
 
   const mode = asMode(params.mode);
   // The spot drill is not launched from a range: it deals from the whole library.
-  const ids = params.queue ? commaList(params.queue) : params.id ? [params.id] : [];
+  const ids = params.queue ? commaList(params.queue) : single(params.id) ? [single(params.id)!] : [];
   const ranges =
     mode === 'spots'
       ? loadSavedRanges()
@@ -118,13 +127,13 @@ export default function PracticeScreen() {
     spotFormat:
       mode === 'spots'
         ? {
-            tableSize: (TABLE_SIZES as readonly string[]).includes(params.table ?? '')
-              ? (params.table as TableSize)
+            tableSize: (TABLE_SIZES as readonly string[]).includes(single(params.table) ?? '')
+              ? (single(params.table) as TableSize)
               : 'sixMax',
             stackDepthBb: positiveNumber(params.stack, 100),
           }
         : undefined,
-    spotKeys: mode === 'spots' && params.spot ? [params.spot] : undefined,
+    spotKeys: mode === 'spots' && single(params.spot) ? [single(params.spot)!] : undefined,
     handPool: handPool.length > 0 ? handPool : undefined,
     handPools: parsePools(params.pools),
   };
