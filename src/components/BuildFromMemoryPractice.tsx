@@ -41,6 +41,9 @@ export function BuildFromMemoryPractice({
   // Why the checked build could not be saved, or null when it saved (or when
   // there was nothing to save).
   const [saveError, setSaveError] = useState<string | null>(null)
+  // The score the checked build was logged as, or null when nothing was logged.
+  // Held rather than re-derived so the screen only claims what actually happened.
+  const [scored, setScored] = useState<PracticeSessionSummary | null>(null)
 
   // Idempotent membership update mirroring App's handler: returning the previous
   // set when nothing changes avoids a needless re-render mid-drag.
@@ -67,13 +70,16 @@ export function BuildFromMemoryPractice({
   function check() {
     setChecked(true)
     if (selected.size === 0 || !onScored) return
-    setSaveError(onScored(summarizeBuiltRange(compareBuiltRange(range.hands, Array.from(selected)))))
+    const summary = summarizeBuiltRange(compareBuiltRange(range.hands, Array.from(selected)))
+    setSaveError(onScored(summary))
+    setScored(summary)
   }
 
   function tryAgain() {
     setSelected(new Set())
     setChecked(false)
     setSaveError(null)
+    setScored(null)
   }
 
   if (checked) {
@@ -95,6 +101,19 @@ export function BuildFromMemoryPractice({
           <span className="practice-stat">Missed: {missed.length}</span>
           <span className="practice-stat">Added by mistake: {extra.length}</span>
         </div>
+
+        {/* A run that counted says so: the stats, the streak and the review
+            schedule all moved, and nothing else on this screen shows that. */}
+        {scored && !saveError && (
+          <p className="practice-logged">
+            Logged as a practice session · {Math.round(scored.accuracyPercentage)}%
+          </p>
+        )}
+        {onScored && selected.size === 0 && (
+          <p className="practice-expected">
+            Nothing logged — build the range first, then check it.
+          </p>
+        )}
 
         {perfect ? (
           <p className="practice-review-clean">Perfect — you rebuilt the range exactly!</p>

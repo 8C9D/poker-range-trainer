@@ -526,7 +526,10 @@ from a known state (see §2).
 - [ ] A checked build updates the card's practice stats and session history (one
       question per hand you got right, forgot, or added by mistake) and advances the
       review schedule; the heatmap is unchanged.
-- [ ] Checking a blank grid shows the chart but records nothing.
+- [ ] The results screen says "Logged as a practice session · N%" for a build that
+      counted (and nothing of the sort when the save failed).
+- [ ] Checking a blank grid shows the chart, records nothing, and says
+      "Nothing logged — build the range first".
 
 ### 5.11 Practice — timed drill (v2 mode 5)
 

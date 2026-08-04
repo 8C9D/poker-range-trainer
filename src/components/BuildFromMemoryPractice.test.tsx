@@ -120,7 +120,7 @@ describe('BuildFromMemoryPractice', () => {
     })
   })
 
-  it('does not score a check on a blank grid', async () => {
+  it('does not score a check on a blank grid, and says so', async () => {
     const user = userEvent.setup()
     const onScored = vi.fn().mockReturnValue(null)
     render(
@@ -133,6 +133,44 @@ describe('BuildFromMemoryPractice', () => {
 
     expect(onScored).not.toHaveBeenCalled()
     expect(screen.getByText('Correct: 0 of 2')).toBeInTheDocument()
+    expect(screen.getByText(/Nothing logged/)).toBeInTheDocument()
+    expect(screen.queryByText(/Logged as a practice session/)).not.toBeInTheDocument()
+  })
+
+  it('says a scored build counted, and stops saying it after "Try again"', async () => {
+    const user = userEvent.setup()
+    render(
+      <BuildFromMemoryPractice
+        range={makeRange({ hands: ['AA', 'KK'] })}
+        onExit={vi.fn()}
+        onScored={() => null}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Check my range' }))
+    // One of the two hands right, one forgotten.
+    expect(screen.getByText('Logged as a practice session · 50%')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(screen.queryByText(/Logged as a practice session/)).not.toBeInTheDocument()
+  })
+
+  it('does not claim a build was logged when the save failed', async () => {
+    const user = userEvent.setup()
+    render(
+      <BuildFromMemoryPractice
+        range={makeRange()}
+        onExit={vi.fn()}
+        onScored={() => 'Storage is full.'}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Check my range' }))
+
+    expect(screen.queryByText(/Logged as a practice session/)).not.toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('Storage is full.')
   })
 
   it('shows why the checked build could not be saved, and clears it on "Try again"', async () => {

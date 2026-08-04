@@ -99,6 +99,38 @@ describe('BuildScreen', () => {
     expect(onScored).toHaveBeenCalledTimes(1);
   });
 
+  it('scores the build on screen and says it counted', async () => {
+    seedRange();
+    const user = userEvent.setup();
+    const { getByTestId, queryByTestId } = await render(
+      <BuildDrill id="r1" onScored={() => null} />,
+    );
+
+    await user.press(getByTestId('hand-cell-AA'));
+    await user.press(getByTestId('build-check'));
+
+    await waitFor(() =>
+      expect(getByTestId('build-score')).toHaveTextContent(
+        'Correct: 1 of 2 · Missed: 1 · Added by mistake: 0',
+      ),
+    );
+    expect(getByTestId('build-logged')).toHaveTextContent('Logged as a practice session · 50%');
+    expect(queryByTestId('build-not-logged')).toBeNull();
+  });
+
+  it('says a blank check logged nothing', async () => {
+    seedRange();
+    const user = userEvent.setup();
+    const { getByTestId, queryByTestId } = await render(
+      <BuildDrill id="r1" onScored={() => null} />,
+    );
+
+    await user.press(getByTestId('build-check'));
+
+    await waitFor(() => expect(getByTestId('build-not-logged')).toBeTruthy());
+    expect(queryByTestId('build-logged')).toBeNull();
+  });
+
   it('shows why a checked build could not be saved', async () => {
     seedRange();
     const user = userEvent.setup();

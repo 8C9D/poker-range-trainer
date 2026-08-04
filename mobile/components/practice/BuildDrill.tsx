@@ -40,6 +40,9 @@ export function BuildDrill({
   // Why the checked build could not be saved, or null when it saved (or when there was
   // nothing to save).
   const [saveError, setSaveError] = useState<string | null>(null);
+  // The score the checked build was logged as, or null when nothing was logged. Held
+  // rather than re-derived so the screen only claims what actually happened.
+  const [scored, setScored] = useState<PracticeSessionSummary | null>(null);
 
   const handleSetSelected = useCallback((hand: PokerHand, isSelected: boolean) => {
     setBuilt((prev) => {
@@ -50,6 +53,7 @@ export function BuildDrill({
     });
     setResult(null);
     setSaveError(null);
+    setScored(null);
   }, []);
 
   /**
@@ -66,13 +70,16 @@ export function BuildDrill({
     const comparison = compareBuiltRange(range.hands, [...built]);
     setResult(comparison);
     if (built.size === 0 || !onScored) return;
-    setSaveError(onScored(summarizeBuiltRange(comparison)));
+    const summary = summarizeBuiltRange(comparison);
+    setSaveError(onScored(summary));
+    setScored(summary);
   }, [range, built, result, onScored]);
 
   const reset = useCallback(() => {
     setBuilt(new Set());
     setResult(null);
     setSaveError(null);
+    setScored(null);
   }, []);
 
   if (!range) {
@@ -93,6 +100,24 @@ export function BuildDrill({
       </View>
       {result ? (
         <View style={styles.results}>
+          {/* The same score line the web results screen leads with: how much of the
+              chart came back, before the hand lists that say which parts. */}
+          <Text testID="build-score" style={styles.score}>
+            Correct: {result.correct.length} of {result.correct.length + result.missed.length} ·
+            Missed: {result.missed.length} · Added by mistake: {result.extra.length}
+          </Text>
+          {/* A run that counted says so: the stats, the streak and the review schedule
+              all moved, and nothing else on this screen shows that. */}
+          {scored && !saveError ? (
+            <Text testID="build-logged" style={styles.logged}>
+              Logged as a practice session · {Math.round(scored.accuracyPercentage)}%
+            </Text>
+          ) : null}
+          {onScored && built.size === 0 ? (
+            <Text testID="build-not-logged" style={styles.hint}>
+              Nothing logged — build the range first, then check it.
+            </Text>
+          ) : null}
           <ResultGroup styles={styles} label="Correct" testID="build-correct" hands={result.correct} labelStyle={styles.labelCorrect} />
           <ResultGroup styles={styles} label="Missed" testID="build-missed" hands={result.missed} labelStyle={styles.labelMissed} />
           <ResultGroup styles={styles} label="Extra" testID="build-extra" hands={result.extra} labelStyle={styles.labelExtra} />
@@ -149,6 +174,8 @@ function makeStyles(theme: ThemeColors) {
     resetButton: { backgroundColor: theme.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.line },
     resetText: { color: theme.ink2, fontSize: 16, fontWeight: '600' },
     saveError: { color: theme.bad, fontSize: 14, fontWeight: '500' },
+    score: { color: theme.ink, fontSize: 15, fontWeight: '600', lineHeight: 21 },
+    logged: { color: theme.accentStrong, fontSize: 14, fontWeight: '600' },
     results: { gap: 12 },
     group: { gap: 6 },
     groupLabel: { fontSize: 14, fontWeight: '700' },

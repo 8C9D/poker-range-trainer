@@ -146,6 +146,14 @@
   color: var(--text);
 }
 
+/* Confirmation that a checked build counted as a practice session. */
+.practice-logged {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent-strong);
+}
+
 /* The user's own words about the hand, set apart from the graded answer. */
 .practice-note {
   margin: 0;
