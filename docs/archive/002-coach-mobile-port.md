@@ -1,5 +1,7 @@
 # Port the "Coach" UI to the mobile app
 
+> Historical record: the mobile Coach-port spec, used on 2026-07-23. Kept for history; not current instructions.
+
 ## Mission and authorization
 
 Restructure the entire mobile app UI/UX (`mobile/`, Expo + React Native) to the "Coach" design that

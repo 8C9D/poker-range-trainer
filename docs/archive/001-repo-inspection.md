@@ -1,3 +1,5 @@
+> Historical record: the v1 kickoff prompt, used on 2026-05-01. Kept for history; not current instructions.
+
 We are starting a new poker range trainer project.
 
 Read CLAUDE.md and docs/roadmap.md if present.

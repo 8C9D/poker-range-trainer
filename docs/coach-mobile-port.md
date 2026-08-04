@@ -1,7 +1,7 @@
 # Coach mobile port progress
 
 State file for porting the shipped web "Coach" UI to the mobile app (`mobile/`, Expo + React Native).
-Spec: `prompts/002-coach-mobile-port.md`. Web reference: `src/` (commits `ebbadb4..f94f658`), mapped in `docs/coach-ui-refactor.md`.
+Spec: `docs/archive/002-coach-mobile-port.md`. Web reference: `src/` (commits `ebbadb4..f94f658`), mapped in `docs/coach-ui-refactor.md`.
 Update this every slice so a future session can resume.
 
 ## Milestones
