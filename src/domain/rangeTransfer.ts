@@ -1,7 +1,7 @@
 import type { SavedRange } from '../types/range'
 import { RANGE_ACTIONS, type RangeAction } from '../types/range'
 import { decodeBase64Url, encodeBase64Url } from './base64url'
-import { generateHandMatrix, isValidHand, type PokerHand } from './pokerHands'
+import { areValidHands, generateHandMatrix, isValidHand, type PokerHand } from './pokerHands'
 import { countRangeCombos, rangeComboPercentage } from './comboSelection'
 
 /**
@@ -276,8 +276,11 @@ function isValidRangeShape(range: unknown): boolean {
   return (
     isPlainObject(range) &&
     typeof range.id === 'string' &&
+    range.id.length > 0 &&
     typeof range.name === 'string' &&
-    Array.isArray(range.hands)
+    areValidHands(range.hands) &&
+    typeof range.createdAt === 'string' &&
+    typeof range.updatedAt === 'string'
   )
 }
 

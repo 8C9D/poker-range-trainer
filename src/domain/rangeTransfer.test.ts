@@ -82,6 +82,19 @@ describe('parseRangeExport', () => {
       ),
     ).toThrow(/valid range/)
   })
+
+  it('rejects a range with non-canonical hands or missing timestamps', () => {
+    for (const range of [
+      makeRange({ hands: ['AA', 'ZZ'] }),
+      { id: 'r1', name: 'No timestamps', hands: ['AA'] },
+    ]) {
+      expect(() =>
+        parseRangeExport(
+          JSON.stringify({ kind: RANGE_EXPORT_KIND, version: RANGE_EXPORT_VERSION, range }),
+        ),
+      ).toThrow(/valid range/)
+    }
+  })
 })
 
 describe('formatRangeCsv', () => {
@@ -240,6 +253,18 @@ describe('range packs', () => {
     expect(() =>
       parseRangePack(
         JSON.stringify({ kind: RANGE_PACK_KIND, version: RANGE_PACK_VERSION, ranges: [{ id: 1 }] }),
+      ),
+    ).toThrow(/valid ranges/)
+  })
+
+  it('rejects a pack containing an invalid hand', () => {
+    expect(() =>
+      parseRangePack(
+        JSON.stringify({
+          kind: RANGE_PACK_KIND,
+          version: RANGE_PACK_VERSION,
+          ranges: [makeRange({ hands: ['AA', 'ZZ'] })],
+        }),
       ),
     ).toThrow(/valid ranges/)
   })
