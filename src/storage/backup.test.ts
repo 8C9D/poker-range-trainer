@@ -169,6 +169,15 @@ describe('parseBackup', () => {
     }
     expect(() => parseBackup(JSON.stringify(incomplete))).toThrow(/reviewStates/)
   })
+
+  it('rejects a malformed range before it can replace the local library', () => {
+    const malformed = {
+      ...buildBackup('2026-06-08T00:00:00.000Z'),
+      ranges: [{ ...makeRange(), name: 42 }],
+    }
+
+    expect(() => parseBackup(JSON.stringify(malformed))).toThrow(/invalid range/)
+  })
 })
 
 describe('restoreBackup', () => {
@@ -221,6 +230,17 @@ describe('restoreBackup', () => {
     const restored = loadSavedRanges()
     expect(restored).toHaveLength(1)
     expect(restored[0].id).toBe('original')
+  })
+
+  it('validates a directly supplied backup before touching storage', () => {
+    saveSavedRange(makeRange({ id: 'keep' }))
+    const malformed = {
+      ...buildBackup('2026-06-08T00:00:00.000Z'),
+      ranges: [{ ...makeRange({ id: 'bad' }), name: 42 }],
+    } as unknown as Backup
+
+    expect(() => restoreBackup(malformed)).toThrow(/invalid range/)
+    expect(loadSavedRanges().map((range) => range.id)).toEqual(['keep'])
   })
 })
 

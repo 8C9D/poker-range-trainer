@@ -356,6 +356,15 @@ function normalizeSavedRange(range: SavedRange): SavedRange {
 }
 
 /**
+ * Validate and normalize an in-memory range list without touching storage.
+ * Used at import boundaries that must prove the whole payload is safe before
+ * replacing any local data.
+ */
+export function normalizeSavedRanges(ranges: readonly SavedRange[]): SavedRange[] {
+  return ranges.map(normalizeSavedRange)
+}
+
+/**
  * Insert or update a range by id, preserving stable ordering.
  *
  * An existing id is replaced in place (its position is kept); a new id is
@@ -375,7 +384,7 @@ export function saveSavedRange(range: SavedRange): void {
  * to the last input at the first position assigned to that id.
  */
 export function saveSavedRanges(input: Iterable<SavedRange>): void {
-  const normalizedRanges = Array.from(input, normalizeSavedRange)
+  const normalizedRanges = normalizeSavedRanges(Array.from(input))
   if (normalizedRanges.length === 0) return
 
   const ranges = loadSavedRanges()

@@ -7,7 +7,7 @@ import type {
 } from '../types/practice'
 import type { SavedRange } from '../types/range'
 import type { RangeActionAccuracy } from '../domain/actionRange'
-import { STORAGE_KEY, loadSavedRanges } from './rangeStorage'
+import { STORAGE_KEY, loadSavedRanges, normalizeSavedRanges } from './rangeStorage'
 import { PRACTICE_STATS_STORAGE_KEY, loadPracticeStats } from './practiceStatsStorage'
 import { HAND_ACCURACY_STORAGE_KEY, loadHandAccuracy } from './handAccuracyStorage'
 import { ACTION_ACCURACY_STORAGE_KEY, loadActionAccuracy } from './actionAccuracyStorage'
@@ -114,6 +114,12 @@ export function validateBackup(parsed: unknown): Backup {
   if (!Array.isArray(parsed.ranges)) {
     throw new Error('Backup file is missing its ranges list.')
   }
+  let ranges: SavedRange[]
+  try {
+    ranges = normalizeSavedRanges(parsed.ranges as SavedRange[])
+  } catch (error) {
+    throw new Error('Backup file contains an invalid range.', { cause: error })
+  }
   for (const field of [
     'practiceStats',
     'handAccuracy',
@@ -132,7 +138,7 @@ export function validateBackup(parsed: unknown): Backup {
   if (parsed.trainingGoal !== undefined && typeof parsed.trainingGoal !== 'number') {
     throw new Error('Backup file has an unreadable trainingGoal.')
   }
-  return parsed as unknown as Backup
+  return { ...parsed, ranges } as unknown as Backup
 }
 
 /**
@@ -147,19 +153,20 @@ export function validateBackup(parsed: unknown): Backup {
  * already present. The original error is rethrown for the caller to surface.
  */
 export function restoreBackup(backup: Backup): void {
+  const validated = validateBackup(backup)
   const entries: [string, string][] = [
-    [STORAGE_KEY, JSON.stringify(backup.ranges)],
-    [PRACTICE_STATS_STORAGE_KEY, JSON.stringify(backup.practiceStats)],
-    [HAND_ACCURACY_STORAGE_KEY, JSON.stringify(backup.handAccuracy)],
-    [ACTION_ACCURACY_STORAGE_KEY, JSON.stringify(backup.actionAccuracy)],
-    [SESSION_HISTORY_STORAGE_KEY, JSON.stringify(backup.sessionHistory)],
-    [REVIEW_STATE_STORAGE_KEY, JSON.stringify(backup.reviewStates)],
+    [STORAGE_KEY, JSON.stringify(validated.ranges)],
+    [PRACTICE_STATS_STORAGE_KEY, JSON.stringify(validated.practiceStats)],
+    [HAND_ACCURACY_STORAGE_KEY, JSON.stringify(validated.handAccuracy)],
+    [ACTION_ACCURACY_STORAGE_KEY, JSON.stringify(validated.actionAccuracy)],
+    [SESSION_HISTORY_STORAGE_KEY, JSON.stringify(validated.sessionHistory)],
+    [REVIEW_STATE_STORAGE_KEY, JSON.stringify(validated.reviewStates)],
     // A file without the field replaces the local record with nothing, the same
     // as every other slice: a restore is the whole library, not a merge.
-    [SPOT_ACCURACY_STORAGE_KEY, JSON.stringify(backup.spotAccuracy ?? {})],
+    [SPOT_ACCURACY_STORAGE_KEY, JSON.stringify(validated.spotAccuracy ?? {})],
     // 0 reads back as "no goal", so a file without the field clears the target
     // like every other slice a restore replaces.
-    [TRAINING_GOAL_STORAGE_KEY, JSON.stringify(backup.trainingGoal ?? 0)],
+    [TRAINING_GOAL_STORAGE_KEY, JSON.stringify(validated.trainingGoal ?? 0)],
   ]
   const previous = entries.map(([key]) => [key, localStorage.getItem(key)] as const)
   try {
