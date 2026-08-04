@@ -48,19 +48,21 @@ export function recordFinishedPracticeSession(rangeId: string, attempts: Practic
 }
 
 /**
- * Persist a finished quiz that asked which ACTION a hand wants, rather than
- * whether it is in the range: the action quiz and the frequency quiz.
+ * Persist a finished session that did not answer hands one in-or-out question
+ * at a time: the action quiz, the frequency quiz, and build from memory.
  *
  * Their answers must never reach the per-hand store, whose falsePositive /
  * falseNegative split only means anything for an in-or-out answer — which is
- * why they cannot simply call {@link recordFinishedPracticeSession}. Everything
- * else about a run of theirs is an ordinary practice session on that chart,
- * though, and recording none of it meant a user could answer twenty hands and
- * be told, on the same screen, that they had answered none today and had never
- * practiced the chart. So the per-range stats, the session log, and the review
- * schedule all advance exactly as they do for recognition.
+ * why they cannot simply call {@link recordFinishedPracticeSession}. (The two
+ * quizzes ask which ACTION a hand wants; a build grades a whole chart at once,
+ * and the hands it leaves alone were never decided on.) Everything else about a
+ * run of theirs is an ordinary practice session on that chart, though, and
+ * recording none of it meant a user could answer twenty hands and be told, on
+ * the same screen, that they had answered none today and had never practiced
+ * the chart. So the per-range stats, the session log, and the review schedule
+ * all advance exactly as they do for recognition.
  */
-export function recordFinishedActionSession(
+export function recordFinishedSummarySession(
   rangeId: string,
   summary: PracticeSessionSummary,
 ): void {

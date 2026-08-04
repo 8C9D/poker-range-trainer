@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   captureRecordingFailure,
-  recordFinishedActionSession,
+  recordFinishedSummarySession,
   recordFinishedPracticeSession,
 } from '../app/sessionRecording'
 import { ActionQuiz } from '../components/ActionQuiz'
@@ -223,7 +223,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     }
     const saveError = captureRecordingFailure(() => {
       recordActionAccuracy(range.id, summarizeActionAccuracy(attempts))
-      recordFinishedActionSession(range.id, summary)
+      recordFinishedSummarySession(range.id, summary)
     })
     const missedActionHands = missedActionHandsOf(attempts)
     setPhase({
@@ -265,7 +265,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
       accuracyPercentage: accuracyPercentage(correct, attempts.length),
     }
     const saveError = captureRecordingFailure(() =>
-      recordFinishedActionSession(range.id, summary),
+      recordFinishedSummarySession(range.id, summary),
     )
     const missedHands = missedActionHandsOf(attempts)
     setPhase({
@@ -467,7 +467,13 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     case 'build':
       return (
         <OverlayFrame title={`${range.name} — build from memory`} onClose={onClose}>
-          <BuildFromMemoryPractice range={range} onExit={onClose} />
+          <BuildFromMemoryPractice
+            range={range}
+            onExit={onClose}
+            onScored={(summary) =>
+              captureRecordingFailure(() => recordFinishedSummarySession(range.id, summary))
+            }
+          />
         </OverlayFrame>
       )
     case 'action':

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { recordFinishedActionSession, recordFinishedPracticeSession } from './sessionRecording'
+import { recordFinishedSummarySession, recordFinishedPracticeSession } from './sessionRecording'
 import { loadPracticeStats } from '../storage/practiceStatsStorage'
 import { loadHandAccuracy } from '../storage/handAccuracyStorage'
 import { loadSessionHistory } from '../storage/sessionHistoryStorage'
@@ -57,9 +57,9 @@ describe('recordFinishedPracticeSession', () => {
   })
 })
 
-describe('recordFinishedActionSession', () => {
+describe('recordFinishedSummarySession', () => {
   it('counts the session everywhere volume and scheduling are read from', () => {
-    recordFinishedActionSession('r1', {
+    recordFinishedSummarySession('r1', {
       totalQuestions: 9,
       correctAnswers: 6,
       accuracyPercentage: (6 / 9) * 100,
@@ -81,7 +81,7 @@ describe('recordFinishedActionSession', () => {
     // "Which action" has no in-or-out answer, so it has no false positive or
     // negative to record — writing one would invent a mistake in a direction the
     // quiz never asked about.
-    recordFinishedActionSession('r1', {
+    recordFinishedSummarySession('r1', {
       totalQuestions: 4,
       correctAnswers: 2,
       accuracyPercentage: 50,
@@ -92,7 +92,7 @@ describe('recordFinishedActionSession', () => {
   it('shares one schedule with recognition rather than running a second one', () => {
     recordFinishedPracticeSession('r1', [attempt('AA', true)])
     const first = loadReviewStates()['r1']
-    recordFinishedActionSession('r1', {
+    recordFinishedSummarySession('r1', {
       totalQuestions: 10,
       correctAnswers: 10,
       accuracyPercentage: 100,

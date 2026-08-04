@@ -167,7 +167,10 @@ Clicking **Practice** on a range's page opens a **mode picker** (Today's "Start 
    the expected answer. The drill runs a fixed set of hands (or until you close it),
    then ends on a **session summary** (accuracy ring, score, and streak).
 2. **Build from memory** — rebuild the whole range on a blank grid, then "Check my
-   range" reports correct / missed / added-by-mistake.
+   range" reports correct / missed / added-by-mistake. A checked build counts as a
+   practice session: each hand you got right is a correct answer, and each hand you
+   forgot or added by mistake is a wrong one. Checking a *blank* grid (how you ask to
+   be shown the chart) records nothing.
 3. **Timed drill** — choose 30/60/120s from the picker's "Timed drill duration" select
    (default 60s), then answer as many as possible against a countdown; summary at the end.
 4. **Weakness drill** — recognition loop that resurfaces hands you've missed this
@@ -177,7 +180,7 @@ Clicking **Practice** on a range's page opens a **mode picker** (Today's "Start 
    scored against the chart.
 6. **Frequency quiz** — *only shown when the range has a saved mixed-frequency chart.*
    Prompts a hand, you choose its **primary** action, scored against the
-   highest-frequency action. Records nothing (like build-from-memory).
+   highest-frequency action.
 7. **Combo drill** — blocker-aware self-graded drill dealing concrete combos from the
    range (records nothing). Detailed under *Combo-level precision*.
 8. **Postflop drill** — set up a flop spot and self-grade the decision (records nothing).
@@ -331,18 +334,19 @@ Different practice modes persist different things. Use this when verifying track
 | Recognize (mistakes-only) | ✅ | ✅ | ✅ | ✅ | — |
 | Timed drill | ✅ | ✅ | ✅ | ✅ | — |
 | Weakness drill | ✅ | ✅ | ✅ | ✅ | — |
-| Build from memory | — | — | — | — | — |
+| Build from memory | ✅ | — | ✅ | ✅ | — |
 | Action quiz | ✅ | — | ✅ | ✅ | ✅ |
 | Frequency quiz (mixed) | ✅ | — | ✅ | ✅ | — |
 
 All recorders are **no-ops when zero questions were answered**, so ending a mode
-immediately records nothing. Build-from-memory records nothing (its score shape is
-different), and the self-graded **postflop drill** and **combo drill** (also practice
-mode picker options) record nothing either. The two quizzes ask which *action* a hand
-wants rather than whether it is in the range, so they never write the per-hand record —
-that store's "played a fold" / "folded a play" split has no meaning for their answers —
-but their runs are practice sessions like any other. The streak counts days with any
-recorded session.
+immediately records nothing; checking a blank build grid counts as nothing answered
+for the same reason. The self-graded **postflop drill** and **combo drill** (also
+practice mode picker options) record nothing at all. The two quizzes ask which *action*
+a hand wants rather than whether it is in the range, and a build grades a whole chart
+at once (the hands it leaves alone were never decided on), so none of the three writes
+the per-hand record — that store's "played a fold" / "folded a play" split has no
+meaning for their answers — but their runs are practice sessions like any other. The
+streak counts days with any recorded session.
 
 ---
 
@@ -371,9 +375,9 @@ niceties — don't test for these; confirm they're absent if anything.
   out of scope for the client — only "Delete cloud data" exists.
 
 **Smaller gaps within scope:**
-- Build-from-memory and the self-graded postflop / combo drills do **not** feed the
-  "Practiced N · accuracy" line, the heatmap, or the streak (see the records table in
-  §3) — by design, not a bug. Neither quiz feeds the heatmap, for the same reason.
+- The self-graded postflop / combo drills do **not** feed the "Practiced N · accuracy"
+  line, the heatmap, or the streak (see the records table in §3) — by design, not a bug.
+  Build-from-memory and neither quiz feeds the heatmap, for the same reason.
 
 ---
 
@@ -503,7 +507,10 @@ from a known state (see §2).
 - [ ] "Check my range" reports Correct (of N) / Missed / Added-by-mistake, with hand
       lists (or "Perfect" when exact).
 - [ ] "Try again" clears the grid; "Back to library" returns.
-- [ ] Confirm it records **nothing** (card stats / heatmap / history unchanged).
+- [ ] A checked build updates the card's practice stats and session history (one
+      question per hand you got right, forgot, or added by mistake) and advances the
+      review schedule; the heatmap is unchanged.
+- [ ] Checking a blank grid shows the chart but records nothing.
 
 ### 5.11 Practice — timed drill (v2 mode 5)
 
@@ -815,8 +822,8 @@ from a known state (see §2).
 - **No same-day re-due:** by design a practiced range won't reappear in Today's "Due
   now" list until its next scheduled date; edit `review-state.v1` to force it.
 - **Mode-specific recording:** if a session "didn't show up" in stats, check the
-  records table in §3 — build-from-memory and action quizzes intentionally don't feed
-  the per-range stats line.
+  records table in §3 — the combo and postflop drills intentionally record nothing, and
+  build-from-memory and the two quizzes intentionally don't feed the heatmap.
 - **Action quiz gating:** the action quiz is hidden until a range has a saved action
   chart with ≥1 assigned hand.
 - **Empty sessions:** ending a mode without answering anything records nothing — this

@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { compareBuiltRange } from '../domain/practice'
+import { compareBuiltRange, summarizeBuiltRange } from '../domain/practice'
 import type { PokerHand } from '../domain/pokerHands'
+import type { PracticeSessionSummary } from '../types/practice'
 import type { SavedRange } from '../types/range'
 import { HandGrid } from './HandGrid'
 import './PracticeSession.css'
@@ -10,6 +11,11 @@ interface BuildFromMemoryPracticeProps {
   range: SavedRange
   /** Leave practice and return to the editor/library view. */
   onExit: () => void
+  /**
+   * Persist the checked build as a practice session, returning the message to
+   * show when the write failed and null when it landed.
+   */
+  onScored?: (summary: PracticeSessionSummary) => string | null
 }
 
 /**
@@ -21,13 +27,20 @@ interface BuildFromMemoryPracticeProps {
  *
  * The component owns its build selection and the checked/result state; all
  * comparison logic stays in `compareBuiltRange` and is never re-derived here. It
- * is pure UI — no randomness, persistence, or timers. Wiring it into a
- * practice-mode picker is a later slice; here it stands alone.
+ * holds no persistence of its own: checking a non-empty build hands the score to
+ * `onScored`, so the run counts as a practice session like every other mode.
  */
-export function BuildFromMemoryPractice({ range, onExit }: BuildFromMemoryPracticeProps) {
+export function BuildFromMemoryPractice({
+  range,
+  onExit,
+  onScored,
+}: BuildFromMemoryPracticeProps) {
   const [selected, setSelected] = useState<Set<PokerHand>>(new Set())
   // False while building; true once the user submits and views the comparison.
   const [checked, setChecked] = useState(false)
+  // Why the checked build could not be saved, or null when it saved (or when
+  // there was nothing to save).
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   // Idempotent membership update mirroring App's handler: returning the previous
   // set when nothing changes avoids a needless re-render mid-drag.
@@ -44,9 +57,23 @@ export function BuildFromMemoryPractice({ range, onExit }: BuildFromMemoryPracti
     })
   }
 
+  /**
+   * Grade the build and record it.
+   *
+   * An empty grid is not recorded: "Check my range" on a blank board is how you
+   * ask to be shown the answer, and logging that as a 0% session would punish a
+   * peek with a wrecked average and a review pulled forward.
+   */
+  function check() {
+    setChecked(true)
+    if (selected.size === 0 || !onScored) return
+    setSaveError(onScored(summarizeBuiltRange(compareBuiltRange(range.hands, Array.from(selected)))))
+  }
+
   function tryAgain() {
     setSelected(new Set())
     setChecked(false)
+    setSaveError(null)
   }
 
   if (checked) {
@@ -106,6 +133,12 @@ export function BuildFromMemoryPractice({ range, onExit }: BuildFromMemoryPracti
           </div>
         )}
 
+        {saveError && (
+          <p className="practice-save-error" role="alert">
+            {saveError}
+          </p>
+        )}
+
         <div className="practice-answers">
           <button type="button" className="primary" onClick={tryAgain}>
             Try again
@@ -137,7 +170,7 @@ export function BuildFromMemoryPractice({ range, onExit }: BuildFromMemoryPracti
       </div>
 
       <div className="practice-answers">
-        <button type="button" className="primary" onClick={() => setChecked(true)}>
+        <button type="button" className="primary" onClick={check}>
           Check my range
         </button>
         <button type="button" onClick={onExit}>

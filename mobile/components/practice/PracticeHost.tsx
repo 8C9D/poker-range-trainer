@@ -27,7 +27,7 @@ import { SpotDrill } from './SpotDrill';
 import { SessionSummary, type SessionSummaryData } from './SessionSummary';
 import {
   captureRecordingFailure,
-  recordFinishedActionSession,
+  recordFinishedSummarySession,
   recordFinishedPracticeSession,
 } from '../../lib/sessionRecording';
 
@@ -276,7 +276,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
       accuracyPercentage: accuracyPercentage(correct, attempts.length),
     };
     const saveError = captureRecordingFailure(() =>
-      recordFinishedActionSession(range.id, summary),
+      recordFinishedSummarySession(range.id, summary),
     );
     const missedActionHands = missedActionHandsOf(attempts);
     setPhase({
@@ -323,7 +323,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
       accuracyPercentage: accuracyPercentage(correct, attempts.length),
     };
     const saveError = captureRecordingFailure(() =>
-      recordFinishedActionSession(range.id, summary),
+      recordFinishedSummarySession(range.id, summary),
     );
     const missedHands = missedActionHandsOf(attempts);
     setPhase({
@@ -473,7 +473,12 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
   if (phase.mode === 'build') {
     return (
       <OverlayFrame title={`${range.name || 'Untitled'} — build from memory`} onClose={onClose}>
-        <BuildDrill id={range.id} />
+        <BuildDrill
+          id={range.id}
+          onScored={(summary) =>
+            captureRecordingFailure(() => recordFinishedSummarySession(range.id, summary))
+          }
+        />
       </OverlayFrame>
     );
   }

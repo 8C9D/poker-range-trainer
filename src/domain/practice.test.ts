@@ -11,6 +11,7 @@ import {
   accuracyHeatLevel,
   handsWithMistakes,
   compareBuiltRange,
+  summarizeBuiltRange,
   getRandomPracticeHand,
   getRandomHandFrom,
   rangeHandConfidence,
@@ -433,6 +434,58 @@ describe('compareBuiltRange', () => {
 
   it('throws on an invalid hand in the built range', () => {
     expect(() => compareBuiltRange(['AA'], ['AA', 'ZZ'])).toThrow(/ZZ/)
+  })
+})
+
+describe('summarizeBuiltRange', () => {
+  it('scores an exact rebuild as every target hand answered correctly', () => {
+    expect(summarizeBuiltRange(compareBuiltRange(RANGE, RANGE))).toEqual({
+      totalQuestions: 4,
+      correctAnswers: 4,
+      accuracyPercentage: 100,
+    })
+  })
+
+  it('counts a forgotten hand as a wrong answer', () => {
+    expect(summarizeBuiltRange(compareBuiltRange(['AA', 'KK'], ['AA']))).toEqual({
+      totalQuestions: 2,
+      correctAnswers: 1,
+      accuracyPercentage: 50,
+    })
+  })
+
+  it('counts a hand added by mistake as a wrong answer too', () => {
+    expect(summarizeBuiltRange(compareBuiltRange(['AA'], ['AA', 'QQ']))).toEqual({
+      totalQuestions: 2,
+      correctAnswers: 1,
+      accuracyPercentage: 50,
+    })
+  })
+
+  it('scores one short and one over the same as a recognition run that missed two', () => {
+    expect(summarizeBuiltRange(compareBuiltRange(['AA', 'KK'], ['AA', 'QQ']))).toEqual({
+      totalQuestions: 3,
+      correctAnswers: 1,
+      accuracyPercentage: (1 / 3) * 100,
+    })
+  })
+
+  it('does not credit the hands correctly left out of the range', () => {
+    // A blank grid against a 2-hand chart is 0%, not the 99% it would be if the
+    // 167 untouched hands counted as answered.
+    expect(summarizeBuiltRange(compareBuiltRange(['AA', 'KK'], []))).toEqual({
+      totalQuestions: 2,
+      correctAnswers: 0,
+      accuracyPercentage: 0,
+    })
+  })
+
+  it('scores an empty comparison as zero questions rather than NaN', () => {
+    expect(summarizeBuiltRange(compareBuiltRange([], []))).toEqual({
+      totalQuestions: 0,
+      correctAnswers: 0,
+      accuracyPercentage: 0,
+    })
   })
 })
 

@@ -238,6 +238,33 @@ export function compareBuiltRange(
 }
 
 /**
+ * Score a checked build-from-memory attempt as an ordinary session summary, so
+ * a run of it counts like every other practice mode.
+ *
+ * Each hand the build got right is one correct answer; each hand it forgot and
+ * each hand it added by mistake is one wrong answer — so being one hand short
+ * and one hand over scores the same as a recognition run that missed two.
+ *
+ * The 150-odd hands correctly left OUT of the range are deliberately not
+ * counted: the user never decided anything about them, and crediting them would
+ * score a blank grid at 90% while making a real attempt's mistakes vanish into
+ * the rounding.
+ */
+export function summarizeBuiltRange(comparison: {
+  correct: PokerHand[]
+  missed: PokerHand[]
+  extra: PokerHand[]
+}): PracticeSessionSummary {
+  const correctAnswers = comparison.correct.length
+  const totalQuestions = correctAnswers + comparison.missed.length + comparison.extra.length
+  return {
+    totalQuestions,
+    correctAnswers,
+    accuracyPercentage: accuracyPercentage(correctAnswers, totalQuestions),
+  }
+}
+
+/**
  * Draw one of the 169 canonical starting hands at random.
  *
  * `random` defaults to `Math.random` but can be injected for deterministic

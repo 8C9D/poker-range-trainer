@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, userEvent, waitFor } from '@testing-library/react-native';
 import { AccessibilityInfo } from 'react-native';
 import type { ReactNode } from 'react';
 
@@ -239,6 +239,30 @@ describe('PracticeScreen (overlay host)', () => {
     expect(loadSessionHistory().r1).toHaveLength(1);
     expect(loadReviewStates().r1.dueAt).not.toBe('');
     // The in/out record stays untouched: the quiz never asked that question.
+    expect(loadHandAccuracy().r1).toBeUndefined();
+  });
+
+  it('counts a checked build from memory as a session', async () => {
+    saveSavedRange({
+      id: 'r1',
+      name: 'Pairs',
+      hands: ['AA', 'KK'],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    mockParams.mockReturnValue({ id: 'r1', mode: 'build' });
+    const user = userEvent.setup();
+    const { getByTestId } = await render(<PracticeScreen />);
+
+    // Rebuild AA only: one right, one forgotten. The grid cells sit inside a
+    // gesture detector, so they need a full press, not a bare press event.
+    await user.press(getByTestId('hand-cell-AA'));
+    await user.press(getByTestId('build-check'));
+
+    expect(loadPracticeStats().r1).toMatchObject({ totalAttempts: 2, correctAttempts: 1 });
+    expect(loadSessionHistory().r1).toHaveLength(1);
+    expect(loadReviewStates().r1.dueAt).not.toBe('');
+    // The in/out record stays untouched: a build never answered hand by hand.
     expect(loadHandAccuracy().r1).toBeUndefined();
   });
 

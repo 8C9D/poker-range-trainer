@@ -130,6 +130,73 @@ describe('PracticeHost mode picker', () => {
   })
 })
 
+describe('PracticeHost build from memory', () => {
+  it('counts a checked build as a session so the day and the schedule move', () => {
+    render(
+      <PracticeHost
+        request={{ ranges: [makeRange('a', 'UTG open')], mode: 'build' }}
+        onClose={vi.fn()}
+      />,
+    )
+
+    // Rebuild AA and QQ against an AA/KK chart: one right, one forgotten, one
+    // added by mistake.
+    fireEvent.click(screen.getByRole('button', { name: 'AA' }))
+    fireEvent.click(screen.getByRole('button', { name: 'QQ' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Check my range' }))
+
+    expect(loadPracticeStats()['a'].totalAttempts).toBe(3)
+    expect(loadPracticeStats()['a'].correctAttempts).toBe(1)
+    expect(loadSessionHistory()['a']).toHaveLength(1)
+    expect(loadReviewStates()['a'].dueAt).not.toBe('')
+    // The in/out record stays untouched: a build never answered hand by hand.
+    expect(loadHandAccuracy()['a']).toBeUndefined()
+  })
+
+  it('does not record a check on a blank grid', () => {
+    render(
+      <PracticeHost
+        request={{ ranges: [makeRange('a', 'UTG open')], mode: 'build' }}
+        onClose={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Check my range' }))
+
+    // Checking nothing is how you ask to be shown the chart, not a 0% session.
+    expect(screen.getByText('Correct: 0 of 2')).toBeInTheDocument()
+    expect(loadPracticeStats()['a']).toBeUndefined()
+    expect(loadSessionHistory()['a']).toBeUndefined()
+    expect(loadReviewStates()['a']).toBeUndefined()
+  })
+
+  it('still shows the comparison when the build cannot be saved', () => {
+    // A full store: the run is lost, but the comparison is in memory, so the
+    // user must still see how they did and why nothing saved.
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError')
+    })
+    // Restored even on failure — a leaked throwing setItem would break every
+    // test after this one and hide the real cause.
+    try {
+      render(
+        <PracticeHost
+          request={{ ranges: [makeRange('a', 'UTG open')], mode: 'build' }}
+          onClose={vi.fn()}
+        />,
+      )
+
+      fireEvent.click(screen.getByRole('button', { name: 'AA' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Check my range' }))
+
+      expect(screen.getByText('Correct: 1 of 2')).toBeInTheDocument()
+      expect(screen.getByRole('alert')).toHaveTextContent(/storage is full or unavailable/)
+    } finally {
+      setItem.mockRestore()
+    }
+  })
+})
+
 describe('PracticeHost recognition flow', () => {
   it('records the session and shows the peak-end summary', () => {
     const onClose = vi.fn()

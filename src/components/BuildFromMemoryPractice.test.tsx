@@ -95,4 +95,61 @@ describe('BuildFromMemoryPractice', () => {
 
     expect(onExit).toHaveBeenCalledTimes(1)
   })
+
+  it('reports the checked build as a scored session', async () => {
+    const user = userEvent.setup()
+    const onScored = vi.fn().mockReturnValue(null)
+    // Target AA, KK; build AA, QQ -> one right, one forgotten, one added.
+    render(
+      <BuildFromMemoryPractice
+        range={makeRange({ hands: ['AA', 'KK'] })}
+        onExit={vi.fn()}
+        onScored={onScored}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'QQ' }))
+    await user.click(screen.getByRole('button', { name: 'Check my range' }))
+
+    expect(onScored).toHaveBeenCalledTimes(1)
+    expect(onScored).toHaveBeenCalledWith({
+      totalQuestions: 3,
+      correctAnswers: 1,
+      accuracyPercentage: (1 / 3) * 100,
+    })
+  })
+
+  it('does not score a check on a blank grid', async () => {
+    const user = userEvent.setup()
+    const onScored = vi.fn().mockReturnValue(null)
+    render(
+      <BuildFromMemoryPractice range={makeRange()} onExit={vi.fn()} onScored={onScored} />,
+    )
+
+    // Checking an empty build is how you ask to be shown the answer, so the
+    // results still render — they just do not count as a session.
+    await user.click(screen.getByRole('button', { name: 'Check my range' }))
+
+    expect(onScored).not.toHaveBeenCalled()
+    expect(screen.getByText('Correct: 0 of 2')).toBeInTheDocument()
+  })
+
+  it('shows why the checked build could not be saved, and clears it on "Try again"', async () => {
+    const user = userEvent.setup()
+    render(
+      <BuildFromMemoryPractice
+        range={makeRange()}
+        onExit={vi.fn()}
+        onScored={() => 'Storage is full.'}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'AA' }))
+    await user.click(screen.getByRole('button', { name: 'Check my range' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Storage is full.')
+
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
 })
