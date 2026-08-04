@@ -5,6 +5,12 @@ import { Link, useFocusEffect } from 'expo-router';
 import { HAND_CLASS_LABELS } from '@core/domain/handClass';
 import { rankHandClassLeaks } from '@core/domain/leakReport';
 import { summarizeLibraryAnalytics } from '@core/domain/libraryAnalytics';
+import {
+  describeMistakeBias,
+  describePositionBias,
+  mistakeBiasByPosition,
+  summarizeMistakeBias,
+} from '@core/domain/mistakeBias';
 import { currentStreak } from '@core/domain/spacedRepetition';
 import { describeSpot, matchRangeToSpot, spotKey } from '@core/domain/spot';
 import { rankSpotLeaks } from '@core/domain/spotLeaks';
@@ -83,6 +89,8 @@ function loadProgressState() {
   );
   const seatGroups = accuracyByPosition(ranges, practiceStats);
   const actionGroups = accuracyByActionType(ranges, practiceStats);
+  const bias = summarizeMistakeBias(liveAccuracy);
+  const seatBias = mistakeBiasByPosition(ranges, liveAccuracy);
   return {
     ranges,
     practiceStats,
@@ -96,6 +104,8 @@ function loadProgressState() {
     seatGroups,
     actionGroups,
     spotLeaks,
+    bias,
+    seatBias,
   };
 }
 
@@ -123,6 +133,8 @@ export default function ProgressScreen() {
     seatGroups,
     actionGroups,
     spotLeaks,
+    bias,
+    seatBias,
   } = state;
   const maxDay = Math.max(1, ...days.map((day) => day.handsAnswered));
   const trendHasData = trend.some((point) => point.handsAnswered > 0);
@@ -344,6 +356,36 @@ export default function ProgressScreen() {
           )}
         </View>
 
+        <View testID="miss-direction" style={styles.card}>
+          <Text accessibilityRole="header" style={styles.sectionTitle}>Which way you miss</Text>
+          <Text style={styles.biasVerdict}>{describeMistakeBias(bias)}</Text>
+          {bias.bias !== 'unknown' ? (
+            <>
+              {/* Accuracy alone cannot separate a player who has to fold more from
+                  one who has to open up, and the two need opposite corrections. */}
+              <View
+                style={styles.biasBar}
+                accessible
+                accessibilityLabel={`${bias.loose} of ${bias.mistakes} misses played a hand the chart folds`}
+              >
+                <View
+                  style={[styles.biasLoose, { width: `${Math.round(bias.loosePercentage)}%` }]}
+                />
+              </View>
+              <Text testID="bias-counts" style={styles.biasCounts}>
+                {`${bias.loose} played too many · ${bias.tight} folded too many`}
+              </Text>
+              {seatBias.map((lean) => (
+                <Text key={lean.position} testID={`bias-seat-${lean.position}`} style={styles.biasSeat}>
+                  {`${POSITION_LABELS[lean.position]} ${describePositionBias(lean)} (${
+                    lean.summary.bias === 'loose' ? lean.summary.loose : lean.summary.tight
+                  } of ${lean.summary.mistakes} misses)`}
+                </Text>
+              ))}
+            </>
+          ) : null}
+        </View>
+
         <View style={styles.card}>
           <Text accessibilityRole="header" style={styles.sectionTitle}>Leaks by hand type</Text>
           {leaks.length === 0 ? (
@@ -558,6 +600,15 @@ function makeStyles(theme: ThemeColors) {
       color: theme.ink2,
       fontVariant: ['tabular-nums'],
     },
+    // Two colors rather than a fill on a track, since both halves are mistakes
+    // and neither is the "good" side — so they take the chart's own raise and
+    // fold colors rather than a red/green pairing, which would read as tight
+    // being right.
+    biasVerdict: { fontFamily: fonts.body, fontSize: 13.5, color: theme.ink },
+    biasBar: { height: 9, borderRadius: 5, backgroundColor: theme.ink3, overflow: 'hidden' },
+    biasLoose: { height: '100%', backgroundColor: theme.raise },
+    biasCounts: { fontFamily: fonts.body, fontSize: 12.5, color: theme.ink2, ...tabular },
+    biasSeat: { fontFamily: fonts.body, fontSize: 13, color: theme.ink2 },
     seatColumn: { gap: 7 },
     seatHeading: { fontFamily: fonts.bodySemibold, fontSize: 12, color: theme.ink3 },
     seatRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },

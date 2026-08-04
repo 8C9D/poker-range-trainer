@@ -743,6 +743,15 @@ from a known state (see §2).
 - [ ] A seat/action needs at least 5 answered questions to appear; below that the card
       explains what to do instead.
 
+### 5.35a Which way you miss
+
+- [ ] **Progress** shows a "Which way you miss" card saying whether your misses lean
+      loose (playing a hand the chart folds), lean tight (folding one it plays), or
+      split evenly, over a two-color bar and the two raw counts.
+- [ ] Under 6 recorded misses it says so instead, and shows no bar or counts.
+- [ ] Seats whose own misses lean decisively are listed under the bar
+      ("UTG plays too many hands"), most lopsided first.
+
 ### 5.36 Weakest spots (v8.6)
 
 - [ ] After a spot session, **Progress** gains a "Weakest spots" card naming the exact

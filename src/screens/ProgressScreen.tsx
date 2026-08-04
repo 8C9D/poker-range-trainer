@@ -2,6 +2,12 @@ import { useState } from 'react'
 import { HAND_CLASS_LABELS } from '../domain/handClass'
 import { rankHandClassLeaks, type HandClassLeak } from '../domain/leakReport'
 import { summarizeLibraryAnalytics } from '../domain/libraryAnalytics'
+import {
+  describeMistakeBias,
+  describePositionBias,
+  mistakeBiasByPosition,
+  summarizeMistakeBias,
+} from '../domain/mistakeBias'
 import { currentStreak } from '../domain/spacedRepetition'
 import {
   accuracyByActionType,
@@ -80,6 +86,8 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
   )
   const seatGroups = accuracyByPosition(ranges, practiceStats)
   const actionGroups = accuracyByActionType(ranges, practiceStats)
+  const bias = summarizeMistakeBias(liveAccuracy)
+  const seatBias = mistakeBiasByPosition(ranges, liveAccuracy)
 
   function rangeName(rangeId: string): string {
     return ranges.find((range) => range.id === rangeId)?.name ?? 'Deleted range'
@@ -255,6 +263,44 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
               onDrill={(key) => drillGroup(rangesWithActionType(ranges, practiceStats, key))}
             />
           </div>
+        )}
+      </section>
+
+      <section className="coach-card" aria-label="Which way you miss">
+        <h2>Which way you miss</h2>
+        <p className="progress-bias-verdict">{describeMistakeBias(bias)}</p>
+        {bias.bias !== 'unknown' && (
+          <>
+            {/* Accuracy alone cannot separate a player who has to fold more from
+                one who has to open up, and the two need opposite corrections. */}
+            <span
+              className="progress-bias-bar"
+              role="img"
+              aria-label={`${bias.loose} of ${bias.mistakes} misses played a hand the chart folds`}
+            >
+              <span
+                className="progress-bias-loose"
+                style={{ width: `${Math.round(bias.loosePercentage)}%` }}
+              />
+            </span>
+            <p className="progress-bias-counts coach-tabular">
+              {`${bias.loose} played too many · ${bias.tight} folded too many`}
+            </p>
+            {seatBias.length > 0 && (
+              <ul className="progress-bias-seats">
+                {seatBias.map((lean) => (
+                  <li key={lean.position}>
+                    <strong>{POSITION_LABELS[lean.position]}</strong> {describePositionBias(lean)} (
+                    <span className="coach-tabular">
+                      {lean.summary.bias === 'loose' ? lean.summary.loose : lean.summary.tight} of{' '}
+                      {lean.summary.mistakes}
+                    </span>
+                    {' misses)'}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
         )}
       </section>
 

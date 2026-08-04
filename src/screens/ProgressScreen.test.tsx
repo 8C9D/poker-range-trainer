@@ -208,6 +208,58 @@ describe('ProgressScreen', () => {
     expect(rows[0]).toHaveTextContent('UTG open')
   })
 
+  it('names which way the misses lean and which seats lean hardest', () => {
+    saveSavedRange({ ...makeRange('a', 'UTG open'), metadata: { position: 'utg' } })
+    saveSavedRange({ ...makeRange('b', 'BB defend'), metadata: { position: 'bb' } })
+    recordHandAccuracy('a', [
+      { hand: 'T8s', attempts: 8, correct: 0, falsePositives: 7, falseNegatives: 1 },
+    ])
+    recordHandAccuracy('b', [
+      { hand: 'K4o', attempts: 8, correct: 0, falsePositives: 0, falseNegatives: 8 },
+    ])
+    render(<ProgressScreen onDrillWeakHands={vi.fn()} onDrillSpot={vi.fn()} />)
+
+    const card = screen.getByRole('region', { name: 'Which way you miss' })
+    // 7 loose to 9 tight overall — under the 60% cutoff, so no direction is claimed.
+    expect(within(card).getByText(/split evenly/i)).toBeInTheDocument()
+    expect(within(card).getByText('7 played too many · 9 folded too many')).toBeInTheDocument()
+    expect(within(card).getByRole('img')).toHaveAccessibleName(
+      '7 of 16 misses played a hand the chart folds',
+    )
+    // Each seat leans decisively even though the library as a whole does not.
+    const seats = within(card).getAllByRole('listitem')
+    expect(seats[0]).toHaveTextContent('BB folds too many hands (8 of 8 misses)')
+    expect(seats[1]).toHaveTextContent('UTG plays too many hands (7 of 8 misses)')
+  })
+
+  it('waits for enough misses before calling a direction', () => {
+    saveSavedRange(makeRange('a', 'UTG open'))
+    recordHandAccuracy('a', [
+      { hand: 'AKs', attempts: 4, correct: 1, falsePositives: 3, falseNegatives: 0 },
+    ])
+    render(<ProgressScreen onDrillWeakHands={vi.fn()} onDrillSpot={vi.fn()} />)
+
+    const card = screen.getByRole('region', { name: 'Which way you miss' })
+    expect(within(card).getByText(/practice a little more/i)).toBeInTheDocument()
+    // The counts are the claim; showing them under "not enough yet" contradicts it.
+    expect(within(card).queryByText(/played too many/)).toBeNull()
+  })
+
+  it('leaves a deleted range out of the lean', () => {
+    saveSavedRange(makeRange('a', 'UTG open'))
+    recordHandAccuracy('deleted', [
+      { hand: '72o', attempts: 9, correct: 0, falsePositives: 9, falseNegatives: 0 },
+    ])
+    recordHandAccuracy('a', [
+      { hand: 'AKs', attempts: 6, correct: 0, falsePositives: 0, falseNegatives: 6 },
+    ])
+    render(<ProgressScreen onDrillWeakHands={vi.fn()} onDrillSpot={vi.fn()} />)
+
+    const card = screen.getByRole('region', { name: 'Which way you miss' })
+    expect(within(card).getByText(/lean tight/i)).toBeInTheDocument()
+    expect(within(card).getByText(/0 played too many · 6 folded too many/)).toBeInTheDocument()
+  })
+
   it('ranks leaks by hand type and drills a whole class', async () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'UTG open'))

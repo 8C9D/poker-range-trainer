@@ -48,7 +48,9 @@ The app implements the full roadmap (**v1–v9**). At a glance:
   weakest-hands performance view, a leak report grouping misses by hand type
   (suited connectors, offsuit broadway, …) with a one-tap drill, an accuracy
   breakdown by seat and by action ("you leak from the big blind"), a weakest-spots
-  list naming the exact situations you play worst (each drillable on its own),
+  list naming the exact situations you play worst (each drillable on its own), a
+  "which way you miss" read on whether your misses play too many hands or fold
+  too many (and the seats that lean hardest each way),
   "practice mistakes only", session history, a library-wide practice summary, and
   an accuracy-by-week trend answering whether you are actually improving.
 - **Spaced repetition & goals** — a "due for review" queue, a review streak, and an

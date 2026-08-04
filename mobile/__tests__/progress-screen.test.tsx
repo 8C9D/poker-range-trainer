@@ -199,6 +199,53 @@ describe('ProgressScreen', () => {
     expect(getByTestId('drill-suitedConnector')).toBeTruthy();
   });
 
+  it('names which way the misses lean and which seats lean hardest', async () => {
+    saveSavedRange({
+      id: 'utg',
+      name: 'UTG open',
+      hands: ['AA', 'KK'],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      metadata: { position: 'utg' },
+    });
+    saveSavedRange({
+      id: 'bb',
+      name: 'BB defend',
+      hands: ['AA', 'KK'],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      metadata: { position: 'bb' },
+    });
+    recordHandAccuracy('utg', [
+      { hand: 'T8s', attempts: 8, correct: 0, falsePositives: 7, falseNegatives: 1 },
+    ]);
+    recordHandAccuracy('bb', [
+      { hand: 'K4o', attempts: 8, correct: 0, falsePositives: 0, falseNegatives: 8 },
+    ]);
+
+    const { getByTestId, getByText } = await render(<ProgressScreen />);
+
+    // 7 loose to 9 tight overall — under the 60% cutoff, so no direction is claimed.
+    expect(getByText(/split evenly/)).toBeTruthy();
+    expect(getByTestId('bias-counts')).toHaveTextContent('7 played too many · 9 folded too many');
+    // Each seat leans decisively even though the library as a whole does not.
+    expect(getByTestId('bias-seat-bb')).toHaveTextContent('BB folds too many hands (8 of 8 misses)');
+    expect(getByTestId('bias-seat-utg')).toHaveTextContent('UTG plays too many hands (7 of 8 misses)');
+  });
+
+  it('waits for enough misses before calling a direction', async () => {
+    seed('r1', 'UTG Open');
+    recordHandAccuracy('r1', [
+      { hand: 'AKs', attempts: 4, correct: 1, falsePositives: 3, falseNegatives: 0 },
+    ]);
+
+    const { getByText, queryByTestId } = await render(<ProgressScreen />);
+
+    expect(getByText(/which way you miss will show up here/)).toBeTruthy();
+    // The counts are the claim; showing them under "not enough yet" contradicts it.
+    expect(queryByTestId('bias-counts')).toBeNull();
+  });
+
   it('shows the leak empty state before there is enough data', async () => {
     seed('r1', 'UTG Open');
 
