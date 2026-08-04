@@ -138,6 +138,12 @@ describe('parseRangeCsv', () => {
     expect(() => parseRangeCsv('name,"broken\n\nhand\nAA')).toThrow(/unterminated/)
   })
 
+  it('imports the hand column from a BOM-prefixed multi-column CSV', () => {
+    expect(parseRangeCsv('\uFEFFWeight,Hand,Note\r\n100,AA,premium\r\n50,AKs,mixed')).toEqual({
+      hands: ['AA', 'AKs'],
+    })
+  })
+
   it('round-trips a name with an embedded double-quote (CSV "" escaping)', () => {
     // A comma name only exercises quote-wrapping; an embedded quote also
     // exercises the doubling on write and un-doubling on read.

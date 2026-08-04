@@ -97,13 +97,19 @@ export function parseRangeCsv(csv: string): { name?: string; hands: PokerHand[] 
   // Scan the summary block for an optional name, stopping at the `hand` header.
   let name: string | undefined
   let headerIndex = -1
+  let handColumn = -1
   for (let i = 0; i < rows.length; i++) {
-    if (rows[i].length === 1 && rows[i][0].trim() === 'hand') {
+    const normalized = rows[i].map((field, index) =>
+      (index === 0 ? field.replace(/^\uFEFF/, '') : field).trim().toLowerCase(),
+    )
+    if (name === undefined && normalized[0] === 'name') {
+      name = rows[i][1] ?? ''
+      continue
+    }
+    handColumn = normalized.indexOf('hand')
+    if (handColumn !== -1) {
       headerIndex = i
       break
-    }
-    if (name === undefined && rows[i][0] === 'name') {
-      name = rows[i][1] ?? ''
     }
   }
 
@@ -113,7 +119,7 @@ export function parseRangeCsv(csv: string): { name?: string; hands: PokerHand[] 
 
   const hands: PokerHand[] = []
   for (let i = headerIndex + 1; i < rows.length; i++) {
-    const hand = rows[i][0]?.trim() ?? ''
+    const hand = rows[i][handColumn]?.trim() ?? ''
     if (hand.length === 0) continue
     if (!isValidHand(hand)) {
       throw new Error(`CSV contains an invalid hand: "${hand}".`)
