@@ -51,8 +51,34 @@ describe('ActionQuiz', () => {
 
     expect(screen.getByText('Correct!')).toBeInTheDocument()
     expect(screen.getByText(/Correct action: Raise/)).toBeInTheDocument()
-    expect(within(stats()).getByText('Total questions: 1')).toBeInTheDocument()
+    expect(within(stats()).getByText('Answered: 1 of 20')).toBeInTheDocument()
     expect(within(stats()).getByText('Correct: 1')).toBeInTheDocument()
+  })
+
+  it('ends itself at the drill length instead of looping forever', async () => {
+    const user = userEvent.setup()
+    const onExit = vi.fn()
+    render(
+      <ActionQuiz
+        range={makeRange({ handActions: RAISE_AA })}
+        onExit={onExit}
+        questionCount={2}
+        random={() => 0}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Raise' }))
+    expect(screen.getByRole('button', { name: 'Next hand' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Next hand' }))
+
+    await user.click(screen.getByRole('button', { name: 'Raise' }))
+    // The run counts toward the day and the schedule, so its length is stated
+    // rather than left to the user to decide.
+    expect(within(stats()).getByText('Answered: 2 of 2')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'See results' }))
+
+    expect(onExit).toHaveBeenCalledTimes(1)
+    expect(onExit.mock.calls[0][0]).toHaveLength(2)
   })
 
   it('marks a wrong answer and shows the correct action', async () => {

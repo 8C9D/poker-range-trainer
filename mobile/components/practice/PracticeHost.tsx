@@ -488,6 +488,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
           id={range.id}
           handPool={phase.handPool}
           onAttempt={(attempt) => actionAttemptsRef.current.push(attempt)}
+          onComplete={finishActionQuiz}
         />
       </OverlayFrame>
     );
@@ -503,6 +504,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
           id={range.id}
           handPool={phase.handPool}
           onAttempt={(attempt) => mixedAttemptsRef.current.push(attempt)}
+          onComplete={finishMixedQuiz}
         />
       </OverlayFrame>
     );

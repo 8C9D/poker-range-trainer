@@ -105,6 +105,27 @@ describe('MixedActionQuiz', () => {
     expect(screen.getByText('Primary action: Raise')).toBeInTheDocument()
   })
 
+  it('ends itself at the drill length instead of looping forever', async () => {
+    const user = userEvent.setup()
+    const onExit = vi.fn()
+    render(
+      <MixedActionQuiz
+        range={makeRange({ mixedStrategies: MIX_AA })}
+        onExit={onExit}
+        questionCount={2}
+        random={() => 0}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Raise' }))
+    await user.click(screen.getByRole('button', { name: 'Next hand' }))
+    await user.click(screen.getByRole('button', { name: 'Raise' }))
+    await user.click(screen.getByRole('button', { name: 'See results' }))
+
+    expect(onExit).toHaveBeenCalledTimes(1)
+    expect(onExit.mock.calls[0][0]).toHaveLength(2)
+  })
+
   it('answers with mnemonic keys and ignores duplicate input during feedback', () => {
     render(
       <MixedActionQuiz
@@ -123,7 +144,7 @@ describe('MixedActionQuiz', () => {
 
     expect(screen.getByText('Correct!')).toBeInTheDocument()
     expect(
-      within(screen.getByLabelText('Quiz stats')).getByText('Total questions: 1'),
+      within(screen.getByLabelText('Quiz stats')).getByText('Answered: 1 of 20'),
     ).toBeInTheDocument()
   })
 

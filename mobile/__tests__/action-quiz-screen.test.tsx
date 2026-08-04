@@ -65,6 +65,23 @@ describe('ActionQuizScreen', () => {
     });
   });
 
+  it('ends itself at the drill length instead of dealing forever', async () => {
+    seedRange(ALL_RAISE);
+    const onComplete = jest.fn();
+    const { getByTestId } = await render(
+      <ActionQuizDrill id="r1" questionCount={2} onComplete={onComplete} />,
+    );
+
+    fireEvent.press(getByTestId('quiz-action-raise'));
+    await waitFor(() => expect(getByTestId('stat-total')).toHaveTextContent('Answered: 1 of 2'));
+    expect(onComplete).not.toHaveBeenCalled();
+
+    fireEvent.press(getByTestId('quiz-action-raise'));
+    // The run counts toward the day and the schedule, so its length is stated
+    // rather than left to the user to decide.
+    await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
+  });
+
   it('shows a message when the range has no assigned actions', async () => {
     seedRange();
     const { getByTestId, queryByTestId } = await render(<ActionQuizDrill id="r1" />);

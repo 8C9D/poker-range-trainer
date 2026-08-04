@@ -525,6 +525,9 @@ from a known state (see §2).
       saved action chart (assign + save actions first — §5.16).
 - [ ] Prompts a hand from the chart; choosing an action scores it with the correct
       action shown.
+- [ ] The run is 20 questions like every other drill: the stats row reads
+      "Answered: N of 20", the last question's button reads **See results**, and it ends
+      itself on the summary. "End quiz" still stops early and keeps what was answered.
 - [ ] Total / Correct / Accuracy update; "End quiz" records **per-action accuracy**
       (visible in Stats) and counts the run as a practice session — the summary shows the
       streak, and Today's daily goal, "hands this week", and the review schedule all move.
@@ -572,8 +575,10 @@ from a known state (see §2).
       mixed-frequency chart (assign one first — §5.25).
 - [ ] It prompts a hand; choosing the primary action scores it with the expected
       action shown.
-- [ ] Total / Correct / Accuracy update; ending records **nothing** (see the §3
-      records table).
+- [ ] Answered / Correct / Accuracy update; the run is 20 questions like every other
+      drill and ends itself on the summary ("See results" on the last question).
+- [ ] Ending records the session (stats, history, review schedule) but **no** per-action
+      accuracy and **no** per-hand record — see the §3 records table.
 
 ### 5.19 Import / export files (v3, v3.2)
 

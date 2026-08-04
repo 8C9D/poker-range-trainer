@@ -12,6 +12,7 @@ import { RANGE_ACTIONS, RANGE_ACTION_LABELS, type RangeAction } from '@core/type
 import { actionColors } from '../../theme/actionColors';
 import { useTheme } from '../../theme/colors';
 import type { ThemeColors } from '../../theme/colors';
+import { DRILL_QUESTION_COUNT } from '../../lib/drillPacing';
 
 const EMPTY_STRATEGIES: Record<PokerHand, HandMixedStrategy> = {};
 
@@ -34,6 +35,8 @@ export function MixedQuizDrill({
   id,
   handPool,
   onAttempt,
+  onComplete,
+  questionCount = DRILL_QUESTION_COUNT,
 }: {
   id?: string;
   /**
@@ -43,6 +46,10 @@ export function MixedQuizDrill({
    */
   handPool?: PokerHand[];
   onAttempt?: (attempt: ActionAttempt) => void;
+  /** The run reached `questionCount`; the host ends it on its summary. */
+  onComplete?: () => void;
+  /** Questions before the run ends itself; the shared drill length by default. */
+  questionCount?: number;
 }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
@@ -75,9 +82,15 @@ export function MixedQuizDrill({
   );
 
   const nextHand = useCallback(() => {
+    // A quiz run counts toward the day and the review schedule like any other
+    // drill, so it ends at the shared drill length instead of dealing forever.
+    if (total >= questionCount) {
+      onComplete?.();
+      return;
+    }
     setHand(getRandomHandFrom(pool));
     setAnswered(null);
-  }, [pool]);
+  }, [pool, total, questionCount, onComplete]);
 
   if (!range) {
     return <Text style={styles.notFound}>Range not found</Text>;
@@ -136,13 +149,15 @@ export function MixedQuizDrill({
 
       {answered ? (
         <Pressable testID="mixed-next" accessibilityRole="button" style={styles.nextButton} onPress={nextHand}>
-          <Text style={styles.nextButtonText}>Next hand</Text>
+          <Text style={styles.nextButtonText}>
+            {total >= questionCount ? 'See results' : 'Next hand'}
+          </Text>
         </Pressable>
       ) : null}
 
       <View style={styles.stats}>
         <Text testID="stat-total" style={styles.stat}>
-          Total: {total}
+          Answered: {total} of {questionCount}
         </Text>
         <Text testID="stat-correct" style={styles.stat}>
           Correct: {correct}

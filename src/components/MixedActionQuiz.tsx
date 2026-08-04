@@ -10,6 +10,7 @@ import {
   type RangeAction,
   type SavedRange,
 } from '../types/range'
+import { DRILL_QUESTION_COUNT } from '../practice/drillPacing'
 import { ACTION_BY_SHORTCUT, ACTION_SHORTCUTS } from './actionQuizShortcuts'
 import './ActionPalette.css'
 import './PracticeSession.css'
@@ -28,6 +29,8 @@ interface MixedActionQuizProps {
    * the end-of-run summary. Empty when nothing was answered.
    */
   onExit: (attempts: ActionAttempt[]) => void
+  /** Questions before the run ends itself; the shared drill length by default. */
+  questionCount?: number
   /** Source of randomness for drawing prompts; injectable for tests. */
   random?: () => number
 }
@@ -49,6 +52,7 @@ export function MixedActionQuiz({
   range,
   handPool,
   onExit,
+  questionCount = DRILL_QUESTION_COUNT,
   random = Math.random,
 }: MixedActionQuizProps) {
   const mixedStrategies = range.mixedStrategies ?? {}
@@ -74,7 +78,16 @@ export function MixedActionQuiz({
     if (isCorrect) setCorrect((value) => value + 1)
   }
 
+  const lastQuestion = total >= questionCount
+
   function nextHand() {
+    // A quiz run counts toward the day and the review schedule like any other
+    // drill, so it ends at the shared drill length instead of looping until the
+    // user decides to stop. Ending early with "End quiz" still keeps the answers.
+    if (attempts.length >= questionCount) {
+      onExit(attempts)
+      return
+    }
     setCurrentHand(getRandomHandFrom(pool, random))
     answeringRef.current = false
     setAnswered(null)
@@ -135,7 +148,9 @@ export function MixedActionQuiz({
       </header>
 
       <div className="practice-stats" role="group" aria-label="Quiz stats">
-        <span className="practice-stat">Total questions: {total}</span>
+        <span className="practice-stat">
+          Answered: {total} of {questionCount}
+        </span>
         <span className="practice-stat">Correct: {correct}</span>
         <span className="practice-stat">Accuracy: {accuracy}%</span>
       </div>
@@ -163,7 +178,7 @@ export function MixedActionQuiz({
             aria-keyshortcuts="Enter"
             onClick={nextHand}
           >
-            Next hand
+            {lastQuestion ? 'See results' : 'Next hand'}
           </button>
         </div>
       ) : (

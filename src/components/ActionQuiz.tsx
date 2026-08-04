@@ -10,6 +10,7 @@ import {
   type RangeAction,
   type SavedRange,
 } from '../types/range'
+import { DRILL_QUESTION_COUNT } from '../practice/drillPacing'
 import { ACTION_BY_SHORTCUT, ACTION_SHORTCUTS } from './actionQuizShortcuts'
 import './ActionPalette.css'
 import './PracticeSession.css'
@@ -27,6 +28,8 @@ interface ActionQuizProps {
    * per-action accuracy. Empty when nothing was answered.
    */
   onExit: (attempts: ActionAttempt[]) => void
+  /** Questions before the run ends itself; the shared drill length by default. */
+  questionCount?: number
   /**
    * Source of randomness for drawing prompt hands. Defaults to `Math.random`;
    * injectable so tests can force a deterministic sequence of hands.
@@ -47,7 +50,13 @@ interface AnsweredState {
  * the `actionRange` domain helpers; this component only orchestrates state and
  * rendering. No persistence (action-specific accuracy tracking is a later slice).
  */
-export function ActionQuiz({ range, handPool, onExit, random = Math.random }: ActionQuizProps) {
+export function ActionQuiz({
+  range,
+  handPool,
+  onExit,
+  questionCount = DRILL_QUESTION_COUNT,
+  random = Math.random,
+}: ActionQuizProps) {
   const handActions = range.handActions ?? {}
   const pool = handPool ?? assignedHands(handActions)
   const [currentHand, setCurrentHand] = useState<PokerHand>(() =>
@@ -71,7 +80,16 @@ export function ActionQuiz({ range, handPool, onExit, random = Math.random }: Ac
     if (isCorrect) setCorrect((value) => value + 1)
   }
 
+  const lastQuestion = total >= questionCount
+
   function nextHand() {
+    // A quiz run counts toward the day and the review schedule like any other
+    // drill, so it ends at the shared drill length instead of looping until the
+    // user decides to stop. Ending early with "End quiz" still keeps the answers.
+    if (attempts.length >= questionCount) {
+      onExit(attempts)
+      return
+    }
     setCurrentHand(getRandomHandFrom(pool, random))
     answeringRef.current = false
     setAnswered(null)
@@ -132,7 +150,9 @@ export function ActionQuiz({ range, handPool, onExit, random = Math.random }: Ac
       </header>
 
       <div className="practice-stats" role="group" aria-label="Quiz stats">
-        <span className="practice-stat">Total questions: {total}</span>
+        <span className="practice-stat">
+          Answered: {total} of {questionCount}
+        </span>
         <span className="practice-stat">Correct: {correct}</span>
         <span className="practice-stat">Accuracy: {accuracy}%</span>
       </div>
@@ -160,7 +180,7 @@ export function ActionQuiz({ range, handPool, onExit, random = Math.random }: Ac
             aria-keyshortcuts="Enter"
             onClick={nextHand}
           >
-            Next hand
+            {lastQuestion ? 'See results' : 'Next hand'}
           </button>
         </div>
       ) : (

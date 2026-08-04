@@ -13,6 +13,7 @@ import type { ActionAttempt } from '@core/types/practice';
 import { actionColors } from '../../theme/actionColors';
 import { useTheme } from '../../theme/colors';
 import type { ThemeColors } from '../../theme/colors';
+import { DRILL_QUESTION_COUNT } from '../../lib/drillPacing';
 
 const EMPTY_ACTIONS: Record<PokerHand, RangeAction> = {};
 
@@ -29,6 +30,8 @@ export function ActionQuizDrill({
   id,
   handPool,
   onAttempt,
+  onComplete,
+  questionCount = DRILL_QUESTION_COUNT,
 }: {
   id?: string
   /**
@@ -37,6 +40,10 @@ export function ActionQuizDrill({
    */
   handPool?: PokerHand[]
   onAttempt?: (attempt: ActionAttempt) => void
+  /** The run reached `questionCount`; the host ends it on its summary. */
+  onComplete?: () => void
+  /** Questions before the run ends itself; the shared drill length by default. */
+  questionCount?: number
 }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
@@ -58,11 +65,18 @@ export function ActionQuizDrill({
       const attempt: ActionAttempt = { hand, chosen, expected, correct: chosen === expected };
       setAttempts((prev) => [...prev, attempt]);
       setLastAttempt(attempt);
-      setHand(getRandomHandFrom(pool));
       recordActionAccuracy(range.id, summarizeActionAccuracy([attempt]));
       onAttempt?.(attempt);
+      // A quiz run counts toward the day and the review schedule like any other
+      // drill, so it ends at the shared drill length instead of dealing forever.
+      // The answer is reported first: the host builds its summary from them.
+      if (attempts.length + 1 >= questionCount) {
+        onComplete?.();
+        return;
+      }
+      setHand(getRandomHandFrom(pool));
     },
-    [range, hand, handActions, pool, onAttempt],
+    [range, hand, handActions, pool, onAttempt, onComplete, attempts.length, questionCount],
   );
 
   if (!range) {
@@ -118,7 +132,7 @@ export function ActionQuizDrill({
 
       <View style={styles.stats}>
         <Text testID="stat-total" style={styles.stat}>
-          Total: {total}
+          Answered: {total} of {questionCount}
         </Text>
         <Text testID="stat-correct" style={styles.stat}>
           Correct: {correct}

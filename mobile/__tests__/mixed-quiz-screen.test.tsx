@@ -68,6 +68,29 @@ describe('MixedQuizScreen', () => {
     });
   });
 
+  it('ends itself at the drill length instead of dealing forever', async () => {
+    seedRange(ONE_STRATEGY);
+    const onComplete = jest.fn();
+    const { getByTestId, findByTestId, queryByTestId } = await render(
+      <MixedQuizDrill id="r1" questionCount={2} onComplete={onComplete} />,
+    );
+
+    fireEvent.press(getByTestId('mixed-action-raise'));
+    await findByTestId('quiz-feedback');
+    expect(getByTestId('stat-total')).toHaveTextContent('Answered: 1 of 2');
+    fireEvent.press(getByTestId('mixed-next'));
+    await waitFor(() => expect(queryByTestId('mixed-next')).toBeNull());
+
+    fireEvent.press(getByTestId('mixed-action-raise'));
+    // The run counts toward the day and the schedule, so its length is stated
+    // rather than left to the user to decide.
+    await waitFor(() => expect(getByTestId('mixed-next')).toHaveTextContent('See results'));
+    expect(onComplete).not.toHaveBeenCalled();
+    fireEvent.press(getByTestId('mixed-next'));
+
+    expect(onComplete).toHaveBeenCalledTimes(1);
+  });
+
   it('shows a message when the range has no mixed frequencies', async () => {
     seedRange();
     const { getByTestId, queryByTestId } = await render(<MixedQuizDrill id="r1" />);
