@@ -213,6 +213,17 @@ describe('parseBackup', () => {
 
     expect(() => parseBackup(JSON.stringify(malformed))).toThrow(/handAccuracy/)
   })
+
+  it('rejects impossible action accuracy before restore', () => {
+    const malformed = {
+      ...buildBackup('2026-06-08T00:00:00.000Z'),
+      actionAccuracy: {
+        r1: { raise: { action: 'raise', attempts: 1, correct: 2 } },
+      },
+    }
+
+    expect(() => parseBackup(JSON.stringify(malformed))).toThrow(/actionAccuracy/)
+  })
 })
 
 describe('restoreBackup', () => {

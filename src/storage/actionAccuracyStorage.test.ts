@@ -44,6 +44,8 @@ describe('loadActionAccuracy', () => {
           unknownAction: { action: 'limp', attempts: 1, correct: 1 },
           negative: { action: 'call', attempts: -1, correct: 0 },
           nonNumeric: { action: 'jam', attempts: 'lots', correct: 0 },
+          impossibleScore: { action: 'fold', attempts: 1, correct: 2 },
+          fractionalCount: { action: 'threeBet', attempts: 1.5, correct: 1 },
         },
         empty: { bad: 42 },
       }),
@@ -94,5 +96,12 @@ describe('recordActionAccuracy', () => {
       a: { raise: stat('raise') },
       b: { fold: stat('fold') },
     })
+  })
+
+  it('rejects an impossible action score instead of persisting it', () => {
+    expect(() =>
+      recordActionAccuracy('r1', [stat('raise', { attempts: 1, correct: 2 })]),
+    ).toThrow(/invalid action accuracy/)
+    expect(loadActionAccuracy()).toEqual({})
   })
 })

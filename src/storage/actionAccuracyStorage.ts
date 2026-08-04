@@ -1,6 +1,6 @@
 import type { ActionAccuracyStat, RangeActionAccuracy } from '../domain/actionRange'
 import { RANGE_ACTIONS, type RangeAction } from '../types/range'
-import { asMember, isNonNegativeFinite, readJson, writeJson } from './storageHelpers'
+import { asMember, isNonNegativeInteger, readJson, writeJson } from './storageHelpers'
 
 /**
  * Local persistence for cumulative per-action accuracy stats, per range, backed
@@ -27,10 +27,32 @@ function parseActionAccuracyStat(value: unknown): ActionAccuracyStat | null {
   const { action, attempts, correct } = value as Record<string, unknown>
 
   if (!isRangeAction(action)) return null
-  if (!isNonNegativeFinite(attempts)) return null
-  if (!isNonNegativeFinite(correct)) return null
+  if (!isNonNegativeInteger(attempts)) return null
+  if (!isNonNegativeInteger(correct) || correct > attempts) return null
 
   return { action, attempts, correct }
+}
+
+/** Strictly validate and normalize a complete per-range action-accuracy map. */
+export function validateActionAccuracy(value: unknown): Record<string, RangeActionAccuracy> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error('Action accuracy is not an object.')
+  }
+  const stats: Record<string, RangeActionAccuracy> = {}
+  for (const [rangeId, raw] of Object.entries(value as Record<string, unknown>)) {
+    if (rangeId.length === 0) throw new Error('Action accuracy has an empty range id.')
+    if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+      throw new Error('Action accuracy contains an invalid range record.')
+    }
+    const rangeStats: RangeActionAccuracy = {}
+    for (const entry of Object.values(raw as Record<string, unknown>)) {
+      const stat = parseActionAccuracyStat(entry)
+      if (stat === null) throw new Error('Action accuracy contains an invalid action record.')
+      rangeStats[stat.action] = stat
+    }
+    if (Object.keys(rangeStats).length > 0) stats[rangeId] = rangeStats
+  }
+  return stats
 }
 
 /**
@@ -83,6 +105,9 @@ export function loadActionAccuracy(): Record<string, RangeActionAccuracy> {
  */
 export function recordActionAccuracy(rangeId: string, actionStats: ActionAccuracyStat[]): void {
   if (actionStats.length === 0) return
+  if (rangeId.length === 0 || actionStats.some((stat) => parseActionAccuracyStat(stat) === null)) {
+    throw new Error('Cannot record invalid action accuracy.')
+  }
 
   const stats = loadActionAccuracy()
   const rangeStats: RangeActionAccuracy = { ...(stats[rangeId] ?? {}) }
