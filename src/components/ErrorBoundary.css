@@ -24,3 +24,10 @@
   margin: 0;
   color: var(--ink-2);
 }
+
+/* The card's own gap already spaces the row; this spaces the buttons in it. */
+.error-boundary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

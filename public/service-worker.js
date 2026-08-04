@@ -53,7 +53,16 @@ self.addEventListener('fetch', (event) => {
         return response
       })
       .catch(() =>
-        caches.match(request).then((cached) => cached ?? caches.match('/index.html')),
+        caches.match(request).then((cached) => {
+          if (cached) return cached
+          // Only a NAVIGATION may fall back to the app shell. Answering a script
+          // request with index.html hands the browser HTML where it asked for a
+          // module: the practice subtree is loaded lazily, so opening the app
+          // offline before it was ever cached turned a missing chunk into a MIME
+          // error that took the whole app down. Let it fail as what it is.
+          if (request.mode !== 'navigate') return Response.error()
+          return caches.match('/index.html').then((shell) => shell ?? Response.error())
+        }),
       ),
   )
 })

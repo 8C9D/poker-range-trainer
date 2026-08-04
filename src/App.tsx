@@ -1,4 +1,5 @@
-import { lazy, Suspense, useCallback, useState } from 'react'
+import { lazy, Suspense, useCallback, useState, type ReactNode } from 'react'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { SharedRangePage } from './components/SharedRangePage'
 import { SharedPackPage } from './components/SharedPackPage'
 import { parsePackShareRoute, parseShareRoute } from './domain/shareRoute'
@@ -145,26 +146,22 @@ function CoachApp() {
 
   if (workout) {
     return (
-      <Suspense
-        fallback={<div style={{ position: 'fixed', inset: 0, background: 'var(--bg)' }} aria-busy="true" />}
-      >
+      <SessionChunk onGiveUp={closeWorkout}>
         <WorkoutHost
           workout={workout}
           ranges={loadSavedRanges()}
           onClose={closeWorkout}
           onDrillMisses={drillWorkoutMisses}
         />
-      </Suspense>
+      </SessionChunk>
     )
   }
 
   if (practice) {
     return (
-      <Suspense
-        fallback={<div style={{ position: 'fixed', inset: 0, background: 'var(--bg)' }} aria-busy="true" />}
-      >
+      <SessionChunk onGiveUp={closePractice}>
         <PracticeHost request={practice} onClose={closePractice} />
-      </Suspense>
+      </SessionChunk>
     )
   }
 
@@ -212,6 +209,58 @@ function CoachApp() {
         <AccountScreen />
       )}
     </AppShell>
+  )
+}
+
+/**
+ * The wrapper the lazily-loaded practice and workout subtrees are mounted in:
+ * their Suspense fallback, plus a boundary that keeps a failed chunk load inside
+ * the session.
+ *
+ * Without it the failure reaches the ROOT boundary, which replaces the entire
+ * app — and its "Try again" cannot recover: React caches a rejected `lazy`
+ * promise, so re-rendering the same subtree throws the same error forever.
+ * Offline, before the practice chunk has ever been fetched, that is one tap on
+ * "Start review" away. Here, giving up just closes the session and hands the
+ * rest of the app back, which always works; a reload is offered because that is
+ * what actually clears a chunk the app could not fetch.
+ */
+function SessionChunk({ children, onGiveUp }: { children: ReactNode; onGiveUp: () => void }) {
+  return (
+    <ErrorBoundary
+      fallback={() => (
+        <main className="error-boundary">
+          <div className="coach-card error-boundary-card" role="alert">
+            <h1>Could not load practice</h1>
+            <p className="error-boundary-message">
+              This part of the app has not been downloaded yet, and it could not be fetched just
+              now. Reconnect and reload to finish the download — everything already saved is
+              untouched.
+            </p>
+            <div className="error-boundary-actions">
+              <button type="button" className="coach-btn primary" onClick={onGiveUp}>
+                Back to the app
+              </button>
+              <button
+                type="button"
+                className="coach-btn"
+                onClick={() => window.location.reload()}
+              >
+                Reload
+              </button>
+            </div>
+          </div>
+        </main>
+      )}
+    >
+      <Suspense
+        fallback={
+          <div style={{ position: 'fixed', inset: 0, background: 'var(--bg)' }} aria-busy="true" />
+        }
+      >
+        {children}
+      </Suspense>
+    </ErrorBoundary>
   )
 }
 

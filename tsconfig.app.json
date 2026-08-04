@@ -22,7 +22,8 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src"],
-  /* Reads the stylesheets off disk, so it needs node types this browser-only
-     config deliberately withholds; tsconfig.node.json typechecks it instead. */
-  "exclude": ["src/cssIntegrity.test.ts"]
+  /* Read their subjects off disk (the stylesheets, and the service worker in
+     public/), so they need node types this browser-only config deliberately
+     withholds; tsconfig.node.json typechecks them instead. */
+  "exclude": ["src/cssIntegrity.test.ts", "src/serviceWorker.test.ts"]
 }

@@ -3,6 +3,12 @@ import './ErrorBoundary.css'
 
 interface ErrorBoundaryProps {
   children: ReactNode
+  /**
+   * What to show instead of the generic screen. Set where the failing subtree is
+   * only part of the app and the rest is still usable, so the boundary can offer
+   * a way back into it rather than replacing everything.
+   */
+  fallback?: (error: Error) => ReactNode
 }
 
 interface ErrorBoundaryState {
@@ -10,10 +16,13 @@ interface ErrorBoundaryState {
 }
 
 /**
- * Root error boundary. Catches render-time errors anywhere below it and shows a
+ * Error boundary. Catches render-time errors anywhere below it and shows a
  * recoverable, Coach-styled fallback instead of unmounting the whole tree to a
  * blank page. "Try again" clears the error and re-renders the children, which
  * recovers the app when the failure was transient. Mirrors the mobile boundary.
+ *
+ * Mounted at the root, and again around each lazily-loaded subtree with its own
+ * `fallback` — see App.
  */
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { error: null }
@@ -35,6 +44,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   render(): ReactNode {
     const { error } = this.state
     if (error) {
+      if (this.props.fallback) return this.props.fallback(error)
       return (
         <main className="error-boundary">
           <div className="coach-card error-boundary-card" role="alert">
