@@ -292,7 +292,15 @@ export function findSavedRangeById(id: string): SavedRange | undefined {
  * {@link saveSavedRanges}, and {@link replaceSavedRanges}.
  */
 function normalizeSavedRange(range: SavedRange): SavedRange {
+  if (typeof range !== 'object' || range === null) {
+    throw new Error('Cannot save a range that is not an object.')
+  }
   const {
+    id,
+    name,
+    hands,
+    createdAt,
+    updatedAt,
     metadata,
     source,
     tags,
@@ -304,7 +312,20 @@ function normalizeSavedRange(range: SavedRange): SavedRange {
     handNotes,
     ...rest
   } = range
-  const normalizedHands = normalizeRangeHands(range.hands)
+  if (typeof id !== 'string' || id.length === 0) {
+    throw new Error('Cannot save a range without an id.')
+  }
+  if (typeof name !== 'string') {
+    throw new Error('Cannot save a range without a valid name.')
+  }
+  if (typeof createdAt !== 'string' || typeof updatedAt !== 'string') {
+    throw new Error('Cannot save a range without valid timestamps.')
+  }
+  if (!Array.isArray(hands)) {
+    throw new Error('Cannot save a range without a hands list.')
+  }
+
+  const normalizedHands = normalizeRangeHands(hands)
   const rangeHands = new Set(normalizedHands)
   const normalizedMetadata = normalizeMetadata(metadata)
   const normalizedSource = normalizeSource(source)
@@ -315,6 +336,10 @@ function normalizeSavedRange(range: SavedRange): SavedRange {
   const normalizedTags = normalizeTags(tags)
   return {
     ...rest,
+    id,
+    name,
+    createdAt,
+    updatedAt,
     hands: normalizedHands,
     ...(normalizedMetadata ? { metadata: normalizedMetadata } : {}),
     ...(normalizedSource ? { source: normalizedSource } : {}),

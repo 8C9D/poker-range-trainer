@@ -119,6 +119,15 @@ describe('saveSavedRange', () => {
     expect(() => saveSavedRange(makeRange({ id: 'bad', hands: ['AA', 'ZZ'] }))).toThrow(/ZZ/)
     expect(loadSavedRanges()).toEqual([good])
   })
+
+  it('rejects malformed required fields before writing', () => {
+    const good = makeRange({ id: 'good' })
+    saveSavedRange(good)
+
+    const malformed = { ...makeRange({ id: 'bad' }), name: 42 } as unknown as SavedRange
+    expect(() => saveSavedRange(malformed)).toThrow(/valid name/)
+    expect(loadSavedRanges()).toEqual([good])
+  })
 })
 
 describe('saveSavedRanges', () => {
