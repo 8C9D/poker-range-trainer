@@ -152,7 +152,7 @@ describe('LibraryScreen', () => {
     saveSavedRange(makeRange('a', 'UTG open'))
     saveSavedRange(makeRange('b', 'BTN defend'))
     render(<LibraryScreen onPlaySpots={vi.fn()} />)
-    await user.type(screen.getByLabelText('Search ranges by name'), 'btn')
+    await user.type(screen.getByLabelText('Search ranges by name, tag or notes'), 'btn')
     expect(rowNames()).toEqual(['BTN defend'])
   })
 
@@ -161,15 +161,33 @@ describe('LibraryScreen', () => {
     saveSavedRange(makeRange('a', 'UTG open'))
     saveSavedRange(makeRange('b', 'BTN 3-bet vs CO open'))
     render(<LibraryScreen onPlaySpots={vi.fn()} />)
-    await user.type(screen.getByLabelText('Search ranges by name'), 'co btn')
+    await user.type(screen.getByLabelText('Search ranges by name, tag or notes'), 'co btn')
     expect(rowNames()).toEqual(['BTN 3-bet vs CO open'])
+  })
+
+  it('searches by tag, so the box agrees with the tag filter beside it', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange('a', 'UTG open', { tags: ['MTT'] }))
+    saveSavedRange(makeRange('b', 'BTN open', { tags: ['cash'] }))
+    render(<LibraryScreen onPlaySpots={vi.fn()} />)
+    await user.type(screen.getByLabelText('Search ranges by name, tag or notes'), 'mtt')
+    expect(rowNames()).toEqual(['UTG open'])
+  })
+
+  it('searches the range’s scenario notes', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange('a', 'UTG open', { metadata: { notes: 'Widen vs a nitty BB.' } }))
+    saveSavedRange(makeRange('b', 'BTN open'))
+    render(<LibraryScreen onPlaySpots={vi.fn()} />)
+    await user.type(screen.getByLabelText('Search ranges by name, tag or notes'), 'nitty')
+    expect(rowNames()).toEqual(['UTG open'])
   })
 
   it('shows a no-match message for a search without hits', async () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'UTG open'))
     render(<LibraryScreen onPlaySpots={vi.fn()} />)
-    await user.type(screen.getByLabelText('Search ranges by name'), 'zzz')
+    await user.type(screen.getByLabelText('Search ranges by name, tag or notes'), 'zzz')
     expect(screen.getByText(/No ranges match “zzz”/)).toBeInTheDocument()
   })
 
@@ -239,14 +257,14 @@ describe('LibraryScreen', () => {
     saveSavedRange(makeRange('b', 'Alpha', { metadata: { position: 'btn' } }))
     render(<LibraryScreen onPlaySpots={vi.fn()} />)
 
-    await user.type(screen.getByLabelText('Search ranges by name'), 'alpha')
+    await user.type(screen.getByLabelText('Search ranges by name, tag or notes'), 'alpha')
     await user.selectOptions(screen.getByLabelText('Sort ranges'), 'name')
     await user.click(screen.getByRole('button', { name: 'Filters' }))
     await user.selectOptions(screen.getByLabelText('Filter ranges by position'), 'btn')
     expect(rowNames()).toEqual(['Alpha'])
 
     await user.click(screen.getByRole('button', { name: 'Clear filters' }))
-    expect(screen.getByLabelText('Search ranges by name')).toHaveValue('')
+    expect(screen.getByLabelText('Search ranges by name, tag or notes')).toHaveValue('')
     expect(screen.getByLabelText('Sort ranges')).toHaveValue('')
     expect(rowNames()).toEqual(['Zebra', 'Alpha'])
   })
@@ -434,7 +452,7 @@ describe('LibraryScreen', () => {
 
     await user.click(screen.getByRole('button', { name: 'Manage' }))
     await user.click(screen.getByRole('checkbox', { name: 'Select Hide me' }))
-    await user.type(screen.getByLabelText('Search ranges by name'), 'keep')
+    await user.type(screen.getByLabelText('Search ranges by name, tag or notes'), 'keep')
 
     expect(screen.getByText('0 selected')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Favorite selected' })).toBeDisabled()

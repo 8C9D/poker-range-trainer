@@ -6,7 +6,7 @@ import {
   filterFavoriteRanges,
   filterRangesByActionType,
   filterRangesByGameType,
-  filterRangesByName,
+  filterRangesBySearch,
   filterRangesByPosition,
   filterRangesByStackDepth,
   filterRangesByTag,
@@ -110,30 +110,30 @@ describe('filterFavoriteRanges', () => {
   })
 })
 
-describe('filterRangesByName', () => {
+describe('filterRangesBySearch', () => {
   it('matches names containing the query as a substring', () => {
-    expect(filterRangesByName(ranges, 'defend')).toEqual([{ name: 'BB defend vs CO' }])
+    expect(filterRangesBySearch(ranges, 'defend')).toEqual([{ name: 'BB defend vs CO' }])
   })
 
   it('is case-insensitive in both directions', () => {
-    expect(filterRangesByName(ranges, 'BUTTON')).toEqual([{ name: 'Button open' }])
-    expect(filterRangesByName(ranges, 'co')).toEqual([{ name: 'BB defend vs CO' }])
+    expect(filterRangesBySearch(ranges, 'BUTTON')).toEqual([{ name: 'Button open' }])
+    expect(filterRangesBySearch(ranges, 'co')).toEqual([{ name: 'BB defend vs CO' }])
   })
 
   it('returns every range for an empty query', () => {
-    expect(filterRangesByName(ranges, '')).toEqual(ranges)
+    expect(filterRangesBySearch(ranges, '')).toEqual(ranges)
   })
 
   it('treats a whitespace-only query as empty and returns every range', () => {
-    expect(filterRangesByName(ranges, '   ')).toEqual(ranges)
+    expect(filterRangesBySearch(ranges, '   ')).toEqual(ranges)
   })
 
   it('ignores whitespace around the query', () => {
-    expect(filterRangesByName(ranges, '  button  ')).toEqual([{ name: 'Button open' }])
+    expect(filterRangesBySearch(ranges, '  button  ')).toEqual([{ name: 'Button open' }])
   })
 
   it('returns an empty array when nothing matches', () => {
-    expect(filterRangesByName(ranges, 'zzz')).toEqual([])
+    expect(filterRangesBySearch(ranges, 'zzz')).toEqual([])
   })
 
   /**
@@ -143,24 +143,24 @@ describe('filterRangesByName', () => {
    * have no such range" rather than "not in that order".
    */
   it('matches the terms in any order rather than as one contiguous phrase', () => {
-    expect(filterRangesByName(ranges, 'btn sb')).toEqual([{ name: 'SB 3-bet vs BTN' }])
-    expect(filterRangesByName(ranges, 'co defend')).toEqual([{ name: 'BB defend vs CO' }])
+    expect(filterRangesBySearch(ranges, 'btn sb')).toEqual([{ name: 'SB 3-bet vs BTN' }])
+    expect(filterRangesBySearch(ranges, 'co defend')).toEqual([{ name: 'BB defend vs CO' }])
   })
 
   it('still matches a query whose terms are adjacent and in order', () => {
-    expect(filterRangesByName(ranges, 'defend vs CO')).toEqual([{ name: 'BB defend vs CO' }])
+    expect(filterRangesBySearch(ranges, 'defend vs CO')).toEqual([{ name: 'BB defend vs CO' }])
   })
 
   it('requires every term, not just one of them', () => {
-    expect(filterRangesByName(ranges, 'defend zzz')).toEqual([])
+    expect(filterRangesBySearch(ranges, 'defend zzz')).toEqual([])
   })
 
   it('collapses runs of whitespace between terms', () => {
-    expect(filterRangesByName(ranges, 'btn\t \n sb')).toEqual([{ name: 'SB 3-bet vs BTN' }])
+    expect(filterRangesBySearch(ranges, 'btn\t \n sb')).toEqual([{ name: 'SB 3-bet vs BTN' }])
   })
 
   it('preserves the input order of the matches', () => {
-    expect(filterRangesByName(ranges, 'b')).toEqual([
+    expect(filterRangesBySearch(ranges, 'b')).toEqual([
       { name: 'Button open' },
       { name: 'BB defend vs CO' },
       { name: 'SB 3-bet vs BTN' },
@@ -170,13 +170,48 @@ describe('filterRangesByName', () => {
   it('does not mutate the input array', () => {
     const input = [{ name: 'Button open' }, { name: 'BB defend vs CO' }]
     const snapshot = [...input]
-    filterRangesByName(input, 'open')
-    filterRangesByName(input, '')
+    filterRangesBySearch(input, 'open')
+    filterRangesBySearch(input, '')
     expect(input).toEqual(snapshot)
   })
 
   it('returns a fresh array rather than the original reference', () => {
-    expect(filterRangesByName(ranges, '')).not.toBe(ranges)
+    expect(filterRangesBySearch(ranges, '')).not.toBe(ranges)
+  })
+
+  /**
+   * The box sits beside a tag dropdown that already finds these ranges, so
+   * matching only the name made the two disagree about the same word.
+   */
+  it('matches a tag the range carries', () => {
+    const tagged = [
+      { name: 'Button open', tags: ['MTT', 'ICM'] },
+      { name: 'BB defend vs CO', tags: ['cash'] },
+      { name: 'SB 3-bet vs BTN' },
+    ]
+    expect(filterRangesBySearch(tagged, 'mtt')).toEqual([tagged[0]])
+    expect(filterRangesBySearch(tagged, 'cash')).toEqual([tagged[1]])
+  })
+
+  it('matches the range’s scenario notes', () => {
+    const noted = [
+      { name: 'Button open', metadata: { notes: 'Widen versus a nitty big blind.' } },
+      { name: 'BB defend vs CO' },
+    ]
+    expect(filterRangesBySearch(noted, 'nitty')).toEqual([noted[0]])
+  })
+
+  it('lets the terms of one query fall across name, tag and notes', () => {
+    const mixed = [
+      { name: 'Button open', tags: ['MTT'], metadata: { notes: 'Short stack.' } },
+      { name: 'Button open (cash)', tags: ['cash'] },
+    ]
+    expect(filterRangesBySearch(mixed, 'button mtt short')).toEqual([mixed[0]])
+  })
+
+  it('ignores a tag or note that no term matches', () => {
+    const tagged = [{ name: 'Button open', tags: ['MTT'], metadata: { notes: 'Short stack.' } }]
+    expect(filterRangesBySearch(tagged, 'zzz')).toEqual([])
   })
 })
 

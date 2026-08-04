@@ -44,29 +44,37 @@ export function filterFavoriteRanges<T extends { favorite?: boolean }>(
 }
 
 /**
- * Return the ranges whose name contains every whitespace-separated term of
- * `query`, case-insensitively and in any order, preserving the input order.
+ * Return the ranges matching every whitespace-separated term of `query`,
+ * case-insensitively and in any order, preserving the input order.
  *
  * Names read like sentences — "SB 3-bet vs BTN", "BB defend vs CO open" — so the
  * two words a user remembers are usually separated by the ones they don't, and
  * rarely in the order they type. Matching the query as one contiguous substring
  * answered "btn sb" with nothing, which reads as "no such range" rather than
  * "not in that order". Requiring every term keeps the filter as narrow as
- * before for a single word while letting the terms fall anywhere in the name.
+ * before for a single word while letting the terms fall anywhere.
+ *
+ * Searched text is the name PLUS the range's own words — its tags and its
+ * scenario notes. Both are things the user typed to find a range by, and
+ * searching only the name made the box disagree with the tag filter beside it:
+ * a range tagged "MTT" was reachable from the dropdown but invisible to anyone
+ * who typed "mtt". A term may match in any of the three fields, so "btn mtt"
+ * finds a BTN range carrying the MTT tag.
  *
  * A blank query (empty or whitespace-only) has no terms and matches every
  * range. A query that matches nothing returns an empty array. The input array
  * is never mutated; a fresh array is always returned.
  */
-export function filterRangesByName<T extends { name: string }>(
-  ranges: T[],
-  query: string,
-): T[] {
+export function filterRangesBySearch<
+  T extends { name: string; tags?: string[]; metadata?: { notes?: string } },
+>(ranges: T[], query: string): T[] {
   const terms = query.toLowerCase().split(/\s+/).filter((term) => term !== '')
   if (terms.length === 0) return ranges.slice()
   return ranges.filter((range) => {
-    const name = range.name.toLowerCase()
-    return terms.every((term) => name.includes(term))
+    const haystack = [range.name, ...(range.tags ?? []), range.metadata?.notes ?? '']
+      .join(' ')
+      .toLowerCase()
+    return terms.every((term) => haystack.includes(term))
   })
 }
 

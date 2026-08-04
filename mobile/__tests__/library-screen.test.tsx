@@ -123,6 +123,28 @@ describe('LibraryScreen', () => {
     expect(getByText('BTN 3-bet vs CO open')).toBeTruthy();
   });
 
+  it('searches by tag, so the box agrees with the tag filter beside it', async () => {
+    seed({ id: 'r1', name: 'UTG Open', tags: ['MTT'] });
+    seed({ id: 'r2', name: 'BTN Open', tags: ['cash'] });
+
+    const { getByTestId, getByText, queryByText } = await render(<LibraryScreen />);
+    await fireEvent.changeText(getByTestId('library-search'), 'mtt');
+
+    await waitFor(() => expect(queryByText('BTN Open')).toBeNull());
+    expect(getByText('UTG Open')).toBeTruthy();
+  });
+
+  it('searches the range’s scenario notes', async () => {
+    seed({ id: 'r1', name: 'UTG Open', metadata: { notes: 'Widen vs a nitty BB.' } });
+    seed({ id: 'r2', name: 'BTN Open' });
+
+    const { getByTestId, getByText, queryByText } = await render(<LibraryScreen />);
+    await fireEvent.changeText(getByTestId('library-search'), 'nitty');
+
+    await waitFor(() => expect(queryByText('BTN Open')).toBeNull());
+    expect(getByText('UTG Open')).toBeTruthy();
+  });
+
   it('filters by a position chip from the collapsed filters', async () => {
     seed({ id: 'r1', name: 'UTG Open', metadata: { position: 'utg' } });
     seed({ id: 'r2', name: 'BTN Open', metadata: { position: 'btn' } });

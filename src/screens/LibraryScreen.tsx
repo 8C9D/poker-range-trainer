@@ -11,7 +11,7 @@ import {
   filterFavoriteRanges,
   filterRangesByActionType,
   filterRangesByGameType,
-  filterRangesByName,
+  filterRangesBySearch,
   filterRangesByPosition,
   filterRangesByStackDepth,
   filterRangesByTag,
@@ -102,7 +102,7 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
     filterRangesByStackDepth(
       filterRangesByActionType(
         filterRangesByPosition(
-          filterRangesByName(
+          filterRangesBySearch(
             filterFavoriteRanges(filterArchivedRanges(ranges, showArchived), favoritesOnly),
             query,
           ),
@@ -233,7 +233,7 @@ export function LibraryScreen({ onPlaySpots }: LibraryScreenProps) {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search ranges"
-              aria-label="Search ranges by name"
+              aria-label="Search ranges by name, tag or notes"
             />
             <button
               type="button"

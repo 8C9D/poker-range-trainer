@@ -9,7 +9,7 @@ import {
   filterFavoriteRanges,
   filterRangesByActionType,
   filterRangesByGameType,
-  filterRangesByName,
+  filterRangesBySearch,
   filterRangesByPosition,
   filterRangesByStackDepth,
   filterRangesByTag,
@@ -137,7 +137,7 @@ export default function LibraryScreen() {
         filterRangesByStackDepth(
           filterRangesByActionType(
             filterRangesByPosition(
-              filterRangesByName(
+              filterRangesBySearch(
                 filterFavoriteRanges(filterArchivedRanges(ranges, showArchived), favoritesOnly),
                 query,
               ),
