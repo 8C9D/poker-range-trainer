@@ -224,6 +224,24 @@ describe('parseBackup', () => {
 
     expect(() => parseBackup(JSON.stringify(malformed))).toThrow(/actionAccuracy/)
   })
+
+  it('rejects impossible session history before restore', () => {
+    const malformed = {
+      ...buildBackup('2026-06-08T00:00:00.000Z'),
+      sessionHistory: {
+        r1: [
+          {
+            rangeId: 'r1',
+            playedAt: '2026-01-01T00:00:00.000Z',
+            totalQuestions: 1,
+            correctAnswers: 2,
+          },
+        ],
+      },
+    }
+
+    expect(() => parseBackup(JSON.stringify(malformed))).toThrow(/sessionHistory/)
+  })
 })
 
 describe('restoreBackup', () => {

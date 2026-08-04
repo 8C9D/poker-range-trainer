@@ -1,5 +1,5 @@
 import type { PracticeSessionRecord, PracticeSessionSummary } from '../types/practice'
-import { isNonNegativeFinite, readJson, writeJson } from './storageHelpers'
+import { isNonNegativeInteger, isValidTimestamp, readJson, writeJson } from './storageHelpers'
 
 /**
  * Local persistence for the practice session history — an append-only log of
@@ -21,11 +21,30 @@ function parsePracticeSessionRecord(value: unknown): PracticeSessionRecord | nul
   const { rangeId, playedAt, totalQuestions, correctAnswers } = value as Record<string, unknown>
 
   if (typeof rangeId !== 'string' || rangeId.length === 0) return null
-  if (typeof playedAt !== 'string') return null
-  if (!isNonNegativeFinite(totalQuestions)) return null
-  if (!isNonNegativeFinite(correctAnswers)) return null
+  if (!isValidTimestamp(playedAt)) return null
+  if (!isNonNegativeInteger(totalQuestions) || totalQuestions === 0) return null
+  if (!isNonNegativeInteger(correctAnswers) || correctAnswers > totalQuestions) return null
 
   return { rangeId, playedAt, totalQuestions, correctAnswers }
+}
+
+/** Strictly validate and normalize a complete session-history map. */
+export function validateSessionHistory(value: unknown): Record<string, PracticeSessionRecord[]> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error('Session history is not an object.')
+  }
+  const history: Record<string, PracticeSessionRecord[]> = {}
+  for (const raw of Object.values(value as Record<string, unknown>)) {
+    if (!Array.isArray(raw)) throw new Error('Session history contains a non-list record.')
+    for (const entry of raw) {
+      const record = parsePracticeSessionRecord(entry)
+      if (record === null) throw new Error('Session history contains an invalid session.')
+      const sessions = history[record.rangeId] ?? []
+      sessions.push(record)
+      history[record.rangeId] = sessions
+    }
+  }
+  return history
 }
 
 /** Persist the full history map, serialized under the single storage key. */
@@ -73,6 +92,15 @@ export function recordPracticeSessionHistory(
   playedAt: string = new Date().toISOString(),
 ): void {
   if (summary.totalQuestions <= 0) return
+  if (
+    rangeId.length === 0 ||
+    !isNonNegativeInteger(summary.totalQuestions) ||
+    !isNonNegativeInteger(summary.correctAnswers) ||
+    summary.correctAnswers > summary.totalQuestions ||
+    !isValidTimestamp(playedAt)
+  ) {
+    throw new Error('Cannot record an invalid practice session.')
+  }
 
   const history = loadSessionHistory()
   const list = history[rangeId] ?? []

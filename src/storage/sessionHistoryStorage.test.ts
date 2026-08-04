@@ -40,6 +40,18 @@ describe('loadSessionHistory', () => {
           valid,
           { rangeId: 'r1', playedAt: 'x', totalQuestions: -1, correctAnswers: 0 }, // negative
           { playedAt: 'x', totalQuestions: 1, correctAnswers: 1 }, // missing rangeId
+          {
+            rangeId: 'r1',
+            playedAt: '2026-01-01T00:00:00.000Z',
+            totalQuestions: 1,
+            correctAnswers: 2,
+          },
+          {
+            rangeId: 'r1',
+            playedAt: 'not-a-date',
+            totalQuestions: 1,
+            correctAnswers: 1,
+          },
           42,
         ],
         notAList: 7,
@@ -104,5 +116,16 @@ describe('recordPracticeSessionHistory', () => {
     const recordedMs = new Date(loadSessionHistory().r1[0].playedAt).getTime()
     expect(recordedMs).toBeGreaterThanOrEqual(before)
     expect(recordedMs).toBeLessThanOrEqual(after)
+  })
+
+  it('rejects an impossible session instead of appending it', () => {
+    expect(() =>
+      recordPracticeSessionHistory(
+        'r1',
+        { totalQuestions: 1, correctAnswers: 2 },
+        '2026-01-01T00:00:00.000Z',
+      ),
+    ).toThrow(/invalid practice session/)
+    expect(loadSessionHistory()).toEqual({})
   })
 })
