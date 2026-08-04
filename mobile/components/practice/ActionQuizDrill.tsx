@@ -27,9 +27,15 @@ const EMPTY_ACTIONS: Record<PokerHand, RangeAction> = {};
  */
 export function ActionQuizDrill({
   id,
+  handPool,
   onAttempt,
 }: {
   id?: string
+  /**
+   * Ask about only these hands instead of the whole chart — set when re-drilling
+   * a session's misses. Grading is unchanged: the chart still says what is right.
+   */
+  handPool?: PokerHand[]
   onAttempt?: (attempt: ActionAttempt) => void
 }) {
   const theme = useTheme();
@@ -37,7 +43,7 @@ export function ActionQuizDrill({
   const ACTION_COLORS = actionColors(theme);
   const [range] = useState(() => (id ? findSavedRangeById(id) : undefined));
   const handActions = range?.handActions ?? EMPTY_ACTIONS;
-  const pool = useMemo(() => assignedHands(handActions), [handActions]);
+  const pool = useMemo(() => handPool ?? assignedHands(handActions), [handPool, handActions]);
 
   const [hand, setHand] = useState<PokerHand | null>(() =>
     pool.length > 0 ? getRandomHandFrom(pool) : null,

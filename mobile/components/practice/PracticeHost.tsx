@@ -72,8 +72,10 @@ const FLAT_ROUTE: Record<'postflop' | 'board', string> = {
 
 /** How a finished run can be replayed over just what it got wrong. */
 type Redrill =
-  /** Re-run the current range over the hands it missed. */
+  /** Re-run the current range as recognition over the hands it missed. */
   | { kind: 'hands'; hands: PokerHand[] }
+  /** Re-run the action quiz over the hands whose action it got wrong. */
+  | { kind: 'actionHands'; hands: PokerHand[] }
   /** Re-run a queue of ranges, each over its own misses (a spot run spans several). */
   | { kind: 'queue'; ranges: SavedRange[]; handPools: Record<string, PokerHand[]> };
 
@@ -109,6 +111,12 @@ interface Queue {
  * granularity — the recap's play/fold split is for reading, not for dealing.
  */
 function missedHandsOf(attempts: PracticeAttempt[]): PokerHand[] | null {
+  const missed = [...new Set(attempts.filter((a) => !a.correct).map((a) => a.hand))];
+  return missed.length > 0 ? missed : null;
+}
+
+/** The distinct hands an action quiz assigned the wrong action to, or null. */
+function missedActionHandsOf(attempts: ActionAttempt[]): PokerHand[] | null {
   const missed = [...new Set(attempts.filter((a) => !a.correct).map((a) => a.hand))];
   return missed.length > 0 ? missed : null;
 }
@@ -241,7 +249,13 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
       onClose();
       return;
     }
+    // Start the next quiz from empty. Nothing reads the run except this handler,
+    // so clearing here covers every way out of it — a re-drill of these misses,
+    // the next range in a queue, or a fresh pick from the mode picker. Without
+    // it the second summary would report this run's answers all over again.
+    actionAttemptsRef.current = [];
     const correct = attempts.filter((attempt) => attempt.correct).length;
+    const missedActionHands = missedActionHandsOf(attempts);
     setPhase({
       kind: 'summary',
       data: {
@@ -254,9 +268,9 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
         streakLine: null,
         actionMisses: recapActionMisses(attempts),
       },
-      // The action quiz grades chosen actions, not in/out of range, so its
-      // misses are not a hand pool the recognition drill could deal from.
-      redrill: null,
+      // Re-drilled as another action quiz, not as recognition: these hands were
+      // missed on which action they want, not on whether they are in the range.
+      redrill: missedActionHands ? { kind: 'actionHands', hands: missedActionHands } : null,
     });
   };
 
@@ -318,6 +332,12 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     setPhase({ kind: 'drill', mode: 'recognize', durationSeconds: DEFAULT_DRILL_SECONDS, handPool });
   };
 
+  /** Re-run the action quiz over just the hands whose action went wrong. */
+  const drillActionMisses = (handPool: PokerHand[]) => {
+    setRun(run + 1);
+    setPhase({ kind: 'drill', mode: 'action', durationSeconds: DEFAULT_DRILL_SECONDS, handPool });
+  };
+
   /** Replace the queue with a recognition run over each range's own misses. */
   const drillQueue = (ranges: SavedRange[], handPools: Record<string, PokerHand[]>) => {
     setQueue({ ranges, mode: 'recognize', handPools });
@@ -355,7 +375,9 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
               ? () =>
                   redrill.kind === 'hands'
                     ? drillMisses(redrill.hands)
-                    : drillQueue(redrill.ranges, redrill.handPools)
+                    : redrill.kind === 'actionHands'
+                      ? drillActionMisses(redrill.hands)
+                      : drillQueue(redrill.ranges, redrill.handPools)
               : undefined
           }
         />
@@ -389,7 +411,9 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
         onClose={finishActionQuiz}
       >
         <ActionQuizDrill
+          key={`${range.id}-${run}`}
           id={range.id}
+          handPool={phase.handPool}
           onAttempt={(attempt) => actionAttemptsRef.current.push(attempt)}
         />
       </OverlayFrame>

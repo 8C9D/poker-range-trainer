@@ -216,6 +216,34 @@ describe('PracticeScreen (overlay host)', () => {
     });
   });
 
+  it('re-quizzes only the hands whose action went wrong', async () => {
+    saveSavedRange({
+      id: 'r1',
+      name: 'Charted',
+      hands: ['AA', 'KK'],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      handActions: { AA: 'raise', KK: 'call' },
+    });
+    mockParams.mockReturnValue({ id: 'r1', mode: 'action' });
+    const { getByTestId, findByTestId, queryByTestId } = await render(<PracticeScreen />);
+
+    // Folding is wrong for both assigned hands, so whichever was prompted misses.
+    const missed = getByTestId('quiz-hand').props.children;
+    fireEvent.press(getByTestId('quiz-action-fold'));
+    await findByTestId('quiz-feedback');
+    fireEvent.press(getByTestId('overlay-close'));
+
+    fireEvent.press(await findByTestId('summary-drill-misses'));
+
+    // Back in the quiz over a pool of one, so the next question repeats the hand.
+    await waitFor(() => expect(queryByTestId('summary-done')).toBeNull());
+    expect(getByTestId('quiz-hand')).toHaveTextContent(missed);
+    fireEvent.press(getByTestId('quiz-action-fold'));
+    await findByTestId('quiz-feedback');
+    expect(getByTestId('quiz-hand')).toHaveTextContent(missed);
+  });
+
   it('abandons the action quiz when closed before any answer', async () => {
     saveSavedRange({
       id: 'r1',

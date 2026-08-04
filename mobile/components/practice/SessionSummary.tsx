@@ -104,6 +104,7 @@ export function SessionSummary({
           }))}
           hiddenCount={data.actionMisses.hiddenCount}
           styles={styles}
+          onDrill={onDrillMisses}
         />
       ) : null}
       <SaveErrorBanner error={data.saveError ?? null} testID="summary-save-error" />

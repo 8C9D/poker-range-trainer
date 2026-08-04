@@ -134,6 +134,7 @@ export function SessionSummary({
             hands: group.hands,
           }))}
           hiddenCount={data.actionMisses.hiddenCount}
+          onDrill={onDrillMisses}
         />
       )}
       {data.saveError && (

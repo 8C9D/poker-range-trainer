@@ -464,6 +464,38 @@ describe('PracticeHost action quiz', () => {
     )
   })
 
+  it('re-quizzes only the hands whose action went wrong', () => {
+    render(
+      <PracticeHost
+        request={{
+          ranges: [
+            makeRange('a', 'UTG open', {
+              hands: ['AA', 'KK'],
+              handActions: { AA: 'raise', KK: 'call' },
+            }),
+          ],
+          mode: 'action',
+        }}
+        onClose={vi.fn()}
+      />,
+    )
+
+    // Folding is wrong for both assigned hands, so whichever was prompted misses.
+    const promptedHand = () =>
+      screen.getByText('What is the correct action?').nextElementSibling?.textContent ?? ''
+    const missed = promptedHand()
+    fireEvent.click(screen.getByRole('button', { name: 'Fold' }))
+    fireEvent.click(screen.getByRole('button', { name: 'End quiz' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Drill these now' }))
+
+    // Back in the quiz, asking only about the hand that went wrong — a pool of
+    // one, so the next question is the same hand rather than the other chart entry.
+    expect(screen.queryByLabelText('Session summary')).not.toBeInTheDocument()
+    expect(promptedHand()).toBe(missed)
+    fireEvent.click(screen.getByRole('button', { name: 'Fold' }))
+    expect(promptedHand()).toBe(missed)
+  })
+
   it('leaves the recap off a clean action quiz', () => {
     render(
       <PracticeHost

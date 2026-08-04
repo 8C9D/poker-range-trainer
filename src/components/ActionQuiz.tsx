@@ -18,6 +18,11 @@ interface ActionQuizProps {
   /** The range being quizzed (its `handActions` define the correct answers). */
   range: SavedRange
   /**
+   * Ask about only these hands instead of the whole chart — set when re-drilling
+   * a session's misses. Grading is unchanged: the chart still says what is right.
+   */
+  handPool?: PokerHand[]
+  /**
    * Leave the quiz, handing back every answered attempt so the caller can record
    * per-action accuracy. Empty when nothing was answered.
    */
@@ -42,9 +47,9 @@ interface AnsweredState {
  * the `actionRange` domain helpers; this component only orchestrates state and
  * rendering. No persistence (action-specific accuracy tracking is a later slice).
  */
-export function ActionQuiz({ range, onExit, random = Math.random }: ActionQuizProps) {
+export function ActionQuiz({ range, handPool, onExit, random = Math.random }: ActionQuizProps) {
   const handActions = range.handActions ?? {}
-  const pool = assignedHands(handActions)
+  const pool = handPool ?? assignedHands(handActions)
   const [currentHand, setCurrentHand] = useState<PokerHand>(() =>
     pool.length > 0 ? getRandomHandFrom(pool, random) : '',
   )
