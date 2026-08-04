@@ -357,6 +357,39 @@
   font-weight: 600;
 }
 
+.session-summary-misses {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 46ch;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: var(--well);
+}
+
+.session-summary-misses h2 {
+  margin: 0 0 2px;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.session-summary-misses p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.session-summary-miss-label {
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.session-summary-miss-more {
+  color: var(--ink-2);
+}
+
 .session-summary-error {
   margin: 0;
   max-width: 42ch;

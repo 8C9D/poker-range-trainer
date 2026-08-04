@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type { MissRecap } from '../domain/missRecap'
 
 export interface SessionSummaryData {
   totalQuestions: number
@@ -11,6 +12,8 @@ export interface SessionSummaryData {
   goalLine?: string | null
   /** Streak confirmation line, or null when no streak is active. */
   streakLine: string | null
+  /** The session's missed hands, or null when nothing was missed. */
+  misses?: MissRecap | null
   /** Why the run could not be persisted, or null when it saved. */
   saveError?: string | null
 }
@@ -99,6 +102,7 @@ export function SessionSummary({ data, hasNext, onNext, onDone }: SessionSummary
       {data.deltaLine && <p className="session-summary-delta">{data.deltaLine}</p>}
       {data.goalLine && <p className="session-summary-goal">{data.goalLine}</p>}
       {data.streakLine && <p className="session-summary-streak">{data.streakLine}</p>}
+      {data.misses && <MissRecapList misses={data.misses} />}
       {data.saveError && (
         <p className="session-summary-error" role="alert">
           {data.saveError}
@@ -130,6 +134,38 @@ export function SessionSummary({ data, hasNext, onNext, onDone }: SessionSummary
           </button>
         )}
       </div>
+    </section>
+  )
+}
+
+/**
+ * The hands the session got wrong, as the two lists that are actually
+ * actionable. Directions the run never missed are omitted rather than shown
+ * empty, so a one-sided session reads as one line.
+ */
+function MissRecapList({ misses }: { misses: MissRecap }) {
+  return (
+    <section className="session-summary-misses" aria-label="What you missed">
+      {/* h2, matching the workout hand-off: the overlay's own title is a span,
+          so this is the first heading inside the dialog. */}
+      <h2>What you missed</h2>
+      {misses.shouldPlay.length > 0 && (
+        <p>
+          <span className="session-summary-miss-label">Play these:</span>{' '}
+          <span className="coach-tabular">{misses.shouldPlay.join(', ')}</span>
+        </p>
+      )}
+      {misses.shouldFold.length > 0 && (
+        <p>
+          <span className="session-summary-miss-label">Fold these:</span>{' '}
+          <span className="coach-tabular">{misses.shouldFold.join(', ')}</span>
+        </p>
+      )}
+      {misses.hiddenCount > 0 && (
+        <p className="session-summary-miss-more">
+          and {misses.hiddenCount} more — the drill will bring them back.
+        </p>
+      )}
     </section>
   )
 }

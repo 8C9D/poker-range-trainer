@@ -59,4 +59,47 @@ describe('SessionSummary', () => {
     await waitFor(() => expect(AccessibilityInfo.isReduceMotionEnabled).toHaveBeenCalled());
     expect(spring).not.toHaveBeenCalled();
   });
+
+  it('recaps the missed hands as the two lists to act on', async () => {
+    const { getByTestId, getByText, queryByText } = await render(
+      <SessionSummary
+        data={{
+          totalQuestions: 10,
+          correctAnswers: 7,
+          accuracy: 70,
+          deltaLine: null,
+          streakLine: null,
+          misses: { shouldPlay: ['KTs', 'A5s'], shouldFold: ['72o'], hiddenCount: 2 },
+        }}
+        hasNext={false}
+        onNext={jest.fn()}
+        onDone={jest.fn()}
+      />,
+    );
+
+    expect(getByTestId('summary-misses')).toBeTruthy();
+    expect(getByText(/Play these:\s*KTs, A5s/)).toBeTruthy();
+    expect(getByText(/Fold these:\s*72o/)).toBeTruthy();
+    expect(queryByText(/and 2 more/)).toBeTruthy();
+  });
+
+  it('leaves the recap out entirely for a clean run', async () => {
+    const { queryByTestId } = await render(
+      <SessionSummary
+        data={{
+          totalQuestions: 10,
+          correctAnswers: 10,
+          accuracy: 100,
+          deltaLine: null,
+          streakLine: null,
+          misses: null,
+        }}
+        hasNext={false}
+        onNext={jest.fn()}
+        onDone={jest.fn()}
+      />,
+    );
+
+    expect(queryByTestId('summary-misses')).toBeNull();
+  });
 });

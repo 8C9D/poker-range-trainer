@@ -9,6 +9,7 @@ import {
   type ReviewSegment,
   type WeakSpotsSegment,
 } from '@core/domain/dailyWorkout';
+import { recapMisses } from '@core/domain/missRecap';
 import { currentStreak } from '@core/domain/spacedRepetition';
 import type { SpotSessionResult } from '@core/domain/spotDrill';
 import { evaluateDailyGoal, goalLine } from '@core/domain/trainingGoal';
@@ -66,6 +67,10 @@ export function WorkoutHost({ workout, ranges, onClose }: WorkoutHostProps) {
   // records segment by segment, so the failure has to survive the parts that came
   // after it rather than being reported where it happened.
   const saveErrorRef = useRef<string | null>(null);
+  // Misses from every segment, so the one combined summary recaps the whole
+  // workout rather than only whichever part happened to end it. Same reason as
+  // the tallies above for being a ref.
+  const missedRef = useRef<PracticeAttempt[]>([]);
 
   const answeredSoFar = () => talliesRef.current.reduce((sum, tally) => sum + tally.total, 0);
 
@@ -79,6 +84,7 @@ export function WorkoutHost({ workout, ranges, onClose }: WorkoutHostProps) {
     const tally = talliesRef.current[segmentIndex];
     tally.total += attempts.length;
     tally.correct += attempts.filter((attempt) => attempt.correct).length;
+    missedRef.current.push(...attempts.filter((attempt) => !attempt.correct));
   }
 
   function showSummary(completed: boolean) {
@@ -108,6 +114,7 @@ export function WorkoutHost({ workout, ranges, onClose }: WorkoutHostProps) {
         deltaLine: completed ? contributionLine : `Stopped early · ${contributionLine}`,
         goalLine: goalProgress.target > 0 ? goalLine(goalProgress) : null,
         streakLine: streak > 0 ? `${streak}-day streak — see you tomorrow to keep it going.` : null,
+        misses: recapMisses(missedRef.current),
         saveError: saveErrorRef.current,
       },
     });

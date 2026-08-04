@@ -47,6 +47,48 @@ describe('SessionSummary', () => {
     expect(screen.getByText('4-day streak.')).toBeInTheDocument()
   })
 
+  it('recaps the missed hands as the two lists to act on', () => {
+    render(
+      <SessionSummary
+        data={{
+          ...BASE,
+          misses: { shouldPlay: ['KTs', 'A5s'], shouldFold: ['72o'], hiddenCount: 0 },
+        }}
+        hasNext={false}
+        onNext={vi.fn()}
+        onDone={vi.fn()}
+      />,
+    )
+
+    const recap = screen.getByRole('region', { name: 'What you missed' })
+    expect(recap).toHaveTextContent('Play these: KTs, A5s')
+    expect(recap).toHaveTextContent('Fold these: 72o')
+    expect(recap).not.toHaveTextContent('more')
+  })
+
+  it('omits a direction the run never missed, and counts what the cap dropped', () => {
+    render(
+      <SessionSummary
+        data={{ ...BASE, misses: { shouldPlay: [], shouldFold: ['72o'], hiddenCount: 3 } }}
+        hasNext={false}
+        onNext={vi.fn()}
+        onDone={vi.fn()}
+      />,
+    )
+
+    const recap = screen.getByRole('region', { name: 'What you missed' })
+    expect(recap).not.toHaveTextContent('Play these')
+    expect(recap).toHaveTextContent('and 3 more')
+  })
+
+  it('leaves the recap out entirely for a clean run', () => {
+    render(
+      <SessionSummary data={{ ...BASE, misses: null }} hasNext={false} onNext={vi.fn()} onDone={vi.fn()} />,
+    )
+
+    expect(screen.queryByRole('region', { name: 'What you missed' })).not.toBeInTheDocument()
+  })
+
   it('announces a failed save rather than leaving the run looking recorded', () => {
     render(
       <SessionSummary

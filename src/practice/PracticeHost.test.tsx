@@ -182,6 +182,35 @@ describe('PracticeHost recognition flow', () => {
     }
   })
 
+  it('recaps the session’s misses on the summary', () => {
+    render(
+      <PracticeHost
+        request={{ ranges: [makeRange('a', 'UTG open')], mode: 'recognize', handPool: ['AA'] }}
+        onClose={vi.fn()}
+      />,
+    )
+    // AA is in the range, so folding it is a miss the summary has to name.
+    fireEvent.click(screen.getByRole('button', { name: 'Fold' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close practice' }))
+
+    expect(screen.getByRole('region', { name: 'What you missed' })).toHaveTextContent(
+      'Play these: AA',
+    )
+  })
+
+  it('leaves the miss recap off a clean session', () => {
+    render(
+      <PracticeHost
+        request={{ ranges: [makeRange('a', 'UTG open')], mode: 'recognize', handPool: ['AA'] }}
+        onClose={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'In range' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close practice' }))
+
+    expect(screen.queryByRole('region', { name: 'What you missed' })).not.toBeInTheDocument()
+  })
+
   it('abandons without recording when closed before any answer', () => {
     const onClose = vi.fn()
     render(

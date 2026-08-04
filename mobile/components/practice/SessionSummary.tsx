@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { AccessibilityInfo, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import type { MissRecap } from '@core/domain/missRecap';
+
 import { SaveErrorBanner } from '../liveSave';
 import { fonts } from '../../theme/fonts';
 import { useTheme } from '../../theme/colors';
@@ -17,6 +19,8 @@ export interface SessionSummaryData {
   goalLine?: string | null;
   /** Streak confirmation line, or null when no streak is active. */
   streakLine: string | null;
+  /** The session's missed hands, or null when nothing was missed. */
+  misses?: MissRecap | null;
   /** Why the run could not be persisted, or null when it saved. */
   saveError?: string | null;
 }
@@ -66,6 +70,7 @@ export function SessionSummary({ data, hasNext, onNext, onDone }: SessionSummary
       {data.deltaLine ? <Text style={styles.delta}>{data.deltaLine}</Text> : null}
       {data.goalLine ? <Text style={styles.goal}>{data.goalLine}</Text> : null}
       {data.streakLine ? <Text style={styles.streak}>{data.streakLine}</Text> : null}
+      {data.misses ? <MissRecapList misses={data.misses} styles={styles} /> : null}
       <SaveErrorBanner error={data.saveError ?? null} testID="summary-save-error" />
       <View style={styles.actions}>
         {hasNext ? (
@@ -83,6 +88,44 @@ export function SessionSummary({ data, hasNext, onNext, onDone }: SessionSummary
           </Pressable>
         )}
       </View>
+    </View>
+  );
+}
+
+/**
+ * The hands the session got wrong, as the two lists that are actually
+ * actionable. Directions the run never missed are omitted rather than shown
+ * empty, so a one-sided session reads as one line.
+ */
+function MissRecapList({
+  misses,
+  styles,
+}: {
+  misses: MissRecap;
+  styles: ReturnType<typeof makeStyles>;
+}) {
+  return (
+    <View style={styles.misses} testID="summary-misses">
+      <Text style={styles.sectionTitle} accessibilityRole="header">
+        What you missed
+      </Text>
+      {misses.shouldPlay.length > 0 ? (
+        <Text style={styles.missLine}>
+          <Text style={styles.missLabel}>Play these: </Text>
+          {misses.shouldPlay.join(', ')}
+        </Text>
+      ) : null}
+      {misses.shouldFold.length > 0 ? (
+        <Text style={styles.missLine}>
+          <Text style={styles.missLabel}>Fold these: </Text>
+          {misses.shouldFold.join(', ')}
+        </Text>
+      ) : null}
+      {misses.hiddenCount > 0 ? (
+        <Text style={styles.missMore}>
+          and {misses.hiddenCount} more — the drill will bring them back.
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -115,6 +158,17 @@ function makeStyles(theme: ThemeColors) {
     delta: { fontFamily: fonts.bodySemibold, fontSize: 15.5, color: theme.ink2, textAlign: 'center' },
     goal: { fontFamily: fonts.body, fontSize: 14, color: theme.ink2, textAlign: 'center' },
     streak: { fontFamily: fonts.body, fontSize: 14, color: theme.accentStrong, textAlign: 'center' },
+    misses: {
+      alignSelf: 'stretch',
+      gap: 4,
+      padding: 14,
+      borderRadius: 14,
+      backgroundColor: theme.well,
+    },
+    sectionTitle: { fontFamily: fonts.display, fontSize: 14, color: theme.ink, marginBottom: 2 },
+    missLine: { fontFamily: fonts.body, fontSize: 14, lineHeight: 21, color: theme.ink },
+    missLabel: { fontFamily: fonts.bodySemibold, color: theme.ink2 },
+    missMore: { fontFamily: fonts.body, fontSize: 14, color: theme.ink2 },
     actions: { flexDirection: 'row', gap: 12, marginTop: 8 },
     primaryBtn: {
       backgroundColor: theme.goldFill,

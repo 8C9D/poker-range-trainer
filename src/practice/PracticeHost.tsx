@@ -10,6 +10,7 @@ import { RangeVsBoard } from '../components/RangeVsBoard'
 import { accuracyPercentage } from '../domain/accuracy'
 import { summarizeActionAccuracy } from '../domain/actionRange'
 import { selectionForRange } from '../domain/comboSelection'
+import { recapMisses } from '../domain/missRecap'
 import type { PokerHand } from '../domain/pokerHands'
 import type { SpotSessionResult } from '../domain/spotDrill'
 import type { PostflopScenario } from '../domain/postflopScenario'
@@ -124,6 +125,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
         deltaLine: deltaLineFor(summary.accuracyPercentage, prevAccuracy, misses),
         streakLine:
           streak > 0 ? `${streak}-day streak — see you tomorrow to keep it going.` : null,
+        misses: recapMisses(attempts),
         saveError,
       },
     })
@@ -182,6 +184,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
         deltaLine: `Across ${rangeCount} range${rangeCount === 1 ? '' : 's'} of your library.`,
         streakLine:
           streak > 0 ? `${streak}-day streak — see you tomorrow to keep it going.` : null,
+        misses: recapMisses(all),
         saveError,
       },
     })

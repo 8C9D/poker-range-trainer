@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 
 import { accuracyPercentage } from '@core/domain/accuracy';
 import { rangeEdgeHands } from '@core/domain/edgeHands';
+import { recapMisses } from '@core/domain/missRecap';
 import type { PokerHand } from '@core/domain/pokerHands';
 import { summarizePracticeAttempts } from '@core/domain/practice';
 import type { SpotSessionResult } from '@core/domain/spotDrill';
@@ -159,6 +160,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
         accuracy: summary.accuracyPercentage,
         deltaLine: deltaLineFor(summary.accuracyPercentage, prevAccuracy, misses),
         streakLine: streak > 0 ? `${streak}-day streak — see you tomorrow to keep it going.` : null,
+        misses: recapMisses(attempts),
         saveError,
       },
     });
@@ -194,6 +196,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
         accuracy: summary.accuracyPercentage,
         deltaLine: `Across ${rangeCount} range${rangeCount === 1 ? '' : 's'} of your library.`,
         streakLine: streak > 0 ? `${streak}-day streak — see you tomorrow to keep it going.` : null,
+        misses: recapMisses(all),
         saveError,
       },
     });
