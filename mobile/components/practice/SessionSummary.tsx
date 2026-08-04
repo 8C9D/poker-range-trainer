@@ -31,6 +31,11 @@ interface SessionSummaryProps {
   hasNext: boolean;
   onNext: () => void;
   onDone: () => void;
+  /**
+   * Re-run this range over just the hands it missed. Omitted when the run has
+   * no misses, or when its misses are not a pool one drill could deal from.
+   */
+  onDrillMisses?: () => void;
 }
 
 /**
@@ -38,7 +43,13 @@ interface SessionSummaryProps {
  * line, the growth-framed delta, and the streak confirmation. The final score is
  * readable immediately; reduced motion skips the entrance animation entirely.
  */
-export function SessionSummary({ data, hasNext, onNext, onDone }: SessionSummaryProps) {
+export function SessionSummary({
+  data,
+  hasNext,
+  onNext,
+  onDone,
+  onDrillMisses,
+}: SessionSummaryProps) {
   const theme = useTheme();
   const styles = makeStyles(theme);
 
@@ -70,7 +81,9 @@ export function SessionSummary({ data, hasNext, onNext, onDone }: SessionSummary
       {data.deltaLine ? <Text style={styles.delta}>{data.deltaLine}</Text> : null}
       {data.goalLine ? <Text style={styles.goal}>{data.goalLine}</Text> : null}
       {data.streakLine ? <Text style={styles.streak}>{data.streakLine}</Text> : null}
-      {data.misses ? <MissRecapList misses={data.misses} styles={styles} /> : null}
+      {data.misses ? (
+        <MissRecapList misses={data.misses} styles={styles} onDrill={onDrillMisses} />
+      ) : null}
       <SaveErrorBanner error={data.saveError ?? null} testID="summary-save-error" />
       <View style={styles.actions}>
         {hasNext ? (
@@ -100,9 +113,11 @@ export function SessionSummary({ data, hasNext, onNext, onDone }: SessionSummary
 function MissRecapList({
   misses,
   styles,
+  onDrill,
 }: {
   misses: MissRecap;
   styles: ReturnType<typeof makeStyles>;
+  onDrill?: () => void;
 }) {
   return (
     <View style={styles.misses} testID="summary-misses">
@@ -125,6 +140,18 @@ function MissRecapList({
         <Text style={styles.missMore}>
           and {misses.hiddenCount} more — the drill will bring them back.
         </Text>
+      ) : null}
+      {/* Reading the list is the lesson; drilling it right away is the practice.
+          Deals EVERY hand the run missed, not just the ones named above. */}
+      {onDrill ? (
+        <Pressable
+          testID="summary-drill-misses"
+          accessibilityRole="button"
+          style={styles.missDrillBtn}
+          onPress={onDrill}
+        >
+          <Text style={styles.missDrillBtnText}>Drill these now</Text>
+        </Pressable>
       ) : null}
     </View>
   );
@@ -169,6 +196,17 @@ function makeStyles(theme: ThemeColors) {
     missLine: { fontFamily: fonts.body, fontSize: 14, lineHeight: 21, color: theme.ink },
     missLabel: { fontFamily: fonts.bodySemibold, color: theme.ink2 },
     missMore: { fontFamily: fonts.body, fontSize: 14, color: theme.ink2 },
+    missDrillBtn: {
+      alignSelf: 'center',
+      marginTop: 8,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.line,
+      backgroundColor: theme.surface,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+    },
+    missDrillBtnText: { fontFamily: fonts.bodySemibold, fontSize: 14, color: theme.ink },
     actions: { flexDirection: 'row', gap: 12, marginTop: 8 },
     primaryBtn: {
       backgroundColor: theme.goldFill,

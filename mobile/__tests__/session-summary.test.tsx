@@ -1,4 +1,4 @@
-import { render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { AccessibilityInfo, Animated } from 'react-native';
 
 import { SessionSummary } from '../components/practice/SessionSummary';
@@ -61,7 +61,7 @@ describe('SessionSummary', () => {
   });
 
   it('recaps the missed hands as the two lists to act on', async () => {
-    const { getByTestId, getByText, queryByText } = await render(
+    const { getByTestId, getByText, queryByText, queryByTestId } = await render(
       <SessionSummary
         data={{
           totalQuestions: 10,
@@ -81,6 +81,32 @@ describe('SessionSummary', () => {
     expect(getByText(/Play these:\s*KTs, A5s/)).toBeTruthy();
     expect(getByText(/Fold these:\s*72o/)).toBeTruthy();
     expect(queryByText(/and 2 more/)).toBeTruthy();
+    // No handler supplied, so the run cannot offer a re-drill.
+    expect(queryByTestId('summary-drill-misses')).toBeNull();
+  });
+
+  it('offers a re-drill of the misses when the run can deal one', async () => {
+    const onDrillMisses = jest.fn();
+    const { getByTestId } = await render(
+      <SessionSummary
+        data={{
+          totalQuestions: 10,
+          correctAnswers: 7,
+          accuracy: 70,
+          deltaLine: null,
+          streakLine: null,
+          misses: { shouldPlay: ['KTs'], shouldFold: [], hiddenCount: 0 },
+        }}
+        hasNext={false}
+        onNext={jest.fn()}
+        onDone={jest.fn()}
+        onDrillMisses={onDrillMisses}
+      />,
+    );
+
+    await fireEvent.press(getByTestId('summary-drill-misses'));
+
+    expect(onDrillMisses).toHaveBeenCalledTimes(1);
   });
 
   it('leaves the recap out entirely for a clean run', async () => {

@@ -72,8 +72,29 @@ const FLAT_ROUTE: Record<'postflop' | 'board', string> = {
 
 type Phase =
   | { kind: 'picker' }
-  | { kind: 'drill'; mode: InlineMode; durationSeconds: number }
-  | { kind: 'summary'; data: SessionSummaryData };
+  | {
+      kind: 'drill';
+      mode: InlineMode;
+      durationSeconds: number;
+      /** Overrides the request's pool — set when re-drilling a session's misses. */
+      handPool?: PokerHand[];
+    }
+  | {
+      kind: 'summary';
+      data: SessionSummaryData;
+      /** The hands to re-drill, or null when the run cannot offer one. */
+      missedHands: PokerHand[] | null;
+    };
+
+/**
+ * The distinct hands a session got wrong, in first-missed order, or null when
+ * there were none. This is the pool a re-drill deals from, so it stays at hand
+ * granularity — the recap's play/fold split is for reading, not for dealing.
+ */
+function missedHandsOf(attempts: PracticeAttempt[]): PokerHand[] | null {
+  const missed = [...new Set(attempts.filter((a) => !a.correct).map((a) => a.hand))];
+  return missed.length > 0 ? missed : null;
+}
 
 /** Growth-framed comparison of this session against the range's previous one. */
 function deltaLineFor(accuracy: number, prevAccuracy: number | null, misses: number): string {
@@ -108,6 +129,9 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
    */
   const livePlusDrilled = () => [...loadSavedRanges(), ...request.ranges];
   const [index, setIndex] = useState(0);
+  // Bumped for every drill start so a re-drill of the same range remounts the
+  // component instead of resuming the finished session behind the summary.
+  const [run, setRun] = useState(0);
   const [phase, setPhase] = useState<Phase>(() =>
     request.mode && INLINE_MODES.has(request.mode)
       ? { kind: 'drill', mode: request.mode as InlineMode, durationSeconds: DEFAULT_DRILL_SECONDS }
@@ -163,6 +187,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
         misses: recapMisses(attempts),
         saveError,
       },
+      missedHands: missedHandsOf(attempts),
     });
   };
 
@@ -199,16 +224,26 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
         misses: recapMisses(all),
         saveError,
       },
+      // A spot session's misses span the library, so re-drilling them means
+      // re-queueing several ranges — more than this single-range host can do.
+      missedHands: null,
     });
   };
 
   const nextRange = () => {
     setIndex(index + 1);
+    setRun(run + 1);
     setPhase({
       kind: 'drill',
       mode: request.mode && INLINE_MODES.has(request.mode) ? (request.mode as InlineMode) : 'recognize',
       durationSeconds: DEFAULT_DRILL_SECONDS,
     });
+  };
+
+  /** Re-run the current range as a recognition drill over just its misses. */
+  const drillMisses = (handPool: PokerHand[]) => {
+    setRun(run + 1);
+    setPhase({ kind: 'drill', mode: 'recognize', durationSeconds: DEFAULT_DRILL_SECONDS, handPool });
   };
 
   if (phase.kind === 'picker') {
@@ -234,6 +269,9 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
           hasNext={!spots && hasNext}
           onNext={nextRange}
           onDone={onClose}
+          onDrillMisses={
+            phase.missedHands ? () => drillMisses(phase.missedHands as PokerHand[]) : undefined
+          }
         />
       </OverlayFrame>
     );
@@ -283,14 +321,14 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
   const variant = phase.mode === 'timed' ? 'timed' : phase.mode === 'weakness' ? 'weakness' : 'standard';
   return (
     <RecognitionDrill
-      key={`${range.id}-${index}`}
+      key={`${range.id}-${index}-${run}`}
       range={range}
       variant={variant}
       handPool={
         phase.mode === 'edges'
           ? rangeEdgeHands(range.hands)
           : phase.mode === 'recognize'
-            ? (request.handPool ?? request.handPools?.[range.id])
+            ? (phase.handPool ?? request.handPool ?? request.handPools?.[range.id])
             : undefined
       }
       durationSeconds={phase.durationSeconds}

@@ -390,6 +390,11 @@
   color: var(--ink-2);
 }
 
+.session-summary-miss-drill {
+  align-self: center;
+  margin-top: 8px;
+}
+
 .session-summary-error {
   margin: 0;
   max-width: 42ch;

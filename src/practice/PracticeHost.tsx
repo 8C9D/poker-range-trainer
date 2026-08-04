@@ -53,8 +53,29 @@ interface PracticeHostProps {
 
 type Phase =
   | { kind: 'picker' }
-  | { kind: 'drill'; mode: PracticeMode; durationSeconds: number }
-  | { kind: 'summary'; data: SessionSummaryData }
+  | {
+      kind: 'drill'
+      mode: PracticeMode
+      durationSeconds: number
+      /** Overrides the request's pool — set when re-drilling a session's misses. */
+      handPool?: PokerHand[]
+    }
+  | {
+      kind: 'summary'
+      data: SessionSummaryData
+      /** The hands to re-drill, or null when the run cannot offer one. */
+      missedHands: PokerHand[] | null
+    }
+
+/**
+ * The distinct hands a session got wrong, in first-missed order, or null when
+ * there were none. This is the pool a re-drill deals from, so it stays at hand
+ * granularity — the recap's play/fold split is for reading, not for dealing.
+ */
+function missedHandsOf(attempts: PracticeAttempt[]): PokerHand[] | null {
+  const missed = [...new Set(attempts.filter((a) => !a.correct).map((a) => a.hand))]
+  return missed.length > 0 ? missed : null
+}
 
 /** Growth-framed comparison of this session against the range's previous one. */
 function deltaLineFor(accuracy: number, prevAccuracy: number | null, misses: number): string {
@@ -88,6 +109,9 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
       ? { kind: 'drill', mode: request.mode, durationSeconds: DEFAULT_DRILL_SECONDS }
       : { kind: 'picker' },
   )
+  // Bumped for every drill start so a re-drill of the same range remounts the
+  // component instead of resuming the finished session behind the summary.
+  const [run, setRun] = useState(0)
   // Postflop drill sub-state: building the scenario, then practicing it.
   const [postflopScenario, setPostflopScenario] = useState<PostflopScenario | null>(null)
 
@@ -128,6 +152,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
         misses: recapMisses(attempts),
         saveError,
       },
+      missedHands: missedHandsOf(attempts),
     })
   }
 
@@ -150,6 +175,9 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
         streakLine: null,
         saveError,
       },
+      // The action quiz grades chosen actions, not in/out of range, so its
+      // misses are not a hand pool the recognition drill could deal from.
+      missedHands: null,
     })
   }
 
@@ -187,17 +215,27 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
         misses: recapMisses(all),
         saveError,
       },
+      // A spot session's misses span the library, so re-drilling them means
+      // re-queueing several ranges — more than this single-range host can do.
+      missedHands: null,
     })
   }
 
   const nextRange = () => {
     setIndex(index + 1)
     setPostflopScenario(null)
+    setRun(run + 1)
     setPhase({
       kind: 'drill',
       mode: request.mode ?? 'recognize',
       durationSeconds: DEFAULT_DRILL_SECONDS,
     })
+  }
+
+  /** Re-run the current range as a recognition drill over just its misses. */
+  const drillMisses = (handPool: PokerHand[]) => {
+    setRun(run + 1)
+    setPhase({ kind: 'drill', mode: 'recognize', durationSeconds: DEFAULT_DRILL_SECONDS, handPool })
   }
 
   if (phase.kind === 'picker') {
@@ -232,6 +270,9 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
           hasNext={!spots && hasNext}
           onNext={nextRange}
           onDone={onClose}
+          onDrillMisses={
+            phase.missedHands ? () => drillMisses(phase.missedHands as PokerHand[]) : undefined
+          }
         />
       </OverlayFrame>
     )
@@ -251,10 +292,10 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     case 'recognize':
       return (
         <RecognitionDrill
-          key={`${range.id}-${index}`}
+          key={`${range.id}-${index}-${run}`}
           range={range}
           variant="standard"
-          handPool={request.handPool ?? request.handPools?.[range.id]}
+          handPool={phase.handPool ?? request.handPool ?? request.handPools?.[range.id]}
           position={position}
           onFinish={finishRecognition}
         />
@@ -262,7 +303,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     case 'edges':
       return (
         <RecognitionDrill
-          key={`${range.id}-${index}`}
+          key={`${range.id}-${index}-${run}`}
           range={range}
           variant="standard"
           handPool={rangeEdgeHands(range.hands)}
@@ -273,7 +314,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     case 'weakness':
       return (
         <RecognitionDrill
-          key={`${range.id}-${index}`}
+          key={`${range.id}-${index}-${run}`}
           range={range}
           variant="weakness"
           position={position}
@@ -283,7 +324,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     case 'timed':
       return (
         <RecognitionDrill
-          key={`${range.id}-${index}`}
+          key={`${range.id}-${index}-${run}`}
           range={range}
           variant="timed"
           durationSeconds={phase.durationSeconds}

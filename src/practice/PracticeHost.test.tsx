@@ -198,6 +198,47 @@ describe('PracticeHost recognition flow', () => {
     )
   })
 
+  it('re-drills only the hands the session missed', () => {
+    render(
+      <PracticeHost
+        request={{
+          ranges: [makeRange('a', 'UTG open', { hands: ['AA', 'KK', 'QQ'] })],
+          mode: 'recognize',
+          handPool: ['AA', '72o'],
+        }}
+        onClose={vi.fn()}
+      />,
+    )
+    // Answer the first prompt wrongly, whichever of the pool's two it is.
+    const missed = screen.getByTestId('drill-hand').textContent ?? ''
+    fireEvent.click(screen.getByRole('button', { name: missed === 'AA' ? 'Fold' : 'In range' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close practice' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Drill these now' }))
+
+    // Back in a drill, dealing the one missed hand — not the request's wider pool.
+    expect(screen.queryByLabelText('Session summary')).not.toBeInTheDocument()
+    for (let i = 0; i < 5; i += 1) {
+      expect(screen.getByTestId('drill-hand')).toHaveTextContent(missed)
+      fireEvent.click(screen.getByRole('button', { name: 'Fold' }))
+      const next = screen.queryByRole('button', { name: 'Next' })
+      if (!next) break
+      fireEvent.click(next)
+    }
+  })
+
+  it('offers no re-drill when the session missed nothing', () => {
+    render(
+      <PracticeHost
+        request={{ ranges: [makeRange('a', 'UTG open')], mode: 'recognize', handPool: ['AA'] }}
+        onClose={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'In range' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close practice' }))
+
+    expect(screen.queryByRole('button', { name: 'Drill these now' })).not.toBeInTheDocument()
+  })
+
   it('leaves the miss recap off a clean session', () => {
     render(
       <PracticeHost

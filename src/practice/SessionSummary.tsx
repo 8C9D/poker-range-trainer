@@ -24,6 +24,11 @@ interface SessionSummaryProps {
   hasNext: boolean
   onNext: () => void
   onDone: () => void
+  /**
+   * Re-run this range over just the hands it missed. Omitted when the run has
+   * no misses, or when its misses are not a pool one drill could deal from.
+   */
+  onDrillMisses?: () => void
 }
 
 const RING_RADIUS = 66
@@ -33,7 +38,13 @@ const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
  * The peak-end session summary: an animated accuracy ring, the count line,
  * the growth-framed delta, and the streak confirmation.
  */
-export function SessionSummary({ data, hasNext, onNext, onDone }: SessionSummaryProps) {
+export function SessionSummary({
+  data,
+  hasNext,
+  onNext,
+  onDone,
+  onDrillMisses,
+}: SessionSummaryProps) {
   // Animate the ring from 0 to the session accuracy on mount (CSS transition
   // does the easing; reduced-motion users see it instantly).
   const [shownAccuracy, setShownAccuracy] = useState(0)
@@ -102,7 +113,7 @@ export function SessionSummary({ data, hasNext, onNext, onDone }: SessionSummary
       {data.deltaLine && <p className="session-summary-delta">{data.deltaLine}</p>}
       {data.goalLine && <p className="session-summary-goal">{data.goalLine}</p>}
       {data.streakLine && <p className="session-summary-streak">{data.streakLine}</p>}
-      {data.misses && <MissRecapList misses={data.misses} />}
+      {data.misses && <MissRecapList misses={data.misses} onDrill={onDrillMisses} />}
       {data.saveError && (
         <p className="session-summary-error" role="alert">
           {data.saveError}
@@ -143,7 +154,7 @@ export function SessionSummary({ data, hasNext, onNext, onDone }: SessionSummary
  * actionable. Directions the run never missed are omitted rather than shown
  * empty, so a one-sided session reads as one line.
  */
-function MissRecapList({ misses }: { misses: MissRecap }) {
+function MissRecapList({ misses, onDrill }: { misses: MissRecap; onDrill?: () => void }) {
   return (
     <section className="session-summary-misses" aria-label="What you missed">
       {/* h2, matching the workout hand-off: the overlay's own title is a span,
@@ -165,6 +176,13 @@ function MissRecapList({ misses }: { misses: MissRecap }) {
         <p className="session-summary-miss-more">
           and {misses.hiddenCount} more — the drill will bring them back.
         </p>
+      )}
+      {/* Reading the list is the lesson; drilling it right away is the practice.
+          Deals EVERY hand the run missed, not just the ones named above. */}
+      {onDrill && (
+        <button type="button" className="coach-btn session-summary-miss-drill" onClick={onDrill}>
+          Drill these now
+        </button>
       )}
     </section>
   )
