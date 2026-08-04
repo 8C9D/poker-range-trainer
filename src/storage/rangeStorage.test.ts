@@ -457,7 +457,9 @@ describe('handActions persistence', () => {
 
 describe('comboSelections persistence', () => {
   it('round-trips a range saved with comboSelections', () => {
-    saveSavedRange(makeRange({ id: 'r1', comboSelections: { AKs: ['AhKh', 'AsKs'] } }))
+    saveSavedRange(
+      makeRange({ id: 'r1', hands: ['AA', 'KK', 'AKs'], comboSelections: { AKs: ['AhKh', 'AsKs'] } }),
+    )
     expect(loadSavedRanges()[0].comboSelections).toEqual({ AKs: ['AhKh', 'AsKs'] })
   })
 
@@ -473,7 +475,7 @@ describe('comboSelections persistence', () => {
         {
           id: 'r1',
           name: 'R',
-          hands: ['AA'],
+          hands: ['AA', 'AKs'],
           createdAt: 'T',
           updatedAt: 'T',
           comboSelections: {
@@ -491,6 +493,7 @@ describe('comboSelections persistence', () => {
     saveSavedRange(
       makeRange({
         id: 'r1',
+        hands: ['AA', 'KK', 'AKs'],
         comboSelections: { AKs: ['AhKh', 'AcKd', 'AhKh'] },
       }),
     )
@@ -521,6 +524,7 @@ describe('mixedStrategies persistence', () => {
     saveSavedRange(
       makeRange({
         id: 'r1',
+        hands: ['AA', 'KK', 'A5s'],
         mixedStrategies: {
           A5s: [
             { action: 'fourBet', frequency: 50 },
@@ -590,7 +594,11 @@ describe('mixedStrategies persistence', () => {
 describe('handNotes persistence', () => {
   it('round-trips a range saved with hand notes, trimming values', () => {
     saveSavedRange(
-      makeRange({ id: 'r1', handNotes: { AKs: '  always 4-bet vs UTG  ', KK: 'flat vs UTG' } }),
+      makeRange({
+        id: 'r1',
+        hands: ['AA', 'KK', 'AKs'],
+        handNotes: { AKs: '  always 4-bet vs UTG  ', KK: 'flat vs UTG' },
+      }),
     )
     expect(loadSavedRanges()[0].handNotes).toEqual({
       AKs: 'always 4-bet vs UTG',
@@ -613,11 +621,27 @@ describe('handNotes persistence', () => {
           hands: ['AA'],
           createdAt: 'T',
           updatedAt: 'T',
-          handNotes: { AKs: 'good note', ZZ: 'bad key', KK: 42, QQ: '   ' },
+          handNotes: { AA: 'good note', AKs: 'orphan note', ZZ: 'bad key', KK: 42, QQ: '   ' },
         },
       ]),
     )
-    expect(loadSavedRanges()[0].handNotes).toEqual({ AKs: 'good note' })
+    expect(loadSavedRanges()[0].handNotes).toEqual({ AA: 'good note' })
+  })
+
+  it('drops combo, frequency, and note overlays for hands outside the range', () => {
+    saveSavedRange(
+      makeRange({
+        id: 'r1',
+        hands: ['AA'],
+        comboSelections: { KK: ['KsKh'] },
+        mixedStrategies: { KK: [{ action: 'fold', frequency: 100 }] },
+        handNotes: { KK: 'orphan note' },
+      }),
+    )
+
+    expect(loadSavedRanges()[0]).not.toHaveProperty('comboSelections')
+    expect(loadSavedRanges()[0]).not.toHaveProperty('mixedStrategies')
+    expect(loadSavedRanges()[0]).not.toHaveProperty('handNotes')
   })
 
   it('omits handNotes entirely when no entries are valid', () => {

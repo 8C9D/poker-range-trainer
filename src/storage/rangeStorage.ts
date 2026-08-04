@@ -102,11 +102,14 @@ function normalizeHandActions(value: unknown): Record<PokerHand, RangeAction> | 
  * all-empty result collapses to `undefined` so `comboSelections: {}` is never
  * persisted (absence = all combos selected, the default).
  */
-function normalizeComboSelections(value: unknown): Record<PokerHand, string[]> | undefined {
+function normalizeComboSelections(
+  value: unknown,
+  rangeHands: ReadonlySet<PokerHand>,
+): Record<PokerHand, string[]> | undefined {
   if (typeof value !== 'object' || value === null) return undefined
   const result: Record<PokerHand, string[]> = {}
   for (const [hand, raw] of Object.entries(value as Record<string, unknown>)) {
-    if (!isValidHand(hand) || !Array.isArray(raw)) continue
+    if (!isValidHand(hand) || !rangeHands.has(hand) || !Array.isArray(raw)) continue
     const allowed = allCombosForHand(hand)
     const keys = [
       ...new Set(
@@ -131,11 +134,12 @@ function normalizeComboSelections(value: unknown): Record<PokerHand, string[]> |
  */
 function normalizeMixedStrategies(
   value: unknown,
+  rangeHands: ReadonlySet<PokerHand>,
 ): Record<PokerHand, HandMixedStrategy> | undefined {
   if (typeof value !== 'object' || value === null) return undefined
   const result: Record<PokerHand, HandMixedStrategy> = {}
   for (const [hand, raw] of Object.entries(value as Record<string, unknown>)) {
-    if (!isValidHand(hand) || !Array.isArray(raw)) continue
+    if (!isValidHand(hand) || !rangeHands.has(hand) || !Array.isArray(raw)) continue
     const normalized = normalizeMixedStrategy(raw as HandMixedStrategy)
     if (normalized.length > 0) result[hand] = normalized
   }
@@ -151,11 +155,14 @@ function normalizeMixedStrategies(
  * collapses to `undefined` so `handNotes: {}` is never persisted (absence = no
  * notes).
  */
-function normalizeHandNotes(value: unknown): Record<PokerHand, string> | undefined {
+function normalizeHandNotes(
+  value: unknown,
+  rangeHands: ReadonlySet<PokerHand>,
+): Record<PokerHand, string> | undefined {
   if (typeof value !== 'object' || value === null) return undefined
   const result: Record<PokerHand, string> = {}
   for (const [hand, raw] of Object.entries(value as Record<string, unknown>)) {
-    if (!isValidHand(hand) || typeof raw !== 'string') continue
+    if (!isValidHand(hand) || !rangeHands.has(hand) || typeof raw !== 'string') continue
     const trimmed = raw.trim()
     if (trimmed.length > 0) result[hand] = trimmed
   }
@@ -220,19 +227,21 @@ function parseSavedRange(value: unknown): SavedRange | null {
   }
 
   // Hands are valid, so normalize (de-dupe + canonical order) without throwing.
+  const normalizedHands = normalizeRangeHands(validatedHands)
+  const rangeHands = new Set(normalizedHands)
   const normalizedMetadata = normalizeMetadata(metadata)
   const normalizedSource = normalizeSource(source)
   const normalizedHandActions = normalizeHandActions(handActions)
-  const normalizedComboSelections = normalizeComboSelections(comboSelections)
-  const normalizedMixedStrategies = normalizeMixedStrategies(mixedStrategies)
-  const normalizedHandNotes = normalizeHandNotes(handNotes)
+  const normalizedComboSelections = normalizeComboSelections(comboSelections, rangeHands)
+  const normalizedMixedStrategies = normalizeMixedStrategies(mixedStrategies, rangeHands)
+  const normalizedHandNotes = normalizeHandNotes(handNotes, rangeHands)
   const normalizedTags = normalizeTags(tags)
   return {
     id,
     name,
     createdAt,
     updatedAt,
-    hands: normalizeRangeHands(validatedHands),
+    hands: normalizedHands,
     ...(normalizedMetadata ? { metadata: normalizedMetadata } : {}),
     ...(normalizedSource ? { source: normalizedSource } : {}),
     ...(normalizedHandActions ? { handActions: normalizedHandActions } : {}),
@@ -295,16 +304,18 @@ function normalizeSavedRange(range: SavedRange): SavedRange {
     handNotes,
     ...rest
   } = range
+  const normalizedHands = normalizeRangeHands(range.hands)
+  const rangeHands = new Set(normalizedHands)
   const normalizedMetadata = normalizeMetadata(metadata)
   const normalizedSource = normalizeSource(source)
   const normalizedHandActions = normalizeHandActions(handActions)
-  const normalizedComboSelections = normalizeComboSelections(comboSelections)
-  const normalizedMixedStrategies = normalizeMixedStrategies(mixedStrategies)
-  const normalizedHandNotes = normalizeHandNotes(handNotes)
+  const normalizedComboSelections = normalizeComboSelections(comboSelections, rangeHands)
+  const normalizedMixedStrategies = normalizeMixedStrategies(mixedStrategies, rangeHands)
+  const normalizedHandNotes = normalizeHandNotes(handNotes, rangeHands)
   const normalizedTags = normalizeTags(tags)
   return {
     ...rest,
-    hands: normalizeRangeHands(range.hands),
+    hands: normalizedHands,
     ...(normalizedMetadata ? { metadata: normalizedMetadata } : {}),
     ...(normalizedSource ? { source: normalizedSource } : {}),
     ...(normalizedHandActions ? { handActions: normalizedHandActions } : {}),
