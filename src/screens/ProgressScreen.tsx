@@ -6,6 +6,8 @@ import { currentStreak } from '../domain/spacedRepetition'
 import {
   accuracyByActionType,
   accuracyByPosition,
+  rangesAtPosition,
+  rangesWithActionType,
   type AccuracyGroup,
 } from '../domain/seatAccuracy'
 import { describeSpot, matchRangeToSpot, spotKey, type Spot } from '../domain/spot'
@@ -94,6 +96,16 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
     const queue = ranges.filter((range) => pools[range.id]?.length)
     if (queue.length === 0) return
     onDrillWeakHands(queue, pools)
+  }
+
+  /**
+   * Drill a seat or action leak: the charts behind that number, each in full.
+   * No pools — unlike a hand-class leak, what is weak here is the situation, not
+   * a set of hands, so the whole chart is the thing to re-drill.
+   */
+  function drillGroup(queue: SavedRange[]) {
+    if (queue.length === 0) return
+    onDrillWeakHands(queue, {})
   }
 
   return (
@@ -230,8 +242,18 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
           </p>
         ) : (
           <div className="progress-seats">
-            <LeakColumn heading="By seat" groups={seatGroups} labels={POSITION_LABELS} />
-            <LeakColumn heading="By action" groups={actionGroups} labels={ACTION_TYPE_LABELS} />
+            <LeakColumn
+              heading="By seat"
+              groups={seatGroups}
+              labels={POSITION_LABELS}
+              onDrill={(key) => drillGroup(rangesAtPosition(ranges, practiceStats, key))}
+            />
+            <LeakColumn
+              heading="By action"
+              groups={actionGroups}
+              labels={ACTION_TYPE_LABELS}
+              onDrill={(key) => drillGroup(rangesWithActionType(ranges, practiceStats, key))}
+            />
           </div>
         )}
       </section>
@@ -338,16 +360,19 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
 
 /**
  * One ranked column of the v8.4 leak breakdown: weakest group first, each an
- * accuracy bar. Renders nothing when the cut has no group above the threshold.
+ * accuracy bar with a shortcut into drilling it. Renders nothing when the cut
+ * has no group above the threshold.
  */
 function LeakColumn<T extends string>({
   heading,
   groups,
   labels,
+  onDrill,
 }: {
   heading: string
   groups: AccuracyGroup<T>[]
   labels: Record<T, string>
+  onDrill: (key: T) => void
 }) {
   if (groups.length === 0) return null
   return (
@@ -366,6 +391,16 @@ function LeakColumn<T extends string>({
             <span className="progress-seat-value coach-tabular">
               {group.accuracy.toFixed(0)}%
             </span>
+            {/* Naming a leak with no way to act on it is the one report that
+                left the user to go and find the charts themselves. */}
+            <button
+              type="button"
+              className="coach-btn progress-seat-drill"
+              onClick={() => onDrill(group.key)}
+              aria-label={`Drill ${labels[group.key]}`}
+            >
+              Drill
+            </button>
           </li>
         ))}
       </ul>

@@ -100,3 +100,40 @@ export function accuracyByActionType(
 ): AccuracyGroup<ActionType>[] {
   return groupBy(ACTION_TYPES, ranges, stats, (range) => range.metadata?.actionType, minAttempts)
 }
+
+/** The ranges one group's number was computed from — same filter as `groupBy`. */
+function rangesFeeding<T extends string>(
+  ranges: SavedRange[],
+  stats: Record<string, RangePracticeStats>,
+  keyOf: (range: SavedRange) => T | undefined,
+  key: T,
+): SavedRange[] {
+  return ranges.filter((range) => {
+    const stat = stats[range.id]
+    return !range.archived && keyOf(range) === key && !!stat && stat.totalAttempts > 0
+  })
+}
+
+/**
+ * The charts behind a seat's number, so the report can offer to drill it.
+ *
+ * Exactly the ranges the group was computed from, not every chart saved at that
+ * seat: an unpracticed range contributed nothing to the accuracy on screen, so
+ * drilling it would answer a claim the report never made.
+ */
+export function rangesAtPosition(
+  ranges: SavedRange[],
+  stats: Record<string, RangePracticeStats>,
+  position: Position,
+): SavedRange[] {
+  return rangesFeeding(ranges, stats, (range) => range.metadata?.position, position)
+}
+
+/** The same for an action-type group. */
+export function rangesWithActionType(
+  ranges: SavedRange[],
+  stats: Record<string, RangePracticeStats>,
+  actionType: ActionType,
+): SavedRange[] {
+  return rangesFeeding(ranges, stats, (range) => range.metadata?.actionType, actionType)
+}

@@ -11,6 +11,8 @@ import { rankSpotLeaks } from '@core/domain/spotLeaks';
 import {
   accuracyByActionType,
   accuracyByPosition,
+  rangesAtPosition,
+  rangesWithActionType,
   type AccuracyGroup,
 } from '@core/domain/seatAccuracy';
 import { rankWeakHands, weakHandPools } from '@core/domain/weakHands';
@@ -25,7 +27,7 @@ import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
 import { loadSavedRanges } from '@core/storage/rangeStorage';
 import { loadSessionHistory } from '@core/storage/sessionHistoryStorage';
 import { loadSpotAccuracy } from '@core/storage/spotAccuracyStorage';
-import { ACTION_TYPE_LABELS, POSITION_LABELS } from '@core/types/range';
+import { ACTION_TYPE_LABELS, POSITION_LABELS, type SavedRange } from '@core/types/range';
 
 import { Screen } from '../../components/Screen';
 import { fonts } from '../../theme/fonts';
@@ -83,6 +85,7 @@ function loadProgressState() {
   const actionGroups = accuracyByActionType(ranges, practiceStats);
   return {
     ranges,
+    practiceStats,
     streak,
     month,
     analytics,
@@ -109,6 +112,7 @@ export default function ProgressScreen() {
 
   const {
     ranges,
+    practiceStats,
     streak,
     month,
     analytics,
@@ -324,6 +328,7 @@ export default function ProgressScreen() {
                 heading="By seat"
                 groups={seatGroups}
                 labels={POSITION_LABELS}
+                drillQueue={(key) => rangesAtPosition(ranges, practiceStats, key)}
                 styles={styles}
                 theme={theme}
               />
@@ -331,6 +336,7 @@ export default function ProgressScreen() {
                 heading="By action"
                 groups={actionGroups}
                 labels={ACTION_TYPE_LABELS}
+                drillQueue={(key) => rangesWithActionType(ranges, practiceStats, key)}
                 styles={styles}
                 theme={theme}
               />
@@ -430,12 +436,15 @@ function LeakColumn<T extends string>({
   heading,
   groups,
   labels,
+  drillQueue,
   styles,
   theme,
 }: {
   heading: string;
   groups: AccuracyGroup<T>[];
   labels: Record<T, string>;
+  /** The charts behind a group's number — the queue its Drill shortcut runs. */
+  drillQueue: (key: T) => SavedRange[];
   styles: ReturnType<typeof makeStyles>;
   theme: ThemeColors;
 }) {
@@ -443,20 +452,39 @@ function LeakColumn<T extends string>({
   return (
     <View style={styles.seatColumn}>
       <Text style={styles.seatHeading}>{heading}</Text>
-      {groups.map((group) => (
-        <View key={group.key} testID={`seat-row-${group.key}`} style={styles.seatRow}>
-          <Text style={styles.seatName}>{labels[group.key]}</Text>
-          <View style={styles.seatBar}>
-            <View
-              style={[
-                styles.seatFill,
-                { width: `${Math.max(2, group.accuracy)}%`, backgroundColor: theme.goldFill },
-              ]}
-            />
+      {groups.map((group) => {
+        const queue = drillQueue(group.key);
+        return (
+          <View key={group.key} testID={`seat-row-${group.key}`} style={styles.seatRow}>
+            <Text style={styles.seatName}>{labels[group.key]}</Text>
+            <View style={styles.seatBar}>
+              <View
+                style={[
+                  styles.seatFill,
+                  { width: `${Math.max(2, group.accuracy)}%`, backgroundColor: theme.goldFill },
+                ]}
+              />
+            </View>
+            <Text style={styles.seatValue}>{group.accuracy.toFixed(0)}%</Text>
+            {/* Naming a leak with no way to act on it is the one report that left
+                the user to go and find the charts themselves. No pools: what is
+                weak here is the situation, so each chart is drilled whole. */}
+            {queue.length > 0 ? (
+              <Link
+                href={{
+                  pathname: '/practice',
+                  params: { queue: queue.map((range) => range.id).join(','), mode: 'recognize' },
+                }}
+                asChild
+              >
+                <Text testID={`drill-seat-${group.key}`} style={styles.drillBtn}>
+                  Drill
+                </Text>
+              </Link>
+            ) : null}
           </View>
-          <Text style={styles.seatValue}>{group.accuracy.toFixed(0)}%</Text>
-        </View>
-      ))}
+        );
+      })}
     </View>
   );
 }

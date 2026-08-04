@@ -280,11 +280,47 @@ describe('ProgressScreen leak breakdown', () => {
     const rows = within(card).getAllByRole('listitem')
     // Two columns: seats (BB 30%, BTN 90%) then actions (Defend 30%, Open 90%).
     expect(rows.map((row) => row.textContent)).toEqual([
-      'BB30%',
-      'BTN90%',
-      'Defend30%',
-      'Open90%',
+      'BB30%Drill',
+      'BTN90%Drill',
+      'Defend30%Drill',
+      'Open90%Drill',
     ])
+  })
+
+  it('drills the charts behind a weak seat, each in full', async () => {
+    const user = userEvent.setup()
+    const onDrillWeakHands = vi.fn()
+    seedRange('a', 'BB defend vs BTN', { position: 'bb', actionType: 'defend' })
+    seedRange('b', 'BB defend vs CO', { position: 'bb', actionType: 'defend' })
+    seedRange('c', 'BTN open', { position: 'btn', actionType: 'open' })
+    recordPracticeSession('a', { totalQuestions: 10, correctAnswers: 3 }, TODAY)
+    recordPracticeSession('b', { totalQuestions: 10, correctAnswers: 4 }, TODAY)
+    recordPracticeSession('c', { totalQuestions: 10, correctAnswers: 9 }, TODAY)
+    render(<ProgressScreen onDrillWeakHands={onDrillWeakHands} onDrillSpot={vi.fn()} />)
+
+    const card = screen.getByRole('region', { name: 'Accuracy by seat and action' })
+    await user.click(within(card).getByRole('button', { name: 'Drill BB' }))
+
+    const [queue, pools] = onDrillWeakHands.mock.calls[0]
+    expect(queue.map((range: SavedRange) => range.id)).toEqual(['a', 'b'])
+    // No pools: the situation is what is weak, so each chart is drilled whole.
+    expect(pools).toEqual({})
+  })
+
+  it('drills by action independently of the seat cut', async () => {
+    const user = userEvent.setup()
+    const onDrillWeakHands = vi.fn()
+    seedRange('a', 'BB defend', { position: 'bb', actionType: 'defend' })
+    seedRange('b', 'BTN open', { position: 'btn', actionType: 'open' })
+    recordPracticeSession('a', { totalQuestions: 10, correctAnswers: 3 }, TODAY)
+    recordPracticeSession('b', { totalQuestions: 10, correctAnswers: 9 }, TODAY)
+    render(<ProgressScreen onDrillWeakHands={onDrillWeakHands} onDrillSpot={vi.fn()} />)
+
+    const card = screen.getByRole('region', { name: 'Accuracy by seat and action' })
+    await user.click(within(card).getByRole('button', { name: 'Drill Open' }))
+
+    const [queue] = onDrillWeakHands.mock.calls[0]
+    expect(queue.map((range: SavedRange) => range.id)).toEqual(['b'])
   })
 })
 

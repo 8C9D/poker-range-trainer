@@ -15,7 +15,12 @@ jest.mock('react-native-mmkv');
 jest.mock('expo-crypto');
 jest.mock('expo-router', () => ({
   useFocusEffect: () => {},
-  Link: ({ children }: { children: ReactNode }) => children,
+  // Every Link here is `asChild`, so it renders its one child. The href is copied
+  // onto that child so tests can assert where a shortcut actually goes, not just
+  // that it rendered.
+  Link: ({ href, children }: { href: unknown; children: ReactNode }) =>
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require('react').cloneElement(children, { href }),
 }));
 
 function seed(id: string, name: string): void {
@@ -252,8 +257,30 @@ describe('ProgressScreen leak breakdown', () => {
     const { getByTestId } = await render(<ProgressScreen />);
 
     const card = getByTestId('seat-leaks');
-    expect(card).toHaveTextContent('Where you leakBy seatBB30%BTN90%By actionDefend30%Open90%');
-    expect(getByTestId('seat-row-bb')).toHaveTextContent('BB30%');
+    expect(card).toHaveTextContent(
+      'Where you leakBy seatBB30%DrillBTN90%DrillBy actionDefend30%DrillOpen90%Drill',
+    );
+    expect(getByTestId('seat-row-bb')).toHaveTextContent('BB30%Drill');
+  });
+
+  it('drills the charts behind a weak seat, each in full', async () => {
+    seedWithMetadata('bbVsBtn', { position: 'bb', actionType: 'defend' });
+    seedWithMetadata('bbVsCo', { position: 'bb', actionType: 'defend' });
+    seedWithMetadata('btn', { position: 'btn', actionType: 'open' });
+    recordPracticeSession('bbVsBtn', { totalQuestions: 10, correctAnswers: 3 });
+    recordPracticeSession('bbVsCo', { totalQuestions: 10, correctAnswers: 4 });
+    recordPracticeSession('btn', { totalQuestions: 10, correctAnswers: 9 });
+    const { getByTestId } = await render(<ProgressScreen />);
+
+    // No `pools` param: the situation is what is weak, so each chart is whole.
+    expect(getByTestId('drill-seat-bb').props.href).toEqual({
+      pathname: '/practice',
+      params: { queue: 'bbVsBtn,bbVsCo', mode: 'recognize' },
+    });
+    expect(getByTestId('drill-seat-open').props.href).toEqual({
+      pathname: '/practice',
+      params: { queue: 'btn', mode: 'recognize' },
+    });
   });
 });
 

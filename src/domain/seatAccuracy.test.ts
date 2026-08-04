@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { accuracyByActionType, accuracyByPosition } from './seatAccuracy'
+import {
+  accuracyByActionType,
+  accuracyByPosition,
+  rangesAtPosition,
+  rangesWithActionType,
+} from './seatAccuracy'
 import type { RangePracticeStats } from '../types/practice'
 import type { RangeMetadata, SavedRange } from '../types/range'
 
@@ -90,5 +95,45 @@ describe('accuracyByActionType', () => {
       'threeBet',
       'open',
     ])
+  })
+})
+
+describe('rangesAtPosition / rangesWithActionType', () => {
+  const ranges = [
+    makeRange('practiced', { position: 'btn', actionType: 'open' }),
+    makeRange('alsoPracticed', { position: 'btn', actionType: 'threeBet' }),
+    makeRange('unpracticed', { position: 'btn', actionType: 'open' }),
+    makeRange('archived', { position: 'btn', actionType: 'open' }, true),
+    makeRange('elsewhere', { position: 'bb', actionType: 'defend' }),
+    makeRange('noSeat', { actionType: 'open' }),
+  ]
+  const stats = {
+    practiced: stat('practiced', 10, 4),
+    alsoPracticed: stat('alsoPracticed', 10, 5),
+    archived: stat('archived', 10, 1),
+    elsewhere: stat('elsewhere', 10, 9),
+    noSeat: stat('noSeat', 10, 2),
+  }
+
+  it('returns exactly the ranges the seat group was computed from', () => {
+    // The archived and unpracticed BTN charts fed no number, so drilling them
+    // would answer a claim the report never made.
+    expect(rangesAtPosition(ranges, stats, 'btn').map((range) => range.id)).toEqual([
+      'practiced',
+      'alsoPracticed',
+    ])
+  })
+
+  it('returns exactly the ranges the action group was computed from', () => {
+    // Including the one declaring no seat: it feeds the action cut, not the seat cut.
+    expect(rangesWithActionType(ranges, stats, 'open').map((range) => range.id)).toEqual([
+      'practiced',
+      'noSeat',
+    ])
+  })
+
+  it('is empty for a group nothing feeds', () => {
+    expect(rangesAtPosition(ranges, stats, 'utg')).toEqual([])
+    expect(rangesWithActionType(ranges, stats, 'jam')).toEqual([])
   })
 })
