@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
 
 import { fonts } from '../theme/fonts';
@@ -15,6 +15,13 @@ import { useTheme } from '../theme/colors';
  */
 export function useLiveSave(): [string | null, (save: () => void) => boolean] {
   const [saveError, setSaveError] = useState<string | null>(null);
+  const saveErrorRef = useRef<string | null>(null);
+
+  const updateSaveError = useCallback((nextError: string | null) => {
+    if (saveErrorRef.current === nextError) return;
+    saveErrorRef.current = nextError;
+    setSaveError(nextError);
+  }, []);
 
   // Returns whether the write landed, so a caller that navigates or refreshes on
   // the back of a save only does so when there is something saved to show.
@@ -22,12 +29,12 @@ export function useLiveSave(): [string | null, (save: () => void) => boolean] {
     try {
       save();
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : 'Could not save this range.');
+      updateSaveError(error instanceof Error ? error.message : 'Could not save this range.');
       return false;
     }
-    setSaveError(null);
+    updateSaveError(null);
     return true;
-  }, []);
+  }, [updateSaveError]);
 
   return [saveError, runSave];
 }
