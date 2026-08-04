@@ -181,6 +181,33 @@ describe('ProgressScreen', () => {
     expect(pools).toEqual({ a: ['AKs'], b: ['KK'] })
   })
 
+  it('keeps a live leak in the table when orphaned records outrank it', () => {
+    saveSavedRange(makeRange('a', 'UTG open'))
+    // Ten weaker records for a range that is gone — enough to fill the report's
+    // cap on their own. Scoped after ranking, they would take every slot and the
+    // live leak below would vanish from a table that still says "Weakest hands".
+    recordHandAccuracy(
+      'deleted',
+      ['22', '32s', '42s', '52s', '62s', '72s', '82s', '92s', 'T2s', 'J2s'].map((hand) => ({
+        hand,
+        attempts: 6,
+        correct: 0,
+        falsePositives: 0,
+        falseNegatives: 6,
+      })),
+    )
+    recordHandAccuracy('a', [
+      { hand: 'AKs', attempts: 4, correct: 1, falsePositives: 0, falseNegatives: 3 },
+    ])
+    render(<ProgressScreen onDrillWeakHands={vi.fn()} onDrillSpot={vi.fn()} />)
+
+    const weak = screen.getByRole('region', { name: 'Weakest hands' })
+    const rows = within(weak).getAllByRole('row').slice(1)
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toHaveTextContent('AKs')
+    expect(rows[0]).toHaveTextContent('UTG open')
+  })
+
   it('ranks leaks by hand type and drills a whole class', async () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'UTG open'))

@@ -67,13 +67,14 @@ function loadProgressState() {
   );
   const days = dailyHandCounts(history, nowIso);
   const trend = weeklyAccuracyTrend(history, nowIso);
-  const weakHands = rankWeakHands(handAccuracy).filter((entry) =>
-    ranges.some((range) => range.id === entry.rangeId),
-  );
-  // Stats for deleted ranges would name leaks the user can no longer drill.
+  // Stats for deleted ranges would name leaks the user can no longer drill. Both
+  // reports below rank a CAPPED list, so the scoping happens before the ranking:
+  // filtering afterwards lets an orphaned record spend one of the slots and push
+  // a real leak off the end.
   const liveAccuracy = Object.fromEntries(
-    Object.entries(handAccuracy).filter(([rangeId]) => ranges.some((range) => range.id === rangeId)),
+    Object.entries(handAccuracy).filter(([rangeId]) => liveRangeIds.has(rangeId)),
   );
+  const weakHands = rankWeakHands(liveAccuracy);
   const leaks = rankHandClassLeaks(liveAccuracy);
   const spotLeaks = rankSpotLeaks(loadSpotAccuracy()).filter(
     (leak) => matchRangeToSpot(ranges, leak.spot) !== null,

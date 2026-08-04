@@ -67,6 +67,32 @@ describe('ProgressScreen', () => {
     expect(getByTestId('drill-weak-hands')).toBeTruthy();
   });
 
+  it('keeps a live leak in the table when orphaned records outrank it', async () => {
+    seed('r1', 'UTG Open');
+    // Ten weaker records for a range that is gone — enough to fill the report's
+    // cap on their own. Scoped after ranking, they would take every slot and the
+    // live leak below would vanish behind the "no recorded misses" empty state.
+    recordHandAccuracy(
+      'deleted',
+      ['22', '32s', '42s', '52s', '62s', '72s', '82s', '92s', 'T2s', 'J2s'].map((hand) => ({
+        hand,
+        attempts: 6,
+        correct: 0,
+        falsePositives: 0,
+        falseNegatives: 6,
+      })),
+    );
+    recordHandAccuracy('r1', [
+      { hand: 'AA', attempts: 4, correct: 1, falsePositives: 0, falseNegatives: 3 },
+    ]);
+
+    const { getByText, queryByText } = await render(<ProgressScreen />);
+
+    expect(queryByText(/No recorded misses yet/)).toBeNull();
+    expect(getByText('AA')).toBeTruthy();
+    expect(queryByText('32s')).toBeNull();
+  });
+
   it('charts accuracy by week once there is practice to chart', async () => {
     seed('r1', 'UTG Open');
     recordPracticeSessionHistory(
