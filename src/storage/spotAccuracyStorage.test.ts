@@ -52,6 +52,8 @@ describe('spotAccuracyStorage', () => {
         b: { spotKey: '', attempts: 1, correct: 1 },
         c: { spotKey: BB, attempts: -1, correct: 0 },
         d: 'nonsense',
+        e: { spotKey: 'not-a-spot', attempts: 1, correct: 1 },
+        f: { spotKey: BB, attempts: 1, correct: 2 },
       }),
     )
 
@@ -65,5 +67,12 @@ describe('spotAccuracyStorage', () => {
     )
 
     expect(Object.keys(loadSpotAccuracy())).toEqual([BTN])
+  })
+
+  it('rejects an impossible spot score instead of persisting it', () => {
+    expect(() =>
+      recordSpotAccuracy([{ spotKey: BTN, attempts: 1, correct: 2 }]),
+    ).toThrow(/invalid spot accuracy/)
+    expect(loadSpotAccuracy()).toEqual({})
   })
 })

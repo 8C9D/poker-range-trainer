@@ -259,6 +259,17 @@ describe('parseBackup', () => {
 
     expect(() => parseBackup(JSON.stringify(malformed))).toThrow(/reviewStates/)
   })
+
+  it('rejects impossible spot accuracy before restore', () => {
+    const malformed = {
+      ...buildBackup('2026-06-08T00:00:00.000Z'),
+      spotAccuracy: {
+        bad: { spotKey: 'not-a-spot', attempts: 1, correct: 1 },
+      },
+    }
+
+    expect(() => parseBackup(JSON.stringify(malformed))).toThrow(/spotAccuracy/)
+  })
 })
 
 describe('restoreBackup', () => {

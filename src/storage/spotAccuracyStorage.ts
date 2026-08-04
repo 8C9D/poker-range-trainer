@@ -1,5 +1,6 @@
 import type { SpotAccuracyStat } from '../types/practice'
-import { isNonNegativeFinite, readJson, writeJson } from './storageHelpers'
+import { parseSpotKey } from '../domain/spot'
+import { isNonNegativeInteger, readJson, writeJson } from './storageHelpers'
 
 /**
  * Local persistence for cumulative per-spot accuracy (v8.6), backed by
@@ -19,11 +20,25 @@ function parseSpotAccuracyStat(value: unknown): SpotAccuracyStat | null {
   if (typeof value !== 'object' || value === null) return null
   const { spotKey, attempts, correct } = value as Record<string, unknown>
 
-  if (typeof spotKey !== 'string' || spotKey.length === 0) return null
-  if (!isNonNegativeFinite(attempts)) return null
-  if (!isNonNegativeFinite(correct)) return null
+  if (typeof spotKey !== 'string' || parseSpotKey(spotKey) === null) return null
+  if (!isNonNegativeInteger(attempts)) return null
+  if (!isNonNegativeInteger(correct) || correct > attempts) return null
 
   return { spotKey, attempts, correct }
+}
+
+/** Strictly validate and normalize a complete per-spot accuracy map. */
+export function validateSpotAccuracy(value: unknown): Record<string, SpotAccuracyStat> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error('Spot accuracy is not an object.')
+  }
+  const stats: Record<string, SpotAccuracyStat> = {}
+  for (const entry of Object.values(value as Record<string, unknown>)) {
+    const stat = parseSpotAccuracyStat(entry)
+    if (stat === null) throw new Error('Spot accuracy contains an invalid record.')
+    stats[stat.spotKey] = stat
+  }
+  return stats
 }
 
 /**
@@ -55,6 +70,9 @@ export function loadSpotAccuracy(): Record<string, SpotAccuracyStat> {
  */
 export function recordSpotAccuracy(sessionStats: SpotAccuracyStat[]): void {
   if (sessionStats.length === 0) return
+  if (sessionStats.some((stat) => parseSpotAccuracyStat(stat) === null)) {
+    throw new Error('Cannot record invalid spot accuracy.')
+  }
 
   const stats = loadSpotAccuracy()
   for (const stat of sessionStats) {
