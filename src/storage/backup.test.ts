@@ -3,6 +3,7 @@ import type { SavedRange } from '../types/range'
 import { saveSavedRange } from './rangeStorage'
 import { loadSavedRanges } from './rangeStorage'
 import { ACTION_ACCURACY_STORAGE_KEY } from './actionAccuracyStorage'
+import { WORKOUT_STORAGE_KEY } from './workoutStorage'
 import { loadSpotAccuracy, recordSpotAccuracy } from './spotAccuracyStorage'
 import { loadTrainingGoal, saveTrainingGoal } from './trainingGoalStorage'
 import {
@@ -13,6 +14,29 @@ import {
   restoreBackup,
   serializeBackup,
 } from './backup'
+
+/**
+ * Every storage module, so the coverage guard below sees a new one the moment it
+ * exists. Read through the bundler rather than off disk, which keeps this file
+ * in the browser-typed config with the rest of the suite. Tests are excluded, or
+ * their suites would be pulled in and run a second time here.
+ */
+const STORAGE_MODULES = import.meta.glob<Record<string, unknown>>(['./*.ts', '!./*.test.ts'], {
+  eager: true,
+})
+
+/** Every versioned localStorage key the app persists, by the module that owns it. */
+function everyStorageKey(): Map<string, string> {
+  const keys = new Map<string, string>()
+  for (const [path, module] of Object.entries(STORAGE_MODULES)) {
+    for (const [name, value] of Object.entries(module)) {
+      if (!/STORAGE_KEY$/.test(name)) continue
+      if (typeof value !== 'string' || !value.startsWith('poker-range-trainer.')) continue
+      keys.set(value, path)
+    }
+  }
+  return keys
+}
 
 function makeRange(overrides: Partial<SavedRange> = {}): SavedRange {
   return {
@@ -28,6 +52,47 @@ function makeRange(overrides: Partial<SavedRange> = {}): SavedRange {
 // Isolate storage per test so cases never leak into one another or depend on order.
 beforeEach(() => {
   localStorage.clear()
+})
+
+/**
+ * A backup is the only thing standing between a user and losing everything when
+ * they move devices, and nothing about adding a tenth storage key forces anyone
+ * to remember this file. A slice left out does not fail anywhere: it exports
+ * fine, imports fine, and is simply gone on the other side — silently, and only
+ * for the data that took the longest to earn.
+ *
+ * So the keys are discovered rather than listed, and each one is either carried
+ * by a real build → restore round trip or named here with the reason it is not.
+ */
+describe('backup coverage', () => {
+  /** Keys a backup deliberately leaves behind, each with why it is not library data. */
+  const DEVICE_ONLY = new Map([
+    [
+      WORKOUT_STORAGE_KEY,
+      'the day-scoped "workout done today" flag — restoring it would mark another device done',
+    ],
+  ])
+
+  it('carries every persisted storage key, or names it as device-only', () => {
+    const owned = everyStorageKey()
+    // Guards the guard: a glob that resolved nothing would exempt everything.
+    expect(owned.size).toBeGreaterThanOrEqual(9)
+
+    // What a restore actually writes, taken from the real code rather than a
+    // list: every slice is written unconditionally, empty ones included.
+    localStorage.clear()
+    restoreBackup(buildBackup())
+    const restored = new Set(Object.keys(localStorage))
+
+    const dropped = [...owned]
+      .filter(([key]) => !restored.has(key) && !DEVICE_ONLY.has(key))
+      .map(([key, path]) => `${key} (${path}) is persisted but no backup carries it`)
+    expect(dropped).toEqual([])
+
+    // And the exemptions have to still be real keys, so a renamed one cannot sit
+    // here quietly exempting nothing.
+    expect([...DEVICE_ONLY.keys()].filter((key) => !owned.has(key))).toEqual([])
+  })
 })
 
 describe('buildBackup', () => {
