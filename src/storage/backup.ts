@@ -28,7 +28,11 @@ import {
   loadSessionHistory,
   validateSessionHistory,
 } from './sessionHistoryStorage'
-import { REVIEW_STATE_STORAGE_KEY, loadReviewStates } from './reviewStateStorage'
+import {
+  REVIEW_STATE_STORAGE_KEY,
+  loadReviewStates,
+  validateReviewStates,
+} from './reviewStateStorage'
 import { SPOT_ACCURACY_STORAGE_KEY, loadSpotAccuracy } from './spotAccuracyStorage'
 import { TRAINING_GOAL_STORAGE_KEY, loadTrainingGoal } from './trainingGoalStorage'
 
@@ -136,13 +140,6 @@ export function validateBackup(parsed: unknown): Backup {
   } catch (error) {
     throw new Error('Backup file contains an invalid range.', { cause: error })
   }
-  for (const field of [
-    'reviewStates',
-  ] as const) {
-    if (!isPlainObject(parsed[field])) {
-      throw new Error(`Backup file is missing its ${field} data.`)
-    }
-  }
   let practiceStats: Record<string, RangePracticeStats>
   try {
     practiceStats = validatePracticeStats(parsed.practiceStats)
@@ -167,6 +164,12 @@ export function validateBackup(parsed: unknown): Backup {
   } catch (error) {
     throw new Error('Backup file contains invalid sessionHistory data.', { cause: error })
   }
+  let reviewStates: Record<string, RangeReviewState>
+  try {
+    reviewStates = validateReviewStates(parsed.reviewStates)
+  } catch (error) {
+    throw new Error('Backup file contains invalid reviewStates data.', { cause: error })
+  }
   // Optional, so only their shape is checked when the file carries them at all.
   if (parsed.spotAccuracy !== undefined && !isPlainObject(parsed.spotAccuracy)) {
     throw new Error('Backup file is missing its spotAccuracy data.')
@@ -181,6 +184,7 @@ export function validateBackup(parsed: unknown): Backup {
     handAccuracy,
     actionAccuracy,
     sessionHistory,
+    reviewStates,
   } as unknown as Backup
 }
 

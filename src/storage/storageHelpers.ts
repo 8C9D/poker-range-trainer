@@ -14,6 +14,11 @@ export function isNonNegativeInteger(value: unknown): value is number {
   return isNonNegativeFinite(value) && Number.isInteger(value)
 }
 
+/** True when `value` is finite and strictly greater than zero. */
+export function isPositiveFinite(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+}
+
 /** True when `value` is a parseable date-time string. */
 export function isValidTimestamp(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && Number.isFinite(Date.parse(value))

@@ -242,6 +242,23 @@ describe('parseBackup', () => {
 
     expect(() => parseBackup(JSON.stringify(malformed))).toThrow(/sessionHistory/)
   })
+
+  it('rejects a backwards review schedule before restore', () => {
+    const malformed = {
+      ...buildBackup('2026-06-08T00:00:00.000Z'),
+      reviewStates: {
+        r1: {
+          rangeId: 'r1',
+          ease: 2.5,
+          intervalDays: 1,
+          dueAt: '2025-12-31T00:00:00.000Z',
+          lastReviewedAt: '2026-01-01T00:00:00.000Z',
+        },
+      },
+    }
+
+    expect(() => parseBackup(JSON.stringify(malformed))).toThrow(/reviewStates/)
+  })
 })
 
 describe('restoreBackup', () => {

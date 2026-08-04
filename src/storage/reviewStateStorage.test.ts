@@ -46,6 +46,20 @@ describe('loadReviewStates', () => {
         noId: { ease: 2.5, intervalDays: 1, dueAt: 'x', lastReviewedAt: 'y' },
         badEase: { rangeId: 'badEase', ease: 'lots', intervalDays: 1, dueAt: 'x', lastReviewedAt: 'y' },
         negInterval: { rangeId: 'negInterval', ease: 2, intervalDays: -1, dueAt: 'x', lastReviewedAt: 'y' },
+        fractionalInterval: {
+          rangeId: 'fractionalInterval',
+          ease: 2,
+          intervalDays: 1.5,
+          dueAt: '2026-01-02T00:00:00.000Z',
+          lastReviewedAt: '2026-01-01T00:00:00.000Z',
+        },
+        backwardsDue: {
+          rangeId: 'backwardsDue',
+          ease: 2,
+          intervalDays: 1,
+          dueAt: '2025-12-31T00:00:00.000Z',
+          lastReviewedAt: '2026-01-01T00:00:00.000Z',
+        },
         notAnObject: 42,
       }),
     )
@@ -80,5 +94,17 @@ describe('saveReviewState', () => {
     const loaded = loadReviewStates()
     expect(loaded.a.rangeId).toBe('a')
     expect(loaded.b.intervalDays).toBe(9)
+  })
+
+  it('rejects an invalid schedule instead of persisting it', () => {
+    expect(() =>
+      saveReviewState(
+        state({
+          dueAt: '2025-12-31T00:00:00.000Z',
+          lastReviewedAt: '2026-01-01T00:00:00.000Z',
+        }),
+      ),
+    ).toThrow(/invalid review state/)
+    expect(loadReviewStates()).toEqual({})
   })
 })

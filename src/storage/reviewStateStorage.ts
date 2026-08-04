@@ -1,5 +1,11 @@
 import type { RangeReviewState } from '../types/practice'
-import { isNonNegativeFinite, readJson, writeJson } from './storageHelpers'
+import {
+  isNonNegativeInteger,
+  isPositiveFinite,
+  isValidTimestamp,
+  readJson,
+  writeJson,
+} from './storageHelpers'
 
 /**
  * Local persistence for per-range spaced-repetition review state, backed by
@@ -19,12 +25,30 @@ function parseRangeReviewState(value: unknown): RangeReviewState | null {
   const { rangeId, ease, intervalDays, dueAt, lastReviewedAt } = value as Record<string, unknown>
 
   if (typeof rangeId !== 'string' || rangeId.length === 0) return null
-  if (!isNonNegativeFinite(ease)) return null
-  if (!isNonNegativeFinite(intervalDays)) return null
-  if (typeof dueAt !== 'string') return null
-  if (typeof lastReviewedAt !== 'string') return null
+  if (!isPositiveFinite(ease)) return null
+  if (!isNonNegativeInteger(intervalDays)) return null
+  const neverScheduled = intervalDays === 0 && dueAt === '' && lastReviewedAt === ''
+  if (!neverScheduled) {
+    if (intervalDays === 0) return null
+    if (!isValidTimestamp(dueAt) || !isValidTimestamp(lastReviewedAt)) return null
+    if (Date.parse(dueAt) < Date.parse(lastReviewedAt)) return null
+  }
 
   return { rangeId, ease, intervalDays, dueAt, lastReviewedAt }
+}
+
+/** Strictly validate and normalize a complete review-state map. */
+export function validateReviewStates(value: unknown): Record<string, RangeReviewState> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error('Review states are not an object.')
+  }
+  const states: Record<string, RangeReviewState> = {}
+  for (const entry of Object.values(value as Record<string, unknown>)) {
+    const state = parseRangeReviewState(entry)
+    if (state === null) throw new Error('Review states contain an invalid record.')
+    states[state.rangeId] = state
+  }
+  return states
 }
 
 /** Persist the full review-state map, serialized under the single storage key. */
@@ -54,6 +78,9 @@ export function loadReviewStates(): Record<string, RangeReviewState> {
 
 /** Upsert one range's review state (replacing any prior state for its `rangeId`). */
 export function saveReviewState(state: RangeReviewState): void {
+  if (parseRangeReviewState(state) === null) {
+    throw new Error('Cannot save an invalid review state.')
+  }
   const states = loadReviewStates()
   states[state.rangeId] = state
   writeReviewStates(states)
