@@ -92,18 +92,18 @@ export function formatRangeCsv(range: SavedRange): string {
  * save.
  */
 export function parseRangeCsv(csv: string): { name?: string; hands: PokerHand[] } {
-  const lines = csv.split(/\r?\n/)
+  const rows = parseCsvRows(csv)
 
   // Scan the summary block for an optional name, stopping at the `hand` header.
   let name: string | undefined
   let headerIndex = -1
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i].trim() === 'hand') {
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i].length === 1 && rows[i][0].trim() === 'hand') {
       headerIndex = i
       break
     }
-    if (name === undefined && lines[i].startsWith('name,')) {
-      name = csvUnescape(lines[i].slice('name,'.length))
+    if (name === undefined && rows[i][0] === 'name') {
+      name = rows[i][1] ?? ''
     }
   }
 
@@ -112,10 +112,9 @@ export function parseRangeCsv(csv: string): { name?: string; hands: PokerHand[] 
   }
 
   const hands: PokerHand[] = []
-  for (let i = headerIndex + 1; i < lines.length; i++) {
-    const raw = lines[i].trim()
-    if (raw.length === 0) continue
-    const hand = csvUnescape(raw)
+  for (let i = headerIndex + 1; i < rows.length; i++) {
+    const hand = rows[i][0]?.trim() ?? ''
+    if (hand.length === 0) continue
     if (!isValidHand(hand)) {
       throw new Error(`CSV contains an invalid hand: "${hand}".`)
     }
@@ -228,15 +227,45 @@ function xmlEscape(value: string): string {
 }
 
 function csvEscape(value: string): string {
-  return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value
+  return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value
 }
 
-/** Inverse of {@link csvEscape}: unwrap a quoted field and undouble `""`. */
-function csvUnescape(value: string): string {
-  if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) {
-    return value.slice(1, -1).replace(/""/g, '"')
+/** Parse standard comma-separated rows, including escaped quotes and quoted newlines. */
+function parseCsvRows(csv: string): string[][] {
+  const rows: string[][] = []
+  let row: string[] = []
+  let field = ''
+  let quoted = false
+
+  const finishRow = () => {
+    row.push(field)
+    rows.push(row)
+    row = []
+    field = ''
   }
-  return value
+
+  for (let index = 0; index < csv.length; index += 1) {
+    const char = csv[index]
+    if (char === '"') {
+      if (quoted && csv[index + 1] === '"') {
+        field += '"'
+        index += 1
+      } else {
+        quoted = !quoted
+      }
+    } else if (char === ',' && !quoted) {
+      row.push(field)
+      field = ''
+    } else if ((char === '\n' || char === '\r') && !quoted) {
+      if (char === '\r' && csv[index + 1] === '\n') index += 1
+      finishRow()
+    } else {
+      field += char
+    }
+  }
+  if (quoted) throw new Error('CSV has an unterminated quoted field.')
+  if (field.length > 0 || row.length > 0) finishRow()
+  return rows
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

@@ -125,6 +125,19 @@ describe('parseRangeCsv', () => {
     expect(parsed.hands).toEqual(['AA', 'KK', 'AKs'])
   })
 
+  it('round-trips a quoted name containing a newline and quotes', () => {
+    const range = makeRange({ name: 'BTN,\nvs BB "special"', hands: ['AA', 'AKs'] })
+
+    expect(parseRangeCsv(formatRangeCsv(range))).toEqual({
+      name: range.name,
+      hands: range.hands,
+    })
+  })
+
+  it('rejects an unterminated quoted field', () => {
+    expect(() => parseRangeCsv('name,"broken\n\nhand\nAA')).toThrow(/unterminated/)
+  })
+
   it('round-trips a name with an embedded double-quote (CSV "" escaping)', () => {
     // A comma name only exercises quote-wrapping; an embedded quote also
     // exercises the doubling on write and un-doubling on read.
