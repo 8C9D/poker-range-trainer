@@ -22,10 +22,16 @@
   background: var(--action-fill, var(--code-bg));
   border: 1px solid var(--border);
   border-radius: 3px;
+}
+
+/* The cell shape is shared with two read-only grids (the frequency map and the
+   range comparison), which render plain divs. Only the editable grid's buttons
+   may offer to be clicked — the others promised 169 clicks that never came. */
+button.action-cell {
   cursor: pointer;
 }
 
-.action-cell:hover {
+button.action-cell:hover {
   border-color: var(--accent-border);
 }
 

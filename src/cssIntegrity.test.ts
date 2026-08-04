@@ -129,6 +129,58 @@ describe('coach-btn variants', () => {
 })
 
 /**
+ * `cursor: pointer` is a promise. The frequency map and the range comparison
+ * both borrow `.action-cell` from the editable action grid for its shape, and
+ * borrowed its pointer and its hover border with it: 169 cells per grid that lit
+ * up under the cursor and did nothing when clicked, on two screens whose whole
+ * job is to be read. jsdom computes no styles, so the pairing is checked here,
+ * against the stylesheets and the markup that carries their classes.
+ */
+describe('click affordances', () => {
+  it('only offers a pointer on something that can be clicked', () => {
+    // Classes a plain `.class` rule makes look clickable. Element-qualified and
+    // descendant selectors are skipped: those already name what they style.
+    const clickable = new Set<string>()
+    for (const file of cssFiles(SRC)) {
+      // Comments first: they sit between the previous `}` and the selector, so
+      // an explained rule would otherwise read as an unrecognizable selector and
+      // be skipped — silently exempting the very rules someone stopped to justify.
+      const css = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+      for (const [, selectorList, body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        if (!/cursor\s*:\s*pointer/.test(body)) continue
+        for (const selector of selectorList.split(',')) {
+          const bare = /^\.([\w-]+)$/.exec(selector.trim())
+          if (bare) clickable.add(bare[1])
+        }
+      }
+    }
+    // Guards the guard: a scan that found no such class would pass on anything.
+    expect(clickable.size).toBeGreaterThan(5)
+    expect(clickable).toContain('coach-btn')
+
+    const INTERACTIVE = ['button', 'a', 'label', 'input', 'select', 'textarea', 'summary']
+    const offenders: string[] = []
+    let placements = 0
+    for (const file of filesUnder(SRC, '.tsx')) {
+      if (file.includes('.test.')) continue
+      const source = readFileSync(file, 'utf8')
+      for (const cls of clickable) {
+        for (const match of source.matchAll(new RegExp(`(?<![\\w-])${cls}(?![\\w-])`, 'g'))) {
+          // The element carrying the class is the nearest tag opened before it.
+          const opened = source.lastIndexOf('<', match.index)
+          const tag = /^<([A-Za-z][\w.]*)/.exec(source.slice(opened, opened + 40))?.[1]
+          if (!tag) continue
+          placements += 1
+          if (!INTERACTIVE.includes(tag)) offenders.push(`${file.slice(SRC.length)}: <${tag} .${cls}`)
+        }
+      }
+    }
+    expect(placements).toBeGreaterThan(20)
+    expect(offenders).toEqual([])
+  })
+})
+
+/**
  * A table of tabular columns has a hard minimum width. Left bare in a card it
  * does not shrink on a phone — it widens its card past the viewport and the
  * whole page scrolls sideways, which is how the Library's spot map, the
