@@ -18,6 +18,7 @@ import { loadSessionHistory } from '@core/storage/sessionHistoryStorage';
 import { recordSpotAccuracy } from '@core/storage/spotAccuracyStorage';
 import { loadTrainingGoal } from '@core/storage/trainingGoalStorage';
 import { recordWorkoutCompletion } from '@core/storage/workoutStorage';
+import type { PokerHand } from '@core/domain/pokerHands';
 import type { PracticeAttempt } from '@core/types/practice';
 import type { SavedRange } from '@core/types/range';
 
@@ -35,6 +36,12 @@ interface WorkoutHostProps {
   /** The whole library; the spot segments pick the range each spot needs. */
   ranges: SavedRange[];
   onClose: () => void;
+  /**
+   * Re-drill the whole run's misses, as per-range hand pools. A workout spans
+   * several ranges, so unlike a single-range session it cannot restart itself —
+   * the parent re-opens practice over the ranges that actually missed something.
+   */
+  onDrillMisses?: (pools: Record<string, PokerHand[]>) => void;
 }
 
 interface SegmentTally {
@@ -50,7 +57,7 @@ interface SegmentTally {
  * early keeps what was answered and jumps to the summary; closing before answering
  * anything abandons the run.
  */
-export function WorkoutHost({ workout, ranges, onClose }: WorkoutHostProps) {
+export function WorkoutHost({ workout, ranges, onClose, onDrillMisses }: WorkoutHostProps) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const { segments } = workout;
@@ -68,9 +75,10 @@ export function WorkoutHost({ workout, ranges, onClose }: WorkoutHostProps) {
   // after it rather than being reported where it happened.
   const saveErrorRef = useRef<string | null>(null);
   // Misses from every segment, so the one combined summary recaps the whole
-  // workout rather than only whichever part happened to end it. Same reason as
-  // the tallies above for being a ref.
-  const missedRef = useRef<PracticeAttempt[]>([]);
+  // workout rather than only whichever part happened to end it. Kept BY RANGE
+  // because a re-drill has to deal each range's misses against that range.
+  // Same reason as the tallies above for being a ref.
+  const missedRef = useRef<Record<string, PracticeAttempt[]>>({});
 
   const answeredSoFar = () => talliesRef.current.reduce((sum, tally) => sum + tally.total, 0);
 
@@ -84,7 +92,23 @@ export function WorkoutHost({ workout, ranges, onClose }: WorkoutHostProps) {
     const tally = talliesRef.current[segmentIndex];
     tally.total += attempts.length;
     tally.correct += attempts.filter((attempt) => attempt.correct).length;
-    missedRef.current.push(...attempts.filter((attempt) => !attempt.correct));
+  }
+
+  /** File a range's incorrect attempts under its id for the end-of-run recap. */
+  function addMissed(rangeId: string, attempts: PracticeAttempt[]) {
+    const missed = attempts.filter((attempt) => !attempt.correct);
+    if (missed.length === 0) return;
+    missedRef.current[rangeId] = [...(missedRef.current[rangeId] ?? []), ...missed];
+  }
+
+  /** The distinct hands each range got wrong, as a drill's per-range pools. */
+  function missedPools(): Record<string, PokerHand[]> {
+    return Object.fromEntries(
+      Object.entries(missedRef.current).map(([rangeId, attempts]) => [
+        rangeId,
+        [...new Set(attempts.map((attempt) => attempt.hand))],
+      ]),
+    );
   }
 
   function showSummary(completed: boolean) {
@@ -114,7 +138,7 @@ export function WorkoutHost({ workout, ranges, onClose }: WorkoutHostProps) {
         deltaLine: completed ? contributionLine : `Stopped early · ${contributionLine}`,
         goalLine: goalProgress.target > 0 ? goalLine(goalProgress) : null,
         streakLine: streak > 0 ? `${streak}-day streak — see you tomorrow to keep it going.` : null,
-        misses: recapMisses(missedRef.current),
+        misses: recapMisses(Object.values(missedRef.current).flat()),
         saveError: saveErrorRef.current,
       },
     });
@@ -140,6 +164,7 @@ export function WorkoutHost({ workout, ranges, onClose }: WorkoutHostProps) {
     if (attempts.length > 0) {
       record(() => recordFinishedPracticeSession(segment.ranges[rangeIndex].id, attempts));
       addTally(attempts);
+      addMissed(segment.ranges[rangeIndex].id, attempts);
     }
     if (attempts.length < segment.questionsPerRange) {
       exit();
@@ -162,6 +187,9 @@ export function WorkoutHost({ workout, ranges, onClose }: WorkoutHostProps) {
         recordSpotAccuracy(result.bySpot);
       });
       addTally(all);
+      for (const [rangeId, attempts] of Object.entries(result.byRange)) {
+        addMissed(rangeId, attempts);
+      }
     }
     if (all.length < segment.questionCount) exit();
     else advance();
@@ -170,7 +198,15 @@ export function WorkoutHost({ workout, ranges, onClose }: WorkoutHostProps) {
   if (phase.kind === 'summary') {
     return (
       <OverlayFrame title="Daily workout" progress={1} onClose={onClose}>
-        <SessionSummary data={phase.data} hasNext={false} onNext={onClose} onDone={onClose} />
+        <SessionSummary
+          data={phase.data}
+          hasNext={false}
+          onNext={onClose}
+          onDone={onClose}
+          onDrillMisses={
+            onDrillMisses && phase.data.misses ? () => onDrillMisses(missedPools()) : undefined
+          }
+        />
       </OverlayFrame>
     );
   }

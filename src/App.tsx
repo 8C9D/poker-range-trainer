@@ -102,8 +102,21 @@ function CoachApp() {
 
   const closePractice = useCallback(() => setPractice(null), [])
   const closeWorkout = useCallback(() => setWorkout(null), [])
-  useBackToClose(workout !== null, closeWorkout)
-  useBackToClose(workout === null && practice !== null, closePractice)
+  /**
+   * ONE Back handler for both hosts, not one each.
+   *
+   * At most one is on screen (the workout wins), so this is the same behavior —
+   * but as two hooks the workout-to-practice hand-off closed the run it had just
+   * opened: dropping the workout tore down its hook, whose cleanup pops the
+   * entry it pushed, while the practice hook pushed a fresh one in the same
+   * commit. The pop then landed on an unmarked entry and read as a real Back.
+   * Held open across the hand-off, the pushed entry simply stays.
+   */
+  const closeSession = useCallback(
+    () => (workout !== null ? closeWorkout() : closePractice()),
+    [workout, closeWorkout, closePractice],
+  )
+  useBackToClose(workout !== null || practice !== null, closeSession)
 
   function startReview(queue: SavedRange[]) {
     if (queue.length === 0) return
@@ -117,6 +130,19 @@ function CoachApp() {
     setPractice({ ranges: [range], mode: handPool ? 'recognize' : null, handPool })
   }
 
+  /**
+   * Re-drill a finished workout's misses. The run spans several ranges, so it
+   * hands its pools up here to be replayed as one recognition queue over the
+   * ranges that actually missed something — the same shape the Progress
+   * screen's weak-hands drill uses.
+   */
+  function drillWorkoutMisses(pools: Record<string, PokerHand[]>) {
+    const queue = loadSavedRanges().filter((range) => pools[range.id]?.length)
+    setWorkout(null)
+    if (queue.length === 0) return
+    setPractice({ ranges: queue, mode: 'recognize', handPools: pools })
+  }
+
   if (workout) {
     return (
       <Suspense
@@ -126,6 +152,7 @@ function CoachApp() {
           workout={workout}
           ranges={loadSavedRanges()}
           onClose={closeWorkout}
+          onDrillMisses={drillWorkoutMisses}
         />
       </Suspense>
     )

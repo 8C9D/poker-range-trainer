@@ -230,4 +230,59 @@ describe('WorkoutHost', () => {
     // The BTN-open library covers several spots; the restriction deals just this one.
     expect(screen.getByText('6-max, 100bb. Folded to you on the BTN.')).toBeInTheDocument()
   })
+
+  it('hands the whole run’s misses up for a re-drill, keyed by range', () => {
+    vi.useFakeTimers()
+    const onDrillMisses = vi.fn()
+    render(
+      <WorkoutHost
+        workout={makeWorkout()}
+        ranges={[everyHand, btnOpen]}
+        onClose={vi.fn()}
+        onDrillMisses={onDrillMisses}
+      />,
+    )
+
+    // Both ranges play every hand, so folding is a miss in each segment.
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+    const reviewHand = screen.getByTestId('drill-hand').textContent
+    fireEvent.click(screen.getByRole('button', { name: 'Fold' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    const spotHand = screen.getByTestId('drill-hand').textContent
+    fireEvent.click(screen.getByRole('button', { name: 'Fold' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+
+    expect(screen.getByLabelText('Session summary')).toBeInTheDocument()
+    expect(screen.getByText('0 of 2 correct')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Drill these now' }))
+
+    // A workout spans ranges, so the pools have to say which range missed what.
+    expect(onDrillMisses).toHaveBeenCalledTimes(1)
+    expect(onDrillMisses.mock.calls[0][0]).toEqual({ a: [reviewHand], b: [spotHand] })
+  })
+
+  it('offers no re-drill when the workout missed nothing', () => {
+    vi.useFakeTimers()
+    const onDrillMisses = vi.fn()
+    render(
+      <WorkoutHost
+        workout={makeWorkout()}
+        ranges={[everyHand, btnOpen]}
+        onClose={vi.fn()}
+        onDrillMisses={onDrillMisses}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+    fireEvent.click(screen.getByRole('button', { name: 'In range' }))
+    act(() => vi.advanceTimersByTime(HIT_DWELL_MS))
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }))
+    act(() => vi.advanceTimersByTime(HIT_DWELL_MS))
+
+    expect(screen.getByText('2 of 2 correct')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Drill these now' })).not.toBeInTheDocument()
+  })
 })

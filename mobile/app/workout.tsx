@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Link, Stack, useRouter } from 'expo-router';
 
 import { buildDailyWorkout } from '@core/domain/dailyWorkout';
+import type { PokerHand } from '@core/domain/pokerHands';
 import { loadReviewStates } from '@core/storage/reviewStateStorage';
 import { loadSavedRanges } from '@core/storage/rangeStorage';
 import { loadSpotAccuracy } from '@core/storage/spotAccuracyStorage';
@@ -41,6 +42,29 @@ export default function WorkoutScreen() {
     else router.replace('/');
   };
 
+  /**
+   * Re-drill a finished workout's misses. The run spans several ranges, so it
+   * replays as one recognition queue over the ranges that actually missed
+   * something — the same route the Progress screen's weak-hands drill takes.
+   */
+  const drillMisses = (pools: Record<string, PokerHand[]>) => {
+    const queue = plan.ranges.filter((range) => pools[range.id]?.length);
+    if (queue.length === 0) {
+      close();
+      return;
+    }
+    router.replace({
+      pathname: '/practice',
+      params: {
+        queue: queue.map((range) => range.id).join(','),
+        mode: 'recognize',
+        pools: JSON.stringify(
+          Object.fromEntries(queue.map((range) => [range.id, pools[range.id]])),
+        ),
+      },
+    });
+  };
+
   if (!plan.workout) {
     return (
       <Screen>
@@ -60,7 +84,12 @@ export default function WorkoutScreen() {
   return (
     <View style={styles.root}>
       <Stack.Screen options={{ headerShown: false }} />
-      <WorkoutHost workout={plan.workout} ranges={plan.ranges} onClose={close} />
+      <WorkoutHost
+        workout={plan.workout}
+        ranges={plan.ranges}
+        onClose={close}
+        onDrillMisses={drillMisses}
+      />
     </View>
   );
 }

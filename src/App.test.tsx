@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
+import { ALL_HANDS } from './domain/pokerHands'
 import { encodeRangeToHash } from './domain/rangeTransfer'
 import { loadReviewStates } from './storage/reviewStateStorage'
 import { loadSavedRanges, saveSavedRange } from './storage/rangeStorage'
@@ -181,6 +182,62 @@ describe('Practice overlay', () => {
     expect(screen.getByRole('button', { name: 'Start review' })).toBeInTheDocument()
     // Back exits the session without moving the app off the screen underneath.
     expect(window.location.hash).toBe('#/today')
+  })
+
+  /** Play a workout to its summary with one deliberate miss. */
+  async function workoutToSummaryWithAMiss(user: ReturnType<typeof userEvent.setup>) {
+    saveSavedRange({
+      id: 'a',
+      name: 'Everything',
+      hands: [...ALL_HANDS],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    })
+    window.location.hash = '#/today'
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Start workout' }))
+    await user.click(await screen.findByRole('button', { name: 'Start' }))
+    // The range plays every hand, so folding is always a miss.
+    await user.click(screen.getByRole('button', { name: 'Fold' }))
+    await user.click(screen.getByRole('button', { name: 'Close practice' }))
+    expect(screen.getByRole('region', { name: 'What you missed' })).toBeInTheDocument()
+  }
+
+  it('re-drills a finished workout’s misses over the ranges that missed them', async () => {
+    const user = userEvent.setup()
+    await workoutToSummaryWithAMiss(user)
+
+    await user.click(screen.getByRole('button', { name: 'Drill these now' }))
+
+    expect(await screen.findByRole('button', { name: 'In range' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Session summary')).toBeNull()
+  })
+
+  /**
+   * The hand-off swaps one full-screen host for another in a single commit. With
+   * a Back handler per host, the outgoing one popped the entry it had pushed
+   * while the incoming one pushed a fresh one; in a real browser that pop landed
+   * on an unmarked entry and read as a real Back, so the re-drill closed itself
+   * the moment it opened. jsdom does not reproduce the pop, so this pins the
+   * cause instead of the symptom: the hand-off must not touch history at all.
+   */
+  it('does not unwind history when handing the workout off to the re-drill', async () => {
+    const user = userEvent.setup()
+    await workoutToSummaryWithAMiss(user)
+
+    const back = vi.spyOn(window.history, 'back')
+    const push = vi.spyOn(window.history, 'pushState')
+    try {
+      await user.click(screen.getByRole('button', { name: 'Drill these now' }))
+      expect(await screen.findByRole('button', { name: 'In range' })).toBeInTheDocument()
+
+      expect(back).not.toHaveBeenCalled()
+      expect(push).not.toHaveBeenCalled()
+    } finally {
+      back.mockRestore()
+      push.mockRestore()
+    }
   })
 
   it('opens the mode picker from the range page Practice button', async () => {

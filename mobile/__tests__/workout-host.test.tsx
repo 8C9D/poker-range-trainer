@@ -234,4 +234,34 @@ describe('WorkoutHost', () => {
       '6-max, 100bb. Folded to you on the BTN.',
     );
   });
+  it('hands the whole run’s misses up for a re-drill, keyed by range', async () => {
+    const user = userEvent.setup();
+    const onDrillMisses = jest.fn();
+    const { getByTestId, getByText, findByTestId } = await render(
+      <WorkoutHost
+        workout={makeWorkout()}
+        ranges={[everyHand, btnOpen]}
+        onClose={jest.fn()}
+        onDrillMisses={onDrillMisses}
+      />,
+    );
+
+    // Both ranges play every hand, so folding is a miss in each segment.
+    await user.press(getByTestId('workout-continue'));
+    const reviewHand = getByTestId('drill-hand').props.children;
+    await user.press(getByTestId('answer-no'));
+    await user.press(await findByTestId('drill-next'));
+
+    await user.press(await findByTestId('workout-continue'));
+    const spotHand = getByTestId('drill-hand').props.children;
+    await user.press(getByTestId('answer-no'));
+    await user.press(await findByTestId('drill-next'));
+
+    await waitFor(() => expect(getByText('0 of 2 correct')).toBeTruthy());
+    await user.press(getByTestId('summary-drill-misses'));
+
+    // A workout spans ranges, so the pools have to say which range missed what.
+    expect(onDrillMisses).toHaveBeenCalledTimes(1);
+    expect(onDrillMisses.mock.calls[0][0]).toEqual({ a: [reviewHand], b: [spotHand] });
+  });
 });
