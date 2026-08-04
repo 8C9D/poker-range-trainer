@@ -42,6 +42,21 @@ describe('loadHandAccuracy', () => {
           missingHand: { attempts: 1, correct: 1, falsePositives: 0, falseNegatives: 0 },
           negative: { hand: 'KK', attempts: -1, correct: 0, falsePositives: 0, falseNegatives: 0 },
           nonNumeric: { hand: 'QQ', attempts: 'lots', correct: 0, falsePositives: 0, falseNegatives: 0 },
+          impossibleScore: {
+            hand: 'JJ',
+            attempts: 1,
+            correct: 2,
+            falsePositives: 0,
+            falseNegatives: 0,
+          },
+          inconsistentMisses: {
+            hand: 'TT',
+            attempts: 2,
+            correct: 1,
+            falsePositives: 0,
+            falseNegatives: 0,
+          },
+          invalidHand: stat('ZZ'),
         },
         empty: { bad: 42 },
       }),
@@ -89,5 +104,14 @@ describe('recordHandAccuracy', () => {
       a: { AA: stat('AA') },
       b: { KK: stat('KK') },
     })
+  })
+
+  it('rejects inconsistent hand stats instead of persisting them', () => {
+    expect(() =>
+      recordHandAccuracy('r1', [
+        stat('AA', { attempts: 2, correct: 1, falsePositives: 0, falseNegatives: 0 }),
+      ]),
+    ).toThrow(/invalid hand accuracy/)
+    expect(loadHandAccuracy()).toEqual({})
   })
 })

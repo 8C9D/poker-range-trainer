@@ -13,7 +13,11 @@ import {
   loadPracticeStats,
   validatePracticeStats,
 } from './practiceStatsStorage'
-import { HAND_ACCURACY_STORAGE_KEY, loadHandAccuracy } from './handAccuracyStorage'
+import {
+  HAND_ACCURACY_STORAGE_KEY,
+  loadHandAccuracy,
+  validateHandAccuracy,
+} from './handAccuracyStorage'
 import { ACTION_ACCURACY_STORAGE_KEY, loadActionAccuracy } from './actionAccuracyStorage'
 import { SESSION_HISTORY_STORAGE_KEY, loadSessionHistory } from './sessionHistoryStorage'
 import { REVIEW_STATE_STORAGE_KEY, loadReviewStates } from './reviewStateStorage'
@@ -125,7 +129,6 @@ export function validateBackup(parsed: unknown): Backup {
     throw new Error('Backup file contains an invalid range.', { cause: error })
   }
   for (const field of [
-    'handAccuracy',
     'actionAccuracy',
     'sessionHistory',
     'reviewStates',
@@ -140,6 +143,12 @@ export function validateBackup(parsed: unknown): Backup {
   } catch (error) {
     throw new Error('Backup file contains invalid practiceStats data.', { cause: error })
   }
+  let handAccuracy: Record<string, RangeHandAccuracy>
+  try {
+    handAccuracy = validateHandAccuracy(parsed.handAccuracy)
+  } catch (error) {
+    throw new Error('Backup file contains invalid handAccuracy data.', { cause: error })
+  }
   // Optional, so only their shape is checked when the file carries them at all.
   if (parsed.spotAccuracy !== undefined && !isPlainObject(parsed.spotAccuracy)) {
     throw new Error('Backup file is missing its spotAccuracy data.')
@@ -147,7 +156,7 @@ export function validateBackup(parsed: unknown): Backup {
   if (parsed.trainingGoal !== undefined && typeof parsed.trainingGoal !== 'number') {
     throw new Error('Backup file has an unreadable trainingGoal.')
   }
-  return { ...parsed, ranges, practiceStats } as unknown as Backup
+  return { ...parsed, ranges, practiceStats, handAccuracy } as unknown as Backup
 }
 
 /**

@@ -1,5 +1,6 @@
+import { isValidHand } from '../domain/pokerHands'
 import type { HandAccuracyStat, RangeHandAccuracy } from '../types/practice'
-import { isNonNegativeFinite, readJson, writeJson } from './storageHelpers'
+import { isNonNegativeInteger, readJson, writeJson } from './storageHelpers'
 
 /**
  * Local persistence for cumulative per-hand accuracy stats, per range, backed by
@@ -22,13 +23,36 @@ function parseHandAccuracyStat(value: unknown): HandAccuracyStat | null {
   const { hand, attempts, correct, falsePositives, falseNegatives } =
     value as Record<string, unknown>
 
-  if (typeof hand !== 'string' || hand.length === 0) return null
-  if (!isNonNegativeFinite(attempts)) return null
-  if (!isNonNegativeFinite(correct)) return null
-  if (!isNonNegativeFinite(falsePositives)) return null
-  if (!isNonNegativeFinite(falseNegatives)) return null
+  if (typeof hand !== 'string' || !isValidHand(hand)) return null
+  if (!isNonNegativeInteger(attempts)) return null
+  if (!isNonNegativeInteger(correct) || correct > attempts) return null
+  if (!isNonNegativeInteger(falsePositives)) return null
+  if (!isNonNegativeInteger(falseNegatives)) return null
+  if (falsePositives + falseNegatives !== attempts - correct) return null
 
   return { hand, attempts, correct, falsePositives, falseNegatives }
+}
+
+/** Strictly validate and normalize a complete per-range hand-accuracy map. */
+export function validateHandAccuracy(value: unknown): Record<string, RangeHandAccuracy> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error('Hand accuracy is not an object.')
+  }
+  const stats: Record<string, RangeHandAccuracy> = {}
+  for (const [rangeId, raw] of Object.entries(value as Record<string, unknown>)) {
+    if (rangeId.length === 0) throw new Error('Hand accuracy has an empty range id.')
+    if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+      throw new Error('Hand accuracy contains an invalid range record.')
+    }
+    const rangeStats: RangeHandAccuracy = {}
+    for (const entry of Object.values(raw as Record<string, unknown>)) {
+      const stat = parseHandAccuracyStat(entry)
+      if (stat === null) throw new Error('Hand accuracy contains an invalid hand record.')
+      rangeStats[stat.hand] = stat
+    }
+    if (Object.keys(rangeStats).length > 0) stats[rangeId] = rangeStats
+  }
+  return stats
 }
 
 /**
@@ -81,6 +105,9 @@ export function loadHandAccuracy(): Record<string, RangeHandAccuracy> {
  */
 export function recordHandAccuracy(rangeId: string, handStats: HandAccuracyStat[]): void {
   if (handStats.length === 0) return
+  if (rangeId.length === 0 || handStats.some((stat) => parseHandAccuracyStat(stat) === null)) {
+    throw new Error('Cannot record invalid hand accuracy.')
+  }
 
   const stats = loadHandAccuracy()
   const rangeStats: RangeHandAccuracy = { ...(stats[rangeId] ?? {}) }

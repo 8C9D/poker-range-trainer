@@ -194,6 +194,25 @@ describe('parseBackup', () => {
 
     expect(() => parseBackup(JSON.stringify(malformed))).toThrow(/practiceStats/)
   })
+
+  it('rejects inconsistent hand accuracy before restore', () => {
+    const malformed = {
+      ...buildBackup('2026-06-08T00:00:00.000Z'),
+      handAccuracy: {
+        r1: {
+          AA: {
+            hand: 'AA',
+            attempts: 2,
+            correct: 1,
+            falsePositives: 0,
+            falseNegatives: 0,
+          },
+        },
+      },
+    }
+
+    expect(() => parseBackup(JSON.stringify(malformed))).toThrow(/handAccuracy/)
+  })
 })
 
 describe('restoreBackup', () => {
