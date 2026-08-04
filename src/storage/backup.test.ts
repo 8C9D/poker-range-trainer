@@ -270,6 +270,24 @@ describe('parseBackup', () => {
 
     expect(() => parseBackup(JSON.stringify(malformed))).toThrow(/spotAccuracy/)
   })
+
+  it('rejects a negative training goal before restore', () => {
+    const malformed = {
+      ...buildBackup('2026-06-08T00:00:00.000Z'),
+      trainingGoal: -20,
+    }
+
+    expect(() => parseBackup(JSON.stringify(malformed))).toThrow(/trainingGoal/)
+  })
+
+  it('normalizes a legacy fractional training goal on import', () => {
+    const legacy = {
+      ...buildBackup('2026-06-08T00:00:00.000Z'),
+      trainingGoal: 20.9,
+    }
+
+    expect(parseBackup(JSON.stringify(legacy)).trainingGoal).toBe(20)
+  })
 })
 
 describe('restoreBackup', () => {

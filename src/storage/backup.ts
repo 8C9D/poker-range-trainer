@@ -38,7 +38,11 @@ import {
   loadSpotAccuracy,
   validateSpotAccuracy,
 } from './spotAccuracyStorage'
-import { TRAINING_GOAL_STORAGE_KEY, loadTrainingGoal } from './trainingGoalStorage'
+import {
+  TRAINING_GOAL_STORAGE_KEY,
+  loadTrainingGoal,
+  normalizeTrainingGoal,
+} from './trainingGoalStorage'
 
 /** Current backup-file schema version. Bump when the shape changes incompatibly. */
 export const BACKUP_VERSION = 1
@@ -182,8 +186,11 @@ export function validateBackup(parsed: unknown): Backup {
       throw new Error('Backup file contains invalid spotAccuracy data.', { cause: error })
     }
   }
-  if (parsed.trainingGoal !== undefined && typeof parsed.trainingGoal !== 'number') {
-    throw new Error('Backup file has an unreadable trainingGoal.')
+  let trainingGoal: number | undefined
+  if (parsed.trainingGoal !== undefined) {
+    const normalized = normalizeTrainingGoal(parsed.trainingGoal)
+    if (normalized === null) throw new Error('Backup file has an unreadable trainingGoal.')
+    trainingGoal = normalized
   }
   return {
     ...parsed,
@@ -194,6 +201,7 @@ export function validateBackup(parsed: unknown): Backup {
     sessionHistory,
     reviewStates,
     ...(spotAccuracy !== undefined ? { spotAccuracy } : {}),
+    ...(trainingGoal !== undefined ? { trainingGoal } : {}),
   } as unknown as Backup
 }
 

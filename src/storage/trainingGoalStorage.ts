@@ -11,11 +11,17 @@ import { readJson, removeJson, writeJson } from './storageHelpers'
 
 export const TRAINING_GOAL_STORAGE_KEY = 'poker-range-trainer.training-goal.v1'
 
+/** Validate and normalize a stored goal; `null` means the payload is unreadable. */
+export function normalizeTrainingGoal(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return null
+  return Math.floor(value)
+}
+
 /** The stored daily target in hands, or 0 when the user has no goal set. */
 export function loadTrainingGoal(): number {
   const parsed = readJson(TRAINING_GOAL_STORAGE_KEY)
-  if (typeof parsed !== 'number' || !Number.isFinite(parsed) || parsed <= 0) return 0
-  return Math.floor(parsed)
+  const normalized = normalizeTrainingGoal(parsed)
+  return normalized !== null && normalized > 0 ? normalized : 0
 }
 
 /** Persist the daily target; a non-positive value clears the goal. */

@@ -37,4 +37,9 @@ describe('trainingGoalStorage', () => {
       expect(loadTrainingGoal()).toBe(0)
     }
   })
+
+  it('reads a stored zero as no goal', () => {
+    localStorage.setItem(TRAINING_GOAL_STORAGE_KEY, '0')
+    expect(loadTrainingGoal()).toBe(0)
+  })
 })
