@@ -83,10 +83,12 @@ describe('parseRangeExport', () => {
     ).toThrow(/valid range/)
   })
 
-  it('rejects a range with non-canonical hands or missing timestamps', () => {
+  it('rejects a range with non-canonical hands or missing or invalid timestamps', () => {
     for (const range of [
       makeRange({ hands: ['AA', 'ZZ'] }),
       { id: 'r1', name: 'No timestamps', hands: ['AA'] },
+      makeRange({ createdAt: 'not-a-date' }),
+      makeRange({ updatedAt: '  ' }),
     ]) {
       expect(() =>
         parseRangeExport(
@@ -283,6 +285,18 @@ describe('range packs', () => {
           kind: RANGE_PACK_KIND,
           version: RANGE_PACK_VERSION,
           ranges: [makeRange({ hands: ['AA', 'ZZ'] })],
+        }),
+      ),
+    ).toThrow(/valid ranges/)
+  })
+
+  it('rejects a pack containing an invalid timestamp', () => {
+    expect(() =>
+      parseRangePack(
+        JSON.stringify({
+          kind: RANGE_PACK_KIND,
+          version: RANGE_PACK_VERSION,
+          ranges: [makeRange({ updatedAt: 'yesterday-ish' })],
         }),
       ),
     ).toThrow(/valid ranges/)

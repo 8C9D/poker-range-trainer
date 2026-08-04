@@ -278,6 +278,10 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+function isValidTimestamp(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0 && Number.isFinite(Date.parse(value))
+}
+
 /**
  * Parse and validate a single-range export string, returning the inner
  * `SavedRange`. Throws a clear `Error` when the JSON is invalid, the envelope is
@@ -314,8 +318,8 @@ function isValidRangeShape(range: unknown): boolean {
     range.id.length > 0 &&
     typeof range.name === 'string' &&
     areValidHands(range.hands) &&
-    typeof range.createdAt === 'string' &&
-    typeof range.updatedAt === 'string'
+    isValidTimestamp(range.createdAt) &&
+    isValidTimestamp(range.updatedAt)
   )
 }
 
