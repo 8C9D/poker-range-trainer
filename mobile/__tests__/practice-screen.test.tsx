@@ -216,6 +216,32 @@ describe('PracticeScreen (overlay host)', () => {
     });
   });
 
+  it('counts the action quiz as a session so the day and the schedule move', async () => {
+    saveSavedRange({
+      id: 'r1',
+      name: 'Charted',
+      hands: ['AA'],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      handActions: { AA: 'raise' },
+    });
+    mockParams.mockReturnValue({ id: 'r1', mode: 'action' });
+    const { getByTestId, findByTestId } = await render(<PracticeScreen />);
+
+    fireEvent.press(getByTestId('quiz-action-raise'));
+    await findByTestId('quiz-feedback');
+    fireEvent.press(getByTestId('overlay-close'));
+    await findByTestId('summary-done');
+
+    // Answering hands and then being told you have practiced nothing today is the
+    // app contradicting itself, so an action quiz counts like any session.
+    expect(loadPracticeStats().r1.totalAttempts).toBe(1);
+    expect(loadSessionHistory().r1).toHaveLength(1);
+    expect(loadReviewStates().r1.dueAt).not.toBe('');
+    // The in/out record stays untouched: the quiz never asked that question.
+    expect(loadHandAccuracy().r1).toBeUndefined();
+  });
+
   it('re-quizzes only the hands whose action went wrong', async () => {
     saveSavedRange({
       id: 'r1',
@@ -286,6 +312,12 @@ describe('PracticeScreen (overlay host)', () => {
     await findByTestId('summary-done');
     expect(getByText('0 of 1 correct')).toBeTruthy();
     expect(getByTestId('summary-misses')).toHaveTextContent(/Raise these: AA/);
+    // The session counts like any other; its answers are about frequencies, so
+    // neither the action store nor the in/out record may absorb them.
+    expect(loadSessionHistory().r1).toHaveLength(1);
+    expect(loadPracticeStats().r1.totalAttempts).toBe(1);
+    expect(loadActionAccuracy().r1).toBeUndefined();
+    expect(loadHandAccuracy().r1).toBeUndefined();
   });
 
   it('re-quizzes only the hands whose primary action went wrong', async () => {

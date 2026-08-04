@@ -6,6 +6,8 @@ import { ALL_HANDS } from '../domain/pokerHands'
 import { loadPracticeStats } from '../storage/practiceStatsStorage'
 import { loadReviewStates } from '../storage/reviewStateStorage'
 import { loadActionAccuracy } from '../storage/actionAccuracyStorage'
+import { loadHandAccuracy } from '../storage/handAccuracyStorage'
+import { loadSessionHistory } from '../storage/sessionHistoryStorage'
 import { loadSpotAccuracy } from '../storage/spotAccuracyStorage'
 import type { SavedRange } from '../types/range'
 
@@ -444,6 +446,29 @@ describe('PracticeHost action quiz', () => {
     expect(Object.keys(loadActionAccuracy())).toEqual(['a'])
   })
 
+  it('counts the quiz as a session so the day and the schedule move', () => {
+    render(
+      <PracticeHost
+        request={{
+          ranges: [makeRange('a', 'UTG open', { handActions: { AA: 'raise', KK: 'call' } })],
+          mode: 'action',
+        }}
+        onClose={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Raise' }))
+    fireEvent.click(screen.getByRole('button', { name: 'End quiz' }))
+
+    // Answering nine hands and then being told you have practiced nothing today
+    // is the app contradicting itself, so an action quiz counts like any session.
+    expect(loadPracticeStats()['a'].totalAttempts).toBe(1)
+    expect(loadSessionHistory()['a']).toHaveLength(1)
+    expect(loadReviewStates()['a'].dueAt).not.toBe('')
+    expect(screen.getByLabelText('Session summary')).toHaveTextContent(/1-day streak/)
+    // The in/out record stays untouched: the quiz never asked that question.
+    expect(loadHandAccuracy()['a']).toBeUndefined()
+  })
+
   it('recaps a missed action under the action the hand wanted', () => {
     render(
       <PracticeHost
@@ -583,6 +608,36 @@ describe('PracticeHost frequency quiz', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Fold' }))
     fireEvent.click(screen.getByRole('button', { name: 'Next hand' }))
     expect(promptedHand()).toBe(missed)
+  })
+
+  it('counts the quiz as a session without touching the action-quiz numbers', () => {
+    render(
+      <PracticeHost
+        request={{
+          ranges: [
+            mixedRange({
+              AA: [
+                { action: 'raise', frequency: 70 },
+                { action: 'call', frequency: 30 },
+              ],
+            }),
+          ],
+          mode: 'mixed',
+        }}
+        onClose={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Raise' }))
+    fireEvent.click(screen.getByRole('button', { name: 'End quiz' }))
+
+    expect(loadPracticeStats()['a'].totalAttempts).toBe(1)
+    expect(loadSessionHistory()['a']).toHaveLength(1)
+    expect(loadReviewStates()['a'].dueAt).not.toBe('')
+    // Its answers are about frequencies, so neither the action store nor the
+    // in/out record may absorb them.
+    expect(loadActionAccuracy()['a']).toBeUndefined()
+    expect(loadHandAccuracy()['a']).toBeUndefined()
   })
 
   it('leaves the recap and the re-quiz off a clean run', () => {

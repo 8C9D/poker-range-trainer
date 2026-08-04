@@ -1,5 +1,9 @@
 import { useState } from 'react'
-import { captureRecordingFailure, recordFinishedPracticeSession } from '../app/sessionRecording'
+import {
+  captureRecordingFailure,
+  recordFinishedActionSession,
+  recordFinishedPracticeSession,
+} from '../app/sessionRecording'
 import { ActionQuiz } from '../components/ActionQuiz'
 import { BuildFromMemoryPractice } from '../components/BuildFromMemoryPractice'
 import { ComboBlockerDrill } from '../components/ComboBlockerDrill'
@@ -140,6 +144,18 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
    */
   const livePlusDrilled = () => [...loadSavedRanges(), ...queue.ranges]
 
+  /**
+   * The streak as it stands now — read AFTER the session is recorded, so the run
+   * that just finished is counted. Null at zero, where there is nothing to claim.
+   */
+  const streakLine = (): string | null => {
+    const playedAt = Object.values(sessionsForLibrary(loadSessionHistory(), livePlusDrilled()))
+      .flat()
+      .map((session) => session.playedAt)
+    const streak = currentStreak(playedAt, new Date().toISOString())
+    return streak > 0 ? `${streak}-day streak — see you tomorrow to keep it going.` : null
+  }
+
   const [queue, setQueue] = useState<Queue>(() => ({
     ranges: request.ranges,
     mode: request.mode,
@@ -178,10 +194,6 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     )
     const summary = summarizePracticeAttempts(attempts)
     const misses = attempts.filter((attempt) => !attempt.correct).length
-    const playedAt = Object.values(sessionsForLibrary(loadSessionHistory(), livePlusDrilled()))
-      .flat()
-      .map((session) => session.playedAt)
-    const streak = currentStreak(playedAt, new Date().toISOString())
     const missedHands = missedHandsOf(attempts)
     setPhase({
       kind: 'summary',
@@ -190,8 +202,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
         correctAnswers: summary.correctAnswers,
         accuracy: summary.accuracyPercentage,
         deltaLine: deltaLineFor(summary.accuracyPercentage, prevAccuracy, misses),
-        streakLine:
-          streak > 0 ? `${streak}-day streak — see you tomorrow to keep it going.` : null,
+        streakLine: streakLine(),
         misses: recapMisses(attempts),
         saveError,
       },
@@ -204,19 +215,25 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
       onClose()
       return
     }
-    const saveError = captureRecordingFailure(() =>
-      recordActionAccuracy(range.id, summarizeActionAccuracy(attempts)),
-    )
     const correct = attempts.filter((attempt) => attempt.correct).length
+    const summary = {
+      totalQuestions: attempts.length,
+      correctAnswers: correct,
+      accuracyPercentage: accuracyPercentage(correct, attempts.length),
+    }
+    const saveError = captureRecordingFailure(() => {
+      recordActionAccuracy(range.id, summarizeActionAccuracy(attempts))
+      recordFinishedActionSession(range.id, summary)
+    })
     const missedActionHands = missedActionHandsOf(attempts)
     setPhase({
       kind: 'summary',
       data: {
         totalQuestions: attempts.length,
         correctAnswers: correct,
-        accuracy: accuracyPercentage(correct, attempts.length),
+        accuracy: summary.accuracyPercentage,
         deltaLine: null,
-        streakLine: null,
+        streakLine: streakLine(),
         actionMisses: recapActionMisses(attempts),
         saveError,
       },
@@ -231,9 +248,10 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
    *
    * Its misses group by the action each hand wanted, exactly like the action
    * quiz's — the question differs (the PRIMARY action of a mixed strategy rather
-   * than the chart's assigned one), the lesson does not. Nothing is persisted:
-   * mixed strategies have no accuracy store, and inventing one here would fold
-   * frequency answers into the action quiz's numbers.
+   * than the chart's assigned one), the lesson does not. No per-action accuracy
+   * is recorded: that store is the action quiz's answer to a different question,
+   * and folding frequency answers into it would misreport both. The session
+   * itself still counts, like every other mode's.
    */
   const finishMixedQuiz = (attempts: ActionAttempt[]) => {
     if (attempts.length === 0) {
@@ -241,17 +259,25 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
       return
     }
     const correct = attempts.filter((attempt) => attempt.correct).length
+    const summary = {
+      totalQuestions: attempts.length,
+      correctAnswers: correct,
+      accuracyPercentage: accuracyPercentage(correct, attempts.length),
+    }
+    const saveError = captureRecordingFailure(() =>
+      recordFinishedActionSession(range.id, summary),
+    )
     const missedHands = missedActionHandsOf(attempts)
     setPhase({
       kind: 'summary',
       data: {
         totalQuestions: attempts.length,
         correctAnswers: correct,
-        accuracy: accuracyPercentage(correct, attempts.length),
+        accuracy: summary.accuracyPercentage,
         deltaLine: null,
-        // Nothing is recorded, so no session and no streak to claim.
-        streakLine: null,
+        streakLine: streakLine(),
         actionMisses: recapActionMisses(attempts),
+        saveError,
       },
       redrill: missedHands ? { kind: 'mixedHands', hands: missedHands } : null,
     })
@@ -275,10 +301,6 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     })
     const summary = summarizePracticeAttempts(all)
     const rangeCount = Object.keys(byRange).length
-    const playedAt = Object.values(sessionsForLibrary(loadSessionHistory(), livePlusDrilled()))
-      .flat()
-      .map((session) => session.playedAt)
-    const streak = currentStreak(playedAt, new Date().toISOString())
     // A spot session's misses span the library, so the re-drill is a recognition
     // queue over the ranges that actually missed something, each dealt its own
     // pool — not a restart of one range.
@@ -291,8 +313,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
         correctAnswers: summary.correctAnswers,
         accuracy: summary.accuracyPercentage,
         deltaLine: `Across ${rangeCount} range${rangeCount === 1 ? '' : 's'} of your library.`,
-        streakLine:
-          streak > 0 ? `${streak}-day streak — see you tomorrow to keep it going.` : null,
+        streakLine: streakLine(),
         misses: recapMisses(all),
         saveError,
       },

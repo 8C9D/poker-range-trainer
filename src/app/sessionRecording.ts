@@ -8,7 +8,7 @@ import { loadHandAccuracy, recordHandAccuracy } from '../storage/handAccuracySto
 import { recordPracticeSession } from '../storage/practiceStatsStorage'
 import { loadReviewStates, saveReviewState } from '../storage/reviewStateStorage'
 import { recordPracticeSessionHistory } from '../storage/sessionHistoryStorage'
-import type { PracticeAttempt } from '../types/practice'
+import type { PracticeAttempt, PracticeSessionSummary } from '../types/practice'
 
 /**
  * Persist a finished recognition-style practice session: the per-range summary,
@@ -44,6 +44,33 @@ export function recordFinishedPracticeSession(rangeId: string, attempts: Practic
   recordPracticeSession(rangeId, summary)
   recordHandAccuracy(rangeId, summarizeHandAccuracy(attempts))
   recordPracticeSessionHistory(rangeId, summary)
+  advanceReviewSchedule(rangeId, summary)
+}
+
+/**
+ * Persist a finished quiz that asked which ACTION a hand wants, rather than
+ * whether it is in the range: the action quiz and the frequency quiz.
+ *
+ * Their answers must never reach the per-hand store, whose falsePositive /
+ * falseNegative split only means anything for an in-or-out answer — which is
+ * why they cannot simply call {@link recordFinishedPracticeSession}. Everything
+ * else about a run of theirs is an ordinary practice session on that chart,
+ * though, and recording none of it meant a user could answer twenty hands and
+ * be told, on the same screen, that they had answered none today and had never
+ * practiced the chart. So the per-range stats, the session log, and the review
+ * schedule all advance exactly as they do for recognition.
+ */
+export function recordFinishedActionSession(
+  rangeId: string,
+  summary: PracticeSessionSummary,
+): void {
+  recordPracticeSession(rangeId, summary)
+  recordPracticeSessionHistory(rangeId, summary)
+  advanceReviewSchedule(rangeId, summary)
+}
+
+/** Move `rangeId`'s spaced-repetition schedule on by how the session went. */
+function advanceReviewSchedule(rangeId: string, summary: PracticeSessionSummary): void {
   const reviewedAt = new Date().toISOString()
   const prev = loadReviewStates()[rangeId] ?? seedReviewState(rangeId)
   // Read the per-hand record back AFTER this session's answers are folded in, so

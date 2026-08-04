@@ -332,14 +332,17 @@ Different practice modes persist different things. Use this when verifying track
 | Timed drill | ✅ | ✅ | ✅ | ✅ | — |
 | Weakness drill | ✅ | ✅ | ✅ | ✅ | — |
 | Build from memory | — | — | — | — | — |
-| Action quiz | — | — | — | — | ✅ |
-| Frequency quiz (mixed) | — | — | — | — | — |
+| Action quiz | ✅ | — | ✅ | ✅ | ✅ |
+| Frequency quiz (mixed) | ✅ | — | ✅ | ✅ | — |
 
 All recorders are **no-ops when zero questions were answered**, so ending a mode
-immediately records nothing. Build-from-memory and the frequency quiz deliberately
-record nothing (their score shape is different), and the self-graded **postflop
-drill** and **combo drill** (also practice mode picker options) also record
-nothing. The streak counts days with any recorded recognition/timed/weakness session.
+immediately records nothing. Build-from-memory records nothing (its score shape is
+different), and the self-graded **postflop drill** and **combo drill** (also practice
+mode picker options) record nothing either. The two quizzes ask which *action* a hand
+wants rather than whether it is in the range, so they never write the per-hand record —
+that store's "played a fold" / "folded a play" split has no meaning for their answers —
+but their runs are practice sessions like any other. The streak counts days with any
+recorded session.
 
 ---
 
@@ -368,11 +371,9 @@ niceties — don't test for these; confirm they're absent if anything.
   out of scope for the client — only "Delete cloud data" exists.
 
 **Smaller gaps within scope:**
-- No undo/redo in the editor.
-- No bulk delete / multi-select in the library.
-- Build-from-memory, the frequency quiz, and the self-graded postflop / combo drills
-  do **not** feed the "Practiced N · accuracy" line, the heatmap, or the streak (see
-  the records table in §3) — by design, not a bug.
+- Build-from-memory and the self-graded postflop / combo drills do **not** feed the
+  "Practiced N · accuracy" line, the heatmap, or the streak (see the records table in
+  §3) — by design, not a bug. Neither quiz feeds the heatmap, for the same reason.
 
 ---
 
@@ -525,7 +526,10 @@ from a known state (see §2).
 - [ ] Prompts a hand from the chart; choosing an action scores it with the correct
       action shown.
 - [ ] Total / Correct / Accuracy update; "End quiz" records **per-action accuracy**
-      only (visible in Stats), not the per-range stats line.
+      (visible in Stats) and counts the run as a practice session — the summary shows the
+      streak, and Today's daily goal, "hands this week", and the review schedule all move.
+- [ ] The per-hand in/out record (heatmap, weakest hands) is NOT touched by it: the quiz
+      never asked whether a hand is in the range.
 
 ### 5.14 Practice mistakes only (v2.1)
 

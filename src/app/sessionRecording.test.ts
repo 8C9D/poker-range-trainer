@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { recordFinishedPracticeSession } from './sessionRecording'
+import { recordFinishedActionSession, recordFinishedPracticeSession } from './sessionRecording'
 import { loadPracticeStats } from '../storage/practiceStatsStorage'
 import { loadHandAccuracy } from '../storage/handAccuracyStorage'
 import { loadSessionHistory } from '../storage/sessionHistoryStorage'
@@ -54,6 +54,51 @@ describe('recordFinishedPracticeSession', () => {
     expect(loadPracticeStats()['r1']).toBeUndefined()
     expect(loadSessionHistory()['r1']).toBeUndefined()
     expect(loadReviewStates()['r1']).toBeDefined()
+  })
+})
+
+describe('recordFinishedActionSession', () => {
+  it('counts the session everywhere volume and scheduling are read from', () => {
+    recordFinishedActionSession('r1', {
+      totalQuestions: 9,
+      correctAnswers: 6,
+      accuracyPercentage: (6 / 9) * 100,
+    })
+
+    const stats = loadPracticeStats()['r1']
+    expect(stats.totalAttempts).toBe(9)
+    expect(stats.correctAttempts).toBe(6)
+
+    // The streak, the daily goal and the weekly charts all read the history.
+    const history = loadSessionHistory()['r1']
+    expect(history).toHaveLength(1)
+    expect(history[0]).toMatchObject({ totalQuestions: 9, correctAnswers: 6 })
+
+    expect(loadReviewStates()['r1'].dueAt).not.toBe('')
+  })
+
+  it('leaves the per-hand record alone', () => {
+    // "Which action" has no in-or-out answer, so it has no false positive or
+    // negative to record — writing one would invent a mistake in a direction the
+    // quiz never asked about.
+    recordFinishedActionSession('r1', {
+      totalQuestions: 4,
+      correctAnswers: 2,
+      accuracyPercentage: 50,
+    })
+    expect(loadHandAccuracy()['r1']).toBeUndefined()
+  })
+
+  it('shares one schedule with recognition rather than running a second one', () => {
+    recordFinishedPracticeSession('r1', [attempt('AA', true)])
+    const first = loadReviewStates()['r1']
+    recordFinishedActionSession('r1', {
+      totalQuestions: 10,
+      correctAnswers: 10,
+      accuracyPercentage: 100,
+    })
+    const second = loadReviewStates()['r1']
+    expect(second.ease).toBeGreaterThan(first.ease)
   })
 })
 
