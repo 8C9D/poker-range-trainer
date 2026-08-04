@@ -136,7 +136,7 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
                 <li
                   key={day.dayStart}
                   className={isToday ? 'progress-chart-day today' : 'progress-chart-day'}
-                  aria-label={`${weekday}: ${day.handsAnswered} hands`}
+                  aria-label={`${weekday}: ${day.handsAnswered} hand${day.handsAnswered === 1 ? '' : 's'}`}
                 >
                   {/* A bar with no number reads as decoration: 20 hands and 200
                       draw the same full-height column. */}
@@ -179,7 +179,7 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
                   className={isThisWeek ? 'progress-chart-day today' : 'progress-chart-day'}
                   aria-label={
                     point.handsAnswered > 0
-                      ? `Week of ${weekLabel}: ${point.accuracy.toFixed(0)}% over ${point.handsAnswered} hands`
+                      ? `Week of ${weekLabel}: ${point.accuracy.toFixed(0)}% over ${point.handsAnswered} hand${point.handsAnswered === 1 ? '' : 's'}`
                       : `Week of ${weekLabel}: no practice`
                   }
                 >
@@ -206,11 +206,20 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
 
       <section className="coach-card" aria-label="Library analytics">
         <h2>Across your library</h2>
-        <p className="progress-analytics coach-tabular">
-          {analytics.rangesPracticed} range{analytics.rangesPracticed === 1 ? '' : 's'} practiced
-          · {analytics.totalCorrect} of {analytics.totalAttempts} correct ·{' '}
-          {analytics.totalAttempts > 0 ? `${analytics.overallAccuracy.toFixed(0)}%` : '—'} overall
-        </p>
+        {analytics.totalAttempts > 0 ? (
+          <p className="progress-analytics coach-tabular">
+            {analytics.rangesPracticed} range{analytics.rangesPracticed === 1 ? '' : 's'} practiced
+            · {analytics.totalCorrect} of {analytics.totalAttempts} correct ·{' '}
+            {analytics.overallAccuracy.toFixed(0)}% overall
+          </p>
+        ) : (
+          // "0 ranges practiced · 0 of 0 correct · — overall" is a row of zeros
+          // dressed as a statistic. Same reason as the charts above: every
+          // sibling card explains itself when empty, so this one should too.
+          <p className="progress-empty">
+            Practice any range and how your library is going will show up here.
+          </p>
+        )}
       </section>
 
       <section className="coach-card" aria-label="Accuracy by seat and action">

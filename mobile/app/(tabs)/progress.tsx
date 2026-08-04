@@ -177,7 +177,7 @@ export default function ProgressScreen() {
                     // can name; without it the label is dropped and the bare
                     // number and weekday are read as two unrelated scraps.
                     accessible
-                    accessibilityLabel={`${weekday}: ${day.handsAnswered} hands`}
+                    accessibilityLabel={`${weekday}: ${day.handsAnswered} hand${day.handsAnswered === 1 ? '' : 's'}`}
                   >
                     {/* A bar with no number reads as decoration: 20 hands and 200
                         draw the same full-height column. */}
@@ -226,7 +226,7 @@ export default function ProgressScreen() {
                     accessible
                     accessibilityLabel={
                       point.handsAnswered > 0
-                        ? `Week of ${weekLabel}: ${point.accuracy.toFixed(0)}% over ${point.handsAnswered} hands`
+                        ? `Week of ${weekLabel}: ${point.accuracy.toFixed(0)}% over ${point.handsAnswered} hand${point.handsAnswered === 1 ? '' : 's'}`
                         : `Week of ${weekLabel}: no practice`
                     }
                   >
@@ -260,11 +260,20 @@ export default function ProgressScreen() {
 
         <View style={styles.card}>
           <Text accessibilityRole="header" style={styles.sectionTitle}>Across your library</Text>
-          <Text style={styles.analytics}>
-            {analytics.rangesPracticed} range{analytics.rangesPracticed === 1 ? '' : 's'} practiced ·{' '}
-            {analytics.totalCorrect} of {analytics.totalAttempts} correct ·{' '}
-            {analytics.totalAttempts > 0 ? `${analytics.overallAccuracy.toFixed(0)}%` : '—'} overall
-          </Text>
+          {analytics.totalAttempts > 0 ? (
+            <Text style={styles.analytics}>
+              {analytics.rangesPracticed} range{analytics.rangesPracticed === 1 ? '' : 's'} practiced ·{' '}
+              {analytics.totalCorrect} of {analytics.totalAttempts} correct ·{' '}
+              {analytics.overallAccuracy.toFixed(0)}% overall
+            </Text>
+          ) : (
+            // "0 ranges practiced · 0 of 0 correct · — overall" is a row of zeros
+            // dressed as a statistic. Same reason as the charts above: every
+            // sibling card explains itself when empty, so this one should too.
+            <Text testID="analytics-empty" style={styles.empty}>
+              Practice any range and how your library is going will show up here.
+            </Text>
+          )}
         </View>
 
         {spotLeaks.length > 0 ? (

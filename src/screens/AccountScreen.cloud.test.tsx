@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AccountScreen } from './AccountScreen'
 import { deleteBackup, pullBackup } from '../cloud/backupRepo'
-import { unpublishAllSharedPacks } from '../cloud/sharedPacksRepo'
+import { publishSharedPack, unpublishAllSharedPacks } from '../cloud/sharedPacksRepo'
 import { unpublishAllSharedRanges } from '../cloud/sharedRangesRepo'
 import { buildBackup, type Backup } from '../storage/backup'
 import { loadSavedRanges, saveSavedRange } from '../storage/rangeStorage'
@@ -113,6 +113,18 @@ describe('AccountScreen cloud sync (signed in)', () => {
 
     expect(await screen.findByText('Unsupported backup version: 2.')).toBeInTheDocument()
     expect(loadSavedRanges().map((range) => range.name)).toEqual(['Local range'])
+  })
+
+  it('names a one-range library in the singular when asking to publish it', async () => {
+    const user = userEvent.setup()
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    vi.mocked(publishSharedPack).mockResolvedValue({ id: 'p1', token: null, isPublic: true })
+    saveSavedRange(makeRange('l1', 'Local range'))
+
+    render(<AccountScreen />)
+    await user.click(screen.getByRole('button', { name: 'Publish pack link' }))
+
+    expect(confirm.mock.calls[0][0]).toContain('Publish all 1 range as')
   })
 
   it('delete cloud data still attempts every revocation and surfaces the failure', async () => {

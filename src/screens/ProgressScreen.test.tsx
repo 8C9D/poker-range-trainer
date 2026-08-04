@@ -56,6 +56,19 @@ describe('ProgressScreen', () => {
     expect(within(days[0]).queryByText('0')).toBeNull()
   })
 
+  it('counts a single hand in the singular on both charts', () => {
+    saveSavedRange(makeRange('a', 'UTG open'))
+    recordPracticeSessionHistory('a', { totalQuestions: 1, correctAnswers: 0 }, TODAY)
+    render(<ProgressScreen onDrillWeakHands={vi.fn()} onDrillSpot={vi.fn()} />)
+
+    // The bars carry no text of their own, so these labels are the whole chart
+    // to a screen reader — "1 hands" is the only wording it gets.
+    const week = screen.getByRole('region', { name: 'Hands answered this week' })
+    expect(within(week).getAllByRole('listitem')[6]).toHaveAccessibleName(/: 1 hand$/)
+    const trend = screen.getByRole('region', { name: 'Accuracy by week' })
+    expect(within(trend).getAllByRole('listitem')[7]).toHaveAccessibleName(/over 1 hand$/)
+  })
+
   it('explains the weekly chart instead of drawing an empty one', () => {
     saveSavedRange(makeRange('a', 'UTG open'))
     render(<ProgressScreen onDrillWeakHands={vi.fn()} onDrillSpot={vi.fn()} />)
@@ -99,6 +112,15 @@ describe('ProgressScreen', () => {
 
     const analytics = screen.getByRole('region', { name: 'Library analytics' })
     expect(analytics).toHaveTextContent('2 ranges practiced · 14 of 20 correct · 70% overall')
+  })
+
+  it('explains the library summary instead of reporting a row of zeros', () => {
+    saveSavedRange(makeRange('a', 'UTG open'))
+    render(<ProgressScreen onDrillWeakHands={vi.fn()} onDrillSpot={vi.fn()} />)
+
+    const analytics = screen.getByRole('region', { name: 'Library analytics' })
+    expect(analytics).not.toHaveTextContent('0 ranges practiced')
+    expect(within(analytics).getByText(/how your library is going/)).toBeInTheDocument()
   })
 
   it('leaves deleted ranges out of library analytics', () => {

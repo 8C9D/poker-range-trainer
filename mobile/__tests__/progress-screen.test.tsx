@@ -83,6 +83,31 @@ describe('ProgressScreen', () => {
     expect(getByTestId('trend-value-0')).toHaveTextContent('');
   });
 
+  it('counts a single hand in the singular on both charts', async () => {
+    seed('r1', 'UTG Open');
+    recordPracticeSessionHistory(
+      'r1',
+      { totalQuestions: 1, correctAnswers: 0 },
+      new Date().toISOString(),
+    );
+
+    const { getByLabelText } = await render(<ProgressScreen />);
+
+    // The columns carry no text of their own, so these labels are the whole
+    // chart to VoiceOver — "1 hands" is the only wording it gets.
+    expect(getByLabelText(/: 1 hand$/)).toBeTruthy();
+    expect(getByLabelText(/over 1 hand$/)).toBeTruthy();
+  });
+
+  it('explains the library summary instead of reporting a row of zeros', async () => {
+    seed('r1', 'UTG Open');
+
+    const { getByTestId, queryByText } = await render(<ProgressScreen />);
+
+    expect(getByTestId('analytics-empty')).toBeTruthy();
+    expect(queryByText(/0 ranges practiced/)).toBeNull();
+  });
+
   it('explains the weekly chart instead of drawing an empty one', async () => {
     seed('r1', 'UTG Open');
 

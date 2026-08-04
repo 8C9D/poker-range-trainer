@@ -101,7 +101,7 @@ export function AccountScreen() {
     }
     // OK = public (anyone with the link); Cancel = private (link carries a token).
     const isPublic = window.confirm(
-      `Publish all ${ranges.length} ranges as a shareable pack link?\n\nOK = public (anyone with the link can view)\nCancel = private (link includes a secret token)`,
+      `Publish all ${ranges.length} range${ranges.length === 1 ? '' : 's'} as a shareable pack link?\n\nOK = public (anyone with the link can view)\nCancel = private (link includes a secret token)`,
     )
     setSyncStatus('Publishing pack…')
     try {
