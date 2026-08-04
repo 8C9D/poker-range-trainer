@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { getSharedRange } from '../cloud/sharedRangesRepo'
 import { countRangeCombos, rangeComboPercentage } from '../domain/comboSelection'
-import { areValidHands, type PokerHand } from '../domain/pokerHands'
+import { isValidSavedRange } from '../domain/rangeTransfer'
+import type { PokerHand } from '../domain/pokerHands'
 import { isCloudConfigured } from '../cloud/cloudConfig'
 import type { SavedRange } from '../types/range'
 import { ActionGrid } from './ActionGrid'
@@ -60,13 +61,9 @@ export function SharedRangePage({
     fetchSharedRange(id, token)
       .then((range) => {
         if (!active) return
-        // A shared range's data is publisher-controlled; reject a payload with
-        // non-canonical hands so combo/percentage math can't throw during render.
-        setState(
-          range && areValidHands(range.hands)
-            ? { status: 'ready', range }
-            : { status: 'not-found' },
-        )
+        // A shared range's data is publisher-controlled, so it gets the same
+        // full structural check as an imported file — not just its hands.
+        setState(isValidSavedRange(range) ? { status: 'ready', range } : { status: 'not-found' })
       })
       .catch((error: unknown) => {
         if (!active) return

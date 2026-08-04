@@ -78,6 +78,26 @@ describe('SharedRangePage', () => {
     expect(screen.queryByRole('button', { name: 'Save to my library' })).not.toBeInTheDocument()
   })
 
+  it.each([
+    ['a name that is not a string', { name: { toString: 1 } }],
+    ['no id', { id: '' }],
+    ['an unparseable createdAt', { createdAt: 'whenever' }],
+  ])('treats a payload with %s as not-found instead of crashing', async (_label, broken) => {
+    // Canonical hands are not enough: the name lands in <h1>{range.name}</h1>,
+    // where a non-string takes the whole page down as an invalid React child.
+    const malicious = { ...makeRange(), ...broken } as unknown as SavedRange
+    render(
+      <SharedRangePage
+        id="abc"
+        fetchSharedRange={vi.fn().mockResolvedValue(malicious)}
+        cloudConfigured={configured}
+        onForkRange={vi.fn()}
+      />,
+    )
+    await waitFor(() => expect(screen.getByText(/was not found/i)).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: 'Save to my library' })).not.toBeInTheDocument()
+  })
+
   it('shows an error message when the fetch rejects', async () => {
     render(
       <SharedRangePage

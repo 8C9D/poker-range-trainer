@@ -9,6 +9,7 @@ import {
   encodeRangeToHash,
   formatRangeCsv,
   formatRangeSvg,
+  isValidSavedRange,
   parseRangeCsv,
   parseRangeExport,
   parseRangePack,
@@ -28,6 +29,26 @@ function makeRange(overrides: Partial<SavedRange> = {}): SavedRange {
     ...overrides,
   }
 }
+
+describe('isValidSavedRange', () => {
+  it('accepts a well-formed range', () => {
+    expect(isValidSavedRange(makeRange())).toBe(true)
+  })
+
+  it.each([
+    ['not an object', 'nope'],
+    ['null', null],
+    ['a missing id', { ...makeRange(), id: undefined }],
+    ['an empty id', { ...makeRange(), id: '' }],
+    ['a non-string name', { ...makeRange(), name: { toString: 1 } }],
+    ['non-canonical hands', { ...makeRange(), hands: ['ZZ'] }],
+    ['hands that are not an array', { ...makeRange(), hands: 'AA' }],
+    ['an unparseable createdAt', { ...makeRange(), createdAt: 'whenever' }],
+    ['a missing updatedAt', { ...makeRange(), updatedAt: undefined }],
+  ])('rejects %s', (_label, value) => {
+    expect(isValidSavedRange(value)).toBe(false)
+  })
+})
 
 describe('buildRangeExport', () => {
   it('wraps the range in a versioned envelope', () => {

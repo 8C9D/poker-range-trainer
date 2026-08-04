@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { getSharedPack } from '../cloud/sharedPacksRepo'
 import { countRangeCombos, rangeComboPercentage } from '../domain/comboSelection'
-import { areValidHands, type PokerHand } from '../domain/pokerHands'
-import type { RangePack } from '../domain/rangeTransfer'
+import type { PokerHand } from '../domain/pokerHands'
+import { isValidSavedRange, type RangePack } from '../domain/rangeTransfer'
 import { isCloudConfigured } from '../cloud/cloudConfig'
 import { ActionGrid } from './ActionGrid'
 import { HandGrid } from './HandGrid'
@@ -60,10 +60,10 @@ export function SharedPackPage({
     fetchSharedPack(id, token)
       .then((pack) => {
         if (!active) return
-        // A shared pack's data is publisher-controlled; reject it when any range
-        // carries non-canonical hands so combo/percentage math can't throw.
+        // A shared pack's data is publisher-controlled, so every range in it gets
+        // the same full structural check as an imported file — not just its hands.
         const renderable =
-          pack != null && Array.isArray(pack.ranges) && pack.ranges.every((r) => areValidHands(r.hands))
+          pack != null && Array.isArray(pack.ranges) && pack.ranges.every(isValidSavedRange)
         setState(renderable ? { status: 'ready', pack } : { status: 'not-found' })
       })
       .catch((error: unknown) => {

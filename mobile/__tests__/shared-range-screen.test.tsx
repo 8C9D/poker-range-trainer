@@ -98,4 +98,19 @@ describe('SharedRangeScreen', () => {
 
     await waitFor(() => expect(getByTestId('shared-not-found')).toBeTruthy());
   });
+
+  it.each([
+    ['a name that is not a string', { name: { toString: 1 } }],
+    ['no id', { id: '' }],
+    ['an unparseable createdAt', { createdAt: 'whenever' }],
+  ])('rejects a shared range with %s', async (_label, broken) => {
+    mockGetClient.mockResolvedValue({ id: 'client' });
+    // Canonical hands are not enough — the rest of the payload is publisher-
+    // controlled too, and the name is rendered straight into the screen.
+    mockGetShared.mockResolvedValue({ ...SHARED, ...broken });
+
+    const { getByTestId } = await render(<SharedRangeScreen />);
+
+    await waitFor(() => expect(getByTestId('shared-not-found')).toBeTruthy());
+  });
 });

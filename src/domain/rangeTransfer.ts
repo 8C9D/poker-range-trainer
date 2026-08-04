@@ -304,14 +304,22 @@ export function parseRangeExport(json: string): SavedRange {
   if (parsed.version !== RANGE_EXPORT_VERSION) {
     throw new Error(`Unsupported range export version: ${String(parsed.version)}.`)
   }
-  if (!isValidRangeShape(parsed.range)) {
+  if (!isValidSavedRange(parsed.range)) {
     throw new Error('Range file is missing a valid range.')
   }
   return parsed.range as unknown as SavedRange
 }
 
-/** Structural check shared by single-range and range-pack parsing. */
-function isValidRangeShape(range: unknown): boolean {
+/**
+ * Structural check for a range from an untrusted source.
+ *
+ * Shared by single-range and range-pack parsing, and by the cloud share pages:
+ * a published row is publisher-controlled in exactly the way an imported file
+ * is. Checking only the hands is not enough — a payload with canonical hands
+ * and a non-string `name` renders straight into `<h1>{range.name}</h1>` and
+ * takes the page down with "Objects are not valid as a React child".
+ */
+export function isValidSavedRange(range: unknown): range is SavedRange {
   return (
     isPlainObject(range) &&
     typeof range.id === 'string' &&
@@ -371,7 +379,7 @@ export function parseRangePack(json: string): { name?: string; ranges: SavedRang
   if (parsed.version !== RANGE_PACK_VERSION) {
     throw new Error(`Unsupported range pack version: ${String(parsed.version)}.`)
   }
-  if (!Array.isArray(parsed.ranges) || !parsed.ranges.every(isValidRangeShape)) {
+  if (!Array.isArray(parsed.ranges) || !parsed.ranges.every(isValidSavedRange)) {
     throw new Error('Pack file is missing valid ranges.')
   }
   const name = typeof parsed.name === 'string' ? parsed.name : undefined

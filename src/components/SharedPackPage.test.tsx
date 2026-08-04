@@ -48,6 +48,24 @@ describe('SharedPackPage', () => {
     expect(screen.queryByRole('button', { name: /Save all to my library/i })).not.toBeInTheDocument()
   })
 
+  it('treats a pack with a structurally broken range as not-found', async () => {
+    // Canonical hands are not enough: each range's name is rendered directly.
+    const bad = buildRangePack('Bad pack', [
+      makeRange({ id: 'r1' }),
+      { ...makeRange({ id: 'r2' }), name: { toString: 1 } } as unknown as SavedRange,
+    ])
+    render(
+      <SharedPackPage
+        id="abc"
+        fetchSharedPack={vi.fn().mockResolvedValue(bad)}
+        cloudConfigured={configured}
+        onForkPack={vi.fn()}
+      />,
+    )
+    await waitFor(() => expect(screen.getByText(/was not found/i)).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: /Save all to my library/i })).not.toBeInTheDocument()
+  })
+
   it('renders the pack name and each range once loaded', async () => {
     render(
       <SharedPackPage

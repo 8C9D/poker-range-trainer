@@ -3,8 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 
 import { getSharedPack } from '@core/cloud/sharedPacksRepo';
-import { areValidHands } from '@core/domain/pokerHands';
-import type { RangePack } from '@core/domain/rangeTransfer';
+import { isValidSavedRange, type RangePack } from '@core/domain/rangeTransfer';
 import { saveSavedRanges } from '@core/storage/rangeStorage';
 
 import { SaveErrorBanner, useLiveSave } from '../../components/liveSave';
@@ -48,12 +47,12 @@ export default function SharedPackScreen() {
         }
         const fetched = id ? await getSharedPack(id, token, { client }) : null;
         if (!active) return;
-        // A shared pack's data is publisher-controlled; reject it when any range
-        // carries non-canonical hands so adding it to the library can't throw.
+        // A shared pack's data is publisher-controlled, so every range in it gets
+        // the same full structural check as an imported file — not just its hands.
         const renderable =
           fetched != null &&
           Array.isArray(fetched.ranges) &&
-          fetched.ranges.every((range) => areValidHands(range.hands));
+          fetched.ranges.every(isValidSavedRange);
         setPack(renderable ? fetched : null);
         setState('done');
       } catch (err) {

@@ -116,4 +116,17 @@ describe('SharedPackScreen', () => {
 
     await waitFor(() => expect(getByTestId('shared-not-found')).toBeTruthy());
   });
+
+  it('rejects a pack containing a structurally broken range', async () => {
+    mockGetClient.mockResolvedValue({ id: 'client' });
+    // Canonical hands are not enough — each range's name is rendered directly.
+    mockGetPack.mockResolvedValue({
+      ...PACK,
+      ranges: [PACK.ranges[0], { ...PACK.ranges[1], name: { toString: 1 } }],
+    });
+
+    const { getByTestId } = await render(<SharedPackScreen />);
+
+    await waitFor(() => expect(getByTestId('shared-not-found')).toBeTruthy());
+  });
 });
