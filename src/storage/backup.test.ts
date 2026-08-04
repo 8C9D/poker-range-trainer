@@ -178,6 +178,22 @@ describe('parseBackup', () => {
 
     expect(() => parseBackup(JSON.stringify(malformed))).toThrow(/invalid range/)
   })
+
+  it('rejects impossible practice stats instead of restoring a partial record', () => {
+    const malformed = {
+      ...buildBackup('2026-06-08T00:00:00.000Z'),
+      practiceStats: {
+        r1: {
+          rangeId: 'r1',
+          totalAttempts: 2,
+          correctAttempts: 3,
+          lastPracticedAt: '2026-01-01T00:00:00.000Z',
+        },
+      },
+    }
+
+    expect(() => parseBackup(JSON.stringify(malformed))).toThrow(/practiceStats/)
+  })
 })
 
 describe('restoreBackup', () => {

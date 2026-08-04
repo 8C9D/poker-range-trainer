@@ -9,6 +9,16 @@ export function isNonNegativeFinite(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0
 }
 
+/** True when `value` is a whole-number count that is zero or positive. */
+export function isNonNegativeInteger(value: unknown): value is number {
+  return isNonNegativeFinite(value) && Number.isInteger(value)
+}
+
+/** True when `value` is a parseable date-time string. */
+export function isValidTimestamp(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0 && Number.isFinite(Date.parse(value))
+}
+
 /** Return `value` when it is one of `allowed`, else `undefined`. */
 export function asMember<T extends string>(allowed: readonly T[], value: unknown): T | undefined {
   return typeof value === 'string' && (allowed as readonly string[]).includes(value)

@@ -54,6 +54,18 @@ describe('loadPracticeStats', () => {
           lastPracticedAt: 'x',
         },
         noTimestamp: { rangeId: 'noTimestamp', totalAttempts: 1, correctAttempts: 1 },
+        impossibleScore: {
+          rangeId: 'impossibleScore',
+          totalAttempts: 2,
+          correctAttempts: 3,
+          lastPracticedAt: '2026-01-01T00:00:00.000Z',
+        },
+        fractionalCount: {
+          rangeId: 'fractionalCount',
+          totalAttempts: 1.5,
+          correctAttempts: 1,
+          lastPracticedAt: '2026-01-01T00:00:00.000Z',
+        },
         notAnObject: 42,
         nullEntry: null,
       }),
@@ -178,5 +190,16 @@ describe('recordPracticeSession', () => {
     const recordedMs = new Date(loadPracticeStats().r1.lastPracticedAt).getTime()
     expect(recordedMs).toBeGreaterThanOrEqual(before)
     expect(recordedMs).toBeLessThanOrEqual(after)
+  })
+
+  it('rejects an impossible session instead of persisting it', () => {
+    expect(() =>
+      recordPracticeSession(
+        'r1',
+        { totalQuestions: 2, correctAnswers: 3 },
+        '2026-02-01T00:00:00.000Z',
+      ),
+    ).toThrow(/invalid practice stats/)
+    expect(loadPracticeStats()).toEqual({})
   })
 })

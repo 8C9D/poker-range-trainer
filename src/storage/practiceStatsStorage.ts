@@ -1,5 +1,5 @@
 import type { PracticeSessionSummary, RangePracticeStats } from '../types/practice'
-import { isNonNegativeFinite, readJson, writeJson } from './storageHelpers'
+import { isNonNegativeInteger, isValidTimestamp, readJson, writeJson } from './storageHelpers'
 
 /**
  * Local persistence for cumulative per-range practice stats, backed by
@@ -21,11 +21,25 @@ function parseRangePracticeStats(value: unknown): RangePracticeStats | null {
     value as Record<string, unknown>
 
   if (typeof rangeId !== 'string' || rangeId.length === 0) return null
-  if (!isNonNegativeFinite(totalAttempts)) return null
-  if (!isNonNegativeFinite(correctAttempts)) return null
-  if (typeof lastPracticedAt !== 'string') return null
+  if (!isNonNegativeInteger(totalAttempts)) return null
+  if (!isNonNegativeInteger(correctAttempts) || correctAttempts > totalAttempts) return null
+  if (!isValidTimestamp(lastPracticedAt)) return null
 
   return { rangeId, totalAttempts, correctAttempts, lastPracticedAt }
+}
+
+/** Strictly validate and normalize a complete stats map at an import boundary. */
+export function validatePracticeStats(value: unknown): Record<string, RangePracticeStats> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error('Practice stats are not an object.')
+  }
+  const stats: Record<string, RangePracticeStats> = {}
+  for (const entry of Object.values(value as Record<string, unknown>)) {
+    const validated = parseRangePracticeStats(entry)
+    if (validated === null) throw new Error('Practice stats contain an invalid record.')
+    stats[validated.rangeId] = validated
+  }
+  return stats
 }
 
 /** Persist the full stats map, serialized under the single storage key. */
@@ -67,6 +81,15 @@ export function recordPracticeSession(
   timestamp: string = new Date().toISOString(),
 ): void {
   if (summary.totalQuestions <= 0) return
+  if (
+    rangeId.length === 0 ||
+    !isNonNegativeInteger(summary.totalQuestions) ||
+    !isNonNegativeInteger(summary.correctAnswers) ||
+    summary.correctAnswers > summary.totalQuestions ||
+    !isValidTimestamp(timestamp)
+  ) {
+    throw new Error('Cannot record invalid practice stats.')
+  }
 
   const stats = loadPracticeStats()
   const prior = stats[rangeId] ?? { totalAttempts: 0, correctAttempts: 0 }

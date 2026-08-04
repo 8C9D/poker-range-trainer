@@ -8,7 +8,11 @@ import type {
 import type { SavedRange } from '../types/range'
 import type { RangeActionAccuracy } from '../domain/actionRange'
 import { STORAGE_KEY, loadSavedRanges, normalizeSavedRanges } from './rangeStorage'
-import { PRACTICE_STATS_STORAGE_KEY, loadPracticeStats } from './practiceStatsStorage'
+import {
+  PRACTICE_STATS_STORAGE_KEY,
+  loadPracticeStats,
+  validatePracticeStats,
+} from './practiceStatsStorage'
 import { HAND_ACCURACY_STORAGE_KEY, loadHandAccuracy } from './handAccuracyStorage'
 import { ACTION_ACCURACY_STORAGE_KEY, loadActionAccuracy } from './actionAccuracyStorage'
 import { SESSION_HISTORY_STORAGE_KEY, loadSessionHistory } from './sessionHistoryStorage'
@@ -121,7 +125,6 @@ export function validateBackup(parsed: unknown): Backup {
     throw new Error('Backup file contains an invalid range.', { cause: error })
   }
   for (const field of [
-    'practiceStats',
     'handAccuracy',
     'actionAccuracy',
     'sessionHistory',
@@ -131,6 +134,12 @@ export function validateBackup(parsed: unknown): Backup {
       throw new Error(`Backup file is missing its ${field} data.`)
     }
   }
+  let practiceStats: Record<string, RangePracticeStats>
+  try {
+    practiceStats = validatePracticeStats(parsed.practiceStats)
+  } catch (error) {
+    throw new Error('Backup file contains invalid practiceStats data.', { cause: error })
+  }
   // Optional, so only their shape is checked when the file carries them at all.
   if (parsed.spotAccuracy !== undefined && !isPlainObject(parsed.spotAccuracy)) {
     throw new Error('Backup file is missing its spotAccuracy data.')
@@ -138,7 +147,7 @@ export function validateBackup(parsed: unknown): Backup {
   if (parsed.trainingGoal !== undefined && typeof parsed.trainingGoal !== 'number') {
     throw new Error('Backup file has an unreadable trainingGoal.')
   }
-  return { ...parsed, ranges } as unknown as Backup
+  return { ...parsed, ranges, practiceStats } as unknown as Backup
 }
 
 /**
