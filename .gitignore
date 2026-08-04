@@ -33,3 +33,7 @@ coverage
 
 # Playwright MCP scratch output (snapshots, console logs)
 .playwright-mcp
+
+# Screenshots dropped at the repo root by browser tooling given a bare filename.
+# Root-level only: real image assets live in public/ and mobile/assets/.
+/*.png
