@@ -28,6 +28,24 @@ describe('rankWeakHands', () => {
     expect(ranked.map((entry) => entry.hand)).toEqual(['QQ', 'AKs'])
   })
 
+  it('ranks a repeatedly missed hand above a hand missed on its only look', () => {
+    const ranked = rankWeakHands({
+      r1: { QQ: stat('QQ', 10, 2), AKs: stat('AKs', 1, 0) },
+    })
+    // Raw accuracy put AKs (0%) first, where one unlucky answer is all the
+    // evidence there is; QQ is missed 8 times out of 10 and is the real leak.
+    expect(ranked.map((entry) => entry.hand)).toEqual(['QQ', 'AKs'])
+    // The reported accuracy stays the true one — only the ordering is smoothed.
+    expect(ranked.map((entry) => entry.accuracy)).toEqual([20, 0])
+  })
+
+  it('ranks more misses of the same hand as weaker than one', () => {
+    const ranked = rankWeakHands({
+      r1: { AKs: stat('AKs', 1, 0), A9s: stat('A9s', 3, 0) },
+    })
+    expect(ranked.map((entry) => entry.hand)).toEqual(['A9s', 'AKs'])
+  })
+
   it('truncates to the limit', () => {
     const hands = Object.fromEntries(
       ['AA', 'KK', 'QQ', 'JJ'].map((hand) => [hand, stat(hand, 2, 0)]),
