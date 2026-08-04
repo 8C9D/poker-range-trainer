@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 
 import { accuracyPercentage } from '@core/domain/accuracy';
 import { rangeEdgeHands } from '@core/domain/edgeHands';
-import { recapMisses } from '@core/domain/missRecap';
+import { recapActionMisses, recapMisses } from '@core/domain/missRecap';
 import type { PokerHand } from '@core/domain/pokerHands';
 import { summarizePracticeAttempts } from '@core/domain/practice';
 import type { SpotSessionResult } from '@core/domain/spotDrill';
@@ -13,7 +13,7 @@ import { sessionsForLibrary } from '@core/domain/weeklyStats';
 import { loadSavedRanges } from '@core/storage/rangeStorage';
 import { loadSessionHistory } from '@core/storage/sessionHistoryStorage';
 import { recordSpotAccuracy } from '@core/storage/spotAccuracyStorage';
-import type { PracticeAttempt } from '@core/types/practice';
+import type { ActionAttempt, PracticeAttempt } from '@core/types/practice';
 import type { SavedRange, TableSize } from '@core/types/range';
 
 import { ActionQuizDrill } from './ActionQuizDrill';
@@ -161,6 +161,9 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     handPools: request.handPools,
   }));
   const [index, setIndex] = useState(0);
+  // A ref, not state: the action quiz's answers are only ever read when the run
+  // ends, so accumulating them must not re-render the drill mid-question.
+  const actionAttemptsRef = useRef<ActionAttempt[]>([]);
   // Bumped for every drill start so a re-drill of the same range remounts the
   // component instead of resuming the finished session behind the summary.
   const [run, setRun] = useState(0);
@@ -221,6 +224,39 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
         saveError,
       },
       redrill: missedHands ? { kind: 'hands', hands: missedHands } : null,
+    });
+  };
+
+  /**
+   * End the action quiz on the same peak-end summary every other mode gets.
+   *
+   * Nothing is persisted here: the drill records each answer as it is scored (it
+   * is also mounted by the flat action-quiz route, which has no host to record
+   * for it), so this only reads the run back. No save means no save to fail.
+   */
+  const finishActionQuiz = () => {
+    const attempts = actionAttemptsRef.current;
+    // Closing before answering anything abandons the run, as in every mode.
+    if (attempts.length === 0) {
+      onClose();
+      return;
+    }
+    const correct = attempts.filter((attempt) => attempt.correct).length;
+    setPhase({
+      kind: 'summary',
+      data: {
+        totalQuestions: attempts.length,
+        correctAnswers: correct,
+        accuracy: accuracyPercentage(correct, attempts.length),
+        deltaLine: null,
+        // The quiz records per-action accuracy, not sessions, so it advances no
+        // streak — there is nothing truthful to claim here.
+        streakLine: null,
+        actionMisses: recapActionMisses(attempts),
+      },
+      // The action quiz grades chosen actions, not in/out of range, so its
+      // misses are not a hand pool the recognition drill could deal from.
+      redrill: null,
     });
   };
 
@@ -348,8 +384,14 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
   }
   if (phase.mode === 'action') {
     return (
-      <OverlayFrame title={`${range.name || 'Untitled'} — action quiz`} onClose={onClose}>
-        <ActionQuizDrill id={range.id} />
+      <OverlayFrame
+        title={`${range.name || 'Untitled'} — action quiz`}
+        onClose={finishActionQuiz}
+      >
+        <ActionQuizDrill
+          id={range.id}
+          onAttempt={(attempt) => actionAttemptsRef.current.push(attempt)}
+        />
       </OverlayFrame>
     );
   }

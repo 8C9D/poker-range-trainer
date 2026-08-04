@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { AccessibilityInfo, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import type { MissRecap } from '@core/domain/missRecap';
+import type { ActionMissRecap, MissRecap } from '@core/domain/missRecap';
+import type { PokerHand } from '@core/domain/pokerHands';
+import { RANGE_ACTION_LABELS } from '@core/types/range';
 
 import { SaveErrorBanner } from '../liveSave';
 import { fonts } from '../../theme/fonts';
@@ -21,6 +23,8 @@ export interface SessionSummaryData {
   streakLine: string | null;
   /** The session's missed hands, or null when nothing was missed. */
   misses?: MissRecap | null;
+  /** The same for an action quiz, whose misses group by the action wanted. */
+  actionMisses?: ActionMissRecap | null;
   /** Why the run could not be persisted, or null when it saved. */
   saveError?: string | null;
 }
@@ -82,7 +86,25 @@ export function SessionSummary({
       {data.goalLine ? <Text style={styles.goal}>{data.goalLine}</Text> : null}
       {data.streakLine ? <Text style={styles.streak}>{data.streakLine}</Text> : null}
       {data.misses ? (
-        <MissRecapList misses={data.misses} styles={styles} onDrill={onDrillMisses} />
+        <MissRecapList
+          groups={[
+            { label: 'Play these', hands: data.misses.shouldPlay },
+            { label: 'Fold these', hands: data.misses.shouldFold },
+          ]}
+          hiddenCount={data.misses.hiddenCount}
+          styles={styles}
+          onDrill={onDrillMisses}
+        />
+      ) : null}
+      {data.actionMisses ? (
+        <MissRecapList
+          groups={data.actionMisses.groups.map((group) => ({
+            label: `${RANGE_ACTION_LABELS[group.action]} these`,
+            hands: group.hands,
+          }))}
+          hiddenCount={data.actionMisses.hiddenCount}
+          styles={styles}
+        />
       ) : null}
       <SaveErrorBanner error={data.saveError ?? null} testID="summary-save-error" />
       <View style={styles.actions}>
@@ -106,16 +128,18 @@ export function SessionSummary({
 }
 
 /**
- * The hands the session got wrong, as the two lists that are actually
- * actionable. Directions the run never missed are omitted rather than shown
- * empty, so a one-sided session reads as one line.
+ * The hands the session got wrong, as the lists that are actually actionable —
+ * one per lesson ("Play these", "3-bet these"). Groups the run never missed are
+ * omitted rather than shown empty, so a one-sided session reads as one line.
  */
 function MissRecapList({
-  misses,
+  groups,
+  hiddenCount,
   styles,
   onDrill,
 }: {
-  misses: MissRecap;
+  groups: { label: string; hands: PokerHand[] }[];
+  hiddenCount: number;
   styles: ReturnType<typeof makeStyles>;
   onDrill?: () => void;
 }) {
@@ -124,21 +148,17 @@ function MissRecapList({
       <Text style={styles.sectionTitle} accessibilityRole="header">
         What you missed
       </Text>
-      {misses.shouldPlay.length > 0 ? (
-        <Text style={styles.missLine}>
-          <Text style={styles.missLabel}>Play these: </Text>
-          {misses.shouldPlay.join(', ')}
-        </Text>
-      ) : null}
-      {misses.shouldFold.length > 0 ? (
-        <Text style={styles.missLine}>
-          <Text style={styles.missLabel}>Fold these: </Text>
-          {misses.shouldFold.join(', ')}
-        </Text>
-      ) : null}
-      {misses.hiddenCount > 0 ? (
+      {groups
+        .filter((group) => group.hands.length > 0)
+        .map((group) => (
+          <Text key={group.label} style={styles.missLine}>
+            <Text style={styles.missLabel}>{group.label}: </Text>
+            {group.hands.join(', ')}
+          </Text>
+        ))}
+      {hiddenCount > 0 ? (
         <Text style={styles.missMore}>
-          and {misses.hiddenCount} more — the drill will bring them back.
+          and {hiddenCount} more — the drill will bring them back.
         </Text>
       ) : null}
       {/* Reading the list is the lesson; drilling it right away is the practice.

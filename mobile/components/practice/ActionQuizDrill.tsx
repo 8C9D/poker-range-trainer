@@ -20,8 +20,18 @@ const EMPTY_ACTIONS: Record<PokerHand, RangeAction> = {};
  * Action-quiz drill body: show an assigned hand and ask the user to name its action. Only
  * assigned hands are quizzed; per-action accuracy records per answer. Shared by the flat
  * action-quiz route and the practice overlay's action mode.
+ *
+ * `onAttempt` reports each answer as it is scored. The overlay's close button lives in
+ * the frame around this component, so the host cannot ask for the run when it ends —
+ * it accumulates the answers instead, and builds its summary from them.
  */
-export function ActionQuizDrill({ id }: { id?: string }) {
+export function ActionQuizDrill({
+  id,
+  onAttempt,
+}: {
+  id?: string
+  onAttempt?: (attempt: ActionAttempt) => void
+}) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const ACTION_COLORS = actionColors(theme);
@@ -44,8 +54,9 @@ export function ActionQuizDrill({ id }: { id?: string }) {
       setLastAttempt(attempt);
       setHand(getRandomHandFrom(pool));
       recordActionAccuracy(range.id, summarizeActionAccuracy([attempt]));
+      onAttempt?.(attempt);
     },
-    [range, hand, handActions, pool],
+    [range, hand, handActions, pool, onAttempt],
   );
 
   if (!range) {

@@ -3,6 +3,7 @@ import { AccessibilityInfo } from 'react-native';
 import type { ReactNode } from 'react';
 
 import { generateHandMatrix } from '@core/domain/pokerHands';
+import { loadActionAccuracy } from '@core/storage/actionAccuracyStorage';
 import { loadHandAccuracy } from '@core/storage/handAccuracyStorage';
 import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
 import { loadReviewStates } from '@core/storage/reviewStateStorage';
@@ -188,6 +189,48 @@ describe('PracticeScreen (overlay host)', () => {
 
     expect(getByTestId('mode-action')).toBeTruthy();
     expect(getByTestId('mode-mixed')).toBeTruthy();
+  });
+
+  it('ends the action quiz on a summary recapping the action each hand wanted', async () => {
+    saveSavedRange({
+      id: 'r1',
+      name: 'Charted',
+      hands: ['AA'],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      handActions: { AA: 'raise' },
+    });
+    mockParams.mockReturnValue({ id: 'r1', mode: 'action' });
+    const { getByTestId, findByTestId } = await render(<PracticeScreen />);
+
+    // Only AA is assigned, so calling it is a miss the recap has to explain.
+    fireEvent.press(getByTestId('quiz-action-call'));
+    await findByTestId('quiz-feedback');
+    fireEvent.press(getByTestId('overlay-close'));
+
+    await findByTestId('summary-done');
+    expect(getByTestId('summary-misses')).toHaveTextContent(/Raise these: AA/);
+    // The drill records each answer itself; the summary must not double-count.
+    expect(loadActionAccuracy().r1).toEqual({
+      raise: { action: 'raise', attempts: 1, correct: 0 },
+    });
+  });
+
+  it('abandons the action quiz when closed before any answer', async () => {
+    saveSavedRange({
+      id: 'r1',
+      name: 'Charted',
+      hands: ['AA'],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      handActions: { AA: 'raise' },
+    });
+    mockParams.mockReturnValue({ id: 'r1', mode: 'action' });
+    const { getByTestId, queryByTestId } = await render(<PracticeScreen />);
+
+    fireEvent.press(getByTestId('overlay-close'));
+
+    await waitFor(() => expect(queryByTestId('summary-done')).toBeNull());
   });
 
   it('finishes a session into the summary and records every store', async () => {
