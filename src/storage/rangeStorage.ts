@@ -1,4 +1,5 @@
 import { isValidHand, type PokerHand } from '../domain/pokerHands'
+import { allCombosForHand } from '../domain/comboSelection'
 import { normalizeRangeHands } from '../domain/rangeMath'
 import { normalizeTags } from '../domain/rangeLibrary'
 import { normalizeMixedStrategy, type HandMixedStrategy } from '../domain/mixedStrategy'
@@ -94,8 +95,9 @@ function normalizeHandActions(value: unknown): Record<PokerHand, RangeAction> | 
 /**
  * Validate and sanitize an optional per-hand-class combo-selection map.
  *
- * Each entry must have a canonical hand-class key and an array of `comboKey`
- * strings; non-array values and non-string keys/elements are dropped. As with
+ * Each entry must have a canonical hand-class key and an array of canonical
+ * `comboKey` strings that actually belong to that hand class. Non-array values,
+ * non-string elements, impossible combos, and duplicates are dropped. As with
  * `normalizeHandActions`, a malformed map never rejects the whole range, and an
  * all-empty result collapses to `undefined` so `comboSelections: {}` is never
  * persisted (absence = all combos selected, the default).
@@ -105,7 +107,14 @@ function normalizeComboSelections(value: unknown): Record<PokerHand, string[]> |
   const result: Record<PokerHand, string[]> = {}
   for (const [hand, raw] of Object.entries(value as Record<string, unknown>)) {
     if (!isValidHand(hand) || !Array.isArray(raw)) continue
-    const keys = raw.filter((key): key is string => typeof key === 'string')
+    const allowed = allCombosForHand(hand)
+    const keys = [
+      ...new Set(
+        raw.filter(
+          (key): key is string => typeof key === 'string' && allowed.has(key),
+        ),
+      ),
+    ]
     result[hand] = keys
   }
   return Object.keys(result).length > 0 ? result : undefined

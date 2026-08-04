@@ -476,10 +476,25 @@ describe('comboSelections persistence', () => {
           hands: ['AA'],
           createdAt: 'T',
           updatedAt: 'T',
-          comboSelections: { AKs: ['AhKh', 5], ZZ: ['AcKc'], QQ: 'not-an-array' },
+          comboSelections: {
+            AKs: ['AhKh', 5, 'AhKh', 'AcKd'],
+            ZZ: ['AcKc'],
+            QQ: 'not-an-array',
+          },
         },
       ]),
     )
+    expect(loadSavedRanges()[0].comboSelections).toEqual({ AKs: ['AhKh'] })
+  })
+
+  it('sanitizes impossible and duplicate combo keys before saving', () => {
+    saveSavedRange(
+      makeRange({
+        id: 'r1',
+        comboSelections: { AKs: ['AhKh', 'AcKd', 'AhKh'] },
+      }),
+    )
+
     expect(loadSavedRanges()[0].comboSelections).toEqual({ AKs: ['AhKh'] })
   })
 

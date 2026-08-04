@@ -379,7 +379,7 @@ describe('RangeScreen tabs', () => {
   })
 
   it('reports a narrowed range at its real size, not its hand-class size', () => {
-    saveSavedRange(makeRange({ hands: ['AA', 'AKs'], comboSelections: { AA: ['AhAs'] } }))
+    saveSavedRange(makeRange({ hands: ['AA', 'AKs'], comboSelections: { AA: ['AsAh'] } }))
     render(<RangeScreen id="r1" tab="overview" onPractice={vi.fn()} />)
 
     // AA is down to one combo, so the range holds 5, not the full 10.
