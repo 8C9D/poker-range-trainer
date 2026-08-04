@@ -443,7 +443,8 @@ function OverviewTab({
         </View>
         <View style={styles.facts}>
           <Text style={styles.factLine}>
-            {range.hands.length} hands · {combos} combos · {percentage.toFixed(1)}% of all hands
+            {range.hands.length} hand{range.hands.length === 1 ? '' : 's'} · {combos} combos ·{' '}
+            {percentage.toFixed(1)}% of all hands
           </Text>
           <Text style={styles.factLine}>
             Next review:{' '}

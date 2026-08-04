@@ -33,7 +33,7 @@ describe('ComboBlockerDrill', () => {
     // AKs restricted to 1 of its 4 combos via comboSelections.
     const selection = selectionForRange(['AKs'], { AKs: ['AhKh'] })
     render(<ComboBlockerDrill hands={['AKs']} selection={selection} onExit={vi.fn()} />)
-    expect(screen.getByText('1 combos available')).toBeInTheDocument()
+    expect(screen.getByText('1 combo available')).toBeInTheDocument()
   })
 
   it('shows an inline error for an invalid board', () => {

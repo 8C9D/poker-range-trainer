@@ -106,7 +106,8 @@ export function RangeStats({ id }: { id: string }) {
             <View key={stat.action} style={styles.actionRow}>
               <Text style={styles.actionName}>{stat.action}</Text>
               <Text style={styles.actionRate}>
-                {actionAccuracyRate(stat).toFixed(0)}% · {stat.attempts} tries
+                {actionAccuracyRate(stat).toFixed(0)}% · {stat.attempts} tr
+                {stat.attempts === 1 ? 'y' : 'ies'}
               </Text>
             </View>
           ))}

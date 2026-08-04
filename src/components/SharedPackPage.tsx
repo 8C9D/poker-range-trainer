@@ -161,7 +161,8 @@ export function SharedPackPage({
             <section key={range.id} className="shared-pack-range">
               <h2>{range.name}</h2>
               <p>
-                {range.hands.length} hands · {combos} combos · {percentage.toFixed(1)}%
+                {range.hands.length} hand{range.hands.length === 1 ? '' : 's'} · {combos} combos ·{' '}
+                {percentage.toFixed(1)}%
               </p>
               {range.handActions ? (
                 <ActionGrid handActions={range.handActions} onAssign={noop} />

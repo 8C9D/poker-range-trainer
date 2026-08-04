@@ -121,7 +121,8 @@ export function SharedRangePage({
     <main className="shared-range-page">
       <h1>{range.name}</h1>
       <p>
-        {range.hands.length} hands · {combos} combos · {percentage.toFixed(1)}%
+        {range.hands.length} hand{range.hands.length === 1 ? '' : 's'} · {combos} combos ·{' '}
+        {percentage.toFixed(1)}%
       </p>
       {handActions ? (
         <ActionGrid handActions={handActions} onAssign={noop} />

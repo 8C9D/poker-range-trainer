@@ -36,4 +36,12 @@ describe('HandHeatmap', () => {
     expect(screen.getByRole('img', { name: 'AA: 80% (5 attempts)' })).toBeInTheDocument()
     expect(screen.getByRole('img', { name: '72o: untested' })).toBeInTheDocument()
   })
+
+  it('counts a single attempt in the singular', () => {
+    // The colour is the whole cell to everyone else; this name is the only place
+    // the number is said, so it is the one that has to read as English.
+    const accuracy: RangeHandAccuracy = { AA: stat('AA', { attempts: 1, correct: 0 }) }
+    render(<HandHeatmap accuracy={accuracy} />)
+    expect(screen.getByRole('img', { name: 'AA: 0% (1 attempt)' })).toBeInTheDocument()
+  })
 })

@@ -446,7 +446,8 @@ function OverviewTab({ range }: { range: SavedRange }) {
         <RangeThumbnail hands={range.hands} size={280} label={describeRangeChart(range.hands)} />
         <div className="range-overview-facts coach-tabular">
           <p>
-            {range.hands.length} hands · {combos} combos · {percentage.toFixed(1)}% of all hands
+            {range.hands.length} hand{range.hands.length === 1 ? '' : 's'} · {combos} combos ·{' '}
+            {percentage.toFixed(1)}% of all hands
           </p>
           <p>
             Next review:{' '}

@@ -19,6 +19,19 @@ beforeEach(() => {
   localStorage.clear()
 })
 
+describe('RangeEditTab summary', () => {
+  it('counts a single selected hand in the singular', () => {
+    // The first click anyone makes in this app lands here, and read "1 hands
+    // selected" for the whole of v1.
+    render(<RangeEditTab range={makeRange({ hands: ['AA'] })} onSaved={vi.fn()} />)
+    const summary = screen.getByRole('region', { name: 'Range summary' })
+    expect(summary).toHaveTextContent('1 hand selected')
+
+    fireEvent.click(screen.getByRole('button', { name: 'KK' }))
+    expect(summary).toHaveTextContent('2 hands selected')
+  })
+})
+
 describe('RangeEditTab per-hand notes', () => {
   it('drops a note for a hand that is deselected before saving', () => {
     const onSaved = vi.fn()

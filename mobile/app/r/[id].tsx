@@ -99,7 +99,8 @@ export default function SharedRangeScreen() {
               {range.name || 'Untitled range'}
             </Text>
             <Text style={styles.meta}>
-              {range.hands.length} hands · {rangeComboPercentage(range.hands, range.comboSelections).toFixed(1)}%
+              {range.hands.length} hand{range.hands.length === 1 ? '' : 's'} ·{' '}
+              {rangeComboPercentage(range.hands, range.comboSelections).toFixed(1)}%
             </Text>
             <Pressable
               testID="shared-add"

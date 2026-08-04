@@ -338,7 +338,9 @@ export function RangeEditTab({ range, prefill, onSaved }: RangeEditTabProps) {
       <HandGrid selected={selected} onSetSelected={setHandSelected} />
 
       <section className="range-edit-summary coach-tabular" aria-label="Range summary">
-        <span>{selectedHands.length} hands selected</span>
+        <span>
+          {selectedHands.length} hand{selectedHands.length === 1 ? '' : 's'} selected
+        </span>
         <span>{combos} combos</span>
         <span>{percentage.toFixed(1)}% of all hands</span>
       </section>

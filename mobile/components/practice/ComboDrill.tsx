@@ -81,7 +81,7 @@ export function ComboDrill({ id }: { id?: string }) {
       ) : (
         <>
           <Text testID="blocker-remaining" style={styles.remaining}>
-            {remaining} combos available
+            {remaining} combo{remaining === 1 ? '' : 's'} available
           </Text>
           <Pressable testID="blocker-deal" accessibilityRole="button" style={styles.dealButton} onPress={deal}>
             <Text style={styles.dealButtonText}>Deal a combo</Text>

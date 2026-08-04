@@ -54,6 +54,14 @@ describe('RangeScreen', () => {
     expect(getByText(/3 hands ·/)).toBeTruthy();
   });
 
+  it('counts a one-hand range in the singular', async () => {
+    seed({ id: 'r1', name: 'Aces only', hands: ['AA'] });
+
+    const { getByText } = await render(<RangeScreen />);
+
+    expect(getByText(/1 hand · 6 combos/)).toBeTruthy();
+  });
+
   it('gives the overview chart the hands it draws as its label', async () => {
     seed({ id: 'r1', name: 'UTG Open' });
 

@@ -78,7 +78,8 @@ export function RangeVsBoard({ hands }: RangeVsBoardProps) {
         <div className="range-vs-board-result">
           <FlopTexture board={board} />
           <p className="range-vs-board-combos">
-            {result.comboCount} combos remaining (after removing board cards)
+            {result.comboCount} combo{result.comboCount === 1 ? '' : 's'} remaining (after removing
+            board cards)
           </p>
           <div className="coach-table-scroll">
             <table className="range-vs-board-table">

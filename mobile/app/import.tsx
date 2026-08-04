@@ -114,7 +114,8 @@ export default function ImportScreen() {
                 {range.name || 'Untitled'}
               </Text>
               <Text style={styles.previewMeta}>
-                {range.hands.length} hands · {rangeComboPercentage(range.hands, range.comboSelections).toFixed(1)}%
+                {range.hands.length} hand{range.hands.length === 1 ? '' : 's'} ·{' '}
+                {rangeComboPercentage(range.hands, range.comboSelections).toFixed(1)}%
               </Text>
             </View>
           </View>

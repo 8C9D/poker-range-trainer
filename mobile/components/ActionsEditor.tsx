@@ -60,7 +60,8 @@ export function ActionsEditor({ id }: { id?: string }) {
       <ActionPalette active={activeAction} onSelect={setActiveAction} />
       <ActionGrid handActions={handActions} activeAction={activeAction} onAssign={assign} />
       <Text testID="assigned-count" style={styles.count}>
-        {assignedHands(handActions).length} hands assigned
+        {assignedHands(handActions).length} hand{assignedHands(handActions).length === 1 ? '' : 's'}{' '}
+        assigned
       </Text>
       <ActionNotation handActions={handActions} onReplaceActions={setHandActions} />
     </View>

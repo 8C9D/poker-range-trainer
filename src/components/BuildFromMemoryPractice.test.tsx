@@ -35,7 +35,7 @@ describe('BuildFromMemoryPractice', () => {
     render(<BuildFromMemoryPractice range={makeRange()} onExit={vi.fn()} />)
 
     await user.click(screen.getByRole('button', { name: 'AA' }))
-    expect(screen.getByText('1 hands selected')).toBeInTheDocument()
+    expect(screen.getByText('1 hand selected')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'KK' }))
     expect(screen.getByText('2 hands selected')).toBeInTheDocument()

@@ -271,6 +271,12 @@ describe('RangeScreen tabs', () => {
     expect(within(sessions).getByText(/8\/10 · 80%/)).toBeInTheDocument()
   })
 
+  it('counts a one-hand range in the singular', () => {
+    saveSavedRange(makeRange({ hands: ['AA'] }))
+    render(<RangeScreen id="r1" tab="overview" onPractice={vi.fn()} />)
+    expect(screen.getByText(/1 hand · 6 combos/)).toBeInTheDocument()
+  })
+
   it('links web source references and leaves citations as plain text', () => {
     saveSavedRange(
       makeRange({

@@ -41,7 +41,9 @@ export function HandHeatmap({ accuracy }: HandHeatmapProps) {
         const level = accuracyHeatLevel(stat)
         const title =
           stat && stat.attempts > 0
-            ? `${hand}: ${handAccuracyRate(stat).toFixed(0)}% (${stat.attempts} attempts)`
+            ? `${hand}: ${handAccuracyRate(stat).toFixed(0)}% (${stat.attempts} attempt${
+                stat.attempts === 1 ? '' : 's'
+              })`
             : `${hand}: untested`
           return (
             <div

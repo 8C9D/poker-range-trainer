@@ -72,7 +72,9 @@ export function ComboBlockerDrill({
         <p className="combo-blocker-empty">No combos available — every combo is blocked.</p>
       ) : (
         <>
-          <p className="combo-blocker-remaining">{parsed.remaining} combos available</p>
+          <p className="combo-blocker-remaining">
+            {parsed.remaining} combo{parsed.remaining === 1 ? '' : 's'} available
+          </p>
           <button type="button" className="coach-btn primary" onClick={deal}>
             Deal a combo
           </button>
