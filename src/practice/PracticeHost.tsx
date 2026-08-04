@@ -51,6 +51,13 @@ interface PracticeHostProps {
   onClose: () => void
 }
 
+/** How a finished run can be replayed over just what it got wrong. */
+type Redrill =
+  /** Re-run the current range over the hands it missed. */
+  | { kind: 'hands'; hands: PokerHand[] }
+  /** Re-run a queue of ranges, each over its own misses (a spot run spans several). */
+  | { kind: 'queue'; ranges: SavedRange[]; handPools: Record<string, PokerHand[]> }
+
 type Phase =
   | { kind: 'picker' }
   | {
@@ -63,9 +70,19 @@ type Phase =
   | {
       kind: 'summary'
       data: SessionSummaryData
-      /** The hands to re-drill, or null when the run cannot offer one. */
-      missedHands: PokerHand[] | null
+      /** How to re-drill the run's misses, or null when it cannot offer one. */
+      redrill: Redrill | null
     }
+
+/**
+ * What the host is drilling right now: the request as it arrived, or the
+ * recognition queue a finished run spawned by re-drilling its misses.
+ */
+interface Queue {
+  ranges: SavedRange[]
+  mode: PracticeMode | null
+  handPools?: Record<string, PokerHand[]>
+}
 
 /**
  * The distinct hands a session got wrong, in first-missed order, or null when
@@ -75,6 +92,16 @@ type Phase =
 function missedHandsOf(attempts: PracticeAttempt[]): PokerHand[] | null {
   const missed = [...new Set(attempts.filter((a) => !a.correct).map((a) => a.hand))]
   return missed.length > 0 ? missed : null
+}
+
+/** The same, per range, for a session graded against more than one of them. */
+function missedPoolsOf(byRange: Record<string, PracticeAttempt[]>): Record<string, PokerHand[]> {
+  const pools: Record<string, PokerHand[]> = {}
+  for (const [rangeId, attempts] of Object.entries(byRange)) {
+    const missed = missedHandsOf(attempts)
+    if (missed) pools[rangeId] = missed
+  }
+  return pools
 }
 
 /** Growth-framed comparison of this session against the range's previous one. */
@@ -101,8 +128,13 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
    * queue is included so a run started from something not yet in the library
    * still counts the session it just recorded.
    */
-  const livePlusDrilled = () => [...loadSavedRanges(), ...request.ranges]
+  const livePlusDrilled = () => [...loadSavedRanges(), ...queue.ranges]
 
+  const [queue, setQueue] = useState<Queue>(() => ({
+    ranges: request.ranges,
+    mode: request.mode,
+    handPools: request.handPools,
+  }))
   const [index, setIndex] = useState(0)
   const [phase, setPhase] = useState<Phase>(() =>
     request.mode
@@ -115,10 +147,10 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
   // Postflop drill sub-state: building the scenario, then practicing it.
   const [postflopScenario, setPostflopScenario] = useState<PostflopScenario | null>(null)
 
-  const range = request.ranges[index]
+  const range = queue.ranges[index]
   if (!range) return null
-  const hasNext = index + 1 < request.ranges.length
-  const position = request.ranges.length > 1 ? `${index + 1}/${request.ranges.length}` : null
+  const hasNext = index + 1 < queue.ranges.length
+  const position = queue.ranges.length > 1 ? `${index + 1}/${queue.ranges.length}` : null
 
   const finishRecognition = (attempts: PracticeAttempt[]) => {
     // Closing before answering anything abandons the run without recording.
@@ -140,6 +172,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
       .flat()
       .map((session) => session.playedAt)
     const streak = currentStreak(playedAt, new Date().toISOString())
+    const missedHands = missedHandsOf(attempts)
     setPhase({
       kind: 'summary',
       data: {
@@ -152,7 +185,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
         misses: recapMisses(attempts),
         saveError,
       },
-      missedHands: missedHandsOf(attempts),
+      redrill: missedHands ? { kind: 'hands', hands: missedHands } : null,
     })
   }
 
@@ -177,7 +210,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
       },
       // The action quiz grades chosen actions, not in/out of range, so its
       // misses are not a hand pool the recognition drill could deal from.
-      missedHands: null,
+      redrill: null,
     })
   }
 
@@ -203,6 +236,11 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
       .flat()
       .map((session) => session.playedAt)
     const streak = currentStreak(playedAt, new Date().toISOString())
+    // A spot session's misses span the library, so the re-drill is a recognition
+    // queue over the ranges that actually missed something, each dealt its own
+    // pool — not a restart of one range.
+    const handPools = missedPoolsOf(byRange)
+    const missedRanges = queue.ranges.filter((entry) => handPools[entry.id])
     setPhase({
       kind: 'summary',
       data: {
@@ -215,9 +253,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
         misses: recapMisses(all),
         saveError,
       },
-      // A spot session's misses span the library, so re-drilling them means
-      // re-queueing several ranges — more than this single-range host can do.
-      missedHands: null,
+      redrill: missedRanges.length > 0 ? { kind: 'queue', ranges: missedRanges, handPools } : null,
     })
   }
 
@@ -227,7 +263,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     setRun(run + 1)
     setPhase({
       kind: 'drill',
-      mode: request.mode ?? 'recognize',
+      mode: queue.mode ?? 'recognize',
       durationSeconds: DEFAULT_DRILL_SECONDS,
     })
   }
@@ -236,6 +272,14 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
   const drillMisses = (handPool: PokerHand[]) => {
     setRun(run + 1)
     setPhase({ kind: 'drill', mode: 'recognize', durationSeconds: DEFAULT_DRILL_SECONDS, handPool })
+  }
+
+  /** Replace the queue with a recognition run over each range's own misses. */
+  const drillQueue = (ranges: SavedRange[], handPools: Record<string, PokerHand[]>) => {
+    setQueue({ ranges, mode: 'recognize', handPools })
+    setIndex(0)
+    setRun(run + 1)
+    setPhase({ kind: 'drill', mode: 'recognize', durationSeconds: DEFAULT_DRILL_SECONDS })
   }
 
   if (phase.kind === 'picker') {
@@ -257,7 +301,8 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
 
   if (phase.kind === 'summary') {
     // A spot session spans the library, so it is not titled after one range.
-    const spots = request.mode === 'spots'
+    const spots = queue.mode === 'spots'
+    const redrill = phase.redrill
     return (
       <OverlayFrame
         title={spots ? 'Play the spot' : range.name}
@@ -271,7 +316,12 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
           onNext={nextRange}
           onDone={onClose}
           onDrillMisses={
-            phase.missedHands ? () => drillMisses(phase.missedHands as PokerHand[]) : undefined
+            redrill
+              ? () =>
+                  redrill.kind === 'hands'
+                    ? drillMisses(redrill.hands)
+                    : drillQueue(redrill.ranges, redrill.handPools)
+              : undefined
           }
         />
       </OverlayFrame>
@@ -282,7 +332,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     case 'spots':
       return (
         <SpotDrill
-          ranges={request.ranges}
+          ranges={queue.ranges}
           tableSize={request.spotFormat?.tableSize ?? 'sixMax'}
           stackDepthBb={request.spotFormat?.stackDepthBb ?? 100}
           spotKeys={request.spotKeys}
@@ -295,7 +345,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
           key={`${range.id}-${index}-${run}`}
           range={range}
           variant="standard"
-          handPool={phase.handPool ?? request.handPool ?? request.handPools?.[range.id]}
+          handPool={phase.handPool ?? request.handPool ?? queue.handPools?.[range.id]}
           position={position}
           onFinish={finishRecognition}
         />

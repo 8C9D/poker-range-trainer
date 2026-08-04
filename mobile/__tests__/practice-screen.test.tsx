@@ -354,6 +354,49 @@ describe('PracticeScreen spot drill', () => {
     expect(loadSpotAccuracy()['sixMax|btn|foldedToYou|-|100']).toMatchObject({ attempts: 1 });
   });
 
+  it('re-drills the ranges the run missed, each over its own misses', async () => {
+    // Every hand is in range, so folding whatever is dealt is always a miss.
+    saveSavedRange({
+      id: 'btn',
+      name: 'BTN open',
+      hands: generateHandMatrix().flat(),
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      metadata: { position: 'btn', actionType: 'open' },
+    });
+    const { getByTestId, findByTestId, queryByTestId } = await render(<PracticeScreen />);
+
+    const missed = getByTestId('drill-hand').props.children;
+    fireEvent.press(getByTestId('answer-no'));
+    await findByTestId('drill-feedback');
+    fireEvent.press(getByTestId('overlay-close'));
+
+    fireEvent.press(await findByTestId('summary-drill-misses'));
+
+    // Back in a recognition drill on the range that missed, dealing only that hand.
+    await waitFor(() => expect(queryByTestId('summary-done')).toBeNull());
+    expect(getByTestId('drill-hand')).toHaveTextContent(missed);
+  });
+
+  it('offers no re-drill when the run missed nothing', async () => {
+    saveSavedRange({
+      id: 'btn',
+      name: 'BTN open',
+      hands: generateHandMatrix().flat(),
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      metadata: { position: 'btn', actionType: 'open' },
+    });
+    const { getByTestId, findByTestId, queryByTestId } = await render(<PracticeScreen />);
+
+    fireEvent.press(getByTestId('answer-yes'));
+    await findByTestId('drill-feedback');
+    fireEvent.press(getByTestId('overlay-close'));
+
+    await findByTestId('summary-done');
+    expect(queryByTestId('summary-drill-misses')).toBeNull();
+  });
+
   it('falls back to 100bb when a deep link has a non-finite stack', async () => {
     saveSavedRange({
       id: 'btn',

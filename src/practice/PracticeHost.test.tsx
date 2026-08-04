@@ -479,6 +479,50 @@ describe('PracticeHost spot drill', () => {
     expect(screen.queryByRole('button', { name: 'Next range' })).not.toBeInTheDocument()
   })
 
+  it('re-drills the ranges the run missed, each over its own misses', () => {
+    render(
+      <PracticeHost
+        request={{
+          ranges: [btnOpen],
+          mode: 'spots',
+          spotFormat: { tableSize: 'sixMax', stackDepthBb: 100 },
+        }}
+        onClose={vi.fn()}
+      />,
+    )
+
+    // Answer whatever was dealt wrongly, so the run has exactly one miss.
+    const missed = screen.getByTestId('drill-hand').textContent ?? ''
+    const shouldOpen = btnOpen.hands.includes(missed)
+    fireEvent.click(screen.getByRole('button', { name: shouldOpen ? 'Fold' : 'Open' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close practice' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Drill these now' }))
+
+    // Back in a recognition drill on the range that missed, dealing only that hand.
+    expect(screen.queryByLabelText('Session summary')).not.toBeInTheDocument()
+    expect(screen.getByText('BTN open')).toBeInTheDocument()
+    expect(screen.getByTestId('drill-hand')).toHaveTextContent(missed)
+  })
+
+  it('offers no re-drill when the run missed nothing', () => {
+    render(
+      <PracticeHost
+        request={{
+          ranges: [btnOpen],
+          mode: 'spots',
+          spotFormat: { tableSize: 'sixMax', stackDepthBb: 100 },
+        }}
+        onClose={vi.fn()}
+      />,
+    )
+
+    const hand = screen.getByTestId('drill-hand').textContent ?? ''
+    fireEvent.click(screen.getByRole('button', { name: btnOpen.hands.includes(hand) ? 'Open' : 'Fold' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close practice' }))
+
+    expect(screen.queryByRole('button', { name: 'Drill these now' })).not.toBeInTheDocument()
+  })
+
   it('closes without recording when nothing was answered', () => {
     const onClose = vi.fn()
     render(
