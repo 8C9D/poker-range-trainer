@@ -40,7 +40,7 @@ export function ModePicker({ range, onPick }: ModePickerProps) {
   const styles = makeStyles(theme);
   const [durationSeconds, setDurationSeconds] = useState(DEFAULT_DRILL_SECONDS);
   const verbs = answerVerbs(range);
-  const hasActions = !!range.handActions && assignedHands(range.handActions).length > 0;
+  const hasActions = assignedHands(range).length > 0;
   // An empty range (or one holding every hand) has no boundary to drill.
   const hasEdge = rangeEdgeHands(range.hands).length > 0;
   const hasMixed =

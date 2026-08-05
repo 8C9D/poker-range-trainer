@@ -59,7 +59,7 @@ export function ActionQuiz({
   random = Math.random,
 }: ActionQuizProps) {
   const handActions = range.handActions ?? {}
-  const pool = handPool ?? assignedHands(handActions)
+  const pool = handPool ?? assignedHands(range)
   const [currentHand, setCurrentHand] = useState<PokerHand>(() =>
     pool.length > 0 ? getRandomHandFrom(pool, random) : '',
   )

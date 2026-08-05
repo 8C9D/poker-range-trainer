@@ -51,7 +51,10 @@ export function ActionQuizDrill({
   const ACTION_COLORS = actionColors(theme);
   const [range] = useState(() => (id ? findSavedRangeById(id) : undefined));
   const handActions = range?.handActions ?? EMPTY_ACTIONS;
-  const pool = useMemo(() => handPool ?? assignedHands(handActions), [handPool, handActions]);
+  const pool = useMemo(
+    () => handPool ?? assignedHands({ hands: range?.hands ?? [], handActions }),
+    [handPool, range, handActions],
+  );
 
   const [hand, setHand] = useState<PokerHand | null>(() =>
     pool.length > 0 ? getRandomHandFrom(pool) : null,

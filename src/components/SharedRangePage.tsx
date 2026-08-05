@@ -122,7 +122,7 @@ export function SharedRangePage({
         {percentage.toFixed(1)}%
       </p>
       {handActions ? (
-        <ActionGrid handActions={handActions} onAssign={noop} />
+        <ActionGrid handActions={handActions} rangeHands={range.hands} onAssign={noop} />
       ) : (
         <HandGrid selected={new Set<PokerHand>(range.hands)} onSetSelected={noop} />
       )}

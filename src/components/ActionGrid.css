@@ -31,8 +31,24 @@ button.action-cell {
   cursor: pointer;
 }
 
-button.action-cell:hover {
+button.action-cell:hover:not(:disabled) {
   border-color: var(--accent-border);
+}
+
+/* Outside the range. `hands` is what every drill grades against, so an action
+   here would be inert — the quiz skips it and the export does not colour it.
+   The cell stays in place so the 13x13 shape still reads, but it cannot be
+   assigned, matching the Combos and Frequencies tabs, which simply do not list a
+   hand the range does not hold.
+
+   Marked by REMOVING the border rather than by dimming: the cell is labelled
+   with its hand, and fading a labelled grid cell to say "not in range" is the
+   exact bug the dimmed-text guard was written against. The ink stays at full
+   contrast, so the chart is still readable end to end. */
+button.action-cell:disabled {
+  cursor: default;
+  border-color: transparent;
+  background: var(--surface);
 }
 
 .action-cell:focus-visible {

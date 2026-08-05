@@ -11,6 +11,14 @@ const HANDS = generateHandMatrix().flat()
 interface ActionGridProps {
   /** The action assigned to each hand; absent hands are unassigned. */
   handActions: Record<PokerHand, RangeAction>
+  /**
+   * The hands the range holds. Cells outside it are shown out of the range and
+   * cannot be assigned: `hands` is the membership list, so an action there is
+   * inert (the quiz skips it, the export does not colour it), and letting the
+   * grid paint it made the tab promise something no drill honoured. The Combos
+   * and Frequencies tabs already list only the range's hands; this matches them.
+   */
+  rangeHands: readonly PokerHand[]
   /** Assign the active action (owned by the parent) to `hand`. */
   onAssign: (hand: PokerHand) => void
 }
@@ -25,9 +33,10 @@ interface ActionGridProps {
  * Keyboard model matches the hand grid: one roving tab stop moved with the arrow
  * keys (see {@link useHandGridKeys}); Enter/Space assigns the active action.
  */
-export function ActionGrid({ handActions, onAssign }: ActionGridProps) {
+export function ActionGrid({ handActions, rangeHands, onAssign }: ActionGridProps) {
   const { gridRef, focusedIndex, onKeyDown, onFocus } = useHandGridKeys()
   const keysId = useId()
+  const inRange = new Set(rangeHands)
 
   return (
     <div
@@ -44,14 +53,22 @@ export function ActionGrid({ handActions, onAssign }: ActionGridProps) {
         {HAND_GRID_KEY_HINT}
       </p>
       {HANDS.map((hand, index) => {
-        const action = handActions[hand]
+        const outsideRange = !inRange.has(hand)
+        const action = outsideRange ? undefined : handActions[hand]
         return (
           <button
             key={hand}
             type="button"
             className={action ? `action-cell action-${action}` : 'action-cell'}
             data-action={action ?? 'none'}
-            aria-label={action ? `${hand}: ${RANGE_ACTION_LABELS[action]}` : `${hand}: unassigned`}
+            disabled={outsideRange}
+            aria-label={
+              outsideRange
+                ? `${hand}: not in this range`
+                : action
+                  ? `${hand}: ${RANGE_ACTION_LABELS[action]}`
+                  : `${hand}: unassigned`
+            }
             tabIndex={index === focusedIndex ? 0 : -1}
             onClick={() => onAssign(hand)}
           >

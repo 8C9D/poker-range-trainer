@@ -31,13 +31,45 @@ export function actionRangePercentage(
   return calculateRangePercentage(handsForAction(handActions, action))
 }
 
+/** A chart to read actions off: its membership list, plus the action overlay. */
+export interface ActionChart {
+  hands: readonly PokerHand[]
+  handActions?: Record<PokerHand, RangeAction>
+}
+
 /**
- * The hands that have any assigned action, in canonical 13×13 order — the prompt
- * pool for mode-2 ("what is the correct action?") practice, so the quiz only asks
- * about the hands the chart actually assigns.
+ * The action overlay narrowed to the hands the range actually holds.
+ *
+ * `hands` is the membership list (see `SavedRange`), and the other three
+ * per-hand overlays are already scoped to it in both the editor and storage;
+ * only this one was not. A hand carrying an action but absent from `hands` was
+ * therefore quizzed as, say, a 3-bet while the recognition drill graded the same
+ * hand a fold — two drills on one chart with opposite right answers, and an
+ * exported image colouring a cell the hand count leaves out.
+ *
+ * Doing the narrowing HERE, once, is the point: every reader that used the raw
+ * map had to remember to scope it, and none of them did. The assignment itself
+ * is deliberately left in storage — it costs nothing, and it comes back into
+ * force the moment the hand is added to the range again.
  */
-export function assignedHands(handActions: Record<PokerHand, RangeAction>): PokerHand[] {
-  return ALL_HANDS.filter((hand) => handActions[hand] !== undefined)
+export function scopedHandActions(chart: ActionChart): Record<PokerHand, RangeAction> {
+  const scoped: Record<PokerHand, RangeAction> = {}
+  if (!chart.handActions) return scoped
+  for (const hand of chart.hands) {
+    const action = chart.handActions[hand]
+    if (action !== undefined) scoped[hand] = action
+  }
+  return scoped
+}
+
+/**
+ * The range's hands that have an assigned action, in canonical 13×13 order — the
+ * prompt pool for mode-2 ("what is the correct action?") practice, so the quiz
+ * only asks about hands the chart both holds and assigns.
+ */
+export function assignedHands(chart: ActionChart): PokerHand[] {
+  const scoped = scopedHandActions(chart)
+  return ALL_HANDS.filter((hand) => scoped[hand] !== undefined)
 }
 
 /**

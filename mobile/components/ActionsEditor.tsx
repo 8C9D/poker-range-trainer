@@ -54,14 +54,23 @@ export function ActionsEditor({ id }: { id?: string }) {
     return <Text style={styles.notFound}>Range not found</Text>;
   }
 
+  // Only the hands the range holds count: an action left on a hand that has
+  // since left it is inert in the quiz and the export, so counting it here
+  // would overstate the chart.
+  const assignedCount = assignedHands({ hands: range.hands, handActions }).length;
+
   return (
     <View style={styles.content}>
       <SaveErrorBanner error={saveError} />
       <ActionPalette active={activeAction} onSelect={setActiveAction} />
-      <ActionGrid handActions={handActions} activeAction={activeAction} onAssign={assign} />
+      <ActionGrid
+        handActions={handActions}
+        rangeHands={range.hands}
+        activeAction={activeAction}
+        onAssign={assign}
+      />
       <Text testID="assigned-count" style={styles.count}>
-        {assignedHands(handActions).length} hand{assignedHands(handActions).length === 1 ? '' : 's'}{' '}
-        assigned
+        {assignedCount} hand{assignedCount === 1 ? '' : 's'} assigned
       </Text>
       <ActionNotation handActions={handActions} onReplaceActions={setHandActions} />
     </View>

@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MultiActionEditor } from './MultiActionEditor'
-import type { PokerHand } from '../domain/pokerHands'
+import { ALL_HANDS, type PokerHand } from '../domain/pokerHands'
 import type { RangeAction } from '../types/range'
 
 /** Stateful wrapper mirroring how a parent would own `handActions`. */
@@ -12,6 +12,7 @@ function Harness({ initial = {} }: { initial?: Record<PokerHand, RangeAction> })
   return (
     <MultiActionEditor
       handActions={handActions}
+      rangeHands={ALL_HANDS}
       onSetHandAction={(hand, action) =>
         setHandActions((prev) => ({ ...prev, [hand]: action }))
       }

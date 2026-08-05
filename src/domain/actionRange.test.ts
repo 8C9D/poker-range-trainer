@@ -3,6 +3,7 @@ import {
   actionAccuracyRate,
   actionRangePercentage,
   assignedHands,
+  scopedHandActions,
   correctActionFor,
   formatActionNotation,
   handsForAction,
@@ -79,12 +80,31 @@ describe('actionRangePercentage', () => {
 
 describe('assignedHands', () => {
   it('returns an empty array when nothing is assigned', () => {
-    expect(assignedHands({})).toEqual([])
+    expect(assignedHands({ hands: ['AA', 'KK'] })).toEqual([])
   })
 
   it('returns assigned hands in canonical order', () => {
     const handActions: Record<PokerHand, RangeAction> = { KK: 'fold', AA: 'raise' }
-    expect(assignedHands(handActions)).toEqual(['AA', 'KK'])
+    expect(assignedHands({ hands: ['AA', 'KK'], handActions })).toEqual(['AA', 'KK'])
+  })
+
+  // `hands` is the membership list. An action stranded on a hand the range no
+  // longer holds used to put that hand in the quiz's pool, so the quiz asked for
+  // a 3-bet on a hand the recognition drill graded a fold.
+  it('skips a hand the range does not hold', () => {
+    const handActions: Record<PokerHand, RangeAction> = { AA: 'raise', QQ: 'threeBet' }
+    expect(assignedHands({ hands: ['AA', 'KK'], handActions })).toEqual(['AA'])
+  })
+})
+
+describe('scopedHandActions', () => {
+  it('drops assignments for hands outside the range', () => {
+    const handActions: Record<PokerHand, RangeAction> = { AA: 'raise', QQ: 'threeBet' }
+    expect(scopedHandActions({ hands: ['AA', 'KK'], handActions })).toEqual({ AA: 'raise' })
+  })
+
+  it('is empty when the range carries no overlay at all', () => {
+    expect(scopedHandActions({ hands: ['AA'] })).toEqual({})
   })
 })
 

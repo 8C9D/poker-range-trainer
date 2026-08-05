@@ -201,7 +201,10 @@ export function formatRangeSvg(range: SavedRange): string {
       const y = i * cell
       let fill: string = i === j ? SVG_PALETTE['--pairbg'] : SVG_PALETTE['--cellbg']
       let textFill: string = SVG_PALETTE['--ink']
-      const action = handActions?.[hand]
+      // Only a hand the range actually holds takes its action colour. An action
+      // left on a hand that has since left the range is inert everywhere else,
+      // and colouring it here drew a cell the hand count does not include.
+      const action = inRange.has(hand) ? handActions?.[hand] : undefined
       if (action && RANGE_ACTIONS.includes(action)) {
         fill = ACTION_COLORS[action]
         textFill = SVG_PALETTE['--on-action']

@@ -32,7 +32,7 @@ interface ModePickerProps {
 export function ModePicker({ range, onPick }: ModePickerProps) {
   const [durationSeconds, setDurationSeconds] = useState(DEFAULT_DRILL_SECONDS)
   const verbs = answerVerbs(range)
-  const hasActions = !!range.handActions && assignedHands(range.handActions).length > 0
+  const hasActions = assignedHands(range).length > 0
   const hasMixed =
     !!range.mixedStrategies && handsWithMixedStrategy(range.mixedStrategies).length > 0
   // An empty range (or one holding every hand) has no boundary to drill.

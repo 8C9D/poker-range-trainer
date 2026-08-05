@@ -286,13 +286,27 @@ describe('formatRangeSvg', () => {
   })
 
   it('inks each fill with the color that reads on it', () => {
-    const svg = formatRangeSvg(makeRange({ hands: ['AA'], handActions: { KK: 'call' } }))
+    const svg = formatRangeSvg(
+      makeRange({ hands: ['AA', 'KK'], handActions: { KK: 'call' } }),
+    )
     // AA is selected, KK carries an action, and the other 167 cells are plain.
+    // Both are IN the range: an action on a hand the range does not hold is
+    // inert, so it no longer supplies a colour (see the case below).
     expect(svg).toContain(`fill="${SVG_PALETTE['--on-accent']}"`)
     expect(svg).toContain(`fill="${SVG_PALETTE['--on-action']}"`)
     expect(svg).toContain(`fill="${SVG_PALETTE['--ink']}"`)
     // The old export inked every unselected cell mid-grey on near-black.
     expect(svg).not.toContain('fill="#888"')
+  })
+
+  it('leaves a hand outside the range uncoloured, action or not', () => {
+    // `hands` is the membership list. Colouring an action stranded on a hand the
+    // range does not hold drew a cell the "N hands" count leaves out — and the
+    // recognition drill grades that same hand a fold.
+    const svg = formatRangeSvg(makeRange({ hands: ['AA'], handActions: { QQ: 'threeBet' } }))
+
+    expect(svg).not.toContain(`fill="${SVG_PALETTE['--act-3bet']}"`)
+    expect(svg).toContain(`fill="${SVG_PALETTE['--gold-fill']}"`)
   })
 
   it('shades the pocket-pair diagonal the way the on-screen grid does', () => {

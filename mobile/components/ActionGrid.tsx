@@ -14,6 +14,13 @@ const HAND_MATRIX = generateHandMatrix();
 interface ActionGridProps {
   /** Current per-hand action assignments. */
   handActions: Record<PokerHand, RangeAction>;
+  /**
+   * The hands the range holds. Cells outside it are shown out of the range and
+   * cannot be assigned: `hands` is the membership list, so an action there is
+   * inert (the quiz skips it, the export does not colour it), and letting the
+   * grid paint it made the tab promise something no drill honoured.
+   */
+  rangeHands: readonly PokerHand[];
   /** The action a tap assigns. */
   activeAction: RangeAction;
   /** Assign `action` to `hand`, or clear it with `null`. */
@@ -26,7 +33,13 @@ interface ActionGridProps {
  * active action, and tapping a cell already set to the active action clears it. Tap-only —
  * drag-paint can be added later, as on `HandGrid`.
  */
-export function ActionGrid({ handActions, activeAction, onAssign }: ActionGridProps) {
+export function ActionGrid({
+  handActions,
+  rangeHands,
+  activeAction,
+  onAssign,
+}: ActionGridProps) {
+  const inRange = new Set(rangeHands);
   const theme = useTheme();
   const styles = makeStyles(theme);
   const ACTION_COLORS = actionColors(theme);
@@ -35,21 +48,28 @@ export function ActionGrid({ handActions, activeAction, onAssign }: ActionGridPr
       {HAND_MATRIX.map((row, rowIndex) => (
         <View key={rowIndex} style={styles.row}>
           {row.map((hand) => {
-            const assigned = handActions[hand];
+            const outsideRange = !inRange.has(hand);
+            const assigned = outsideRange ? undefined : handActions[hand];
             const isActive = assigned === activeAction;
             return (
               <Pressable
                 key={hand}
                 testID={`action-cell-${hand}`}
                 accessibilityRole="button"
+                disabled={outsideRange}
                 accessibilityLabel={
-                  assigned ? `${hand}: ${RANGE_ACTION_LABELS[assigned]}` : `${hand}: unassigned`
+                  outsideRange
+                    ? `${hand}: not in this range`
+                    : assigned
+                      ? `${hand}: ${RANGE_ACTION_LABELS[assigned]}`
+                      : `${hand}: unassigned`
                 }
-                accessibilityState={{ selected: assigned !== undefined }}
+                accessibilityState={{ selected: assigned !== undefined, disabled: outsideRange }}
                 onPress={() => onAssign(hand, isActive ? null : activeAction)}
                 style={[
                   styles.cell,
                   { backgroundColor: assigned ? ACTION_COLORS[assigned] : theme.cellbg },
+                  outsideRange && styles.cellOutside,
                 ]}
               >
                 <Text
@@ -76,6 +96,13 @@ function makeStyles(theme: ThemeColors) {
     row: {
       flex: 1,
       flexDirection: 'row',
+    },
+    // Outside the range: inert everywhere else. Marked by dropping the border
+    // rather than by fading, so the hand label keeps full contrast — dimming a
+    // labelled grid cell to mean "not in range" is what the web guard forbids.
+    cellOutside: {
+      borderColor: 'transparent',
+      backgroundColor: theme.surface,
     },
     cell: {
       flex: 1,

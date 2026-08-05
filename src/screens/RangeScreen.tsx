@@ -541,6 +541,7 @@ function ActionsTab({ range, onSaved }: { range: SavedRange; onSaved: () => void
       </div>
       <MultiActionEditor
         handActions={draft}
+        rangeHands={range.hands}
         onSetHandAction={(hand, action) => {
           status.reset()
           setDraft((prev) => ({ ...prev, [hand]: action }))

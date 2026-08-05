@@ -164,7 +164,11 @@ export function SharedPackPage({
                 {percentage.toFixed(1)}%
               </p>
               {range.handActions ? (
-                <ActionGrid handActions={range.handActions} onAssign={noop} />
+                <ActionGrid
+                  handActions={range.handActions}
+                  rangeHands={range.hands}
+                  onAssign={noop}
+                />
               ) : (
                 <HandGrid selected={new Set<PokerHand>(range.hands)} onSetSelected={noop} />
               )}
