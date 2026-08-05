@@ -129,4 +129,15 @@ describe('SharedPackScreen', () => {
 
     await waitFor(() => expect(getByTestId('shared-not-found')).toBeTruthy());
   });
+
+  it("rejects a pack whose own name is not a string", async () => {
+    mockGetClient.mockResolvedValue({ id: 'client' });
+    // The ranges inside were checked; the envelope's name was not, and it goes
+    // straight into a <Text>, which refuses to render an object.
+    mockGetPack.mockResolvedValue({ ...PACK, name: { toString: 1 } });
+
+    const { getByTestId } = await render(<SharedPackScreen />);
+
+    await waitFor(() => expect(getByTestId('shared-not-found')).toBeTruthy());
+  });
 });

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { getSharedPack } from '../cloud/sharedPacksRepo'
 import { countRangeCombos, rangeComboPercentage } from '../domain/comboSelection'
 import type { PokerHand } from '../domain/pokerHands'
-import { isValidSavedRange, type RangePack } from '../domain/rangeTransfer'
+import { isValidRangePack, type RangePack } from '../domain/rangeTransfer'
 import { isCloudConfigured } from '../cloud/cloudConfig'
 import { ActionGrid } from './ActionGrid'
 import { HandGrid } from './HandGrid'
@@ -60,11 +60,10 @@ export function SharedPackPage({
     fetchSharedPack(id, token)
       .then((pack) => {
         if (!active) return
-        // A shared pack's data is publisher-controlled, so every range in it gets
-        // the same full structural check as an imported file — not just its hands.
-        const renderable =
-          pack != null && Array.isArray(pack.ranges) && pack.ranges.every(isValidSavedRange)
-        setState(renderable ? { status: 'ready', pack } : { status: 'not-found' })
+        // A shared pack's data is publisher-controlled, so the whole envelope —
+        // its own name included, not just the ranges inside it — gets the same
+        // structural check an imported file gets.
+        setState(isValidRangePack(pack) ? { status: 'ready', pack } : { status: 'not-found' })
       })
       .catch((error: unknown) => {
         if (!active) return

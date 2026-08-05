@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 
 import { getSharedPack } from '@core/cloud/sharedPacksRepo';
-import { isValidSavedRange, type RangePack } from '@core/domain/rangeTransfer';
+import { isValidRangePack, type RangePack } from '@core/domain/rangeTransfer';
 import { saveSavedRanges } from '@core/storage/rangeStorage';
 
 import { SaveErrorBanner, useLiveSave } from '../../components/liveSave';
@@ -47,13 +47,10 @@ export default function SharedPackScreen() {
         }
         const fetched = id ? await getSharedPack(id, token, { client }) : null;
         if (!active) return;
-        // A shared pack's data is publisher-controlled, so every range in it gets
-        // the same full structural check as an imported file — not just its hands.
-        const renderable =
-          fetched != null &&
-          Array.isArray(fetched.ranges) &&
-          fetched.ranges.every(isValidSavedRange);
-        setPack(renderable ? fetched : null);
+        // A shared pack's data is publisher-controlled, so the whole envelope —
+        // its own name included, not just the ranges inside it — gets the same
+        // structural check an imported file gets.
+        setPack(isValidRangePack(fetched) ? fetched : null);
         setState('done');
       } catch (err) {
         if (!active) return;

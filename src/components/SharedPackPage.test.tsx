@@ -66,6 +66,38 @@ describe('SharedPackPage', () => {
     expect(screen.queryByRole('button', { name: /Save all to my library/i })).not.toBeInTheDocument()
   })
 
+  it("treats a pack whose own name is not a string as not-found", async () => {
+    // The ranges inside were checked; the envelope's name was not, and it goes
+    // straight into the <h1>, so React took the whole page down on it.
+    const bad = { ...makePack(), name: { toString: 1 } } as unknown as RangePack
+    render(
+      <SharedPackPage
+        id="abc"
+        fetchSharedPack={vi.fn().mockResolvedValue(bad)}
+        cloudConfigured={configured}
+        onForkPack={vi.fn()}
+      />,
+    )
+    await waitFor(() => expect(screen.getByText(/was not found/i)).toBeInTheDocument())
+  })
+
+  it('treats a pack carrying an unreadable overlay as not-found', async () => {
+    // The page computes combo counts off `comboSelections` before anything saves
+    // the payload, so a number where a combo list belongs threw mid-render.
+    const bad = buildRangePack('Bad pack', [
+      { ...makeRange(), comboSelections: { AA: 5 } } as unknown as SavedRange,
+    ])
+    render(
+      <SharedPackPage
+        id="abc"
+        fetchSharedPack={vi.fn().mockResolvedValue(bad)}
+        cloudConfigured={configured}
+        onForkPack={vi.fn()}
+      />,
+    )
+    await waitFor(() => expect(screen.getByText(/was not found/i)).toBeInTheDocument())
+  })
+
   it('renders the pack name and each range once loaded', async () => {
     render(
       <SharedPackPage

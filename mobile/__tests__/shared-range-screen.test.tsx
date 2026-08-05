@@ -103,6 +103,9 @@ describe('SharedRangeScreen', () => {
     ['a name that is not a string', { name: { toString: 1 } }],
     ['no id', { id: '' }],
     ['an unparseable createdAt', { createdAt: 'whenever' }],
+    // The screen's percentage math reads `comboSelections` straight off the
+    // payload, so a number where a combo list belongs threw mid-render.
+    ['an unreadable comboSelections entry', { comboSelections: { AA: 5 } }],
   ])('rejects a shared range with %s', async (_label, broken) => {
     mockGetClient.mockResolvedValue({ id: 'client' });
     // Canonical hands are not enough — the rest of the payload is publisher-

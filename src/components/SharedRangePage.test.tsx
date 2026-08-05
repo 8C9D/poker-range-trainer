@@ -82,6 +82,10 @@ describe('SharedRangePage', () => {
     ['a name that is not a string', { name: { toString: 1 } }],
     ['no id', { id: '' }],
     ['an unparseable createdAt', { createdAt: 'whenever' }],
+    // The page counts combos off this before anything saves the payload, so a
+    // number where a combo list belongs threw out of `new Set(...)` mid-render.
+    ['an unreadable comboSelections entry', { comboSelections: { AA: 5 } }],
+    ['a mixedStrategies entry that is not a list', { mixedStrategies: { AA: {} } }],
   ])('treats a payload with %s as not-found instead of crashing', async (_label, broken) => {
     // Canonical hands are not enough: the name lands in <h1>{range.name}</h1>,
     // where a non-string takes the whole page down as an invalid React child.

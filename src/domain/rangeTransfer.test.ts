@@ -9,6 +9,7 @@ import {
   encodeRangeToHash,
   formatRangeCsv,
   formatRangeSvg,
+  isValidRangePack,
   isValidSavedRange,
   parseRangeCsv,
   parseRangeExport,
@@ -45,8 +46,75 @@ describe('isValidSavedRange', () => {
     ['hands that are not an array', { ...makeRange(), hands: 'AA' }],
     ['an unparseable createdAt', { ...makeRange(), createdAt: 'whenever' }],
     ['a missing updatedAt', { ...makeRange(), updatedAt: undefined }],
+    // The overlays are read straight off the payload by the shared pages, before
+    // the storage layer ever gets a chance to sanitize them.
+    ['a comboSelections entry that is not a list', { ...makeRange(), comboSelections: { AA: 5 } }],
+    [
+      'a comboSelections entry holding non-strings',
+      { ...makeRange(), comboSelections: { AA: [5] } },
+    ],
+    ['comboSelections that is not a record', { ...makeRange(), comboSelections: ['AhAs'] }],
+    ['a handActions entry that is not a string', { ...makeRange(), handActions: { AA: {} } }],
+    ['a handNotes entry that is not a string', { ...makeRange(), handNotes: { AA: 3 } }],
+    ['a mixedStrategies entry that is not a list', { ...makeRange(), mixedStrategies: { AA: {} } }],
   ])('rejects %s', (_label, value) => {
     expect(isValidSavedRange(value)).toBe(false)
+  })
+
+  it('accepts well-formed overlays', () => {
+    expect(
+      isValidSavedRange({
+        ...makeRange(),
+        comboSelections: { AA: ['AhAs'] },
+        handActions: { AA: 'raise' },
+        handNotes: { AA: 'always' },
+        mixedStrategies: { AA: [{ action: 'raise', frequency: 100 }] },
+      }),
+    ).toBe(true)
+  })
+
+  it('leaves overlay CONTENTS to the storage layer', () => {
+    // An unrecognized action or an impossible combo key is dropped on save, not
+    // grounds to reject the whole payload — a range from a later version of the
+    // app has to degrade rather than fail.
+    expect(
+      isValidSavedRange({
+        ...makeRange(),
+        handActions: { AA: 'squeeze' },
+        comboSelections: { AA: ['not-a-combo'] },
+      }),
+    ).toBe(true)
+  })
+})
+
+describe('isValidRangePack', () => {
+  function makePack(overrides: Record<string, unknown> = {}) {
+    return {
+      kind: RANGE_PACK_KIND,
+      version: RANGE_PACK_VERSION,
+      name: 'Cash openers',
+      ranges: [makeRange()],
+      ...overrides,
+    }
+  }
+
+  it('accepts a well-formed pack, named or not', () => {
+    expect(isValidRangePack(makePack())).toBe(true)
+    expect(isValidRangePack(makePack({ name: undefined }))).toBe(true)
+    expect(isValidRangePack(makePack({ ranges: [] }))).toBe(true)
+  })
+
+  it.each([
+    ['not an object', 'nope'],
+    ['null', null],
+    ['the wrong kind', { ...makePack(), kind: 'poker-range' }],
+    ['an unsupported version', { ...makePack(), version: 99 }],
+    // The envelope's own name goes straight into a heading on both platforms.
+    ['a non-string name', { ...makePack(), name: { toString: 1 } }],
+    ['ranges that are not an array', { ...makePack(), ranges: {} }],
+    ['a structurally broken range', { ...makePack(), ranges: [{ ...makeRange(), name: 1 }] }],
+  ])('rejects %s', (_label, value) => {
+    expect(isValidRangePack(value)).toBe(false)
   })
 })
 

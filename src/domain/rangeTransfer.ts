@@ -311,13 +311,47 @@ export function parseRangeExport(json: string): SavedRange {
 }
 
 /**
+ * The optional per-hand overlays, and the value shape each one's readers assume.
+ *
+ * The five required fields are all a FORK needs checked: it hands the payload to
+ * the storage layer, which normalizes every overlay on the way in. A shared page
+ * renders the payload before anything saves it, and reads these directly —
+ * `countRangeCombos` does `new Set(comboSelections[hand])`, so a number there
+ * throws mid-render and takes the page down instead of showing the "not found"
+ * it keeps for exactly this case.
+ *
+ * Each entry is checked only for the shape its readers iterate or call string
+ * methods on. The CONTENTS stay the storage layer's business: an unrecognized
+ * action or an impossible combo key is still dropped on save rather than
+ * rejecting the whole payload here, so a range written by a later version of
+ * the app degrades instead of failing.
+ */
+const OVERLAY_VALUE_SHAPES: Record<string, (value: unknown) => boolean> = {
+  comboSelections: (value) =>
+    Array.isArray(value) && value.every((key) => typeof key === 'string'),
+  handActions: (value) => typeof value === 'string',
+  handNotes: (value) => typeof value === 'string',
+  mixedStrategies: (value) => Array.isArray(value),
+}
+
+/** True when every overlay the payload carries is a record of readable values. */
+function hasReadableOverlays(range: Record<string, unknown>): boolean {
+  return Object.entries(OVERLAY_VALUE_SHAPES).every(([field, isReadable]) => {
+    const overlay = range[field]
+    if (overlay === undefined) return true
+    return isPlainObject(overlay) && Object.values(overlay).every(isReadable)
+  })
+}
+
+/**
  * Structural check for a range from an untrusted source.
  *
  * Shared by single-range and range-pack parsing, and by the cloud share pages:
  * a published row is publisher-controlled in exactly the way an imported file
  * is. Checking only the hands is not enough — a payload with canonical hands
  * and a non-string `name` renders straight into `<h1>{range.name}</h1>` and
- * takes the page down with "Objects are not valid as a React child".
+ * takes the page down with "Objects are not valid as a React child". Nor are the
+ * required fields enough on their own; see {@link OVERLAY_VALUE_SHAPES}.
  */
 export function isValidSavedRange(range: unknown): range is SavedRange {
   return (
@@ -327,7 +361,8 @@ export function isValidSavedRange(range: unknown): range is SavedRange {
     typeof range.name === 'string' &&
     areValidHands(range.hands) &&
     isValidTimestamp(range.createdAt) &&
-    isValidTimestamp(range.updatedAt)
+    isValidTimestamp(range.updatedAt) &&
+    hasReadableOverlays(range)
   )
 }
 
@@ -340,6 +375,27 @@ export interface RangePack {
   version: number
   name?: string
   ranges: SavedRange[]
+}
+
+/**
+ * Structural check for a whole pack from an untrusted source.
+ *
+ * A pack ARRIVING AS A FILE gets this from {@link parseRangePack}, which also
+ * names which part of a bad file is bad. One fetched from the cloud has no file
+ * to name and the shared page only needs a yes/no — but it needs the same
+ * answer. Checking `ranges` alone (all the page used to do) left the envelope's
+ * own `name` free to be an object, which React refuses to render, so a crafted
+ * pack took the viewer's page down rather than reading as not-found.
+ */
+export function isValidRangePack(pack: unknown): pack is RangePack {
+  return (
+    isPlainObject(pack) &&
+    pack.kind === RANGE_PACK_KIND &&
+    pack.version === RANGE_PACK_VERSION &&
+    (pack.name === undefined || typeof pack.name === 'string') &&
+    Array.isArray(pack.ranges) &&
+    pack.ranges.every(isValidSavedRange)
+  )
 }
 
 /** Wrap ranges in a pack envelope (omitting `name` when blank). */
