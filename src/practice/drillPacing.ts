@@ -6,6 +6,17 @@
  * exports both a component and a helper breaks fast refresh.
  */
 
+/**
+ * Why a drill handed its answers back.
+ *
+ * A run that used up its questions and a run the user closed both report the
+ * attempts so far — and after the last answer those are the SAME list. A host
+ * that told the two apart by counting therefore read a deliberate exit as a
+ * finished segment and started the next one, so the close button did not close.
+ * Saying which it was is the only thing that separates them.
+ */
+export type DrillEnd = 'completed' | 'closed'
+
 /** Questions per (non-timed) drill: short sessions with a visible end. */
 export const DRILL_QUESTION_COUNT = 20
 

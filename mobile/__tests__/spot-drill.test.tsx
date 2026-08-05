@@ -144,10 +144,15 @@ describe('SpotDrill', () => {
     await findByTestId('drill-feedback');
     fireEvent.press(getByTestId('overlay-close'));
 
-    expect(onFinish).toHaveBeenCalledWith({
-      byRange: { 'BTN open': [expect.objectContaining({ hand: 'AA' })] },
-      bySpot: [{ spotKey: 'sixMax|btn|foldedToYou|-|100', attempts: 1, correct: 1 }],
-    });
+    // The reason matters as much as the attempts: a host cannot tell a close
+    // from a completed run by counting them.
+    expect(onFinish).toHaveBeenCalledWith(
+      {
+        byRange: { 'BTN open': [expect.objectContaining({ hand: 'AA' })] },
+        bySpot: [{ spotKey: 'sixMax|btn|foldedToYou|-|100', attempts: 1, correct: 1 }],
+      },
+      'closed',
+    );
   });
 
   it('records nothing when closed before answering', async () => {
@@ -155,7 +160,7 @@ describe('SpotDrill', () => {
 
     fireEvent.press(getByTestId('overlay-close'));
 
-    expect(onFinish).toHaveBeenCalledWith({ byRange: {}, bySpot: [] });
+    expect(onFinish).toHaveBeenCalledWith({ byRange: {}, bySpot: [] }, 'closed');
   });
 });
 

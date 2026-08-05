@@ -166,6 +166,51 @@ describe('WorkoutHost', () => {
     }
   });
 
+  // Closing and running out of questions used to be told apart by counting the
+  // attempts — which are the SAME count once the last one is answered, so the
+  // close button started the next part instead of leaving.
+  it('leaves the workout when a drill is closed on its last answer', async () => {
+    const user = userEvent.setup();
+    const { getByTestId, getByText, queryByText, findByTestId } = await render(
+      <WorkoutHost workout={makeWorkout()} ranges={[everyHand, btnOpen]} onClose={jest.fn()} />,
+    );
+
+    await user.press(getByTestId('workout-continue'));
+    // Folding a range that plays everything is a miss, so the drill holds its
+    // explanation with no dwell pending — and the tally already equals the
+    // segment length, which is what used to read as "finished, start part 2".
+    await user.press(getByTestId('answer-no'));
+    await findByTestId('drill-next');
+    await user.press(getByTestId('overlay-close'));
+
+    expect(getByText('Stopped early · Review 0/1')).toBeTruthy();
+    expect(queryByText('Daily workout · Part 2 of 2')).toBeNull();
+    // What was answered is still kept and recorded, as on any early close.
+    expect(loadPracticeStats().a.totalAttempts).toBe(1);
+  });
+
+  it('does not mark the day done when the final drill is closed rather than finished', async () => {
+    const user = userEvent.setup();
+    const { getByTestId, getByText, findByTestId } = await render(
+      <WorkoutHost workout={makeWorkout()} ranges={[everyHand, btnOpen]} onClose={jest.fn()} />,
+    );
+
+    await user.press(getByTestId('workout-continue'));
+    await user.press(getByTestId('answer-yes'));
+    await waitFor(() => expect(getByText('Daily workout · Part 2 of 2')).toBeTruthy(), {
+      timeout: 3000,
+    });
+    await user.press(getByTestId('workout-continue'));
+    await user.press(getByTestId('answer-no'));
+    await findByTestId('drill-next');
+    await user.press(getByTestId('overlay-close'));
+
+    expect(getByText('Stopped early · Review 1/1 · Free play 0/1')).toBeTruthy();
+    // Closing the last drill is not finishing the workout: the card keeps
+    // offering today's plan rather than flipping to "done for today".
+    expect(loadWorkoutCompletion()).toBeNull();
+  });
+
   it('runs the segments back-to-back and sums them in one summary', async () => {
     const user = userEvent.setup();
     saveTrainingGoal(20);

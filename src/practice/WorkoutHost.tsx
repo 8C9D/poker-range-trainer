@@ -5,8 +5,6 @@ import {
   segmentTitle,
   type DailyWorkout,
   type ReviewSegment,
-  type WeakSpotsSegment,
-  type FreshSpotsSegment,
 } from '../domain/dailyWorkout'
 import { recapMisses } from '../domain/missRecap'
 import { currentStreak } from '../domain/spacedRepetition'
@@ -20,6 +18,7 @@ import { recordWorkoutCompletion } from '../storage/workoutStorage'
 import type { PokerHand } from '../domain/pokerHands'
 import type { PracticeAttempt } from '../types/practice'
 import type { SavedRange } from '../types/range'
+import type { DrillEnd } from './drillPacing'
 import { OverlayFrame } from './OverlayFrame'
 import { RecognitionDrill } from './RecognitionDrill'
 import { SessionSummary, type SessionSummaryData } from './SessionSummary'
@@ -184,13 +183,24 @@ export function WorkoutHost({ workout, ranges, onClose, onDrillMisses }: Workout
     }
   }
 
-  function finishReviewRange(segment: ReviewSegment, attempts: PracticeAttempt[]) {
+  /**
+   * Whether the drill ran out of questions or the user closed it.
+   *
+   * Counting the attempts cannot tell those apart: after the last answer the
+   * drill is holding its feedback with a full tally, so closing there read as a
+   * completed segment and started the next one instead of leaving the workout.
+   */
+  function finishReviewRange(
+    segment: ReviewSegment,
+    attempts: PracticeAttempt[],
+    ended: DrillEnd,
+  ) {
     if (attempts.length > 0) {
       record(() => recordFinishedPracticeSession(segment.ranges[rangeIndex].id, attempts))
       addTally(attempts)
       addMissed(segment.ranges[rangeIndex].id, attempts)
     }
-    if (attempts.length < segment.questionsPerRange) {
+    if (ended === 'closed') {
       exit()
       return
     }
@@ -198,10 +208,7 @@ export function WorkoutHost({ workout, ranges, onClose, onDrillMisses }: Workout
     else advance()
   }
 
-  function finishSpotSegment(
-    segment: WeakSpotsSegment | FreshSpotsSegment,
-    result: SpotSessionResult,
-  ) {
+  function finishSpotSegment(result: SpotSessionResult, ended: DrillEnd) {
     const all = Object.values(result.byRange).flat()
     if (all.length > 0) {
       record(() => {
@@ -215,7 +222,7 @@ export function WorkoutHost({ workout, ranges, onClose, onDrillMisses }: Workout
         addMissed(rangeId, attempts)
       }
     }
-    if (all.length < segment.questionCount) exit()
+    if (ended === 'closed') exit()
     else advance()
   }
 
@@ -271,7 +278,7 @@ export function WorkoutHost({ workout, ranges, onClose, onDrillMisses }: Workout
         position={
           segment.ranges.length > 1 ? `${rangeIndex + 1}/${segment.ranges.length}` : null
         }
-        onFinish={(attempts) => finishReviewRange(segment, attempts)}
+        onFinish={(attempts, ended) => finishReviewRange(segment, attempts, ended)}
       />
     )
   }
@@ -284,7 +291,7 @@ export function WorkoutHost({ workout, ranges, onClose, onDrillMisses }: Workout
       stackDepthBb={segment.format.stackDepthBb}
       spotKeys={segment.spotKeys}
       questionCount={segment.questionCount}
-      onFinish={(result) => finishSpotSegment(segment, result)}
+      onFinish={finishSpotSegment}
     />
   )
 }

@@ -24,6 +24,7 @@ import {
   TIMED_HIT_DWELL_MS,
   TIMED_MISS_DWELL_MS,
   holdsForAcknowledgement,
+  type DrillEnd,
 } from '../../lib/drillPacing';
 import { answerVerbs, feedbackLine, scenarioLine } from '../../lib/scenario';
 import { fonts } from '../../theme/fonts';
@@ -46,7 +47,7 @@ interface RecognitionDrillProps {
   /** Queue position, e.g. "2/5"; shown in the top bar. */
   position?: string | null;
   /** Called with the scored attempts when the session ends (answered out, timer, or close). */
-  onFinish: (attempts: PracticeAttempt[]) => void;
+  onFinish: (attempts: PracticeAttempt[], ended: DrillEnd) => void;
 }
 
 /**
@@ -97,16 +98,16 @@ export function RecognitionDrill({
     return () => clearInterval(id);
   }, [variant]);
 
-  function finish(finalAttempts: PracticeAttempt[]) {
+  function finish(finalAttempts: PracticeAttempt[], ended: DrillEnd) {
     if (finishedRef.current) return;
     finishedRef.current = true;
     if (dwellTimeoutRef.current !== null) clearTimeout(dwellTimeoutRef.current);
-    onFinish(finalAttempts);
+    onFinish(finalAttempts, ended);
   }
 
   const timedOver = variant === 'timed' && isDrillOver(startMs, durationSeconds, nowMs);
   useEffect(() => {
-    if (timedOver) finish(attemptsRef.current);
+    if (timedOver) finish(attemptsRef.current, 'completed');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timedOver]);
 
@@ -126,7 +127,7 @@ export function RecognitionDrill({
     }
     const answered = attemptsRef.current;
     if (variant !== 'timed' && answered.length >= questionCount) {
-      finish(answered);
+      finish(answered, 'completed');
       return;
     }
     setFeedback(null);
@@ -192,7 +193,7 @@ export function RecognitionDrill({
       title={range.name || 'Untitled'}
       position={position}
       progress={progress}
-      onClose={() => finish(attemptsRef.current)}
+      onClose={() => finish(attemptsRef.current, 'closed')}
     >
       <View style={styles.body}>
         {remainingSeconds !== null ? (

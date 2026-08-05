@@ -16,7 +16,12 @@ import {
 } from '../domain/spotDrill'
 import type { PracticeAttempt } from '../types/practice'
 import type { SavedRange, TableSize } from '../types/range'
-import { DRILL_QUESTION_COUNT, HIT_DWELL_MS, holdsForAcknowledgement } from './drillPacing'
+import {
+  DRILL_QUESTION_COUNT,
+  HIT_DWELL_MS,
+  holdsForAcknowledgement,
+  type DrillEnd,
+} from './drillPacing'
 import { OverlayFrame } from './OverlayFrame'
 import { PlayingCards } from './PlayingCards'
 import { answerVerbs, feedbackLine } from './scenario'
@@ -30,7 +35,7 @@ interface SpotDrillProps {
   spotKeys?: string[]
   questionCount?: number
   /** Called with the finished session, cut by range and by spot. */
-  onFinish: (result: SpotSessionResult) => void
+  onFinish: (result: SpotSessionResult, ended: DrillEnd) => void
   random?: () => number
 }
 
@@ -96,11 +101,11 @@ export function SpotDrill({
     [],
   )
 
-  function finish(final: AnsweredSpot[]) {
+  function finish(final: AnsweredSpot[], ended: DrillEnd) {
     if (finishedRef.current) return
     finishedRef.current = true
     if (dwellTimeoutRef.current !== null) clearTimeout(dwellTimeoutRef.current)
-    onFinish(summarizeSpotSession(final))
+    onFinish(summarizeSpotSession(final), ended)
   }
 
   /** Move to the follow-up spot (or a fresh deal), or end a finished session. */
@@ -114,7 +119,7 @@ export function SpotDrill({
     }
     const played = answeredRef.current
     if (played.length >= questionCount) {
-      finish(played)
+      finish(played, 'completed')
       return
     }
     answeringRef.current = false
@@ -181,7 +186,7 @@ export function SpotDrill({
 
   if (!prompt) {
     return (
-      <OverlayFrame title="Play the spot" onClose={() => finish([])}>
+      <OverlayFrame title="Play the spot" onClose={() => finish([], 'closed')}>
         <div className="drill-center">
           <p className="drill-scenario">
             None of your saved ranges covers a spot at this table size and stack depth. Fill a
@@ -200,7 +205,7 @@ export function SpotDrill({
     <OverlayFrame
       title="Play the spot"
       progress={answered.length / questionCount}
-      onClose={() => finish(answeredRef.current)}
+      onClose={() => finish(answeredRef.current, 'closed')}
     >
       <div className="drill-center" {...swipe}>
         {prompt.chained && <p className="drill-chain">Same hand — the action continues.</p>}

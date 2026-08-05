@@ -167,6 +167,48 @@ describe('WorkoutHost', () => {
     expect(loadWorkoutCompletion()).toBeNull()
   })
 
+  // Closing and running out of questions used to be told apart by counting the
+  // attempts — which are the SAME count once the last one is answered, so the
+  // close button started the next part instead of leaving.
+  it('leaves the workout when a drill is closed on its last answer', () => {
+    render(
+      <WorkoutHost workout={makeWorkout()} ranges={[everyHand, btnOpen]} onClose={vi.fn()} />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+    // Folding a range that plays everything is a miss, so the drill holds its
+    // explanation with no timer pending — and the tally already equals the
+    // segment length, which is what used to read as "finished, start part 2".
+    fireEvent.click(screen.getByRole('button', { name: 'Fold' }))
+    expect(screen.getByRole('button', { name: 'Next' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Close practice' }))
+
+    expect(screen.getByLabelText('Session summary')).toBeInTheDocument()
+    expect(screen.getByText('Stopped early · Review 0/1')).toBeInTheDocument()
+    expect(screen.queryByText('Daily workout · Part 2 of 2')).not.toBeInTheDocument()
+    // What was answered is still kept and recorded, as on any early close.
+    expect(loadPracticeStats().a.totalAttempts).toBe(1)
+  })
+
+  it('does not mark the day done when the final drill is closed rather than finished', () => {
+    vi.useFakeTimers()
+    render(
+      <WorkoutHost workout={makeWorkout()} ranges={[everyHand, btnOpen]} onClose={vi.fn()} />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+    fireEvent.click(screen.getByRole('button', { name: 'In range' }))
+    act(() => vi.advanceTimersByTime(HIT_DWELL_MS))
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Fold' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close practice' }))
+
+    expect(screen.getByText('Stopped early · Review 1/1 · Free play 0/1')).toBeInTheDocument()
+    // Closing the last drill is not finishing the workout: the card keeps
+    // offering today's plan rather than flipping to "done for today".
+    expect(loadWorkoutCompletion()).toBeNull()
+  })
+
   it('runs the segments back-to-back and sums them in one summary', () => {
     vi.useFakeTimers()
     saveTrainingGoal(20)

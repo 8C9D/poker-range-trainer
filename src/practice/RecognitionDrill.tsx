@@ -16,6 +16,7 @@ import type { SavedRange } from '../types/range'
 import {
   DRILL_QUESTION_COUNT,
   HIT_DWELL_MS,
+  type DrillEnd,
   TIMED_HIT_DWELL_MS,
   TIMED_MISS_DWELL_MS,
   holdsForAcknowledgement,
@@ -43,7 +44,7 @@ interface RecognitionDrillProps {
    * Called with the scored attempts when the session ends: all questions
    * answered, the timer expired, or the user closed the overlay early.
    */
-  onFinish: (attempts: PracticeAttempt[]) => void
+  onFinish: (attempts: PracticeAttempt[], ended: DrillEnd) => void
   random?: () => number
 }
 
@@ -95,16 +96,16 @@ export function RecognitionDrill({
     return () => clearInterval(id)
   }, [variant])
 
-  function finish(finalAttempts: PracticeAttempt[]) {
+  function finish(finalAttempts: PracticeAttempt[], ended: DrillEnd) {
     if (finishedRef.current) return
     finishedRef.current = true
     if (dwellTimeoutRef.current !== null) clearTimeout(dwellTimeoutRef.current)
-    onFinish(finalAttempts)
+    onFinish(finalAttempts, ended)
   }
 
   const timedOver = variant === 'timed' && isDrillOver(startMs, durationSeconds, nowMs)
   useEffect(() => {
-    if (timedOver) finish(attemptsRef.current)
+    if (timedOver) finish(attemptsRef.current, 'completed')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timedOver])
 
@@ -127,7 +128,7 @@ export function RecognitionDrill({
     }
     const answered = attemptsRef.current
     if (variant !== 'timed' && answered.length >= questionCount) {
-      finish(answered)
+      finish(answered, 'completed')
       return
     }
     answeringRef.current = false
@@ -211,7 +212,7 @@ export function RecognitionDrill({
       title={range.name}
       position={position}
       progress={progress}
-      onClose={() => finish(attemptsRef.current)}
+      onClose={() => finish(attemptsRef.current, 'closed')}
     >
       {remainingSeconds !== null && (
         // No label: a paragraph cannot carry one, and "45s left" already says
