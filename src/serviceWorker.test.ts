@@ -31,7 +31,7 @@ function request(url: string, mode = 'no-cors', method = 'GET'): FakeRequest {
  * Evaluate the worker source against a stub scope and return the handlers it
  * registered, plus the cache it was given.
  */
-function loadWorker(options: { cached?: string[]; offline?: boolean }) {
+function loadWorker(options: { cached?: string[]; offline?: boolean; status?: number }) {
   const source = readFileSync(join(process.cwd(), 'public', 'service-worker.js'), 'utf8')
   const cached = new Set(options.cached ?? [])
   const put: string[] = []
@@ -67,12 +67,19 @@ function loadWorker(options: { cached?: string[]; offline?: boolean }) {
   }
 
   const networkError = { networkError: true }
+  // `status` lets a test answer from a reachable server that will not serve the
+  // file (a redeploy that removed it), which is a RESOLVED response and so never
+  // reaches the offline `.catch` path below.
+  const status = options.status ?? 200
   const fetchStub = (input: FakeRequest) =>
     options.offline
       ? Promise.reject(new TypeError('Failed to fetch'))
       : Promise.resolve({
-          body: keyOf(input),
-          ok: true,
+          // A failure body is distinguishable from the cached one, so a test can
+          // tell which of the two the worker actually handed back.
+          body: status < 400 ? keyOf(input) : `status-${status}`,
+          ok: status < 400,
+          status,
           type: 'basic',
           clone: () => ({ body: keyOf(input) }),
         })
@@ -139,6 +146,37 @@ describe('service worker fetch strategy', () => {
       body: '/assets/index-abc123.js',
     })
     expect(worker.put).toContain('/assets/index-abc123.js')
+  })
+
+  it('serves a cached asset the server no longer has', async () => {
+    // The regression: a redeploy removes the hashed chunk an open page is still
+    // asking for. The server answers 404 — which resolves, so the offline path
+    // never runs — and the practice drill failed to load online with its own
+    // file in the cache.
+    const worker = loadWorker({
+      status: 404,
+      cached: ['/index.html', '/assets/PracticeHost-abc123.js'],
+    })
+
+    expect(await worker.respond(request(`${ORIGIN}/assets/PracticeHost-abc123.js`))).toMatchObject({
+      body: '/assets/PracticeHost-abc123.js',
+    })
+  })
+
+  it('passes a failure through when it has nothing cached for that request', async () => {
+    const worker = loadWorker({ status: 404, cached: ['/index.html'] })
+
+    expect(await worker.respond(request(`${ORIGIN}/assets/never-existed.js`))).toMatchObject({
+      status: 404,
+      body: 'status-404',
+    })
+  })
+
+  it('never caches a failed response', async () => {
+    const worker = loadWorker({ status: 500 })
+
+    await worker.respond(request(`${ORIGIN}/assets/index-abc123.js`))
+    expect(worker.put).not.toContain('/assets/index-abc123.js')
   })
 
   it('leaves cross-origin and non-GET requests alone', async () => {

@@ -49,8 +49,17 @@ self.addEventListener('fetch', (event) => {
         if (response.ok && response.type === 'basic') {
           const copy = response.clone()
           caches.open(CACHE_NAME).then((cache) => cache.put(request, copy))
+          return response
         }
-        return response
+        // A server that answers but will not serve this file is the REDEPLOY
+        // case, not a network one: an open page still asks for the hashed asset
+        // names of the build it loaded, and those are gone. Only the `.catch`
+        // below sees a dead network, so a 404 went straight back to the page
+        // with the very file it wanted sitting in this cache — one tap on
+        // "Start review" away, since the practice subtree is loaded lazily.
+        // Only an exact hit answers; anything else still fails as what it is,
+        // so a genuinely missing URL is not disguised as a stale one.
+        return caches.match(request).then((cached) => cached ?? response)
       })
       .catch(() =>
         caches.match(request).then((cached) => {
