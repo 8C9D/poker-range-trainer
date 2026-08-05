@@ -27,7 +27,14 @@ import { buildStarterRanges, STARTER_RANGE_TEMPLATES } from '@core/domain/starte
 import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
 import { loadReviewStates } from '@core/storage/reviewStateStorage';
 import { loadSavedRanges, saveSavedRanges } from '@core/storage/rangeStorage';
-import { deleteRangesWithRecords } from '@core/storage/rangeRemoval';
+import {
+  clearDeletedRanges,
+  deleteRangesWithRecords,
+  describeDeletedRanges,
+  peekDeletedRanges,
+  restoreDeletedRanges,
+  type DeletedRanges,
+} from '@core/storage/rangeRemoval';
 import {
   ACTION_TYPE_LABELS,
   ACTION_TYPES,
@@ -87,9 +94,19 @@ export default function LibraryScreen() {
   const router = useRouter();
 
   const [{ ranges, practiceStats, reviewStates, nowIso }, setData] = useState(loadLibraryState);
+  // A delete on the range page navigates back here, so its offer to undo arrives
+  // with the focus rather than with a mount — this tab may never have unmounted.
+  // The guard matters: claiming the offer is a side effect, and only the run that
+  // finds one may write, so a re-focus cannot clear the offer it is showing.
+  const [undoable, setUndoable] = useState<DeletedRanges | null>(peekDeletedRanges);
   useFocusEffect(
     useCallback(() => {
       setData(loadLibraryState());
+      const handedOver = peekDeletedRanges();
+      if (handedOver) {
+        setUndoable(handedOver);
+        clearDeletedRanges();
+      }
     }, []),
   );
 
@@ -203,15 +220,28 @@ export default function LibraryScreen() {
    * nothing — the button just appears dead and the list silently keeps its old state.
    * Returns whether the write landed, so callers only update the view when it did.
    */
-  const persist = (write: () => void): boolean => {
+  const persistResult = <T,>(write: () => T): { value: T } | null => {
+    let value: T;
     try {
-      write();
+      value = write();
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'Could not save that change.');
-      return false;
+      return null;
     }
     setActionError(null);
-    return true;
+    // Wrapped, so a write whose own result is falsy still reads as a success.
+    return { value };
+  };
+
+  const persist = (write: () => void): boolean => persistResult(write) !== null;
+
+  const undoDelete = () => {
+    if (!undoable) return;
+    if (!persist(() => restoreDeletedRanges(undoable))) return;
+    setUndoable(null);
+    // The practice record came back with the range, so reload it all rather than
+    // splicing the rows back — a restored range must not read as never practiced.
+    setData(loadLibraryState());
   };
 
   const addStarterRanges = () => {
@@ -263,6 +293,27 @@ export default function LibraryScreen() {
       </View>
 
       <SaveErrorBanner error={actionError} testID="library-error" />
+
+      {undoable ? (
+        <View style={styles.undoBar} accessibilityRole="alert">
+          <Text style={styles.undoText}>
+            {describeDeletedRanges(undoable)} deleted, along with the practice record.
+          </Text>
+          <View style={styles.undoActions}>
+            <Pressable testID="undo-delete" style={styles.ghostBtn} onPress={undoDelete}>
+              <Text style={styles.ghostBtnText}>Undo</Text>
+            </Pressable>
+            <Pressable
+              testID="dismiss-undo"
+              accessibilityLabel="Dismiss the undo offer"
+              style={styles.ghostBtn}
+              onPress={() => setUndoable(null)}
+            >
+              <Text style={styles.ghostBtnText}>Dismiss</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
 
       {ranges.length === 0 ? null : (
         <>
@@ -370,14 +421,18 @@ export default function LibraryScreen() {
                 onPress={() =>
                   Alert.alert(
                     'Delete selected ranges',
-                    `Delete ${visibleSelectedIds.size} selected range${visibleSelectedIds.size === 1 ? '' : 's'}? This cannot be undone.`,
+                    `Delete ${visibleSelectedIds.size} selected range${visibleSelectedIds.size === 1 ? '' : 's'}, and everything recorded about ${visibleSelectedIds.size === 1 ? 'it' : 'them'}?`,
                     [
                       { text: 'Cancel', style: 'cancel' },
                       {
                         text: 'Delete',
                         style: 'destructive',
                         onPress: () => {
-                          if (!persist(() => deleteRangesWithRecords(visibleSelectedIds))) return;
+                          const deleted = persistResult(() =>
+                            deleteRangesWithRecords(visibleSelectedIds),
+                          );
+                          if (!deleted) return;
+                          setUndoable(deleted.value);
                           setData((current) => ({
                             ...current,
                             ranges: current.ranges.filter(
@@ -730,6 +785,19 @@ function makeStyles(theme: ThemeColors) {
     selectionCount: { fontFamily: fonts.bodyMedium, fontSize: 13, color: theme.ink2 },
     selectionBox: { fontSize: 18, color: theme.accentStrong, width: 22, textAlign: 'center' },
     deleteText: { fontFamily: fonts.bodySemibold, fontSize: 14, color: theme.bad },
+    // The undo offer after a delete. In the flow rather than floating, so it
+    // cannot cover a row and never disappears on its own — losing a chart's whole
+    // practice record to a timer would be the same mistake it exists to prevent.
+    undoBar: {
+      gap: 10,
+      padding: 12,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line,
+      borderRadius: 12,
+      backgroundColor: theme.well,
+    },
+    undoText: { fontFamily: fonts.body, fontSize: 14, color: theme.ink2 },
+    undoActions: { flexDirection: 'row', gap: 8 },
     disabled: { opacity: 0.4 },
     title: { fontFamily: fonts.display, fontSize: 30, color: theme.ink },
     ghostBtn: {

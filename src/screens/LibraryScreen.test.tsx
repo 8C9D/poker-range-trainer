@@ -6,11 +6,18 @@ import { loadSavedRanges, saveSavedRange } from '../storage/rangeStorage'
 import { loadPracticeStats, recordPracticeSession } from '../storage/practiceStatsStorage'
 import { loadSessionHistory, recordPracticeSessionHistory } from '../storage/sessionHistoryStorage'
 import { saveReviewState } from '../storage/reviewStateStorage'
+import {
+  deleteRangesWithRecords,
+  rememberDeletedRanges,
+  clearDeletedRanges,
+} from '../storage/rangeRemoval'
 import { STARTER_RANGE_TEMPLATES } from '../domain/starterRanges'
 import type { SavedRange } from '../types/range'
 
 beforeEach(() => {
   localStorage.clear()
+  // The pending undo is module state, so it would otherwise outlive its test.
+  clearDeletedRanges()
 })
 
 function makeRange(id: string, name: string, extra: Partial<SavedRange> = {}): SavedRange {
@@ -361,6 +368,69 @@ describe('LibraryScreen', () => {
     // full store gives ("delete some ranges to free space") did not free any.
     expect(Object.keys(loadPracticeStats())).toEqual(['a'])
     expect(Object.keys(loadSessionHistory())).toEqual(['a'])
+  })
+
+  it('undoes a bulk delete, restoring the ranges and their records', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange('a', 'Keep'))
+    saveSavedRange(makeRange('b', 'Delete one'))
+    saveSavedRange(makeRange('c', 'Keep too'))
+    recordPracticeSession('b', { totalQuestions: 10, correctAnswers: 8 })
+    recordPracticeSessionHistory('b', { totalQuestions: 10, correctAnswers: 8 })
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+
+    await user.click(screen.getByRole('button', { name: 'Manage' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select Delete one' }))
+    await user.click(screen.getByRole('button', { name: 'Delete selected' }))
+    expect(rowNames()).toEqual(['Keep', 'Keep too'])
+
+    await user.click(screen.getByRole('button', { name: 'Undo' }))
+
+    // Back in its old position, with the practice record that went with it.
+    expect(rowNames()).toEqual(['Keep', 'Delete one', 'Keep too'])
+    expect(Object.keys(loadPracticeStats()).sort()).toEqual(['b'])
+    expect(Object.keys(loadSessionHistory()).sort()).toEqual(['b'])
+    expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
+  })
+
+  it('names what a delete removed, and drops the offer when dismissed', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange('a', 'Keep'))
+    saveSavedRange(makeRange('b', 'Delete one'))
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+
+    await user.click(screen.getByRole('button', { name: 'Manage' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select Delete one' }))
+    await user.click(screen.getByRole('button', { name: 'Delete selected' }))
+    expect(screen.getByText(/“Delete one” deleted/)).toBeVisible()
+
+    await user.click(screen.getByRole('button', { name: 'Dismiss the undo offer' }))
+
+    expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
+    expect(loadSavedRanges().map((range) => range.name)).toEqual(['Keep'])
+  })
+
+  it('offers no undo until something is deleted', () => {
+    saveSavedRange(makeRange('a', 'Keep'))
+    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+
+    expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
+  })
+
+  it('offers the undo for a delete made on the range page', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange('a', 'Keep'))
+    saveSavedRange(makeRange('b', 'Deleted elsewhere'))
+    // What the range page does before it navigates back here.
+    rememberDeletedRanges(deleteRangesWithRecords(['b']))
+    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+
+    expect(screen.getByText(/“Deleted elsewhere” deleted/)).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Undo' }))
+
+    expect(rowNames()).toEqual(['Keep', 'Deleted elsewhere'])
   })
 
   it('bulk archives and unarchives selected ranges', async () => {

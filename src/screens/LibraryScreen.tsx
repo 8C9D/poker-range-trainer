@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import { RangeThumbnail } from '../components/RangeThumbnail'
 import { SpotCoverage } from '../components/SpotCoverage'
 import { formatDayDistance } from '../app/format'
@@ -29,7 +29,14 @@ import { buildStarterRanges, STARTER_RANGE_TEMPLATES } from '../domain/starterRa
 import { loadPracticeStats } from '../storage/practiceStatsStorage'
 import { loadReviewStates } from '../storage/reviewStateStorage'
 import { loadSavedRanges, saveSavedRanges } from '../storage/rangeStorage'
-import { deleteRangesWithRecords } from '../storage/rangeRemoval'
+import {
+  clearDeletedRanges,
+  deleteRangesWithRecords,
+  describeDeletedRanges,
+  peekDeletedRanges,
+  restoreDeletedRanges,
+  type DeletedRanges,
+} from '../storage/rangeRemoval'
 import {
   ACTION_TYPE_LABELS,
   ACTION_TYPES,
@@ -64,8 +71,8 @@ export function LibraryScreen({ onPlaySpots, onPracticeSelected }: LibraryScreen
   // row index completes it, so it never depends on a range id being id-safe.
   const listId = useId()
   const [ranges, setRanges] = useState(() => loadSavedRanges())
-  const [practiceStats] = useState(() => loadPracticeStats())
-  const [reviewStates] = useState(() => loadReviewStates())
+  const [practiceStats, setPracticeStats] = useState(() => loadPracticeStats())
+  const [reviewStates, setReviewStates] = useState(() => loadReviewStates())
   const [nowIso] = useState(() => new Date().toISOString())
 
   const [query, setQuery] = useState('')
@@ -82,6 +89,13 @@ export function LibraryScreen({ onPlaySpots, onPracticeSelected }: LibraryScreen
   // Why the last library write did not land, cleared by the next one that does.
   const [actionError, setActionError] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
+  // A delete on the range page navigates here, so the offer to undo it arrives
+  // with the mount; a delete made here sets this directly. Read while rendering
+  // and cleared in an effect, rather than taken in one step: taking it is a side
+  // effect, and StrictMode runs a state initializer twice, so a one-shot take
+  // would hand the offer to a render that is then thrown away.
+  const [undoable, setUndoable] = useState<DeletedRanges | null>(peekDeletedRanges)
+  useEffect(clearDeletedRanges, [])
 
   // Both depend only on the mount-once library data, so memoize them instead of
   // recomputing due dates across the whole library on every search keystroke.
@@ -155,21 +169,38 @@ export function LibraryScreen({ onPlaySpots, onPracticeSelected }: LibraryScreen
    * list silently keeps its old state. Returns whether the write landed, so
    * callers only update the view when it did.
    */
-  function persist(write: () => void): boolean {
+  function persistResult<T>(write: () => T): { value: T } | null {
+    let value: T
     try {
-      write()
+      value = write()
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'Could not save that change.')
-      return false
+      return null
     }
     setActionError(null)
-    return true
+    // Wrapped, so a write whose own result is falsy still reads as a success.
+    return { value }
+  }
+
+  function persist(write: () => void): boolean {
+    return persistResult(write) !== null
   }
 
   function addStarterRanges() {
     const starters = buildStarterRanges(new Date().toISOString(), createRangeId)
     if (!persist(() => saveSavedRanges(starters))) return
     setRanges(loadSavedRanges())
+  }
+
+  function undoDelete() {
+    if (!undoable) return
+    if (!persist(() => restoreDeletedRanges(undoable))) return
+    setUndoable(null)
+    // The practice record came back with the range, so the rows have to re-read
+    // it — otherwise a restored range reads as never practiced until a reload.
+    setRanges(loadSavedRanges())
+    setPracticeStats(loadPracticeStats())
+    setReviewStates(loadReviewStates())
   }
 
   function clearViewChanges() {
@@ -212,6 +243,25 @@ export function LibraryScreen({ onPlaySpots, onPracticeSelected }: LibraryScreen
         <p className="library-error" role="alert">
           {actionError}
         </p>
+      )}
+
+      {undoable && (
+        <div className="library-undo" role="status">
+          <p>{describeDeletedRanges(undoable)} deleted, along with the practice record.</p>
+          <div className="library-undo-actions">
+            <button type="button" className="coach-btn" onClick={undoDelete}>
+              Undo
+            </button>
+            <button
+              type="button"
+              className="coach-btn quiet"
+              aria-label="Dismiss the undo offer"
+              onClick={() => setUndoable(null)}
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
       )}
 
       {ranges.length === 0 ? (
@@ -347,12 +397,16 @@ export function LibraryScreen({ onPlaySpots, onPracticeSelected }: LibraryScreen
                 onClick={() => {
                   if (
                     !window.confirm(
-                      `Delete ${visibleSelectedIds.size} selected range${visibleSelectedIds.size === 1 ? '' : 's'}? This cannot be undone.`,
+                      `Delete ${visibleSelectedIds.size} selected range${visibleSelectedIds.size === 1 ? '' : 's'}, and everything recorded about ${visibleSelectedIds.size === 1 ? 'it' : 'them'}?`,
                     )
                   ) {
                     return
                   }
-                  if (!persist(() => deleteRangesWithRecords(visibleSelectedIds))) return
+                  const deleted = persistResult(() =>
+                    deleteRangesWithRecords(visibleSelectedIds),
+                  )
+                  if (!deleted) return
+                  setUndoable(deleted.value)
                   setRanges((current) =>
                     current.filter((range) => !visibleSelectedIds.has(range.id)),
                   )

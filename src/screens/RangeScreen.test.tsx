@@ -5,11 +5,14 @@ import { RangeScreen } from './RangeScreen'
 import { findSavedRangeById, loadSavedRanges, saveSavedRange } from '../storage/rangeStorage'
 import { recordPracticeSessionHistory } from '../storage/sessionHistoryStorage'
 import { recordHandAccuracy } from '../storage/handAccuracyStorage'
+import { clearDeletedRanges, peekDeletedRanges } from '../storage/rangeRemoval'
 import type { SavedRange } from '../types/range'
 
 beforeEach(() => {
   localStorage.clear()
   window.location.hash = ''
+  // The pending undo is module state, so it would otherwise outlive its test.
+  clearDeletedRanges()
 })
 
 afterEach(() => {
@@ -161,6 +164,18 @@ describe('RangeScreen header and menu', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Delete' }))
     expect(loadSavedRanges()).toHaveLength(0)
     expect(window.location.hash).toBe('#/library')
+  })
+
+  it('hands the delete to the library so it can be undone there', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    saveSavedRange(makeRange())
+    render(<RangeScreen id="r1" tab="overview" onPractice={vi.fn()} />)
+    await user.click(screen.getByRole('button', { name: 'More actions' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Delete' }))
+
+    const deleted = peekDeletedRanges()
+    expect(deleted?.ranges.map((entry) => entry.range.id)).toEqual(['r1'])
   })
 
   it('keeps the range when deletion is not confirmed', async () => {

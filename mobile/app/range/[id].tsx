@@ -23,7 +23,7 @@ import { sourceReferenceUrl } from '@core/domain/sourceReference';
 import { loadReviewStates } from '@core/storage/reviewStateStorage';
 import { loadSessionHistory } from '@core/storage/sessionHistoryStorage';
 import { findSavedRangeById, saveSavedRange } from '@core/storage/rangeStorage';
-import { deleteRangesWithRecords } from '@core/storage/rangeRemoval';
+import { deleteRangesWithRecords, rememberDeletedRanges } from '@core/storage/rangeRemoval';
 import {
   ACTION_TYPE_LABELS,
   GAME_TYPE_LABELS,
@@ -174,17 +174,23 @@ export default function RangeScreen() {
   };
   const doDelete = () => {
     setMenuOpen(false);
-    Alert.alert('Delete range', `Delete "${range.name || 'Untitled'}"? This cannot be undone.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          if (!runSave(() => deleteRangesWithRecords([range.id]))) return;
-          router.replace('/library');
+    Alert.alert(
+      'Delete range',
+      `Delete "${range.name || 'Untitled'}", and everything recorded about it?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            // The Library is where the undo is offered, so hand the delete over
+            // before navigating there.
+            if (!runSave(() => rememberDeletedRanges(deleteRangesWithRecords([range.id])))) return;
+            router.replace('/library');
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   const publish = async (isPublic: boolean) => {

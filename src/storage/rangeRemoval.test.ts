@@ -1,5 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { deleteRangesWithRecords } from './rangeRemoval'
+import {
+  clearDeletedRanges,
+  deleteRangesWithRecords,
+  describeDeletedRanges,
+  peekDeletedRanges,
+  rememberDeletedRanges,
+  restoreDeletedRanges,
+} from './rangeRemoval'
 import { loadActionAccuracy, recordActionAccuracy } from './actionAccuracyStorage'
 import { loadHandAccuracy, recordHandAccuracy } from './handAccuracyStorage'
 import { loadPracticeStats, recordPracticeSession } from './practiceStatsStorage'
@@ -115,5 +122,125 @@ describe('deleteRangesWithRecords', () => {
 
     expect(() => deleteRangesWithRecords(['bare'])).not.toThrow()
     expect(loadSavedRanges()).toHaveLength(0)
+  })
+
+  it('hands back what it removed', () => {
+    seedEverything('gone')
+    seedEverything('kept')
+
+    const deleted = deleteRangesWithRecords(['gone'])
+
+    expect(deleted.ranges.map((entry) => entry.range.id)).toEqual(['gone'])
+    expect(Object.keys(deleted.records)).toHaveLength(5)
+    for (const entries of Object.values(deleted.records)) {
+      expect(Object.keys(entries)).toEqual(['gone'])
+    }
+  })
+
+  it('hands back an empty snapshot for an empty id list', () => {
+    seedEverything('kept')
+
+    expect(deleteRangesWithRecords([])).toEqual({ ranges: [], records: {} })
+  })
+})
+
+describe('restoreDeletedRanges', () => {
+  it('puts the range and every record back', () => {
+    seedEverything('gone')
+    const before = storedIds()
+
+    restoreDeletedRanges(deleteRangesWithRecords(['gone']))
+
+    expect(storedIds()).toEqual(before)
+    expect(loadPracticeStats().gone).toMatchObject({ totalAttempts: 10, correctAttempts: 8 })
+    expect(loadHandAccuracy().gone.AA).toMatchObject({ attempts: 2, correct: 1 })
+    expect(loadReviewStates().gone).toBeDefined()
+  })
+
+  it('restores each range to the position it was deleted from', () => {
+    seedEverything('a')
+    seedEverything('b')
+    seedEverything('c')
+
+    restoreDeletedRanges(deleteRangesWithRecords(['a', 'b']))
+
+    expect(loadSavedRanges().map((range) => range.id)).toEqual(['a', 'b', 'c'])
+  })
+
+  it('keeps practice recorded on other ranges since the delete', () => {
+    seedEverything('gone')
+    const deleted = deleteRangesWithRecords(['gone'])
+    seedEverything('later')
+
+    restoreDeletedRanges(deleted)
+
+    expect(storedIds().ranges.sort()).toEqual(['gone', 'later'])
+    expect(Object.keys(loadPracticeStats()).sort()).toEqual(['gone', 'later'])
+    expect(loadSessionHistory().later).toHaveLength(1)
+  })
+
+  it('does nothing for a snapshot that deleted nothing', () => {
+    seedEverything('kept')
+
+    restoreDeletedRanges({ ranges: [], records: {} })
+
+    expect(storedIds().ranges).toEqual(['kept'])
+  })
+})
+
+describe('the pending undo handoff', () => {
+  beforeEach(() => {
+    clearDeletedRanges()
+  })
+
+  it('hands the delete over, and only until it is cleared', () => {
+    seedEverything('gone')
+    const deleted = deleteRangesWithRecords(['gone'])
+
+    rememberDeletedRanges(deleted)
+
+    // A peek is pure, so it can run in a render; only clearing consumes it.
+    expect(peekDeletedRanges()).toBe(deleted)
+    expect(peekDeletedRanges()).toBe(deleted)
+    clearDeletedRanges()
+    expect(peekDeletedRanges()).toBeNull()
+  })
+
+  it('keeps only the most recent delete', () => {
+    seedEverything('first')
+    seedEverything('second')
+    rememberDeletedRanges(deleteRangesWithRecords(['first']))
+    const latest = deleteRangesWithRecords(['second'])
+
+    rememberDeletedRanges(latest)
+
+    expect(peekDeletedRanges()).toBe(latest)
+  })
+
+  it('never offers an undo for a delete that removed nothing', () => {
+    rememberDeletedRanges({ ranges: [], records: {} })
+
+    expect(peekDeletedRanges()).toBeNull()
+  })
+})
+
+describe('describeDeletedRanges', () => {
+  it('names a single deleted range', () => {
+    seedEverything('gone')
+
+    expect(describeDeletedRanges(deleteRangesWithRecords(['gone']))).toBe('“Range gone”')
+  })
+
+  it('falls back to Untitled for an unnamed range', () => {
+    saveSavedRange({ ...makeRange('gone', ''), name: '' })
+
+    expect(describeDeletedRanges(deleteRangesWithRecords(['gone']))).toBe('“Untitled”')
+  })
+
+  it('counts several deleted ranges', () => {
+    seedEverything('a')
+    seedEverything('b')
+
+    expect(describeDeletedRanges(deleteRangesWithRecords(['a', 'b']))).toBe('2 ranges')
   })
 })

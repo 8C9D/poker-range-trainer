@@ -61,6 +61,32 @@
   color: var(--bad);
 }
 
+/* The undo offer after a delete. It sits in the flow rather than floating, so it
+   cannot cover a row and never disappears on its own — losing a chart's whole
+   practice record to a timer would be the same mistake it exists to prevent. */
+.library-undo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--well);
+}
+
+.library-undo p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.library-undo-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .library-empty h2 {
   margin: 0 0 4px;
   font-size: 18px;

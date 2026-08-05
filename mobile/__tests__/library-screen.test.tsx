@@ -9,21 +9,30 @@ import {
 } from '@core/storage/sessionHistoryStorage';
 import { saveReviewState } from '@core/storage/reviewStateStorage';
 import { loadSavedRanges, saveSavedRange } from '@core/storage/rangeStorage';
+import {
+  deleteRangesWithRecords,
+  rememberDeletedRanges,
+  clearDeletedRanges,
+} from '@core/storage/rangeRemoval';
 import { STARTER_RANGE_TEMPLATES } from '@core/domain/starterRanges';
 import type { SavedRange } from '@core/types/range';
 
 import LibraryScreen from '../app/(tabs)/library';
 import { installLocalStorage, localStorageShim } from '../platform/localStorageShim';
 
-// In-memory MMKV + a minimal expo-router stub. useFocusEffect is a no-op; the list's
-// initial load comes from useState (seeded before render). Rows are Links (open the
-// range page); management actions now live there, not on the row.
+// In-memory MMKV + a minimal expo-router stub. `useFocusEffect` runs its callback on
+// mount, which is what focusing a freshly opened tab does — the screen reloads its
+// data and claims any pending undo there. Rows are Links (open the range page);
+// management actions now live there, not on the row.
 jest.mock('react-native-mmkv');
 jest.mock('expo-crypto');
 // Named `mock*` so Jest allows the hoisted factory below to close over it.
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({
-  useFocusEffect: () => {},
+  useFocusEffect: (callback: () => void) => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    (require('react') as typeof import('react')).useEffect(callback, [callback]);
+  },
   useRouter: () => ({ push: mockPush }),
   Link: ({ children }: { children: ReactNode }) => children,
 }));
@@ -45,6 +54,8 @@ describe('LibraryScreen', () => {
   beforeEach(() => {
     localStorageShim.clear();
     mockPush.mockClear();
+    // The pending undo is module state, so it would otherwise outlive its test.
+    clearDeletedRanges();
   });
 
   afterEach(async () => {
@@ -325,6 +336,73 @@ describe('LibraryScreen', () => {
     // deleting ranges did not actually free any.
     await waitFor(() => expect(Object.keys(loadPracticeStats())).toEqual(['r1']));
     expect(Object.keys(loadSessionHistory())).toEqual(['r1']);
+  });
+
+  it('undoes a bulk delete, restoring the ranges and their records', async () => {
+    seed({ id: 'r1', name: 'Keep' });
+    seed({ id: 'r2', name: 'Delete me' });
+    recordPracticeSession('r2', { totalQuestions: 10, correctAnswers: 8 });
+    recordPracticeSessionHistory('r2', { totalQuestions: 10, correctAnswers: 8 });
+    jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
+      buttons?.find((button) => button.style === 'destructive')?.onPress?.();
+    });
+
+    const { getByTestId, findByLabelText, findByText } = await render(<LibraryScreen />);
+    await fireEvent.press(getByTestId('manage-ranges'));
+    await fireEvent.press(await findByLabelText('Select Delete me'));
+    await findByLabelText('Deselect Delete me');
+    await fireEvent.press(getByTestId('delete-selected'));
+    await findByText(/“Delete me” deleted/);
+
+    await fireEvent.press(getByTestId('undo-delete'));
+
+    await waitFor(() =>
+      expect(loadSavedRanges().map((range) => range.name)).toEqual(['Keep', 'Delete me']),
+    );
+    expect(Object.keys(loadPracticeStats())).toEqual(['r2']);
+    expect(Object.keys(loadSessionHistory())).toEqual(['r2']);
+  });
+
+  it('drops the undo offer when it is dismissed', async () => {
+    seed({ id: 'r1', name: 'Keep' });
+    seed({ id: 'r2', name: 'Delete me' });
+    jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
+      buttons?.find((button) => button.style === 'destructive')?.onPress?.();
+    });
+
+    const { getByTestId, queryByTestId, findByLabelText } = await render(<LibraryScreen />);
+    await fireEvent.press(getByTestId('manage-ranges'));
+    await fireEvent.press(await findByLabelText('Select Delete me'));
+    await findByLabelText('Deselect Delete me');
+    await fireEvent.press(getByTestId('delete-selected'));
+
+    await fireEvent.press(getByTestId('dismiss-undo'));
+
+    await waitFor(() => expect(queryByTestId('undo-delete')).toBeNull());
+    expect(loadSavedRanges().map((range) => range.name)).toEqual(['Keep']);
+  });
+
+  it('offers the undo for a delete made on the range page', async () => {
+    seed({ id: 'r1', name: 'Keep' });
+    seed({ id: 'r2', name: 'Deleted elsewhere' });
+    // What the range page does before it navigates back here.
+    rememberDeletedRanges(deleteRangesWithRecords(['r2']));
+
+    const { getByTestId, findByText } = await render(<LibraryScreen />);
+    await findByText(/“Deleted elsewhere” deleted/);
+    await fireEvent.press(getByTestId('undo-delete'));
+
+    await waitFor(() =>
+      expect(loadSavedRanges().map((range) => range.name)).toEqual(['Keep', 'Deleted elsewhere']),
+    );
+  });
+
+  it('offers no undo until something is deleted', async () => {
+    seed({ id: 'r1', name: 'Keep' });
+
+    const { queryByTestId } = await render(<LibraryScreen />);
+
+    expect(queryByTestId('undo-delete')).toBeNull();
   });
 
   it('bulk archives and unarchives selected ranges', async () => {

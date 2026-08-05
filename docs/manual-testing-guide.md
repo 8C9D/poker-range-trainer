@@ -159,6 +159,10 @@ is the easiest fully-clean environment.
   group first — every 3-bet chart, every BTN spot — and drill exactly that), plus bulk
   favorite, archive, and delete. A selection that a search or filter hides drops out of
   every one of those actions.
+- A delete — one range or a whole selection — is offered back as an **Undo** on the
+  Library, which restores the ranges to their old positions along with the practice
+  stats, history, per-hand and per-action accuracy, and review schedules that went
+  with them.
 - Opening a row leads to the **range page**, whose header **Practice** button, **⋯**
   overflow menu (Duplicate, Favorite, Archive, Compare…, Export JSON/CSV/SVG, Copy
   share link, Publish/Unpublish link, Delete), and tabs (Overview / Edit / Actions /
@@ -460,6 +464,17 @@ from a known state (see §2).
 - [ ] The Library's "New range" button opens a blank editor (`#/library/new`) for a fresh range.
 - [ ] Delete (range page **⋯** menu) removes the range and returns to the Library.
 - [ ] Reload the page — saved ranges persist.
+
+### 5.6b Undoing a delete
+
+- [ ] Deleting a range from its **⋯** menu lands on the Library with an offer naming what
+      went: *"UTG open" deleted, along with the practice record.* **Undo** puts the range
+      back where it was in the list, with its accuracy and review schedule intact.
+- [ ] The same offer appears after a **Manage → Delete selected** bulk delete, counting
+      the ranges (*3 ranges deleted…*); undoing restores every one of them.
+- [ ] **Dismiss** drops the offer and keeps the delete. So does reloading the page — the
+      undo is held in memory only, so it never survives a reload.
+- [ ] Practice recorded on other ranges between the delete and the undo survives it.
 
 ### 5.6a Starter ranges
 
