@@ -11,13 +11,16 @@ import {
   rememberDeletedRanges,
   clearDeletedRanges,
 } from '../storage/rangeRemoval'
+import { forgetLibraryView } from '../app/libraryView'
 import { STARTER_RANGE_TEMPLATES } from '../domain/starterRanges'
 import type { SavedRange } from '../types/range'
 
 beforeEach(() => {
   localStorage.clear()
-  // The pending undo is module state, so it would otherwise outlive its test.
+  // The pending undo and the remembered view are module state, held across a
+  // visit to a range and back, so they would otherwise outlive their test.
   clearDeletedRanges()
+  forgetLibraryView()
 })
 
 function makeRange(id: string, name: string, extra: Partial<SavedRange> = {}): SavedRange {
@@ -268,6 +271,59 @@ describe('LibraryScreen', () => {
     await user.selectOptions(screen.getByLabelText('Filter ranges by action type'), 'jam')
     await user.selectOptions(screen.getByLabelText('Filter ranges by game type'), 'tournament')
     expect(rowNames()).toEqual(['MTT 40bb jam'])
+  })
+
+  it('keeps the search and filters when a range is opened and closed', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange('a', 'UTG open', { metadata: { position: 'utg' } }))
+    saveSavedRange(makeRange('b', 'BTN 3-bet', { metadata: { position: 'btn' } }))
+    const first = render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    await user.type(screen.getByLabelText('Search ranges by name, tag, notes or a hand'), 'btn')
+    await user.click(screen.getByRole('button', { name: 'Filters' }))
+    await user.selectOptions(screen.getByLabelText('Filter ranges by position'), 'btn')
+    await user.selectOptions(screen.getByLabelText('Sort ranges'), 'name')
+    expect(rowNames()).toEqual(['BTN 3-bet'])
+
+    // Opening a range unmounts this screen; coming back mounts a fresh one.
+    first.unmount()
+    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+
+    // Working through a filtered group must not mean re-typing the filter after
+    // every chart.
+    expect(rowNames()).toEqual(['BTN 3-bet'])
+    expect(screen.getByLabelText('Search ranges by name, tag, notes or a hand')).toHaveValue('btn')
+    expect(screen.getByLabelText('Filter ranges by position')).toHaveValue('btn')
+    expect(screen.getByLabelText('Sort ranges')).toHaveValue('name')
+  })
+
+  it('forgets the view once it is cleared, so the next visit starts fresh', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange('a', 'UTG open'))
+    saveSavedRange(makeRange('b', 'BTN 3-bet'))
+    const first = render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    await user.type(screen.getByLabelText('Search ranges by name, tag, notes or a hand'), 'btn')
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }))
+
+    first.unmount()
+    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+
+    expect(rowNames()).toEqual(['UTG open', 'BTN 3-bet'])
+  })
+
+  it('never restores a selection with the view, so no bulk action arrives armed', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(makeRange('a', 'UTG open'))
+    saveSavedRange(makeRange('b', 'BTN 3-bet'))
+    const first = render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    await user.click(screen.getByRole('button', { name: 'Manage' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select BTN 3-bet' }))
+
+    first.unmount()
+    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+
+    // Back on a plain list: no ticked ranges waiting behind a Delete button.
+    expect(screen.queryByRole('checkbox', { name: 'Select BTN 3-bet' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Manage' })).toBeInTheDocument()
   })
 
   it('clears search, sort, filters, and toggles in one action', async () => {

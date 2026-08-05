@@ -505,6 +505,9 @@ from a known state (see §2).
 - [ ] Each filter (position, action, stack depth, game type, tag) narrows correctly and
       they compose together.
 - [ ] Stack-depth options reflect the depths actually saved.
+- [ ] The view survives a round trip: filter the list, open a range, come back —
+      the search box, the filters, and the sort are all still set. Nothing is ticked,
+      though, and **Clear filters** (or a reload) starts the next visit fresh.
 - [ ] Tags added on a range's **Edit** tab show as chips on its Library row; the tag
       filter lists only tags actually saved and is absent when no range has tags.
 - [ ] Sort by Name / Recently edited / Recently practiced / Accuracy reorders as

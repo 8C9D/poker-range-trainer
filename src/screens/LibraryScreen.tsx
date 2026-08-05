@@ -3,6 +3,11 @@ import { RangeThumbnail } from '../components/RangeThumbnail'
 import { SpotCoverage } from '../components/SpotCoverage'
 import { formatDayDistance } from '../app/format'
 import { createRangeId } from '../app/ids'
+import {
+  readLibraryView,
+  rememberLibraryView,
+  type LibrarySortOrder,
+} from '../app/libraryView'
 import { routeHash } from '../app/routes'
 import {
   collectRangeTags,
@@ -52,7 +57,8 @@ import {
 } from '../types/range'
 import './LibraryScreen.css'
 
-type SortOrder = '' | 'name' | 'recent' | 'practiced' | 'accuracy'
+// Declared with the remembered view so the two can never drift apart.
+type SortOrder = LibrarySortOrder
 
 interface LibraryScreenProps {
   /** Start the v8.2 spot drill over the whole library at the given format. */
@@ -75,16 +81,20 @@ export function LibraryScreen({ onPlaySpots, onPracticeSelected }: LibraryScreen
   const [reviewStates, setReviewStates] = useState(() => loadReviewStates())
   const [nowIso] = useState(() => new Date().toISOString())
 
-  const [query, setQuery] = useState('')
-  const [filtersOpen, setFiltersOpen] = useState(false)
-  const [position, setPosition] = useState<Position | ''>('')
-  const [actionType, setActionType] = useState<ActionType | ''>('')
-  const [stackDepth, setStackDepth] = useState<number | ''>('')
-  const [gameType, setGameType] = useState<GameType | ''>('')
-  const [tag, setTag] = useState('')
-  const [sort, setSort] = useState<SortOrder>('')
-  const [showArchived, setShowArchived] = useState(false)
-  const [favoritesOnly, setFavoritesOnly] = useState(false)
+  // Opening a range unmounts this screen, so the view it was left in is restored
+  // rather than reset — otherwise working through a filtered group of charts
+  // means re-typing the filter after every single one.
+  const lastView = useState(readLibraryView)[0]
+  const [query, setQuery] = useState(lastView.query)
+  const [filtersOpen, setFiltersOpen] = useState(lastView.filtersOpen)
+  const [position, setPosition] = useState<Position | ''>(lastView.position)
+  const [actionType, setActionType] = useState<ActionType | ''>(lastView.actionType)
+  const [stackDepth, setStackDepth] = useState<number | ''>(lastView.stackDepth)
+  const [gameType, setGameType] = useState<GameType | ''>(lastView.gameType)
+  const [tag, setTag] = useState(lastView.tag)
+  const [sort, setSort] = useState<SortOrder>(lastView.sort)
+  const [showArchived, setShowArchived] = useState(lastView.showArchived)
+  const [favoritesOnly, setFavoritesOnly] = useState(lastView.favoritesOnly)
   const [managing, setManaging] = useState(false)
   // Why the last library write did not land, cleared by the next one that does.
   const [actionError, setActionError] = useState<string | null>(null)
@@ -96,6 +106,32 @@ export function LibraryScreen({ onPlaySpots, onPracticeSelected }: LibraryScreen
   // would hand the offer to a render that is then thrown away.
   const [undoable, setUndoable] = useState<DeletedRanges | null>(peekDeletedRanges)
   useEffect(clearDeletedRanges, [])
+
+  useEffect(() => {
+    rememberLibraryView({
+      query,
+      filtersOpen,
+      position,
+      actionType,
+      stackDepth,
+      gameType,
+      tag,
+      sort,
+      showArchived,
+      favoritesOnly,
+    })
+  }, [
+    query,
+    filtersOpen,
+    position,
+    actionType,
+    stackDepth,
+    gameType,
+    tag,
+    sort,
+    showArchived,
+    favoritesOnly,
+  ])
 
   // Both depend only on the mount-once library data, so memoize them instead of
   // recomputing due dates across the whole library on every search keystroke.
