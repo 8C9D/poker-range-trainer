@@ -4,6 +4,7 @@ import {
   buildPostflopScenario,
   describeHeroHand,
   isFacingAggression,
+  POSTFLOP_FACINGS,
   suggestDecision,
 } from './postflopScenario'
 
@@ -75,6 +76,30 @@ describe('isFacingAggression', () => {
   it('does not treat an "N-bet pot" descriptor as facing a bet', () => {
     for (const facing of ['3-bet pot, checked to hero', '4-bet pot', 'checked to hero in a 3-bet pot']) {
       expect(isFacingAggression(buildPostflopScenario({ ...base, facing }))).toBe(false)
+    }
+  })
+
+  it('reads a c-bet as the bet it is', () => {
+    // The guard that spares "3-bet pot" once swallowed every hyphenated bet,
+    // which is the most ordinary way there is to say a villain bet the flop.
+    for (const facing of ['villain c-bets', 'facing a c-bet', '3-bet pot, villain c-bets']) {
+      expect(isFacingAggression(buildPostflopScenario({ ...base, facing }))).toBe(true)
+    }
+  })
+
+  it('reads every action the drills actually deal', () => {
+    // Both platforms build scenarios from this list, so each entry has to read
+    // back the way it is worded — a misread flips the drill's advice.
+    const aggressive = new Set([
+      'villain bets pot',
+      'villain bets half pot',
+      'villain c-bets',
+      'villain raises',
+    ])
+    for (const facing of POSTFLOP_FACINGS) {
+      expect(isFacingAggression(buildPostflopScenario({ ...base, facing }))).toBe(
+        aggressive.has(facing),
+      )
     }
   })
 })

@@ -293,8 +293,10 @@ Split between the **Account** screen's **Data** section and the range page's **�
 
 ### Postflop & board-aware views (v4)
 
-- **Postflop drill** (practice mode picker) — pick a scenario, then self-grade a
-  bet/check/call/raise/fold decision against a heuristic.
+- **Postflop drill** (practice mode picker) — pick a scenario (hand, flop, pot, stack,
+  and the action faced, chosen from a fixed list so the heuristic always reads it the
+  way it was meant), then self-grade a bet/check/call/raise/fold decision against a
+  heuristic.
 - **Range vs board** (practice mode picker) — enter a flop and see the range's
   made-hand / draw breakdown, with flop-texture tags.
 
@@ -685,6 +687,12 @@ from a known state (see §2).
 
 - [ ] "Postflop drill" (practice mode picker) runs a self-graded bet/check/call/raise/fold
       decision against a scenario and records nothing.
+- [ ] **Facing** is a dropdown, not a text box, and lists the same actions the mobile
+      drill deals. Each one reads correctly: with AsKh on Kd7c2h, every bet/raise line
+      (including *villain c-bets*) suggests **Raise**, and *villain checks* /
+      *checked to you* suggest **Bet**.
+- [ ] A malformed hand or flop, or a card used twice, reports inline and does not start
+      the drill; fixing it and starting again clears the message.
 - [ ] "Range vs board" (practice mode picker): entering a flop shows the made-hand /
       draw breakdown and flop-texture tags.
 

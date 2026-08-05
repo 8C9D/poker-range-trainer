@@ -1,5 +1,9 @@
 import { useState } from 'react'
-import { buildPostflopScenario, type PostflopScenario } from '../domain/postflopScenario'
+import {
+  buildPostflopScenario,
+  POSTFLOP_FACINGS,
+  type PostflopScenario,
+} from '../domain/postflopScenario'
 import './PracticeSession.css'
 
 interface PostflopDrillSetupProps {
@@ -19,7 +23,7 @@ export function PostflopDrillSetup({ onStart, onExit }: PostflopDrillSetupProps)
   const [flop, setFlop] = useState('')
   const [potSize, setPotSize] = useState('10')
   const [stackDepth, setStackDepth] = useState('100')
-  const [facing, setFacing] = useState('villain bets pot')
+  const [facing, setFacing] = useState<string>(POSTFLOP_FACINGS[0])
   const [error, setError] = useState('')
 
   function handleSubmit(event: React.FormEvent) {
@@ -89,12 +93,20 @@ export function PostflopDrillSetup({ onStart, onExit }: PostflopDrillSetupProps)
         </label>
         <label>
           Facing
-          <input
-            type="text"
+          {/* Chosen, not typed: the drill's advice turns on whether this reads
+              as aggression, so a phrasing it does not recognize would silently
+              flip the answer. The same list the mobile drill deals from. */}
+          <select
             className="coach-input"
             value={facing}
             onChange={(e) => setFacing(e.target.value)}
-          />
+          >
+            {POSTFLOP_FACINGS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
         </label>
 
         {error && (

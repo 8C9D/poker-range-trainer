@@ -12,23 +12,19 @@ import { getRandomHandFrom } from '@core/domain/practice';
 import type { PokerHand } from '@core/domain/pokerHands';
 import {
   buildPostflopScenario,
+  POSTFLOP_FACINGS,
   suggestDecision,
   type PostflopDecision,
   type PostflopScenario,
 } from '@core/domain/postflopScenario';
 
 /**
- * The action the hero faces, sampled per scenario. A mix of aggressive lines (bet /
- * raise — `isFacingAggression` true) and passive ones (check — false) so the drill
- * exercises both branches of the heuristic.
+ * The action the hero faces, sampled per scenario. Re-exported from the core
+ * vocabulary, which the web setup form offers as its choices, so both platforms
+ * deal the same wording — and `isFacingAggression` reads every entry of it back
+ * the way it was meant.
  */
-export const POSTFLOP_FACINGS = [
-  'villain bets pot',
-  'villain bets half pot',
-  'villain raises',
-  'villain checks',
-  'checked to you',
-] as const;
+export { POSTFLOP_FACINGS };
 
 /** Fixed pot/stack — the heuristic ignores them, so randomizing would add noise only. */
 const POT_SIZE = 10;

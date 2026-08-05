@@ -20,6 +20,26 @@ export const POSTFLOP_DECISION_LABELS: Record<PostflopDecision, string> = {
   fold: 'Fold',
 }
 
+/**
+ * The actions the hero can face, as the drill words them.
+ *
+ * A fixed vocabulary rather than free prose, because {@link isFacingAggression}
+ * has to read the answer back out of the words: a typed phrase the reader does
+ * not recognize silently flips the drill's advice to the first-to-act branch.
+ * Both platforms deal from this list — the web setup form offers it, and the
+ * mobile drill samples it — so every scenario either drill builds reads back the
+ * way it was meant. A mix of aggressive lines (bet / raise) and passive ones
+ * (check) so the drill exercises both branches of the heuristic.
+ */
+export const POSTFLOP_FACINGS = [
+  'villain bets pot',
+  'villain bets half pot',
+  'villain c-bets',
+  'villain raises',
+  'villain checks',
+  'checked to you',
+] as const
+
 export interface PostflopScenario {
   heroHand: Card[]
   flop: Card[]
@@ -94,11 +114,15 @@ const MEDIUM_MADE: HandCategory[] = ['middlePair', 'bottomPair', 'pair']
 /**
  * True when the action the hero faces involves aggression (a bet or raise).
  *
- * The `(?<!-)` guard keeps a pot-type descriptor like "3-bet pot" from counting
- * as a bet the hero currently faces, while still matching "bets"/"bet" as verbs.
+ * The `(?<![0-9]-)` guard keeps a pot-type descriptor like "3-bet pot" or
+ * "4-bet pot" from counting as a bet the hero currently faces. It deliberately
+ * looks for the DIGIT: an earlier guard rejected every hyphenated bet, which
+ * also swallowed "c-bet" — the most ordinary way there is to describe a flop bet
+ * — and left the drill advising a bet into a bet, and a fold-equity line as if
+ * hero were first to act.
  */
 export function isFacingAggression(scenario: PostflopScenario): boolean {
-  return /\b((?<!-)bet|raise|jam|shove|all[- ]?in)/i.test(scenario.facing)
+  return /\b((?<![0-9]-)bet|raise|jam|shove|all[- ]?in)/i.test(scenario.facing)
 }
 
 export interface DecisionSuggestion {
