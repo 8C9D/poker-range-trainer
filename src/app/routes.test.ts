@@ -64,6 +64,22 @@ describe('parseAppRoute', () => {
     expect(parseAppRoute('#/library/a%20b')).toEqual({ screen: 'range', id: 'a b', tab: 'overview' })
   })
 
+  // The parse runs during render, so a throw here took the whole app down behind
+  // the root error boundary, with no way back: "Try again" re-read the same hash.
+  it('keeps a malformed percent-escape raw instead of throwing', () => {
+    expect(parseAppRoute('#/library/%')).toEqual({ screen: 'range', id: '%', tab: 'overview' })
+    expect(parseAppRoute('#/library/a%b/edit')).toEqual({
+      screen: 'range',
+      id: 'a%b',
+      tab: 'edit',
+    })
+    expect(parseAppRoute('#/library/%E0%A4%A')).toEqual({
+      screen: 'range',
+      id: '%E0%A4%A',
+      tab: 'overview',
+    })
+  })
+
   it('falls back to Today for empty and unknown hashes', () => {
     expect(parseAppRoute('')).toEqual({ screen: 'today' })
     expect(parseAppRoute('#/')).toEqual({ screen: 'today' })
