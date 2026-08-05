@@ -514,6 +514,54 @@ describe('RangeScreen editor validation', () => {
     expect(screen.getByText('100bb', { selector: '.coach-chip' })).toBeInTheDocument()
   })
 
+  it('fills the scenario from the range name in one action', async () => {
+    const user = userEvent.setup()
+    // A range named the way the app itself names ranges, with the dropdowns blank:
+    // invisible to the spot drill, the coverage map, and the leak reports.
+    saveSavedRange(makeRange({ name: 'SB 3-bet vs BTN open (6-max 100bb)', metadata: undefined }))
+    render(<RangeScreen id="r1" tab="edit" onPractice={vi.fn()} />)
+
+    expect(screen.getByText('SB · 3-bet · vs BTN · 6-max · 100bb')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Use this' }))
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    expect(findSavedRangeById('r1')?.metadata).toEqual({
+      position: 'sb',
+      actionType: 'threeBet',
+      versusPosition: 'btn',
+      tableSize: 'sixMax',
+      stackDepthBb: 100,
+    })
+    // Nothing left for the name to add, so the offer goes.
+    expect(screen.queryByRole('button', { name: 'Use this' })).toBeNull()
+  })
+
+  it('offers only what the scenario fields do not already say', async () => {
+    const user = userEvent.setup()
+    saveSavedRange(
+      makeRange({ name: 'SB 3-bet vs BTN', metadata: { position: 'co' } }),
+    )
+    render(<RangeScreen id="r1" tab="edit" onPractice={vi.fn()} />)
+
+    // The recorded seat wins over the name's, so only the rest is offered.
+    expect(screen.getByText('3-bet · vs BTN')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Use this' }))
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    expect(findSavedRangeById('r1')?.metadata).toMatchObject({
+      position: 'co',
+      actionType: 'threeBet',
+      versusPosition: 'btn',
+    })
+  })
+
+  it('offers no scenario for a name that describes none', () => {
+    saveSavedRange(makeRange({ name: 'My favourite chart', metadata: undefined }))
+    render(<RangeScreen id="r1" tab="edit" onPractice={vi.fn()} />)
+
+    expect(screen.queryByRole('button', { name: 'Use this' })).toBeNull()
+  })
+
   it('saves per-hand notes with the range', async () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange())

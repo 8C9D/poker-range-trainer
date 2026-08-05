@@ -47,6 +47,14 @@ interface RangeMetadataEditorProps {
   onNotesChange: (notes: string) => void
   onSourceKindChange: (kind: RangeSourceKind | '') => void
   onSourceReferenceChange: (reference: string) => void
+  /**
+   * The scenario the range's NAME describes and these fields do not yet, read
+   * back in plain words (e.g. `SB · 3-bet · vs BTN`). Null when the name adds
+   * nothing, which hides the offer.
+   */
+  scenarioFromName?: string | null
+  /** Fill the empty fields from the name. Required when `scenarioFromName` is set. */
+  onUseScenarioFromName?: () => void
 }
 
 /**
@@ -85,10 +93,29 @@ export function RangeMetadataEditor({
   onNotesChange,
   onSourceKindChange,
   onSourceReferenceChange,
+  scenarioFromName = null,
+  onUseScenarioFromName,
 }: RangeMetadataEditorProps) {
   return (
     <section className="range-metadata" aria-label="Scenario details">
       <h2>Scenario details</h2>
+
+      {/* These fields are what the spot drill, the coverage map and the leak
+          reports read — a range that leaves them blank is invisible to all
+          three. Most names already say the scenario, so offer it rather than
+          make the user re-enter it. Offered, never applied: a name is free
+          text, and a wrong guess written in silently would be worse than a
+          blank field. */}
+      {scenarioFromName && onUseScenarioFromName && (
+        <div className="range-metadata-suggestion">
+          <p>
+            From the name: <strong>{scenarioFromName}</strong>
+          </p>
+          <button type="button" className="coach-btn" onClick={onUseScenarioFromName}>
+            Use this
+          </button>
+        </div>
+      )}
 
       <div className="range-metadata-fields">
         <div className="range-metadata-group">

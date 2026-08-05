@@ -297,7 +297,7 @@ export function RangeEditor({ id: idParam, prefill, showNotesLink = true }: Rang
       ) : null}
       <RangeNotation selectedHands={[...selected]} onReplaceHands={onReplaceHands} />
       <RangeCsv name={name} hands={[...selected]} onImport={onImportCsv} />
-      <RangeMetadataEditor value={metadata} onChange={setMetadata} />
+      <RangeMetadataEditor value={metadata} onChange={setMetadata} name={name} />
       <RangeTagEditor tags={tags} onChange={setTags} />
       {showNotesLink ? (
         <Link href={{ pathname: '/notes-editor', params: { id: draft.id } }} asChild>

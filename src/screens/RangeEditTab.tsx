@@ -16,6 +16,7 @@ import {
 } from '../domain/handSelectionHistory'
 import { countRangeCombos, rangeComboPercentage } from '../domain/comboSelection'
 import { normalizeTags } from '../domain/rangeLibrary'
+import { describeScenario, scenarioSuggestionFor } from '../domain/scenarioFromName'
 import { normalizeRangeHands } from '../domain/rangeMath'
 import { mergeShortcutHands } from '../domain/rangeShortcuts'
 import { saveSavedRange } from '../storage/rangeStorage'
@@ -168,6 +169,33 @@ export function RangeEditTab({ range, prefill, onSaved }: RangeEditTabProps) {
 
   const trimmedName = name.trim()
   const canSave = trimmedName.length > 0 && selected.size > 0 && !stackDepthError
+
+  // What the name says that the fields do not — recomputed as either changes, so
+  // the offer narrows field by field as they are filled and disappears when the
+  // name has nothing left to add.
+  const scenarioSuggestion = useMemo(
+    () =>
+      scenarioSuggestionFor(trimmedName, {
+        ...(tableSize ? { tableSize } : {}),
+        ...(stackDepthValue !== undefined ? { stackDepthBb: stackDepthValue } : {}),
+        ...(position ? { position } : {}),
+        ...(versusPosition ? { versusPosition } : {}),
+        ...(actionType ? { actionType } : {}),
+      }),
+    [trimmedName, tableSize, stackDepthValue, position, versusPosition, actionType],
+  )
+
+  function useScenarioSuggestion() {
+    if (!scenarioSuggestion) return
+    setSavedName(null)
+    if (scenarioSuggestion.tableSize) setTableSize(scenarioSuggestion.tableSize)
+    if (scenarioSuggestion.stackDepthBb !== undefined) {
+      setStackDepth(String(scenarioSuggestion.stackDepthBb))
+    }
+    if (scenarioSuggestion.position) setPosition(scenarioSuggestion.position)
+    if (scenarioSuggestion.versusPosition) setVersusPosition(scenarioSuggestion.versusPosition)
+    if (scenarioSuggestion.actionType) setActionType(scenarioSuggestion.actionType)
+  }
   let saveHint = ''
   if (trimmedName.length === 0 && selected.size === 0) {
     saveHint = 'Enter a range name and select at least one hand to save.'
@@ -367,6 +395,8 @@ export function RangeEditTab({ range, prefill, onSaved }: RangeEditTabProps) {
         notes={notes}
         sourceKind={sourceKind}
         sourceReference={sourceReference}
+        scenarioFromName={scenarioSuggestion ? describeScenario(scenarioSuggestion) : null}
+        onUseScenarioFromName={useScenarioSuggestion}
         onGameTypeChange={(value) => {
           setSavedName(null)
           setGameType(value)

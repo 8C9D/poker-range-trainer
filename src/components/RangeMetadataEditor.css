@@ -17,6 +17,30 @@
   margin-bottom: 12px;
 }
 
+/* The scenario read out of the range's name, offered above the fields it fills. */
+.range-metadata-suggestion {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--well);
+}
+
+.range-metadata-suggestion p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.range-metadata-suggestion strong {
+  color: var(--ink);
+}
+
 .range-metadata-group {
   display: flex;
   flex-direction: column;

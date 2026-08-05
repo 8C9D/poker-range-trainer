@@ -19,8 +19,11 @@ The app implements the full roadmap (**v1–v9**). At a glance:
   arrow-key selection (the grid is one tab stop, not 169), range shortcut
   buttons, live combo count and percentage, range
   notation import/export (e.g. `22+, A2s+, ATo+`), optional scenario metadata
-  (game type, table size, stack depth, position, action type, notes), an optional
-  source/reference, organization tags, and per-hand notes.
+  (game type, table size, stack depth, position, action type, notes) — which the
+  editor offers to read straight out of the range's name ("SB 3-bet vs BTN open
+  (6-max 100bb)"), since that metadata is what the spot drill, coverage map and
+  leak reports run on — an optional source/reference, organization tags, and
+  per-hand notes.
 - **Starter ranges** — an empty library fills itself with nine standard 6-max
   100bb charts in one tap, so every drill, spot, and workout works on day one.
   They are ordinary editable ranges, tagged `Starter`.

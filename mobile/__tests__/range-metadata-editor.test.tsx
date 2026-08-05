@@ -41,4 +41,55 @@ describe('RangeMetadataEditor', () => {
 
     expect(onChange).toHaveBeenCalledWith({ notes: 'vs UTG open' });
   });
+
+  it('fills the scenario from the range name in one tap', async () => {
+    const onChange = jest.fn();
+    const { getByTestId, getByText } = await render(
+      <RangeMetadataEditor value={{}} onChange={onChange} name="SB 3-bet vs BTN open (6-max 100bb)" />,
+    );
+
+    expect(getByText('SB · 3-bet · vs BTN · 6-max · 100bb')).toBeTruthy();
+    fireEvent.press(getByTestId('use-scenario-from-name'));
+
+    expect(onChange).toHaveBeenCalledWith({
+      position: 'sb',
+      actionType: 'threeBet',
+      versusPosition: 'btn',
+      tableSize: 'sixMax',
+      stackDepthBb: 100,
+    });
+  });
+
+  it('offers only what the fields do not already say', async () => {
+    const onChange = jest.fn();
+    const { getByTestId, getByText } = await render(
+      <RangeMetadataEditor value={{ position: 'co' }} onChange={onChange} name="SB 3-bet vs BTN" />,
+    );
+
+    // The recorded seat wins over the name's, so only the rest is offered.
+    expect(getByText('3-bet · vs BTN')).toBeTruthy();
+    fireEvent.press(getByTestId('use-scenario-from-name'));
+
+    expect(onChange).toHaveBeenCalledWith({
+      position: 'co',
+      actionType: 'threeBet',
+      versusPosition: 'btn',
+    });
+  });
+
+  it('offers no scenario for a name that describes none', async () => {
+    const { queryByTestId } = await render(
+      <RangeMetadataEditor value={{}} onChange={jest.fn()} name="My favourite chart" />,
+    );
+
+    expect(queryByTestId('use-scenario-from-name')).toBeNull();
+  });
+
+  it('offers nothing when no name is supplied', async () => {
+    const { queryByTestId } = await render(
+      <RangeMetadataEditor value={{}} onChange={jest.fn()} />,
+    );
+
+    expect(queryByTestId('use-scenario-from-name')).toBeNull();
+  });
 });

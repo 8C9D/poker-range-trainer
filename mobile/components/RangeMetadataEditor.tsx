@@ -1,5 +1,6 @@
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { describeScenario, scenarioSuggestionFor } from '@core/domain/scenarioFromName';
 import {
   ACTION_TYPES,
   ACTION_TYPE_LABELS,
@@ -21,6 +22,8 @@ export interface RangeMetadataEditorProps {
   value: RangeMetadata;
   /** Replace the metadata with the next value. */
   onChange: (next: RangeMetadata) => void;
+  /** The range's name, which usually says the scenario these fields ask for. */
+  name?: string;
 }
 
 /**
@@ -28,16 +31,39 @@ export interface RangeMetadataEditorProps {
  * Owns no state; reads/writes only through `value`/`onChange`. `saveSavedRange`
  * normalizes/drops empty fields, so this only collects values.
  */
-export function RangeMetadataEditor({ value, onChange }: RangeMetadataEditorProps) {
+export function RangeMetadataEditor({ value, onChange, name = '' }: RangeMetadataEditorProps) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   function set<K extends keyof RangeMetadata>(key: K, next: RangeMetadata[K]): void {
     onChange({ ...value, [key]: next });
   }
 
+  // These fields are what the spot drill, the coverage map and the leak reports
+  // read — a range that leaves them blank is invisible to all three. Most names
+  // already say the scenario, so offer it rather than make the user re-enter it.
+  // Offered, never applied: a name is free text, and a wrong guess written in
+  // silently would be worse than a blank field.
+  const suggestion = scenarioSuggestionFor(name, value);
+
   return (
     <View style={styles.container}>
       <Text accessibilityRole="header" style={styles.heading}>Scenario details</Text>
+
+      {suggestion ? (
+        <View style={styles.suggestion}>
+          <Text style={styles.suggestionText}>
+            From the name: <Text style={styles.suggestionValue}>{describeScenario(suggestion)}</Text>
+          </Text>
+          <Pressable
+            testID="use-scenario-from-name"
+            accessibilityRole="button"
+            style={styles.suggestionBtn}
+            onPress={() => onChange({ ...value, ...suggestion })}
+          >
+            <Text style={styles.suggestionBtnText}>Use this</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       <ChipRow
         label="Position"
@@ -135,6 +161,26 @@ function makeStyles(theme: ThemeColors) {
       fontSize: 13,
       fontWeight: '600',
     },
+    // The scenario read out of the range's name, offered above the fields it fills.
+    suggestion: {
+      gap: 8,
+      padding: 10,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line,
+      borderRadius: 10,
+      backgroundColor: theme.well,
+    },
+    suggestionText: { color: theme.ink2, fontSize: 13 },
+    suggestionValue: { color: theme.ink, fontWeight: '600' },
+    suggestionBtn: {
+      alignSelf: 'flex-start',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line2,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+    },
+    suggestionBtnText: { color: theme.ink, fontSize: 14, fontWeight: '600' },
     input: {
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: theme.line2,

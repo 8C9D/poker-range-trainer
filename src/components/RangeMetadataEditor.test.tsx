@@ -28,6 +28,7 @@ function renderEditor(overrides: Partial<Props> = {}): Props {
     onNotesChange: vi.fn(),
     onSourceKindChange: vi.fn(),
     onSourceReferenceChange: vi.fn(),
+    onUseScenarioFromName: vi.fn(),
     ...overrides,
   }
   render(<RangeMetadataEditor {...props} />)
@@ -201,5 +202,20 @@ describe('RangeMetadataEditor', () => {
 
     expect(screen.getByLabelText('Stack depth')).not.toHaveAttribute('aria-invalid')
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('offers the scenario read out of the range name', async () => {
+    const user = userEvent.setup()
+    const props = renderEditor({ scenarioFromName: 'SB · 3-bet · vs BTN' })
+
+    expect(within(section()).getByText('SB · 3-bet · vs BTN')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Use this' }))
+    expect(props.onUseScenarioFromName).toHaveBeenCalledTimes(1)
+  })
+
+  it('offers nothing when the name adds nothing', () => {
+    renderEditor({ scenarioFromName: null })
+
+    expect(screen.queryByRole('button', { name: 'Use this' })).toBeNull()
   })
 })

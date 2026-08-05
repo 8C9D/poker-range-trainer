@@ -452,6 +452,13 @@ from a known state (see §2).
       stack / position vs / action, plus notes); the Library row shows a subset
       (position / action / %); a metadata-less range shows no empty labels.
 - [ ] Loading a range restores every metadata field.
+- [ ] **From the name**: on a range named the way the app names them — *SB 3-bet vs BTN
+      open (6-max 100bb)* — the editor offers that scenario above the fields, and
+      **Use this** fills seat, action, versus, table size and depth in one go.
+- [ ] It only ever offers what the fields do not already say: set the position by hand
+      and the offer narrows to the rest; fill everything and the offer disappears.
+      A field already set is never overwritten, even when the name disagrees.
+- [ ] A name with no scenario in it ("My favourite chart") offers nothing.
 
 ### 5.6 Save / load / edit / delete (v1)
 
@@ -464,17 +471,6 @@ from a known state (see §2).
 - [ ] The Library's "New range" button opens a blank editor (`#/library/new`) for a fresh range.
 - [ ] Delete (range page **⋯** menu) removes the range and returns to the Library.
 - [ ] Reload the page — saved ranges persist.
-
-### 5.6b Undoing a delete
-
-- [ ] Deleting a range from its **⋯** menu lands on the Library with an offer naming what
-      went: *"UTG open" deleted, along with the practice record.* **Undo** puts the range
-      back where it was in the list, with its accuracy and review schedule intact.
-- [ ] The same offer appears after a **Manage → Delete selected** bulk delete, counting
-      the ranges (*3 ranges deleted…*); undoing restores every one of them.
-- [ ] **Dismiss** drops the offer and keeps the delete. So does reloading the page — the
-      undo is held in memory only, so it never survives a reload.
-- [ ] Practice recorded on other ranges between the delete and the undo survives it.
 
 ### 5.6a Starter ranges
 
@@ -489,6 +485,17 @@ from a known state (see §2).
 - [ ] The Account screen's **Data** section also has **Add starter ranges**, so the pack
       is still reachable once the library has something in it. Running it twice adds
       nothing the second time; deleting a few and running it again tops up only those.
+
+### 5.6b Undoing a delete
+
+- [ ] Deleting a range from its **⋯** menu lands on the Library with an offer naming what
+      went: *"UTG open" deleted, along with the practice record.* **Undo** puts the range
+      back where it was in the list, with its accuracy and review schedule intact.
+- [ ] The same offer appears after a **Manage → Delete selected** bulk delete, counting
+      the ranges (*3 ranges deleted…*); undoing restores every one of them.
+- [ ] **Dismiss** drops the offer and keeps the delete. So does reloading the page — the
+      undo is held in memory only, so it never survives a reload.
+- [ ] Practice recorded on other ranges between the delete and the undo survives it.
 
 ### 5.7 Library: search / filter / sort (v1.4)
 
