@@ -7,6 +7,7 @@ import { loadSavedRanges, saveSavedRange } from '../storage/rangeStorage'
 import { saveReviewState } from '../storage/reviewStateStorage'
 import { recordPracticeSessionHistory } from '../storage/sessionHistoryStorage'
 import { recordPracticeSession } from '../storage/practiceStatsStorage'
+import { recordHandAccuracy } from '../storage/handAccuracyStorage'
 import { loadTrainingGoal, saveTrainingGoal } from '../storage/trainingGoalStorage'
 import { recordWorkoutCompletion } from '../storage/workoutStorage'
 import type { SavedRange } from '../types/range'
@@ -30,7 +31,7 @@ const TODAY = new Date().toISOString()
 
 describe('TodayScreen', () => {
   it('shows the onboarding panel when there are no ranges', () => {
-    render(<TodayScreen onStartReview={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
+    render(<TodayScreen onStartReview={vi.fn()} onDrillWeakHands={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
     const panel = screen.getByRole('region', { name: 'Get started' })
     expect(within(panel).getByRole('link', { name: 'Open Library' })).toHaveAttribute(
       'href',
@@ -40,7 +41,7 @@ describe('TodayScreen', () => {
 
   it('fills an empty library with the starter pack and drops straight into training', async () => {
     const user = userEvent.setup()
-    render(<TodayScreen onStartReview={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
+    render(<TodayScreen onStartReview={vi.fn()} onDrillWeakHands={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
 
     await user.click(screen.getByRole('button', { name: 'Add starter ranges' }))
 
@@ -56,7 +57,7 @@ describe('TodayScreen', () => {
     const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('QuotaExceededError')
     })
-    render(<TodayScreen onStartReview={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
+    render(<TodayScreen onStartReview={vi.fn()} onDrillWeakHands={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
 
     await user.click(screen.getByRole('button', { name: 'Add starter ranges' }))
 
@@ -69,7 +70,7 @@ describe('TodayScreen', () => {
     saveSavedRange(makeRange('a', 'UTG open'))
     saveSavedRange(makeRange('b', 'BTN open'))
     const onStartReview = vi.fn()
-    render(<TodayScreen onStartReview={onStartReview} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
+    render(<TodayScreen onStartReview={onStartReview} onDrillWeakHands={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
 
     // Never-reviewed ranges are due; the CTA counts them.
     expect(screen.getByText(/2 ranges due/)).toBeInTheDocument()
@@ -87,7 +88,7 @@ describe('TodayScreen', () => {
     saveSavedRange(makeRange('a', 'UTG open'))
     saveSavedRange(makeRange('b', 'BTN open'))
     const onStartReview = vi.fn()
-    render(<TodayScreen onStartReview={onStartReview} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
+    render(<TodayScreen onStartReview={onStartReview} onDrillWeakHands={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
 
     const rows = screen.getAllByRole('button', { name: 'Review' })
     await user.click(rows[1])
@@ -97,11 +98,13 @@ describe('TodayScreen', () => {
   it('excludes archived ranges from the due queue', () => {
     saveSavedRange({ ...makeRange('a', 'UTG open'), archived: true })
     saveSavedRange(makeRange('b', 'BTN open'))
-    render(<TodayScreen onStartReview={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
+    render(<TodayScreen onStartReview={vi.fn()} onDrillWeakHands={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
     expect(screen.getByText(/1 range due/)).toBeInTheDocument()
   })
 
-  it('shows all caught up with a free-practice shortcut when nothing is due', () => {
+  it('offers the next range early when nothing is due and nothing has gone wrong', async () => {
+    const user = userEvent.setup()
+    const onStartReview = vi.fn()
     saveSavedRange(makeRange('a', 'UTG open'))
     saveReviewState({
       rangeId: 'a',
@@ -110,19 +113,79 @@ describe('TodayScreen', () => {
       dueAt: FUTURE,
       lastReviewedAt: TODAY,
     })
-    render(<TodayScreen onStartReview={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
+    render(
+      <TodayScreen
+        onStartReview={onStartReview}
+        onDrillWeakHands={vi.fn()}
+        onPlaySpots={vi.fn()}
+        onStartWorkout={vi.fn()}
+      />,
+    )
+
+    const panel = screen.getByRole('region', { name: 'All caught up' })
+    expect(within(panel).getByText(/Get ahead: UTG open comes round next/)).toBeVisible()
+    await user.click(within(panel).getByRole('button', { name: 'Review early' }))
+
+    expect(onStartReview.mock.calls[0][0].map((range: SavedRange) => range.id)).toEqual(['a'])
+    expect(screen.queryByRole('button', { name: 'Start review' })).not.toBeInTheDocument()
+  })
+
+  it('offers the weak hands when caught up, and drills exactly those', async () => {
+    const user = userEvent.setup()
+    const onDrillWeakHands = vi.fn()
+    saveSavedRange(makeRange('a', 'UTG open'))
+    saveReviewState({
+      rangeId: 'a',
+      ease: 2.5,
+      intervalDays: 7,
+      dueAt: FUTURE,
+      lastReviewedAt: TODAY,
+    })
+    recordHandAccuracy('a', [
+      { hand: 'AA', attempts: 4, correct: 1, falsePositives: 0, falseNegatives: 3 },
+    ])
+    render(
+      <TodayScreen
+        onStartReview={vi.fn()}
+        onDrillWeakHands={onDrillWeakHands}
+        onPlaySpots={vi.fn()}
+        onStartWorkout={vi.fn()}
+      />,
+    )
+
+    const panel = screen.getByRole('region', { name: 'All caught up' })
+    expect(within(panel).getByText(/Sharpen the 1 hand you play worst/)).toBeVisible()
+    await user.click(within(panel).getByRole('button', { name: 'Drill weak hands' }))
+
+    const [queue, pools] = onDrillWeakHands.mock.calls[0]
+    expect(queue.map((range: SavedRange) => range.id)).toEqual(['a'])
+    expect(pools).toEqual({ a: ['AA'] })
+  })
+
+  it('falls back to the library shortcut when it has nothing to suggest', () => {
+    // A library with no schedule yet is never caught up, so the only way here is
+    // a library the suggestion cannot speak for at all.
+    saveSavedRange({ ...makeRange('a', 'UTG open'), archived: true })
+    render(
+      <TodayScreen
+        onStartReview={vi.fn()}
+        onDrillWeakHands={vi.fn()}
+        onPlaySpots={vi.fn()}
+        onStartWorkout={vi.fn()}
+      />,
+    )
+
     const panel = screen.getByRole('region', { name: 'All caught up' })
     expect(within(panel).getByRole('link', { name: 'Free practice' })).toHaveAttribute(
       'href',
       '#/library',
     )
-    expect(screen.queryByRole('button', { name: 'Start review' })).not.toBeInTheDocument()
   })
 
   it('shows the streak chip with grace-day copy once a streak exists', () => {
     saveSavedRange(makeRange('a', 'UTG open'))
     recordPracticeSessionHistory('a', { totalQuestions: 10, correctAnswers: 8 }, TODAY)
-    render(<TodayScreen onStartReview={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
+    render(<TodayScreen onStartReview={vi.fn()} onDrillWeakHands={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
     const chip = screen.getByTitle(/One rest day is forgiven/)
     expect(chip).toHaveTextContent('1 day')
   })
@@ -132,7 +195,7 @@ describe('TodayScreen', () => {
     saveSavedRange(makeRange('b', 'BTN open'))
     recordPracticeSessionHistory('a', { totalQuestions: 10, correctAnswers: 6 }, TODAY)
     recordPracticeSessionHistory('b', { totalQuestions: 10, correctAnswers: 9 }, TODAY)
-    render(<TodayScreen onStartReview={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
+    render(<TodayScreen onStartReview={vi.fn()} onDrillWeakHands={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
     const tiles = screen.getByRole('region', { name: 'This week' })
     expect(within(tiles).getByText('20')).toBeInTheDocument()
     expect(within(tiles).getByText('75%')).toBeInTheDocument()
@@ -143,7 +206,7 @@ describe('TodayScreen', () => {
     saveSavedRange(makeRange('live', 'UTG open'))
     recordPracticeSessionHistory('live', { totalQuestions: 10, correctAnswers: 8 }, TODAY)
     recordPracticeSessionHistory('deleted', { totalQuestions: 10, correctAnswers: 10 }, TODAY)
-    render(<TodayScreen onStartReview={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
+    render(<TodayScreen onStartReview={vi.fn()} onDrillWeakHands={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
 
     const tiles = screen.getByRole('region', { name: 'This week' })
     expect(within(tiles).getByText('UTG open')).toBeInTheDocument()
@@ -154,7 +217,7 @@ describe('TodayScreen', () => {
     saveSavedRange(makeRange('a', 'UTG open'))
     recordPracticeSessionHistory('a', { totalQuestions: 12, correctAnswers: 9 }, TODAY)
     saveTrainingGoal(20)
-    render(<TodayScreen onStartReview={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
+    render(<TodayScreen onStartReview={vi.fn()} onDrillWeakHands={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
 
     const card = screen.getByRole('region', { name: 'Daily goal' })
     expect(within(card).getByText('12 of 20 hands — 8 to go.')).toBeInTheDocument()
@@ -169,7 +232,7 @@ describe('TodayScreen', () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'UTG open'))
     saveTrainingGoal(20)
-    render(<TodayScreen onStartReview={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
+    render(<TodayScreen onStartReview={vi.fn()} onDrillWeakHands={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
     const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('QuotaExceededError')
     })
@@ -191,7 +254,7 @@ describe('TodayScreen', () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'UTG open'))
     saveTrainingGoal(20)
-    render(<TodayScreen onStartReview={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
+    render(<TodayScreen onStartReview={vi.fn()} onDrillWeakHands={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
 
     const card = screen.getByRole('region', { name: 'Daily goal' })
     await user.selectOptions(within(card).getByRole('combobox'), '0')
@@ -204,7 +267,7 @@ describe('TodayScreen', () => {
   it('shows last accuracy and last practiced on due rows once practiced', () => {
     saveSavedRange(makeRange('a', 'UTG open'))
     recordPracticeSession('a', { totalQuestions: 10, correctAnswers: 8 }, TODAY)
-    render(<TodayScreen onStartReview={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
+    render(<TodayScreen onStartReview={vi.fn()} onDrillWeakHands={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
     const dueList = screen.getByRole('region', { name: 'Due now' })
     expect(within(dueList).getByText(/80% last accuracy · practiced today/)).toBeInTheDocument()
   })
@@ -213,7 +276,7 @@ describe('TodayScreen', () => {
 describe('TodayScreen spot drill entry', () => {
   it('is hidden while no range describes a situation', () => {
     saveSavedRange(makeRange('a', 'Unlabelled'))
-    render(<TodayScreen onStartReview={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
+    render(<TodayScreen onStartReview={vi.fn()} onDrillWeakHands={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
 
     expect(screen.queryByRole('region', { name: 'Play the spot' })).toBeNull()
   })
@@ -225,7 +288,7 @@ describe('TodayScreen spot drill entry', () => {
       ...makeRange('a', 'BTN open'),
       metadata: { position: 'btn', actionType: 'open', tableSize: 'sixMax', stackDepthBb: 40 },
     })
-    render(<TodayScreen onStartReview={vi.fn()} onPlaySpots={onPlaySpots} onStartWorkout={vi.fn()} />)
+    render(<TodayScreen onStartReview={vi.fn()} onDrillWeakHands={vi.fn()} onPlaySpots={onPlaySpots} onStartWorkout={vi.fn()} />)
 
     const card = screen.getByRole('region', { name: 'Play the spot' })
     expect(within(card).getByText(/1 of 65 spots covered/)).toBeInTheDocument()
@@ -245,7 +308,7 @@ describe('TodayScreen daily workout', () => {
     })
     const onStartWorkout = vi.fn()
     render(
-      <TodayScreen onStartReview={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={onStartWorkout} />,
+      <TodayScreen onStartReview={vi.fn()} onDrillWeakHands={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={onStartWorkout} />,
     )
 
     const card = screen.getByRole('region', { name: 'Daily workout' })
@@ -269,14 +332,14 @@ describe('TodayScreen daily workout', () => {
       dueAt: FUTURE,
       lastReviewedAt: TODAY,
     })
-    render(<TodayScreen onStartReview={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
+    render(<TodayScreen onStartReview={vi.fn()} onDrillWeakHands={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
 
     expect(screen.queryByRole('region', { name: 'Daily workout' })).toBeNull()
   })
 
   it('leads with the workout and demotes the plain review button', () => {
     saveSavedRange(makeRange('a', 'UTG open'))
-    render(<TodayScreen onStartReview={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
+    render(<TodayScreen onStartReview={vi.fn()} onDrillWeakHands={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
 
     expect(screen.getByRole('button', { name: 'Start workout' })).toHaveClass('primary')
     expect(screen.getByRole('button', { name: 'Start review' })).not.toHaveClass('primary')
@@ -288,7 +351,7 @@ describe('TodayScreen workout done state', () => {
     saveSavedRange(makeRange('a', 'UTG open'))
     saveTrainingGoal(20)
     recordWorkoutCompletion(TODAY)
-    render(<TodayScreen onStartReview={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
+    render(<TodayScreen onStartReview={vi.fn()} onDrillWeakHands={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
 
     const card = screen.getByRole('region', { name: 'Daily workout' })
     expect(within(card).getByText(/Done for today\. 0 of 20 hands/)).toBeInTheDocument()
@@ -300,7 +363,7 @@ describe('TodayScreen workout done state', () => {
   it('re-offers the plan when the completion is from an earlier day', () => {
     saveSavedRange(makeRange('a', 'UTG open'))
     recordWorkoutCompletion('2026-01-05T09:00:00.000Z')
-    render(<TodayScreen onStartReview={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
+    render(<TodayScreen onStartReview={vi.fn()} onDrillWeakHands={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
 
     expect(screen.getByRole('button', { name: 'Start workout' })).toBeInTheDocument()
   })

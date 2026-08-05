@@ -170,6 +170,9 @@ function CoachApp() {
       {route.screen === 'today' ? (
         <TodayScreen
           onStartReview={startReview}
+          onDrillWeakHands={(queue, pools) =>
+            setPractice({ ranges: queue, mode: 'recognize', handPools: pools })
+          }
           onPlaySpots={(spotFormat) =>
             setPractice({ ranges: loadSavedRanges(), mode: 'spots', spotFormat })
           }

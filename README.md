@@ -62,7 +62,8 @@ The app implements the full roadmap (**v1–v9**). At a glance:
   "practice mistakes only", session history, a library-wide practice summary, and
   an accuracy-by-week trend answering whether you are actually improving.
 - **Spaced repetition & goals** — a "due for review" queue, a review streak, and an
-  optional daily hands goal with progress on Today. Each session advances the
+  optional daily hands goal with progress on Today. Caught up for the day, Today
+  still names a next step — the hands you play worst, or the chart due next. Each session advances the
   range's review schedule by accuracy, pulled closer when its per-hand record
   still has stubbornly-wrong hands.
 - **Daily workout** — one tap on Today runs a guided session composed from what

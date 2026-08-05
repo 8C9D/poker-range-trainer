@@ -63,7 +63,7 @@ describe('accessible names', () => {
 
   it('never labels an element that cannot carry a name on Today', () => {
     seed('a', 'BTN open')
-    render(<TodayScreen onStartReview={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
+    render(<TodayScreen onStartReview={vi.fn()} onDrillWeakHands={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
     expect(droppedLabels()).toEqual([])
   })
 

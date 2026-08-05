@@ -58,7 +58,7 @@ function firstSkip(levels: number[]): string | null {
 describe('heading outline', () => {
   it('never skips a level on Today', () => {
     seed('a', 'BTN open')
-    render(<TodayScreen onStartReview={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
+    render(<TodayScreen onStartReview={vi.fn()} onDrillWeakHands={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
 
     const levels = outline()
     expect(levels[0]).toBe(1)

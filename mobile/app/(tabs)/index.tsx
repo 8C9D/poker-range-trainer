@@ -8,6 +8,11 @@ import {
   workoutCompletedToday,
 } from '@core/domain/dailyWorkout';
 import { practiceAccuracyPercentage } from '@core/domain/practiceStats';
+import {
+  describeFreePractice,
+  freePracticeAction,
+  suggestFreePractice,
+} from '@core/domain/freePractice';
 import { currentStreak, selectDueRanges } from '@core/domain/spacedRepetition';
 import { buildSpotCoverage, inferLibraryContext } from '@core/domain/spotCoverage';
 import { buildStarterRanges, STARTER_RANGE_TEMPLATES } from '@core/domain/starterRanges';
@@ -17,6 +22,7 @@ import {
   goalLine,
 } from '@core/domain/trainingGoal';
 import { sessionsForLibrary, summarizeWeek } from '@core/domain/weeklyStats';
+import { loadHandAccuracy } from '@core/storage/handAccuracyStorage';
 import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
 import { loadReviewStates } from '@core/storage/reviewStateStorage';
 import { loadSavedRanges, saveSavedRanges } from '@core/storage/rangeStorage';
@@ -75,12 +81,23 @@ function loadTodayState() {
         now: nowIso,
         goalHands: goal,
       });
+  // Only worth computing when nothing is due, which is exactly when it is shown.
+  const freePractice =
+    due.length === 0
+      ? suggestFreePractice({
+          ranges,
+          handAccuracy: loadHandAccuracy(),
+          reviewStates,
+          now: nowIso,
+        })
+      : null;
   return {
     now,
     nowIso,
     ranges,
     practiceStats,
     due,
+    freePractice,
     streak,
     week,
     sharpestName,
@@ -116,6 +133,7 @@ export default function TodayScreen() {
     ranges,
     practiceStats,
     due,
+    freePractice,
     streak,
     week,
     sharpestName,
@@ -128,6 +146,18 @@ export default function TodayScreen() {
   } = state;
   const estimatedMinutes = Math.max(1, Math.ceil(due.length * MINUTES_PER_RANGE));
   const goalProgress = evaluateDailyGoal(history, nowIso, goal);
+  // A weak-hand suggestion drills each range restricted to its own pool, exactly
+  // like the Progress screen's; getting ahead is an ordinary recognition run.
+  const freePracticeParams =
+    freePractice?.kind === 'weakHands'
+      ? {
+          queue: freePractice.ranges.map((range) => range.id).join(','),
+          mode: 'recognize',
+          pools: JSON.stringify(freePractice.pools),
+        }
+      : freePractice
+        ? { queue: freePractice.range.id, mode: 'recognize' }
+        : undefined;
 
   // The welcome card's shortcut past an empty library. Only reachable while there are
   // no ranges, so the whole pack goes in without the Account tab's top-up check.
@@ -259,13 +289,26 @@ export default function TodayScreen() {
               <View testID="today-caught-up" style={styles.card}>
                 <Text accessibilityRole="header" style={styles.cardTitle}>All caught up</Text>
                 <Text style={styles.cardBody}>
-                  Nothing is due right now. Fancy a free practice run anyway?
+                  {freePractice
+                    ? `Nothing is due right now. ${describeFreePractice(freePractice)}`
+                    : 'Nothing is due right now. Fancy a free practice run anyway?'}
                 </Text>
-                <Link href="/library" asChild>
-                  <Pressable style={styles.ghostBtn}>
-                    <Text style={styles.ghostBtnText}>Free practice</Text>
-                  </Pressable>
-                </Link>
+                {/* Caught up is where a steady user spends most days, so the card
+                    runs the practice the records call for rather than handing the
+                    "which range, which mode" decision back at the Library door. */}
+                {freePractice ? (
+                  <Link href={{ pathname: '/practice', params: freePracticeParams }} asChild>
+                    <Pressable testID="free-practice" style={styles.ghostBtn}>
+                      <Text style={styles.ghostBtnText}>{freePracticeAction(freePractice)}</Text>
+                    </Pressable>
+                  </Link>
+                ) : (
+                  <Link href="/library" asChild>
+                    <Pressable style={styles.ghostBtn}>
+                      <Text style={styles.ghostBtnText}>Free practice</Text>
+                    </Pressable>
+                  </Link>
+                )}
               </View>
             )}
 

@@ -220,7 +220,9 @@ Open via the range page's **Stats** tab:
 
 - The **Today** screen surfaces due ranges: a "Today's review" card with a **Start
   review** button and a "Due now" list (each row has its own **Review** button), plus
-  an "All caught up" state when nothing is due.
+  an "All caught up" state when nothing is due — which does not stop there: it offers
+  the practice the records call for, either the hands you play worst (drilled restricted
+  to those hands) or the chart whose review comes round next.
 - **Review streak** — consecutive days with at least one finished session.
 - Each finished recognition/timed/weakness session advances that range's schedule by
   accuracy (low → due tomorrow, medium → hold, high → interval grows).
@@ -621,6 +623,10 @@ from a known state (see §2).
 - [ ] After a recorded session, the range leaves the due list (next due ≥1 day out).
 - [ ] The review streak reflects consecutive days with finished sessions. (To re-test
       "due" same-day, edit `review-state.v1` per §2.)
+- [ ] With nothing due and a recorded miss, **All caught up** reads *Sharpen the N hands
+      you play worst…* and **Drill weak hands** deals only those hands.
+- [ ] With nothing due and nothing missed yet, it reads *Get ahead: <range> comes round
+      next* and **Review early** drills that one range.
 
 ### 5.18 Practice — frequency quiz (v4.2)
 

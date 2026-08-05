@@ -7,12 +7,19 @@ import {
   workoutCompletedToday,
   type DailyWorkout,
 } from '../domain/dailyWorkout'
+import {
+  describeFreePractice,
+  freePracticeAction,
+  suggestFreePractice,
+} from '../domain/freePractice'
+import type { PokerHand } from '../domain/pokerHands'
 import { practiceAccuracyPercentage } from '../domain/practiceStats'
 import { buildStarterRanges, STARTER_RANGE_TEMPLATES } from '../domain/starterRanges'
 import { currentStreak, selectDueRanges } from '../domain/spacedRepetition'
 import { buildSpotCoverage, inferLibraryContext } from '../domain/spotCoverage'
 import { GOAL_OPTIONS, evaluateDailyGoal, goalLine } from '../domain/trainingGoal'
 import { sessionsForLibrary, summarizeWeek } from '../domain/weeklyStats'
+import { loadHandAccuracy } from '../storage/handAccuracyStorage'
 import { loadPracticeStats } from '../storage/practiceStatsStorage'
 import { loadReviewStates } from '../storage/reviewStateStorage'
 import { createRangeId } from '../app/ids'
@@ -30,6 +37,8 @@ const MINUTES_PER_RANGE = 1.5
 interface TodayScreenProps {
   /** Start a queued review drill through the given ranges (one at a time). */
   onStartReview: (queue: SavedRange[]) => void
+  /** Drill the queued ranges, each restricted to its own weak-hand pool. */
+  onDrillWeakHands: (queue: SavedRange[], pools: Record<string, PokerHand[]>) => void
   /** Start the spot drill over the whole library at the given format. */
   onPlaySpots: (format: { tableSize: TableSize; stackDepthBb: number }) => void
   /** Run the composed daily workout. */
@@ -41,12 +50,18 @@ interface TodayScreenProps {
  * once on mount (practice unmounts this screen, so returning always re-reads
  * fresh stats).
  */
-export function TodayScreen({ onStartReview, onPlaySpots, onStartWorkout }: TodayScreenProps) {
+export function TodayScreen({
+  onStartReview,
+  onDrillWeakHands,
+  onPlaySpots,
+  onStartWorkout,
+}: TodayScreenProps) {
   const [now] = useState(() => new Date())
   const [ranges, setRanges] = useState(() => loadSavedRanges())
   const [reviewStates] = useState(() => loadReviewStates())
   const [storedHistory] = useState(() => loadSessionHistory())
   const [practiceStats] = useState(() => loadPracticeStats())
+  const [handAccuracy] = useState(() => loadHandAccuracy())
   const [spotAccuracy] = useState(() => loadSpotAccuracy())
   const [workoutCompletion] = useState(() => loadWorkoutCompletion())
   const [goal, setGoal] = useState(() => loadTrainingGoal())
@@ -88,6 +103,21 @@ export function TodayScreen({ onStartReview, onPlaySpots, onStartWorkout }: Toda
   // The spot drill only has something to deal once a range describes a situation.
   const spotFormat = inferLibraryContext(ranges)
   const spotCoverage = buildSpotCoverage(ranges, spotFormat.tableSize, spotFormat.stackDepthBb)
+  // Only worth computing when nothing is due, which is exactly when it is shown.
+  const freePractice =
+    due.length === 0
+      ? suggestFreePractice({ ranges, handAccuracy, reviewStates, now: nowIso })
+      : null
+
+  function startFreePractice() {
+    if (!freePractice) return
+    if (freePractice.kind === 'weakHands') {
+      onDrillWeakHands(freePractice.ranges, freePractice.pools)
+      return
+    }
+    onStartReview([freePractice.range])
+  }
+
   // A finished workout stays finished for the day; the card flips to its done
   // state instead of re-offering the same plan.
   const workoutDone = workoutCompletedToday(workoutCompletion, nowIso)
@@ -193,11 +223,24 @@ export function TodayScreen({ onStartReview, onPlaySpots, onStartWorkout }: Toda
             <section className="coach-card today-cta" aria-label="All caught up">
               <div className="today-cta-copy">
                 <h2>All caught up</h2>
-                <p>Nothing is due right now. Fancy a free practice run anyway?</p>
+                <p>
+                  {freePractice
+                    ? `Nothing is due right now. ${describeFreePractice(freePractice)}`
+                    : 'Nothing is due right now. Fancy a free practice run anyway?'}
+                </p>
               </div>
-              <a className="coach-btn" href="#/library">
-                Free practice
-              </a>
+              {/* Caught up is where a steady user spends most days, so the card
+                  runs the practice the records call for rather than handing the
+                  "which range, which mode" decision back at the Library door. */}
+              {freePractice ? (
+                <button type="button" className="coach-btn" onClick={startFreePractice}>
+                  {freePracticeAction(freePractice)}
+                </button>
+              ) : (
+                <a className="coach-btn" href="#/library">
+                  Free practice
+                </a>
+              )}
             </section>
           )}
 

@@ -1,6 +1,7 @@
 import { render, userEvent } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 
+import { recordHandAccuracy } from '@core/storage/handAccuracyStorage';
 import { recordPracticeSession } from '@core/storage/practiceStatsStorage';
 import { saveReviewState } from '@core/storage/reviewStateStorage';
 import { recordPracticeSessionHistory } from '@core/storage/sessionHistoryStorage';
@@ -14,13 +15,27 @@ import TodayScreen from '../app/(tabs)/index';
 import { installLocalStorage, localStorageShim } from '../platform/localStorageShim';
 
 // In-memory MMKV + a minimal expo-router stub. Data is seeded before render and read
-// by the screen's initial useState (useFocusEffect is a no-op here).
+// by the screen's initial useState (useFocusEffect is a no-op here). The Link stub
+// records where each link points, since that is where a card's action actually lives.
 jest.mock('react-native-mmkv');
 jest.mock('expo-crypto');
+// Named `mock*` so Jest allows the hoisted factory below to close over it.
+const mockLinks: unknown[] = [];
 jest.mock('expo-router', () => ({
   useFocusEffect: () => {},
-  Link: ({ children }: { children: ReactNode }) => children,
+  Link: ({ children, href }: { children: ReactNode; href: unknown }) => {
+    mockLinks.push(href);
+    return children;
+  },
 }));
+
+/** The recorded links that point at the practice route. */
+function practiceLinks(): { pathname: string; params: Record<string, string> }[] {
+  return mockLinks.filter(
+    (href): href is { pathname: string; params: Record<string, string> } =>
+      typeof href === 'object' && href !== null && 'pathname' in href,
+  );
+}
 
 function seed(id: string, name: string): void {
   const range: SavedRange = {
@@ -40,6 +55,7 @@ describe('TodayScreen', () => {
 
   beforeEach(() => {
     localStorageShim.clear();
+    mockLinks.length = 0;
   });
 
   it('shows the onboarding card when there are no ranges', async () => {
@@ -87,7 +103,7 @@ describe('TodayScreen', () => {
     expect(getByTestId('due-row-r2')).toBeTruthy();
   });
 
-  it('shows the all-caught-up card when nothing is due', async () => {
+  it('offers the next range early when nothing is due and nothing has gone wrong', async () => {
     seed('r1', 'UTG Open');
     saveReviewState({
       rangeId: 'r1',
@@ -97,10 +113,39 @@ describe('TodayScreen', () => {
       lastReviewedAt: '2026-01-01T00:00:00.000Z',
     });
 
-    const { getByTestId, queryByTestId } = await render(<TodayScreen />);
+    const { getByTestId, getByText, queryByTestId } = await render(<TodayScreen />);
 
     expect(getByTestId('today-caught-up')).toBeTruthy();
     expect(queryByTestId('start-review')).toBeNull();
+    expect(getByText(/Get ahead: UTG Open comes round next/)).toBeTruthy();
+    expect(getByTestId('free-practice')).toBeTruthy();
+    expect(practiceLinks()).toContainEqual({
+      pathname: '/practice',
+      params: { queue: 'r1', mode: 'recognize' },
+    });
+  });
+
+  it('offers the weak hands when caught up, restricted to the hands that went wrong', async () => {
+    seed('r1', 'UTG Open');
+    saveReviewState({
+      rangeId: 'r1',
+      ease: 2.5,
+      intervalDays: 1,
+      dueAt: '2999-01-01T00:00:00.000Z',
+      lastReviewedAt: '2026-01-01T00:00:00.000Z',
+    });
+    recordHandAccuracy('r1', [
+      { hand: 'AA', attempts: 4, correct: 1, falsePositives: 0, falseNegatives: 3 },
+    ]);
+
+    const { getByText, getByTestId } = await render(<TodayScreen />);
+
+    expect(getByText(/Sharpen the 1 hand you play worst/)).toBeTruthy();
+    expect(getByTestId('free-practice')).toBeTruthy();
+    expect(practiceLinks()).toContainEqual({
+      pathname: '/practice',
+      params: { queue: 'r1', mode: 'recognize', pools: JSON.stringify({ r1: ['AA'] }) },
+    });
   });
 
   it('shows a streak chip from recent session history', async () => {
