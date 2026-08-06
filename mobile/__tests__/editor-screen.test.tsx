@@ -11,10 +11,6 @@ import { installLocalStorage, localStorageShim } from '../platform/localStorageS
 // minimal expo-router stub (no id param -> a new range; Stack.Screen renders nothing).
 jest.mock('react-native-mmkv');
 jest.mock('expo-crypto');
-jest.mock('expo-clipboard', () => ({
-  setStringAsync: jest.fn(() => Promise.resolve()),
-  getStringAsync: jest.fn(() => Promise.resolve('')),
-}));
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({}),
   // Link renders its children so the wrapped Pressable (e.g. "Edit actions") survives.

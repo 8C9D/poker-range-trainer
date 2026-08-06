@@ -49,7 +49,7 @@ describe('app.json iOS privacy manifest', () => {
     }
 
     const categories = types.map((entry) => entry.NSPrivacyAccessedAPIType);
-    // File timestamp: expo-file-system + react-native-mmkv. UserDefaults: RN/Expo core.
+    // File timestamp: react-native-mmkv. UserDefaults: RN/Expo core.
     expect(categories).toContain('NSPrivacyAccessedAPICategoryFileTimestamp');
     expect(categories).toContain('NSPrivacyAccessedAPICategoryUserDefaults');
   });

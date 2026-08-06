@@ -10,10 +10,6 @@ import { installLocalStorage, localStorageShim } from '../platform/localStorageS
 // range, unlike editor-screen.test.tsx which starts a new draft).
 jest.mock('react-native-mmkv');
 jest.mock('expo-crypto');
-jest.mock('expo-clipboard', () => ({
-  setStringAsync: jest.fn(() => Promise.resolve()),
-  getStringAsync: jest.fn(() => Promise.resolve('')),
-}));
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ id: 'r1' }),
   Link: ({ children }: { children: ReactNode }) => children,

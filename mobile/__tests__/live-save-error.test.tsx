@@ -8,10 +8,6 @@ import { installLocalStorage, localStorageShim } from '../platform/localStorageS
 
 jest.mock('react-native-mmkv');
 jest.mock('expo-crypto');
-jest.mock('expo-clipboard', () => ({
-  setStringAsync: jest.fn(() => Promise.resolve()),
-  getStringAsync: jest.fn(() => Promise.resolve('')),
-}));
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({}),
   Link: ({ children }: { children: ReactNode }) => children,
