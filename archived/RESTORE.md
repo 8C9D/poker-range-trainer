@@ -2,7 +2,11 @@
 
 Each section lists what `git mv` moved (restore by moving the file back to the path shown, i.e. strip the `archived/<slug>/` prefix), the call sites that were edited to unhook the feature, the routes that were unregistered, and the storage left behind.
 The authoritative pre-trim snapshot is the tag `pre-trim-full-featureset` (branch `archive/full-featureset`); diff a restored file against it to recover any call-site wiring this file under-describes.
-`archived/` is excluded from typecheck (`tsconfig.app.json`, `mobile/tsconfig.json`), lint (both `eslint.config.js`), tests (`vitest.config.ts`, `mobile/jest.config.js`), Metro (`blockList` in `mobile/metro.config.js`) and EAS uploads (root `.easignore`); when restoring, no exclusion change is needed because restored files leave `archived/`.
+`archived/` is excluded from typecheck (`tsconfig.app.json`, `mobile/tsconfig.json`), lint (both `eslint.config.js`), tests (`vitest.config.ts`, `mobile/jest.config.js`), Metro (`blockList` in `mobile/metro.config.js`) and EAS uploads (root `.easignore`); restored files leave `archived/`, so no exclusion change is needed.
+Cross-cutting notes:
+- Test files wholly owned by a feature moved with it; restoring the feature restores its tests.
+- Removed mobile dependencies (see TRIM-REPORT.md): `expo-clipboard`, `expo-document-picker`, `expo-file-system`, `expo-sharing`, and the `expo-sharing` entry in `mobile/app.json` plugins. Restore whichever a restored feature imports.
+- The cloud sync payload (`trimBackupForSync` in `src/cloud/backupRepo.ts`) strips `handActions`, `mixedStrategies`, `comboSelections`, `handNotes` and `tags` from pushed ranges; when restoring the owning feature, remove its field from that strip list so pushes carry it again.
 
 ## Postflop tools (`postflop-tools`)
 
@@ -13,12 +17,14 @@ The authoritative pre-trim snapshot is the tag `pre-trim-full-featureset` (branc
 - `mobile/app/board.tsx`
 - `mobile/app/postflop.tsx`
 - `mobile/components/postflopDrill.ts`
+- `src/components/FlopTexture.css`
 - `src/components/FlopTexture.test.tsx`
 - `src/components/FlopTexture.tsx`
 - `src/components/PostflopDrillSetup.test.tsx`
 - `src/components/PostflopDrillSetup.tsx`
 - `src/components/PostflopPractice.test.tsx`
 - `src/components/PostflopPractice.tsx`
+- `src/components/RangeVsBoard.css`
 - `src/components/RangeVsBoard.test.tsx`
 - `src/components/RangeVsBoard.tsx`
 - `src/domain/boardTexture.test.ts`
@@ -32,15 +38,18 @@ The authoritative pre-trim snapshot is the tag `pre-trim-full-featureset` (branc
 
 ### Call sites edited to unhook
 
-TODO(phase 2/3)
+- `src/practice/PracticeHost.tsx` / `mobile/components/practice/PracticeHost.tsx` - the `postflop`/`board` modes and their overlay branches removed.
+- `src/practice/ModePicker.tsx` / `mobile/components/practice/ModePicker.tsx` - the two picker entries removed; `PracticeMode` no longer includes `postflop`/`board`.
+- `mobile/app/practice.tsx` - the modes are gone from the accepted deep-link list.
+- `src/cssIntegrity.test.ts` - table-count guard lowered (the postflop tables left).
 
 ### Routes unregistered
 
-TODO(phase 4)
+- Routes `board` and `postflop` (mobile route files moved; no web route existed - both were practice-overlay modes).
 
 ### Storage left behind
 
-TODO
+- None.
 
 ## Range compare (`range-compare`)
 
@@ -48,6 +57,7 @@ TODO
 
 - `mobile/__tests__/diff-screen.test.tsx`
 - `mobile/app/diff.tsx`
+- `src/components/RangeDiffView.css`
 - `src/components/RangeDiffView.test.tsx`
 - `src/components/RangeDiffView.tsx`
 - `src/domain/rangeDiff.test.ts`
@@ -55,15 +65,16 @@ TODO
 
 ### Call sites edited to unhook
 
-TODO(phase 2/3)
+- `src/screens/RangeScreen.tsx` - the Compare… menu item, `ComparePanel` and its state removed.
+- `mobile/app/range/[id].tsx` - the Compare… menu item removed.
 
 ### Routes unregistered
 
-TODO(phase 4)
+- Route `diff` (mobile). On web the comparison was a panel inside the range screen, not a route.
 
 ### Storage left behind
 
-TODO
+- None.
 
 ## Combo tools (`combo-tools`)
 
@@ -80,22 +91,29 @@ TODO
 - `mobile/components/blockerDrill.ts`
 - `mobile/components/comboEnumeration.ts`
 - `mobile/components/practice/ComboDrill.tsx`
+- `src/components/ComboBlockerDrill.css`
 - `src/components/ComboBlockerDrill.test.tsx`
 - `src/components/ComboBlockerDrill.tsx`
+- `src/components/ComboSelector.css`
 - `src/components/ComboSelector.test.tsx`
 - `src/components/ComboSelector.tsx`
 
 ### Call sites edited to unhook
 
-TODO(phase 2/3)
+- `src/screens/RangeScreen.tsx` / `mobile/app/range/[id].tsx` - the Combos tab removed; Overview counts fall back to `countSelectedCombos`/`calculateRangePercentage` (169-cell model).
+- `src/screens/LibraryScreen.tsx` / `mobile/app/(tabs)/library.tsx` - row percentages fall back to `calculateRangePercentage(range.hands)`.
+- `src/screens/RangeEditTab.tsx` / `mobile/components/RangeStatsBar.tsx` - live editor counts use the 169-cell model.
+- `src/practice/PracticeHost.tsx` / `mobile/components/practice/PracticeHost.tsx` - the `combo` mode removed.
+- `src/practice/ModePicker.tsx` / `mobile/components/practice/ModePicker.tsx` - the Combo drill entry removed.
+- `src/cloud/backupRepo.ts` - `comboSelections` stripped from the pushed sync payload.
 
 ### Routes unregistered
 
-TODO(phase 4)
+- None (the combo drill was a practice-overlay mode).
 
 ### Storage left behind
 
-TODO
+- `SavedRange.comboSelections` stays in the storage model: `src/storage/rangeStorage.ts` still normalizes it, both editors carry it through a save (with an in-session restore for deselected hands), and a pulled cloud payload restores it. Nothing reads it for display; pushes omit it.
 
 ## Per-hand notes (`per-hand-notes`)
 
@@ -103,20 +121,26 @@ TODO
 
 - `mobile/__tests__/notes-editor-screen.test.tsx`
 - `mobile/app/notes-editor.tsx`
+- `src/components/HandNotesEditor.css`
 - `src/components/HandNotesEditor.test.tsx`
 - `src/components/HandNotesEditor.tsx`
 
 ### Call sites edited to unhook
 
-TODO(phase 2/3)
+- `src/screens/RangeEditTab.tsx` - the notes editor block and draft state removed; stored `handNotes` are carried through a save untouched.
+- `mobile/components/RangeEditor.tsx` - the “Edit hand notes →” link removed; same carry-through.
+- `src/screens/RangeScreen.tsx` / `mobile/app/range/[id].tsx` - the Overview note count removed.
+- `src/practice/RecognitionDrill.tsx` / `mobile/components/practice/RecognitionDrill.tsx` - the “Your note:” line removed from miss feedback.
+- `src/domain/missExplanation.ts` - `handNoteFor` removed (the explanation itself stays).
+- `src/cloud/backupRepo.ts` - `handNotes` stripped from the pushed sync payload.
 
 ### Routes unregistered
 
-TODO(phase 4)
+- Route `notes-editor` (mobile). On web the notes editor was a block inside the Edit tab.
 
 ### Storage left behind
 
-TODO
+- `SavedRange.handNotes` stays in the storage model and survives edits and pulls, exactly like `comboSelections`.
 
 ## Import/export and backup files (`import-export-backup`)
 
@@ -140,6 +164,7 @@ TODO
 - `src/components/ActionNotation.tsx`
 - `src/components/MixedNotation.test.tsx`
 - `src/components/MixedNotation.tsx`
+- `src/components/RangeNotation.css`
 - `src/components/RangeNotation.test.tsx`
 - `src/components/RangeNotation.tsx`
 - `src/domain/base64url.test.ts`
@@ -151,15 +176,22 @@ TODO
 
 ### Call sites edited to unhook
 
-TODO(phase 2/3)
+- `src/screens/AccountScreen.tsx` - the Data section's export/import backup, range, CSV and pack actions removed (cloud push/pull stays; reset stays).
+- `src/screens/RangeScreen.tsx` - Export JSON/CSV/SVG menu items removed.
+- `src/screens/RangeEditTab.tsx` - the notation panel removed.
+- `mobile/app/(tabs)/account.tsx` - `BackupPanel` and `RangeFilesPanel` unmounted.
+- `mobile/components/RangeEditor.tsx` - the notation and CSV panels removed.
+- `mobile/app/range/[id].tsx` - Copy notation / Copy CSV / Export range file menu items removed.
+- `mobile/lib/format.ts` - `safeRangeFileName` removed (only exports used it).
+- `src/cssIntegrity.test.ts` - the `SVG_PALETTE` block removed with the SVG export.
 
 ### Routes unregistered
 
-TODO(phase 4)
+- None.
 
 ### Storage left behind
 
-TODO
+- `src/storage/backup.ts` stays (the cloud sync payload builder); only its file UI left.
 
 ## Offline share links (`offline-share-links`)
 
@@ -172,36 +204,40 @@ TODO
 
 ### Call sites edited to unhook
 
-TODO(phase 2/3)
+- `src/App.tsx` - the `#range=` module-load import branch removed.
+- `src/screens/RangeScreen.tsx` / `mobile/app/range/[id].tsx` - the Copy share link menu item removed.
+- `mobile/app/(tabs)/library.tsx` - the Import header button removed.
 
 ### Routes unregistered
 
-TODO(phase 4)
+- Route `import` (mobile) and the web `#range=` hash form.
 
 ### Storage left behind
 
-TODO
+- None.
 
 ## Starter charts (`starter-charts`)
 
 ### Moved files (original paths)
 
-- `RM mobile/__tests__/starter-ranges-panel.test.tsx`
-- `RM mobile/components/StarterRangesPanel.tsx`
+- `mobile/__tests__/starter-ranges-panel.test.tsx`
+- `mobile/components/StarterRangesPanel.tsx`
 - `src/domain/starterRanges.test.ts`
 - `src/domain/starterRanges.ts`
 
 ### Call sites edited to unhook
 
-TODO(phase 2/3)
+- `src/screens/AccountScreen.tsx` / `mobile/app/(tabs)/account.tsx` - the Add starter ranges action removed (mobile: the panel was archived after the Reset action was extracted to `mobile/components/ResetStatsPanel.tsx`).
+- `src/screens/LibraryScreen.tsx` / `mobile/app/(tabs)/library.tsx` - the empty-state starter offer replaced with a Create a range CTA.
+- `src/screens/TodayScreen.tsx` / `mobile/app/(tabs)/index.tsx` - the welcome-card starter offer replaced with a Create a range CTA.
 
 ### Routes unregistered
 
-TODO(phase 4)
+- None.
 
 ### Storage left behind
 
-TODO
+- Starter charts a user already added are ordinary saved ranges and are untouched.
 
 ## Published share links (`published-share-links`)
 
@@ -214,6 +250,7 @@ TODO
 - `mobile/app/p/[id].tsx`
 - `mobile/app/r/[id].tsx`
 - `mobile/components/SharePackPanel.tsx`
+- `mobile/lib/useMobileSession.ts`
 - `src/app/forkShared.test.ts`
 - `src/app/forkShared.ts`
 - `src/cloud/sharedPacksRepo.test.ts`
@@ -222,6 +259,7 @@ TODO
 - `src/cloud/sharedRangesRepo.ts`
 - `src/components/SharedPackPage.test.tsx`
 - `src/components/SharedPackPage.tsx`
+- `src/components/SharedPage.css`
 - `src/components/SharedRangePage.test.tsx`
 - `src/components/SharedRangePage.tsx`
 - `src/domain/shareRoute.test.ts`
@@ -229,15 +267,19 @@ TODO
 
 ### Call sites edited to unhook
 
-TODO(phase 2/3)
+- `src/App.tsx` - the `#/r/`/`#/p/` share-route branches and the fork handlers removed.
+- `src/screens/RangeScreen.tsx` / `mobile/app/range/[id].tsx` - Publish/Unpublish menu items, share status and auth gating removed.
+- `src/screens/AccountScreen.tsx` - Publish/Unpublish pack actions removed; Delete cloud data now deletes the backup row only (it no longer calls `unpublishAllShared*`).
+- `mobile/components/AuthPanel.tsx` - same delete-cloud-data trim.
+- `mobile/platform/cryptoShim.ts` - doc comment no longer cites the shared repos.
 
 ### Routes unregistered
 
-TODO(phase 4)
+- Routes `r/[id]` and `p/[id]` (mobile) and the web `#/r/:id` / `#/p/:id` hash routes.
 
 ### Storage left behind
 
-TODO
+- Rows already published in `shared_ranges`/`shared_packs` are untouched - and now UNREACHABLE from the app: there is no in-app revocation until this feature is restored (flagged in TRIM-REPORT.md).
 
 ## Action and frequency overlays (`action-frequency-overlays`)
 
@@ -259,33 +301,45 @@ TODO
 - `mobile/components/practice/ActionQuizDrill.tsx`
 - `mobile/components/practice/MixedQuizDrill.tsx`
 - `mobile/theme/actionColors.ts`
+- `src/components/ActionGrid.css`
 - `src/components/ActionGrid.test.tsx`
 - `src/components/ActionGrid.tsx`
+- `src/components/ActionPalette.css`
 - `src/components/ActionPalette.test.tsx`
 - `src/components/ActionPalette.tsx`
 - `src/components/ActionQuiz.test.tsx`
 - `src/components/ActionQuiz.tsx`
 - `src/components/MixedActionQuiz.test.tsx`
 - `src/components/MixedActionQuiz.tsx`
+- `src/components/MixedStrategyEditor.css`
 - `src/components/MixedStrategyEditor.test.tsx`
 - `src/components/MixedStrategyEditor.tsx`
+- `src/components/MixedStrategyGrid.css`
 - `src/components/MixedStrategyGrid.test.tsx`
 - `src/components/MixedStrategyGrid.tsx`
+- `src/components/MultiActionEditor.css`
 - `src/components/MultiActionEditor.test.tsx`
 - `src/components/MultiActionEditor.tsx`
 - `src/components/actionQuizShortcuts.ts`
 
 ### Call sites edited to unhook
 
-TODO(phase 2/3)
+- `src/screens/RangeScreen.tsx` / `mobile/app/range/[id].tsx` - the Actions and Frequencies tabs removed; tabs recounted to Overview/Edit/Stats.
+- `src/app/routes.ts` - `RANGE_TABS` trimmed to `overview`/`edit`/`stats`.
+- `src/practice/PracticeHost.tsx` / `mobile/components/practice/PracticeHost.tsx` - the `action`/`mixed` modes, their finish handlers and per-action recording removed.
+- `src/practice/ModePicker.tsx` / `mobile/components/practice/ModePicker.tsx` - the two quiz entries removed.
+- `src/practice/SessionSummary.tsx` / `mobile/components/practice/SessionSummary.tsx` - the action-miss recap removed.
+- `src/domain/missRecap.ts` - `recapActionMisses` removed.
+- `src/components/RangePerformance.tsx` / `mobile/components/RangeStats.tsx` - the per-action accuracy block removed.
+- `src/cloud/backupRepo.ts` - `handActions` and `mixedStrategies` stripped from the pushed sync payload.
 
 ### Routes unregistered
 
-TODO(phase 4)
+- None (both quizzes were practice-overlay modes).
 
 ### Storage left behind
 
-TODO
+- `SavedRange.handActions`/`mixedStrategies` stay in the storage model; `src/domain/actionRange.ts`, `src/domain/mixedStrategy.ts` and `src/storage/actionAccuracyStorage.ts` stay in place because storage, backup and reset still touch them. The `poker-range-trainer.action-accuracy.v1` store is orphaned on disk (still cleared by Reset, still in the backup payload).
 
 ## Daily workout (`daily-workout`)
 
@@ -302,20 +356,22 @@ TODO
 
 ### Call sites edited to unhook
 
-TODO(phase 2/3)
+- `src/App.tsx` - the workout overlay, `onStartWorkout` wiring and the workout/practice Back-handler pairing removed.
+- `src/screens/TodayScreen.tsx` / `mobile/app/(tabs)/index.tsx` - the workout card and its done-state removed; Start review is always the primary CTA again.
 
 ### Routes unregistered
 
-TODO(phase 4)
+- Route `workout` (mobile). On web the workout was a full-screen overlay.
 
 ### Storage left behind
 
-TODO
+- `src/storage/workoutStorage.ts` stays in place (`statsReset` still clears `poker-range-trainer.workout.v1`); the key is otherwise orphaned and remains OUTSIDE the backup payload, as before.
 
 ## Play the spot and coverage map (`play-the-spot`)
 
 ### Moved files (original paths)
 
+- `mobile/__tests__/new-range-prefill.test.tsx`
 - `mobile/__tests__/spot-coverage.test.tsx`
 - `mobile/__tests__/spot-drill.test.tsx`
 - `mobile/components/SpotCoverage.tsx`
@@ -337,15 +393,21 @@ TODO
 
 ### Call sites edited to unhook
 
-TODO(phase 2/3)
+- `src/App.tsx` - `onPlaySpots`/`onDrillSpot` wiring and the `spots` request fields removed.
+- `src/screens/TodayScreen.tsx` / `mobile/app/(tabs)/index.tsx` - the Play-the-spot card removed.
+- `src/screens/LibraryScreen.tsx` / `mobile/app/(tabs)/library.tsx` - the coverage map footer removed.
+- `src/screens/ProgressScreen.tsx` / `mobile/app/(tabs)/progress.tsx` - the Weakest spots section removed; per rule 3 the seat-accuracy and action-accuracy (“Where you leak”) section went with it.
+- `src/practice/PracticeHost.tsx` / `mobile/components/practice/PracticeHost.tsx` - the `spots` mode, `finishSpots` and spot-accuracy recording removed.
+- `mobile/app/practice.tsx` - the `spots` mode and its `table`/`stack`/`spot` params removed; `edges` added to the accepted modes (it was missing).
+- `src/app/routes.ts` / `mobile/app/range/new.tsx` - the scenario-prefill plumbing removed (the coverage map was its only producer).
 
 ### Routes unregistered
 
-TODO(phase 4)
+- None (the spot drill was a practice-overlay mode).
 
 ### Storage left behind
 
-TODO
+- `src/domain/spot.ts` and `src/storage/spotAccuracyStorage.ts` stay in place (backup and reset still touch them). The `poker-range-trainer.spot-accuracy.v1` store is orphaned on disk (still cleared by Reset, still in the backup payload).
 
 ## Range thumbnails and accuracy heatmap (`range-thumbnails-heatmap`)
 
@@ -355,6 +417,7 @@ TODO
 - `mobile/__tests__/range-thumbnail.test.tsx`
 - `mobile/components/HandHeatmap.tsx`
 - `mobile/components/RangeThumbnail.tsx`
+- `src/components/HandHeatmap.css`
 - `src/components/HandHeatmap.test.tsx`
 - `src/components/HandHeatmap.tsx`
 - `src/components/RangeThumbnail.test.tsx`
@@ -362,15 +425,18 @@ TODO
 
 ### Call sites edited to unhook
 
-TODO(phase 2/3)
+- `src/screens/LibraryScreen.tsx` / `mobile/app/(tabs)/library.tsx` - row thumbnails removed.
+- `src/screens/TodayScreen.tsx` / `mobile/app/(tabs)/index.tsx` - due-row thumbnails removed.
+- `src/screens/RangeScreen.tsx` / `mobile/app/range/[id].tsx` - the Overview grid preview removed.
+- `src/components/RangePerformance.tsx` / `mobile/components/RangeStats.tsx` - the accuracy heatmap (and its legend) removed from the Stats tab.
 
 ### Routes unregistered
 
-TODO(phase 4)
+- None.
 
 ### Storage left behind
 
-TODO
+- None.
 
 ## Tags and source reference (`tags-source-reference`)
 
@@ -378,6 +444,7 @@ TODO
 
 - `mobile/__tests__/range-tag-editor.test.tsx`
 - `mobile/components/RangeTagEditor.tsx`
+- `src/components/RangeTagEditor.css`
 - `src/components/RangeTagEditor.test.tsx`
 - `src/components/RangeTagEditor.tsx`
 - `src/domain/sourceReference.test.ts`
@@ -385,13 +452,19 @@ TODO
 
 ### Call sites edited to unhook
 
-TODO(phase 2/3)
+- `src/screens/LibraryScreen.tsx` / `mobile/app/(tabs)/library.tsx` - the tag filter, tag chips and tag search removed.
+- `src/domain/rangeLibrary.ts` - `filterRangesByTag`/`collectRangeTags` removed; `filterRangesBySearch` no longer matches tags (`normalizeTags` stays for storage).
+- `src/app/libraryView.ts` - the remembered `tag` filter removed from the view.
+- `src/screens/RangeEditTab.tsx` / `mobile/components/RangeEditor.tsx` - the tag editor removed.
+- `src/components/RangeMetadataEditor.tsx` - the Source kind and Reference fields removed (mobile's metadata editor never carried them; its source UI lived on the archived range-page Overview).
+- `src/screens/RangeScreen.tsx` / `mobile/app/range/[id].tsx` - the Overview source line removed.
+- `src/cloud/backupRepo.ts` - `tags` stripped from the pushed sync payload.
 
 ### Routes unregistered
 
-TODO(phase 4)
+- None.
 
 ### Storage left behind
 
-TODO
+- `SavedRange.tags` and `SavedRange.source` stay in the storage model and survive edits (both editors carry them through a save untouched).
 
