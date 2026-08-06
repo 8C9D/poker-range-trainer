@@ -17,8 +17,6 @@ function renderEditor(overrides: Partial<Props> = {}): Props {
     versusPosition: '',
     actionType: '',
     notes: '',
-    sourceKind: '',
-    sourceReference: '',
     onGameTypeChange: vi.fn(),
     onTableSizeChange: vi.fn(),
     onStackDepthChange: vi.fn(),
@@ -26,8 +24,6 @@ function renderEditor(overrides: Partial<Props> = {}): Props {
     onVersusPositionChange: vi.fn(),
     onActionTypeChange: vi.fn(),
     onNotesChange: vi.fn(),
-    onSourceKindChange: vi.fn(),
-    onSourceReferenceChange: vi.fn(),
     onUseScenarioFromName: vi.fn(),
     ...overrides,
   }
@@ -51,8 +47,6 @@ describe('RangeMetadataEditor', () => {
     expect(scenario.getByLabelText('Versus position')).toBeInTheDocument()
     expect(scenario.getByLabelText('Action type')).toBeInTheDocument()
     expect(scenario.getByLabelText('Notes')).toBeInTheDocument()
-    expect(scenario.getByLabelText('Source')).toBeInTheDocument()
-    expect(scenario.getByLabelText('Reference')).toBeInTheDocument()
   })
 
   it('defaults every dropdown to a blank option so metadata is optional', () => {
@@ -90,22 +84,6 @@ describe('RangeMetadataEditor', () => {
     expect(screen.getByLabelText('Versus position')).toHaveValue('co')
     expect(screen.getByLabelText('Action type')).toHaveValue('open')
     expect(screen.getByLabelText('Notes')).toHaveValue('Standard open')
-  })
-
-  it('reflects the provided source kind and reference', () => {
-    renderEditor({ sourceKind: 'solver', sourceReference: 'PioSolver sim #4' })
-
-    expect(screen.getByLabelText('Source')).toHaveValue('solver')
-    expect(screen.getByLabelText('Reference')).toHaveValue('PioSolver sim #4')
-    // The kind options render through the shared label map.
-    expect(screen.getByRole('option', { name: 'Solver sim' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'Personal study' })).toBeInTheDocument()
-  })
-
-  it('defaults the source dropdown to blank so provenance is optional', () => {
-    renderEditor()
-    expect(screen.getByLabelText('Source')).toHaveValue('')
-    expect(screen.getByLabelText('Reference')).toHaveValue('')
   })
 
   it('reports a game type change', async () => {
@@ -169,24 +147,6 @@ describe('RangeMetadataEditor', () => {
     await user.type(screen.getByLabelText('Notes'), 'x')
 
     expect(onNotesChange).toHaveBeenCalledExactlyOnceWith('x')
-  })
-
-  it('reports a source kind change', async () => {
-    const user = userEvent.setup()
-    const { onSourceKindChange } = renderEditor()
-
-    await user.selectOptions(screen.getByLabelText('Source'), 'book')
-
-    expect(onSourceKindChange).toHaveBeenCalledExactlyOnceWith('book')
-  })
-
-  it('reports a reference input', async () => {
-    const user = userEvent.setup()
-    const { onSourceReferenceChange } = renderEditor()
-
-    await user.type(screen.getByLabelText('Reference'), 'x')
-
-    expect(onSourceReferenceChange).toHaveBeenCalledExactlyOnceWith('x')
   })
 
   it('shows a stack depth validation message when one is provided', () => {

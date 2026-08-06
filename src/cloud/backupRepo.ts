@@ -37,13 +37,36 @@ async function requireContext(deps: BackupRepoDeps): Promise<{
   return { client, userId }
 }
 
+/**
+ * Strip the archived-feature range fields from a sync payload: action overlays,
+ * frequency overlays, combo selections, per-hand notes and tags are out of v1,
+ * so a push carries only the surviving model. Local storage keeps the fields
+ * untouched, and a pulled payload that still carries them restores them as-is
+ * rather than erroring, so restoring an archived feature restores its data.
+ */
+function trimBackupForSync(backup: Backup): Backup {
+  return {
+    ...backup,
+    ranges: backup.ranges.map((range) => {
+      const trimmed = { ...range }
+      delete trimmed.handActions
+      delete trimmed.mixedStrategies
+      delete trimmed.comboSelections
+      delete trimmed.handNotes
+      delete trimmed.tags
+      return trimmed
+    }),
+  }
+}
+
 /** Upsert the user's single backup row with the full library snapshot. */
 export async function pushBackup(backup: Backup, deps: BackupRepoDeps = {}): Promise<void> {
   const { client, userId } = await requireContext(deps)
+  const trimmed = trimBackupForSync(backup)
   const { error } = await client.from(BACKUPS_TABLE).upsert({
     user_id: userId,
-    data: backup,
-    updated_at: backup.exportedAt,
+    data: trimmed,
+    updated_at: trimmed.exportedAt,
   })
   if (error) throw error
 }

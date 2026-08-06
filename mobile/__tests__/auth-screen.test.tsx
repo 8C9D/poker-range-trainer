@@ -4,8 +4,6 @@ import { render, userEvent, waitFor } from '@testing-library/react-native';
 
 import { getCurrentSession, onAuthChange, signIn } from '@core/cloud/auth';
 import { deleteBackup, pullBackup, pushBackup } from '@core/cloud/backupRepo';
-import { unpublishAllSharedPacks } from '@core/cloud/sharedPacksRepo';
-import { unpublishAllSharedRanges } from '@core/cloud/sharedRangesRepo';
 import { buildBackup, restoreBackup } from '@core/storage/backup';
 
 import { AuthPanel } from '../components/AuthPanel';
@@ -29,8 +27,6 @@ jest.mock('@core/cloud/backupRepo', () => ({
   pullBackup: jest.fn(),
   deleteBackup: jest.fn(),
 }));
-jest.mock('@core/cloud/sharedPacksRepo', () => ({ unpublishAllSharedPacks: jest.fn() }));
-jest.mock('@core/cloud/sharedRangesRepo', () => ({ unpublishAllSharedRanges: jest.fn() }));
 jest.mock('@core/storage/backup', () => ({ buildBackup: jest.fn(), restoreBackup: jest.fn() }));
 
 const mockGetClient = getMobileSupabaseClient as jest.Mock;
@@ -40,8 +36,6 @@ const mockOnAuthChange = onAuthChange as jest.Mock;
 const mockPush = pushBackup as jest.Mock;
 const mockPull = pullBackup as jest.Mock;
 const mockDelete = deleteBackup as jest.Mock;
-const mockUnpublishPacks = unpublishAllSharedPacks as jest.Mock;
-const mockUnpublishRanges = unpublishAllSharedRanges as jest.Mock;
 const mockBuild = buildBackup as jest.Mock;
 const mockRestore = restoreBackup as jest.Mock;
 
@@ -115,13 +109,11 @@ describe('AuthPanel', () => {
     alertSpy.mockRestore();
   });
 
-  it('deletes cloud data and revokes published shares after confirming', async () => {
+  it('deletes cloud data after confirming', async () => {
     const fakeClient = { id: 'client' };
     mockGetClient.mockResolvedValue(fakeClient);
     mockGetSession.mockResolvedValue({ user: { id: 'u1', email: 'you@example.com' } });
     mockDelete.mockResolvedValue(undefined);
-    mockUnpublishPacks.mockResolvedValue(undefined);
-    mockUnpublishRanges.mockResolvedValue(undefined);
     // Auto-accept the destructive confirm (like editor-screen.test.tsx).
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
       buttons?.find((b) => b.style === 'destructive')?.onPress?.();
@@ -134,24 +126,16 @@ describe('AuthPanel', () => {
     await user.press(getByTestId('sync-delete'));
     await waitFor(() => {
       expect(mockDelete).toHaveBeenCalledWith({ client: fakeClient });
-      expect(mockUnpublishPacks).toHaveBeenCalledWith(
-        expect.objectContaining({ client: fakeClient }),
-      );
-      expect(mockUnpublishRanges).toHaveBeenCalledWith(
-        expect.objectContaining({ client: fakeClient }),
-      );
     });
 
     alertSpy.mockRestore();
   });
 
-  it('still revokes shares and surfaces the error when the backup delete fails', async () => {
+  it('surfaces the error when the backup delete fails', async () => {
     const fakeClient = { id: 'client' };
     mockGetClient.mockResolvedValue(fakeClient);
     mockGetSession.mockResolvedValue({ user: { id: 'u1', email: 'you@example.com' } });
     mockDelete.mockRejectedValue(new Error('Backup delete failed.'));
-    mockUnpublishPacks.mockResolvedValue(undefined);
-    mockUnpublishRanges.mockResolvedValue(undefined);
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
       buttons?.find((b) => b.style === 'destructive')?.onPress?.();
     });
@@ -163,9 +147,6 @@ describe('AuthPanel', () => {
     await user.press(getByTestId('sync-delete'));
 
     expect(await findByText('Backup delete failed.')).toBeTruthy();
-    // Best-effort semantics: the share revocations still ran.
-    expect(mockUnpublishPacks).toHaveBeenCalledTimes(1);
-    expect(mockUnpublishRanges).toHaveBeenCalledTimes(1);
 
     alertSpy.mockRestore();
   });

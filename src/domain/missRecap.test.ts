@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { MISS_RECAP_LIMIT, recapActionMisses, recapMisses } from './missRecap'
-import type { ActionAttempt, PracticeAttempt } from '../types/practice'
-import type { RangeAction } from '../types/range'
-
-function actionAttempt(hand: string, expected: RangeAction, chosen: RangeAction): ActionAttempt {
-  return { hand, chosen, expected, correct: chosen === expected }
-}
+import { MISS_RECAP_LIMIT, recapMisses } from './missRecap'
+import type { PracticeAttempt } from '../types/practice'
 
 function attempt(
   hand: string,
@@ -90,56 +85,5 @@ describe('recapMisses', () => {
     const recap = recapMisses([attempt('ZZ', false, false), attempt('72o', false, false)])
 
     expect(recap?.shouldFold).toEqual(['72o', 'ZZ'])
-  })
-})
-
-describe('recapActionMisses', () => {
-  it('groups missed hands by the action each one wanted', () => {
-    const recap = recapActionMisses([
-      actionAttempt('AA', 'raise', 'call'),
-      actionAttempt('KK', 'raise', 'fold'),
-      actionAttempt('72o', 'fold', 'raise'),
-      actionAttempt('QQ', 'raise', 'raise'),
-    ])
-
-    // Canonical RANGE_ACTIONS order, so fold leads raise.
-    expect(recap).toEqual({
-      groups: [
-        { action: 'fold', hands: ['72o'] },
-        { action: 'raise', hands: ['AA', 'KK'] },
-      ],
-      hiddenCount: 0,
-    })
-  })
-
-  it('returns null when every action was right', () => {
-    expect(recapActionMisses([actionAttempt('AA', 'raise', 'raise')])).toBeNull()
-    expect(recapActionMisses([])).toBeNull()
-  })
-
-  it('names the most-missed hands first and counts the rest', () => {
-    const recap = recapActionMisses(
-      [
-        actionAttempt('72o', 'fold', 'raise'),
-        actionAttempt('AA', 'raise', 'fold'),
-        actionAttempt('AA', 'raise', 'call'),
-      ],
-      1,
-    )
-
-    // AA was missed twice, so it is named and the single 72o miss is the remainder.
-    expect(recap).toEqual({ groups: [{ action: 'raise', hands: ['AA'] }], hiddenCount: 1 })
-  })
-
-  it('keeps a hand in both groups when two charts wanted different actions', () => {
-    const recap = recapActionMisses([
-      actionAttempt('AJs', 'raise', 'fold'),
-      actionAttempt('AJs', 'call', 'fold'),
-    ])
-
-    expect(recap?.groups).toEqual([
-      { action: 'call', hands: ['AJs'] },
-      { action: 'raise', hands: ['AJs'] },
-    ])
   })
 })

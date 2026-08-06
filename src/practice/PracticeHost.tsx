@@ -4,35 +4,22 @@ import {
   recordFinishedSummarySession,
   recordFinishedPracticeSession,
 } from '../app/sessionRecording'
-import { ActionQuiz } from '../components/ActionQuiz'
 import { BuildFromMemoryPractice } from '../components/BuildFromMemoryPractice'
-import { ComboBlockerDrill } from '../components/ComboBlockerDrill'
-import { MixedActionQuiz } from '../components/MixedActionQuiz'
-import { PostflopDrillSetup } from '../components/PostflopDrillSetup'
-import { PostflopPractice } from '../components/PostflopPractice'
-import { RangeVsBoard } from '../components/RangeVsBoard'
 import { accuracyPercentage } from '../domain/accuracy'
-import { summarizeActionAccuracy } from '../domain/actionRange'
-import { selectionForRange } from '../domain/comboSelection'
-import { recapActionMisses, recapMisses } from '../domain/missRecap'
+import { recapMisses } from '../domain/missRecap'
 import type { PokerHand } from '../domain/pokerHands'
-import type { SpotSessionResult } from '../domain/spotDrill'
-import type { PostflopScenario } from '../domain/postflopScenario'
 import { summarizePracticeAttempts } from '../domain/practice'
 import { currentStreak } from '../domain/spacedRepetition'
 import { DEFAULT_DRILL_SECONDS } from '../domain/timedDrill'
-import { recordActionAccuracy } from '../storage/actionAccuracyStorage'
 import { sessionsForLibrary } from '../domain/weeklyStats'
 import { loadSavedRanges } from '../storage/rangeStorage'
 import { loadSessionHistory } from '../storage/sessionHistoryStorage'
-import { recordSpotAccuracy } from '../storage/spotAccuracyStorage'
-import type { ActionAttempt, PracticeAttempt } from '../types/practice'
-import type { SavedRange, TableSize } from '../types/range'
+import type { PracticeAttempt } from '../types/practice'
+import type { SavedRange } from '../types/range'
 import { rangeEdgeHands } from '../domain/edgeHands'
 import { ModePicker, type PracticeMode } from './ModePicker'
 import { OverlayFrame } from './OverlayFrame'
 import { RecognitionDrill } from './RecognitionDrill'
-import { SpotDrill } from './SpotDrill'
 import { SessionSummary, type SessionSummaryData } from './SessionSummary'
 
 export interface PracticeRequest {
@@ -44,10 +31,6 @@ export interface PracticeRequest {
   handPool?: PokerHand[]
   /** Per-range pools for multi-range weak-hand drills, keyed by range id. */
   handPools?: Record<string, PokerHand[]>
-  /** The format the 'spots' drill deals from; ignored by every other mode. */
-  spotFormat?: { tableSize: TableSize; stackDepthBb: number }
-  /** Restrict the 'spots' drill to these spots (drilling one weak spot). */
-  spotKeys?: string[]
 }
 
 interface PracticeHostProps {
@@ -58,13 +41,7 @@ interface PracticeHostProps {
 /** How a finished run can be replayed over just what it got wrong. */
 type Redrill =
   /** Re-run the current range as recognition over the hands it missed. */
-  | { kind: 'hands'; hands: PokerHand[] }
-  /** Re-run the action quiz over the hands whose action it got wrong. */
-  | { kind: 'actionHands'; hands: PokerHand[] }
-  /** Re-run the frequency quiz over the hands whose primary action it got wrong. */
-  | { kind: 'mixedHands'; hands: PokerHand[] }
-  /** Re-run a queue of ranges, each over its own misses (a spot run spans several). */
-  | { kind: 'queue'; ranges: SavedRange[]; handPools: Record<string, PokerHand[]> }
+  { kind: 'hands'; hands: PokerHand[] }
 
 type Phase =
   | { kind: 'picker' }
@@ -100,22 +77,6 @@ interface Queue {
 function missedHandsOf(attempts: PracticeAttempt[]): PokerHand[] | null {
   const missed = [...new Set(attempts.filter((a) => !a.correct).map((a) => a.hand))]
   return missed.length > 0 ? missed : null
-}
-
-/** The distinct hands an action quiz assigned the wrong action to, or null. */
-function missedActionHandsOf(attempts: ActionAttempt[]): PokerHand[] | null {
-  const missed = [...new Set(attempts.filter((a) => !a.correct).map((a) => a.hand))]
-  return missed.length > 0 ? missed : null
-}
-
-/** The same, per range, for a session graded against more than one of them. */
-function missedPoolsOf(byRange: Record<string, PracticeAttempt[]>): Record<string, PokerHand[]> {
-  const pools: Record<string, PokerHand[]> = {}
-  for (const [rangeId, attempts] of Object.entries(byRange)) {
-    const missed = missedHandsOf(attempts)
-    if (missed) pools[rangeId] = missed
-  }
-  return pools
 }
 
 /** Growth-framed comparison of this session against the range's previous one. */
@@ -156,7 +117,7 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     return streak > 0 ? `${streak}-day streak — see you tomorrow to keep it going.` : null
   }
 
-  const [queue, setQueue] = useState<Queue>(() => ({
+  const [queue] = useState<Queue>(() => ({
     ranges: request.ranges,
     mode: request.mode,
     handPools: request.handPools,
@@ -170,8 +131,6 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
   // Bumped for every drill start so a re-drill of the same range remounts the
   // component instead of resuming the finished session behind the summary.
   const [run, setRun] = useState(0)
-  // Postflop drill sub-state: building the scenario, then practicing it.
-  const [postflopScenario, setPostflopScenario] = useState<PostflopScenario | null>(null)
 
   const range = queue.ranges[index]
   if (!range) return null
@@ -210,120 +169,8 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     })
   }
 
-  const finishActionQuiz = (attempts: ActionAttempt[]) => {
-    if (attempts.length === 0) {
-      onClose()
-      return
-    }
-    const correct = attempts.filter((attempt) => attempt.correct).length
-    const summary = {
-      totalQuestions: attempts.length,
-      correctAnswers: correct,
-      accuracyPercentage: accuracyPercentage(correct, attempts.length),
-    }
-    const saveError = captureRecordingFailure(() => {
-      recordActionAccuracy(range.id, summarizeActionAccuracy(attempts))
-      recordFinishedSummarySession(range.id, summary)
-    })
-    const missedActionHands = missedActionHandsOf(attempts)
-    setPhase({
-      kind: 'summary',
-      data: {
-        totalQuestions: attempts.length,
-        correctAnswers: correct,
-        accuracy: summary.accuracyPercentage,
-        deltaLine: null,
-        streakLine: streakLine(),
-        actionMisses: recapActionMisses(attempts),
-        saveError,
-      },
-      // Re-drilled as another action quiz, not as recognition: these hands were
-      // missed on which action they want, not on whether they are in the range.
-      redrill: missedActionHands ? { kind: 'actionHands', hands: missedActionHands } : null,
-    })
-  }
-
-  /**
-   * End the frequency quiz on the same peak-end summary every other mode gets.
-   *
-   * Its misses group by the action each hand wanted, exactly like the action
-   * quiz's — the question differs (the PRIMARY action of a mixed strategy rather
-   * than the chart's assigned one), the lesson does not. No per-action accuracy
-   * is recorded: that store is the action quiz's answer to a different question,
-   * and folding frequency answers into it would misreport both. The session
-   * itself still counts, like every other mode's.
-   */
-  const finishMixedQuiz = (attempts: ActionAttempt[]) => {
-    if (attempts.length === 0) {
-      onClose()
-      return
-    }
-    const correct = attempts.filter((attempt) => attempt.correct).length
-    const summary = {
-      totalQuestions: attempts.length,
-      correctAnswers: correct,
-      accuracyPercentage: accuracyPercentage(correct, attempts.length),
-    }
-    const saveError = captureRecordingFailure(() =>
-      recordFinishedSummarySession(range.id, summary),
-    )
-    const missedHands = missedActionHandsOf(attempts)
-    setPhase({
-      kind: 'summary',
-      data: {
-        totalQuestions: attempts.length,
-        correctAnswers: correct,
-        accuracy: summary.accuracyPercentage,
-        deltaLine: null,
-        streakLine: streakLine(),
-        actionMisses: recapActionMisses(attempts),
-        saveError,
-      },
-      redrill: missedHands ? { kind: 'mixedHands', hands: missedHands } : null,
-    })
-  }
-
-  /**
-   * The spot drill answers questions from several ranges in one session, so each
-   * range's attempts are recorded as its own session and the summary sums them.
-   */
-  const finishSpots = ({ byRange, bySpot }: SpotSessionResult) => {
-    const all = Object.values(byRange).flat()
-    if (all.length === 0) {
-      onClose()
-      return
-    }
-    const saveError = captureRecordingFailure(() => {
-      for (const [rangeId, attempts] of Object.entries(byRange)) {
-        recordFinishedPracticeSession(rangeId, attempts)
-      }
-      recordSpotAccuracy(bySpot)
-    })
-    const summary = summarizePracticeAttempts(all)
-    const rangeCount = Object.keys(byRange).length
-    // A spot session's misses span the library, so the re-drill is a recognition
-    // queue over the ranges that actually missed something, each dealt its own
-    // pool — not a restart of one range.
-    const handPools = missedPoolsOf(byRange)
-    const missedRanges = queue.ranges.filter((entry) => handPools[entry.id])
-    setPhase({
-      kind: 'summary',
-      data: {
-        totalQuestions: summary.totalQuestions,
-        correctAnswers: summary.correctAnswers,
-        accuracy: summary.accuracyPercentage,
-        deltaLine: `Across ${rangeCount} range${rangeCount === 1 ? '' : 's'} of your library.`,
-        streakLine: streakLine(),
-        misses: recapMisses(all),
-        saveError,
-      },
-      redrill: missedRanges.length > 0 ? { kind: 'queue', ranges: missedRanges, handPools } : null,
-    })
-  }
-
   const nextRange = () => {
     setIndex(index + 1)
-    setPostflopScenario(null)
     setRun(run + 1)
     setPhase({
       kind: 'drill',
@@ -336,26 +183,6 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
   const drillMisses = (handPool: PokerHand[]) => {
     setRun(run + 1)
     setPhase({ kind: 'drill', mode: 'recognize', durationSeconds: DEFAULT_DRILL_SECONDS, handPool })
-  }
-
-  /** Re-run the action quiz over just the hands whose action went wrong. */
-  const drillActionMisses = (handPool: PokerHand[]) => {
-    setRun(run + 1)
-    setPhase({ kind: 'drill', mode: 'action', durationSeconds: DEFAULT_DRILL_SECONDS, handPool })
-  }
-
-  /** Re-run the frequency quiz over just the hands whose primary action went wrong. */
-  const drillMixedMisses = (handPool: PokerHand[]) => {
-    setRun(run + 1)
-    setPhase({ kind: 'drill', mode: 'mixed', durationSeconds: DEFAULT_DRILL_SECONDS, handPool })
-  }
-
-  /** Replace the queue with a recognition run over each range's own misses. */
-  const drillQueue = (ranges: SavedRange[], handPools: Record<string, PokerHand[]>) => {
-    setQueue({ ranges, mode: 'recognize', handPools })
-    setIndex(0)
-    setRun(run + 1)
-    setPhase({ kind: 'drill', mode: 'recognize', durationSeconds: DEFAULT_DRILL_SECONDS })
   }
 
   if (phase.kind === 'picker') {
@@ -375,52 +202,22 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
     )
   }
 
-  const startRedrill = (redrill: Redrill) => {
-    switch (redrill.kind) {
-      case 'hands':
-        return drillMisses(redrill.hands)
-      case 'actionHands':
-        return drillActionMisses(redrill.hands)
-      case 'mixedHands':
-        return drillMixedMisses(redrill.hands)
-      case 'queue':
-        return drillQueue(redrill.ranges, redrill.handPools)
-    }
-  }
-
   if (phase.kind === 'summary') {
-    // A spot session spans the library, so it is not titled after one range.
-    const spots = queue.mode === 'spots'
     const redrill = phase.redrill
     return (
-      <OverlayFrame
-        title={spots ? 'Play the spot' : range.name}
-        position={spots ? null : position}
-        progress={1}
-        onClose={onClose}
-      >
+      <OverlayFrame title={range.name} position={position} progress={1} onClose={onClose}>
         <SessionSummary
           data={phase.data}
-          hasNext={!spots && hasNext}
+          hasNext={hasNext}
           onNext={nextRange}
           onDone={onClose}
-          onDrillMisses={redrill ? () => startRedrill(redrill) : undefined}
+          onDrillMisses={redrill ? () => drillMisses(redrill.hands) : undefined}
         />
       </OverlayFrame>
     )
   }
 
   switch (phase.mode) {
-    case 'spots':
-      return (
-        <SpotDrill
-          ranges={queue.ranges}
-          tableSize={request.spotFormat?.tableSize ?? 'sixMax'}
-          stackDepthBb={request.spotFormat?.stackDepthBb ?? 100}
-          spotKeys={request.spotKeys}
-          onFinish={finishSpots}
-        />
-      )
     case 'recognize':
       return (
         <RecognitionDrill
@@ -474,54 +271,6 @@ export function PracticeHost({ request, onClose }: PracticeHostProps) {
               captureRecordingFailure(() => recordFinishedSummarySession(range.id, summary))
             }
           />
-        </OverlayFrame>
-      )
-    case 'action':
-      return (
-        <OverlayFrame title={`${range.name} — action quiz`} onClose={onClose}>
-          <ActionQuiz
-            key={`${range.id}-${run}`}
-            range={range}
-            handPool={phase.handPool}
-            onExit={finishActionQuiz}
-          />
-        </OverlayFrame>
-      )
-    case 'mixed':
-      return (
-        <OverlayFrame title={`${range.name} — frequency quiz`} onClose={onClose}>
-          <MixedActionQuiz
-            key={`${range.id}-${run}`}
-            range={range}
-            handPool={phase.handPool}
-            onExit={finishMixedQuiz}
-          />
-        </OverlayFrame>
-      )
-    case 'combo':
-      return (
-        <OverlayFrame title={`${range.name} — combo drill`} onClose={onClose}>
-          <ComboBlockerDrill
-            hands={range.hands}
-            selection={selectionForRange(range.hands, range.comboSelections)}
-            onExit={onClose}
-          />
-        </OverlayFrame>
-      )
-    case 'postflop':
-      return (
-        <OverlayFrame title="Postflop drill" onClose={onClose}>
-          {postflopScenario ? (
-            <PostflopPractice scenario={postflopScenario} onExit={onClose} />
-          ) : (
-            <PostflopDrillSetup onStart={setPostflopScenario} onExit={onClose} />
-          )}
-        </OverlayFrame>
-      )
-    case 'board':
-      return (
-        <OverlayFrame title={`${range.name} — range vs board`} onClose={onClose}>
-          <RangeVsBoard hands={range.hands} />
         </OverlayFrame>
       )
   }

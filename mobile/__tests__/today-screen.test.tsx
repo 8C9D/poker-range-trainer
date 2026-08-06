@@ -5,10 +5,8 @@ import { recordHandAccuracy } from '@core/storage/handAccuracyStorage';
 import { recordPracticeSession } from '@core/storage/practiceStatsStorage';
 import { saveReviewState } from '@core/storage/reviewStateStorage';
 import { recordPracticeSessionHistory } from '@core/storage/sessionHistoryStorage';
-import { STARTER_RANGE_TEMPLATES } from '@core/domain/starterRanges';
-import { loadSavedRanges, saveSavedRange } from '@core/storage/rangeStorage';
+import { saveSavedRange } from '@core/storage/rangeStorage';
 import { loadTrainingGoal, saveTrainingGoal } from '@core/storage/trainingGoalStorage';
-import { recordWorkoutCompletion } from '@core/storage/workoutStorage';
 import type { SavedRange } from '@core/types/range';
 
 import TodayScreen from '../app/(tabs)/index';
@@ -63,32 +61,6 @@ describe('TodayScreen', () => {
 
     expect(getByTestId('today-onboarding')).toBeTruthy();
     expect(queryByTestId('start-review')).toBeNull();
-  });
-
-  it('fills an empty library with the starter pack and drops straight into training', async () => {
-    const user = userEvent.setup();
-    const { getByTestId, queryByTestId } = await render(<TodayScreen />);
-
-    await user.press(getByTestId('add-starter-ranges'));
-
-    expect(loadSavedRanges()).toHaveLength(STARTER_RANGE_TEMPLATES.length);
-    // The welcome card gives way to the real dashboard without leaving the tab.
-    expect(queryByTestId('today-onboarding')).toBeNull();
-    expect(getByTestId('start-review')).toBeTruthy();
-  });
-
-  it('reports a failed starter save instead of leaving the button dead', async () => {
-    const user = userEvent.setup();
-    const failing = jest.spyOn(localStorageShim, 'setItem').mockImplementation(() => {
-      throw new Error('mmkv: no space left on device');
-    });
-    const { getByTestId } = await render(<TodayScreen />);
-
-    await user.press(getByTestId('add-starter-ranges'));
-
-    expect(getByTestId('starter-error')).toHaveTextContent(/storage is full or unavailable/);
-    expect(getByTestId('today-onboarding')).toBeTruthy();
-    failing.mockRestore();
   });
 
   it('surfaces the due queue and start-review CTA for never-practiced ranges', async () => {
@@ -239,102 +211,5 @@ describe('TodayScreen', () => {
     expect(getByTestId('goal-line')).toHaveTextContent('12 of 20 hands — 8 to go.');
     expect(loadTrainingGoal()).toBe(20);
     failing.mockRestore();
-  });
-});
-
-describe('TodayScreen spot drill entry', () => {
-  beforeAll(() => {
-    installLocalStorage();
-  });
-
-  beforeEach(() => {
-    localStorageShim.clear();
-  });
-
-  it('is hidden while no range describes a situation', async () => {
-    seed('r1', 'Unlabelled');
-    const { queryByTestId } = await render(<TodayScreen />);
-
-    expect(queryByTestId('today-spots')).toBeNull();
-  });
-
-  it('offers the drill once a range covers a spot', async () => {
-    saveSavedRange({
-      id: 'btn',
-      name: 'BTN open',
-      hands: ['AA', 'KK'],
-      createdAt: '2026-01-01T00:00:00.000Z',
-      updatedAt: '2026-01-01T00:00:00.000Z',
-      metadata: { position: 'btn', actionType: 'open' },
-    });
-    const { getByTestId } = await render(<TodayScreen />);
-
-    expect(getByTestId('today-spots')).toHaveTextContent(/1 of 65 spots covered/);
-    expect(getByTestId('play-spots')).toBeTruthy();
-  });
-});
-
-describe('TodayScreen daily workout', () => {
-  beforeAll(() => {
-    installLocalStorage();
-  });
-
-  beforeEach(() => {
-    localStorageShim.clear();
-  });
-
-  it('offers the composed workout as the primary action', async () => {
-    seed('r1', 'UTG Open');
-
-    const { getByTestId } = await render(<TodayScreen />);
-
-    expect(getByTestId('today-workout')).toHaveTextContent(/\d+ hands · 1 review · ~\d+ min/);
-    expect(getByTestId('start-workout')).toBeTruthy();
-  });
-
-  it('is hidden when there is nothing to plan', async () => {
-    seed('r1', 'Unlabelled');
-    saveReviewState({
-      rangeId: 'r1',
-      ease: 2.5,
-      intervalDays: 1,
-      dueAt: '2999-01-01T00:00:00.000Z',
-      lastReviewedAt: '2026-01-01T00:00:00.000Z',
-    });
-
-    const { queryByTestId } = await render(<TodayScreen />);
-
-    expect(queryByTestId('today-workout')).toBeNull();
-  });
-});
-
-describe('TodayScreen workout done state', () => {
-  beforeAll(() => {
-    installLocalStorage();
-  });
-
-  beforeEach(() => {
-    localStorageShim.clear();
-  });
-
-  it('flips the card to done for the rest of the day', async () => {
-    seed('r1', 'UTG Open');
-    saveTrainingGoal(20);
-    recordWorkoutCompletion(new Date().toISOString());
-
-    const { getByTestId, queryByTestId } = await render(<TodayScreen />);
-
-    expect(getByTestId('today-workout-done')).toHaveTextContent(/Done for today\. 0 of 20 hands/);
-    expect(queryByTestId('start-workout')).toBeNull();
-  });
-
-  it('re-offers the plan when the completion is from an earlier day', async () => {
-    seed('r1', 'UTG Open');
-    recordWorkoutCompletion('2026-01-05T09:00:00.000Z');
-
-    const { getByTestId, queryByTestId } = await render(<TodayScreen />);
-
-    expect(getByTestId('start-workout')).toBeTruthy();
-    expect(queryByTestId('today-workout-done')).toBeNull();
   });
 });

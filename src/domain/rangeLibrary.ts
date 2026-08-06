@@ -56,19 +56,16 @@ export function filterFavoriteRanges<T extends { favorite?: boolean }>(
  * "not in that order". Requiring every term keeps the filter as narrow as
  * before for a single word while letting the terms fall anywhere.
  *
- * Searched text is the name PLUS the range's own words — its tags and its
- * scenario notes. Both are things the user typed to find a range by, and
- * searching only the name made the box disagree with the tag filter beside it:
- * a range tagged "MTT" was reachable from the dropdown but invisible to anyone
- * who typed "mtt". A term may match in any of the three fields, so "btn mtt"
- * finds a BTN range carrying the MTT tag.
+ * Searched text is the name PLUS the range's scenario notes — both things the
+ * user typed to find a range by. A term may match in either field, so "btn
+ * squeeze" finds a BTN range whose notes mention squeezing.
  *
  * A term that names a hand ("a5s", "TT", "5as") ALSO matches any range that
  * plays it. "How do I play A5s?" is a question about the charts themselves, and
  * the library is the only place that can answer it — before this, typing a hand
  * into the box that sits above every chart returned nothing. Text still counts,
- * so a range named or tagged for the hand is not lost to the hand lookup, and
- * the terms still combine: "btn a5s" is a BTN chart that plays A5s.
+ * so a range named for the hand is not lost to the hand lookup, and the terms
+ * still combine: "btn a5s" is a BTN chart that plays A5s.
  *
  * A blank query (empty or whitespace-only) has no terms and matches every
  * range. A query that matches nothing returns an empty array. The input array
@@ -78,7 +75,6 @@ export function filterRangesBySearch<
   T extends {
     name: string
     hands?: PokerHand[]
-    tags?: string[]
     metadata?: { notes?: string }
   },
 >(ranges: T[], query: string): T[] {
@@ -86,9 +82,7 @@ export function filterRangesBySearch<
   if (terms.length === 0) return ranges.slice()
   const handTerms = terms.map((term) => parseHandInput(term))
   return ranges.filter((range) => {
-    const haystack = [range.name, ...(range.tags ?? []), range.metadata?.notes ?? '']
-      .join(' ')
-      .toLowerCase()
+    const haystack = [range.name, range.metadata?.notes ?? ''].join(' ').toLowerCase()
     const played = new Set(range.hands ?? [])
     return terms.every(
       (term, index) =>
@@ -197,8 +191,8 @@ export function distinctStackDepths<T extends { metadata?: { stackDepthBb?: numb
  * Non-array input yields `[]`. Each entry must be a string; it is trimmed, and
  * blank/whitespace-only tags are dropped. Tags are de-duplicated
  * case-insensitively (the first spelling of a tag wins), and the input order is
- * otherwise preserved. Used by both the storage layer (on read and write) and
- * the editor so a tag is stored and compared consistently.
+ * otherwise preserved. Used by the storage layer (on read and write) so tags
+ * saved before v1 trimmed the tag UI survive untouched.
  */
 export function normalizeTags(value: unknown): string[] {
   if (!Array.isArray(value)) return []
@@ -214,43 +208,6 @@ export function normalizeTags(value: unknown): string[] {
     result.push(trimmed)
   }
   return result
-}
-
-/**
- * Return the ranges carrying `tag`, preserving the input order.
- *
- * A `null` or empty `tag` means "all tags" and matches every range. A specific
- * tag matches case-insensitively any range whose `tags` include it; ranges with
- * no tags are excluded. The input array is never mutated; a fresh array is
- * always returned.
- */
-export function filterRangesByTag<T extends { tags?: string[] }>(
-  ranges: T[],
-  tag: string | null,
-): T[] {
-  if (!tag) return ranges.slice()
-  const needle = tag.toLowerCase()
-  return ranges.filter((range) => range.tags?.some((t) => t.toLowerCase() === needle))
-}
-
-/**
- * Return the distinct tags present across `ranges`, sorted case-insensitively.
- *
- * Tags that differ only in case collapse to a single entry (the first spelling
- * seen wins), and ranges with no tags contribute nothing; an empty array is
- * returned when no range carries a tag. Deriving the selectable tags from the
- * saved ranges keeps the tag filter in step with the user's actual data. The
- * input array is never mutated.
- */
-export function collectRangeTags<T extends { tags?: string[] }>(ranges: T[]): string[] {
-  const seen = new Map<string, string>()
-  for (const range of ranges) {
-    for (const tag of range.tags ?? []) {
-      const key = tag.toLowerCase()
-      if (!seen.has(key)) seen.set(key, tag)
-    }
-  }
-  return [...seen.values()].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
 }
 
 /**

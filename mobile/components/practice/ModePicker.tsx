@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { assignedHands } from '@core/domain/actionRange';
 import { rangeEdgeHands } from '@core/domain/edgeHands';
-import { handsWithMixedStrategy } from '@core/domain/mixedStrategy';
 import { DEFAULT_DRILL_SECONDS, DRILL_DURATION_OPTIONS } from '@core/domain/timedDrill';
 import type { SavedRange } from '@core/types/range';
 
@@ -12,18 +10,7 @@ import { fonts } from '../../theme/fonts';
 import { useTheme } from '../../theme/colors';
 import type { ThemeColors } from '../../theme/colors';
 
-export type PracticeMode =
-  | 'recognize'
-  | 'spots'
-  | 'build'
-  | 'timed'
-  | 'weakness'
-  | 'edges'
-  | 'action'
-  | 'mixed'
-  | 'combo'
-  | 'postflop'
-  | 'board';
+export type PracticeMode = 'recognize' | 'build' | 'timed' | 'weakness' | 'edges';
 
 interface ModePickerProps {
   range: SavedRange;
@@ -31,20 +18,17 @@ interface ModePickerProps {
 }
 
 /**
- * Lists only the practice modes valid for this range: the action quiz needs assigned hand
- * actions and the frequency quiz needs mixed strategies; the rest always apply. Each option
- * is a labelled card (icons would need labels anyway).
+ * Lists only the practice modes valid for this range: the edge drill needs a range
+ * boundary to exist; the rest always apply. Each option is a labelled card (icons
+ * would need labels anyway).
  */
 export function ModePicker({ range, onPick }: ModePickerProps) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const [durationSeconds, setDurationSeconds] = useState(DEFAULT_DRILL_SECONDS);
   const verbs = answerVerbs(range);
-  const hasActions = assignedHands(range).length > 0;
   // An empty range (or one holding every hand) has no boundary to drill.
   const hasEdge = rangeEdgeHands(range.hands).length > 0;
-  const hasMixed =
-    !!range.mixedStrategies && handsWithMixedStrategy(range.mixedStrategies).length > 0;
 
   // A render helper (lowercase, called as a function) rather than a nested component,
   // so a fresh component type isn't created on every render.
@@ -111,40 +95,6 @@ export function ModePicker({ range, onPick }: ModePickerProps) {
             () => onPick('edges'),
           )
         : null}
-      {hasActions
-        ? option(
-            'action',
-            'Pick the correct action',
-            'Name the assigned action for each hand in the chart.',
-            () => onPick('action'),
-          )
-        : null}
-      {hasMixed
-        ? option(
-            'mixed',
-            'Frequency quiz',
-            'Name the primary action for each mixed-strategy hand.',
-            () => onPick('mixed'),
-          )
-        : null}
-      {option(
-        'combo',
-        'Combo drill',
-        'Blocker-aware: deal concrete combos from this range.',
-        () => onPick('combo'),
-      )}
-      {option(
-        'postflop',
-        'Postflop drill',
-        'Set up a flop spot and practice the decision.',
-        () => onPick('postflop'),
-      )}
-      {option(
-        'board',
-        'Range vs board',
-        'Explore how this range hits a flop texture.',
-        () => onPick('board'),
-      )}
     </ScrollView>
   );
 }

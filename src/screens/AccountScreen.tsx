@@ -1,41 +1,19 @@
 import { useState } from 'react'
-import { createRangeId } from '../app/ids'
-import { buildStarterRanges, starterRangesMissingFrom } from '../domain/starterRanges'
-import { downloadTextFile } from '../app/rangeFiles'
 import { AuthPanel } from '../components/AuthPanel'
 import { deleteBackup, pullBackup, pushBackup } from '../cloud/backupRepo'
-import {
-  publishSharedPack,
-  unpublishAllSharedPacks,
-  unpublishSharedPack,
-} from '../cloud/sharedPacksRepo'
-import { unpublishAllSharedRanges } from '../cloud/sharedRangesRepo'
 import { useAuthSession } from '../cloud/useAuthSession'
-import {
-  buildRangePack,
-  parseRangeCsv,
-  parseRangeExport,
-  parseRangePack,
-  serializeRangePack,
-} from '../domain/rangeTransfer'
-import { buildBackup, parseBackup, restoreBackup, serializeBackup } from '../storage/backup'
-import { loadSavedRanges, saveSavedRange, saveSavedRanges } from '../storage/rangeStorage'
+import { buildBackup, restoreBackup } from '../storage/backup'
 import { resetPracticeRecords } from '../storage/statsReset'
-import type { PokerHand } from '../domain/pokerHands'
-import type { SavedRange } from '../types/range'
 import './AccountScreen.css'
 
 /**
  * Account & data: cloud auth and sync (gated exactly as before - configured
- * env + signed in), plus local backup/import/export. All handlers are ports
- * of the pre-refactor page's, unchanged in behavior.
+ * env + signed in), plus the practice-record reset.
  */
 export function AccountScreen() {
   const auth = useAuthSession()
   const [syncStatus, setSyncStatus] = useState('')
   const [dataStatus, setDataStatus] = useState('')
-  // The pack share id published this session (if any), so it can be unpublished.
-  const [publishedPackId, setPublishedPackId] = useState<string | null>(null)
 
   async function handlePushSync() {
     setSyncStatus('Pushing…')
@@ -72,74 +50,27 @@ export function AccountScreen() {
   async function handleDeleteCloudData() {
     if (
       !window.confirm(
-        'This permanently deletes your cloud backup AND revokes every share link you have published. Your local data is kept. Continue?',
+        'This permanently deletes your cloud backup. Your local data is kept. Continue?',
       )
     ) {
       return
     }
     setSyncStatus('Deleting cloud data…')
-    // Best-effort: attempt all three so a failure in one still clears the rest.
-    const results = await Promise.allSettled([
-      deleteBackup(),
-      unpublishAllSharedPacks(),
-      unpublishAllSharedRanges(),
-    ])
-    const failure = results.find((result) => result.status === 'rejected')
-    if (failure?.status === 'rejected') {
-      const { reason } = failure
-      setSyncStatus(reason instanceof Error ? reason.message : 'Delete failed.')
+    try {
+      await deleteBackup()
+    } catch (error) {
+      setSyncStatus(error instanceof Error ? error.message : 'Delete failed.')
       return
     }
-    setPublishedPackId(null)
-    setSyncStatus('Deleted your cloud backup and revoked your published share links.')
-  }
-
-  async function handlePublishPack() {
-    const ranges = loadSavedRanges()
-    if (ranges.length === 0) {
-      setSyncStatus('No ranges to publish.')
-      return
-    }
-    // OK = public (anyone with the link); Cancel = private (link carries a token).
-    const isPublic = window.confirm(
-      `Publish all ${ranges.length} range${ranges.length === 1 ? '' : 's'} as a shareable pack link?\n\nOK = public (anyone with the link can view)\nCancel = private (link includes a secret token)`,
-    )
-    setSyncStatus('Publishing pack…')
-    try {
-      const { id, token } = await publishSharedPack(buildRangePack('', ranges), isPublic)
-      setPublishedPackId(id)
-      const base = `${window.location.origin}${window.location.pathname}#/p/${id}`
-      const link = token ? `${base}?t=${token}` : base
-      try {
-        await navigator.clipboard.writeText(link)
-        setSyncStatus('Pack link copied to clipboard.')
-      } catch {
-        window.prompt('Copy this pack link:', link)
-        setSyncStatus('Pack link ready.')
-      }
-    } catch (error) {
-      setSyncStatus(error instanceof Error ? error.message : 'Publish failed.')
-    }
-  }
-
-  async function handleUnpublishPack() {
-    if (!publishedPackId) return
-    setSyncStatus('Unpublishing pack…')
-    try {
-      await unpublishSharedPack(publishedPackId)
-      setPublishedPackId(null)
-      setSyncStatus('Pack link unpublished.')
-    } catch (error) {
-      setSyncStatus(error instanceof Error ? error.message : 'Unpublish failed.')
-    }
+    setSyncStatus('Deleted your cloud backup.')
   }
 
   /**
    * Run a write that the store may refuse, reporting the reason instead of
-   * letting it escape. Every write here happens inside a click or file-input
-   * handler, where an uncaught throw reaches no error boundary: the import
-   * simply did nothing and said nothing. Returns whether the write landed, so
-   * the caller only claims success when there was some.
+   * letting it escape. The write happens inside a click handler, where an
+   * uncaught throw reaches no error boundary: the action simply did nothing
+   * and said nothing. Returns whether the write landed, so the caller only
+   * claims success when there was some.
    */
   function persist(write: () => void, fallback: string): boolean {
     try {
@@ -149,20 +80,6 @@ export function AccountScreen() {
       return false
     }
     return true
-  }
-
-  function handleAddStarterRanges() {
-    const missing = starterRangesMissingFrom(loadSavedRanges())
-    if (missing.length === 0) {
-      setDataStatus('Every starter chart is already in your library.')
-      return
-    }
-    const written = persist(
-      () => saveSavedRanges(buildStarterRanges(new Date().toISOString(), createRangeId, missing)),
-      'Could not add the starter ranges.',
-    )
-    if (!written) return
-    setDataStatus(`Added ${missing.length} starter chart${missing.length === 1 ? '' : 's'}.`)
   }
 
   function handleResetStats() {
@@ -177,124 +94,6 @@ export function AccountScreen() {
     setDataStatus('Practice stats cleared — your ranges are untouched.')
   }
 
-  function handleExportBackup() {
-    downloadTextFile(
-      `poker-range-trainer-backup-${new Date().toISOString().slice(0, 10)}.json`,
-      serializeBackup(buildBackup()),
-    )
-    setDataStatus('Backup downloaded.')
-  }
-
-  async function handleImportBackup(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (!file) return
-    if (
-      !window.confirm('Importing a backup REPLACES all your current local data. Continue?')
-    ) {
-      return
-    }
-    try {
-      restoreBackup(parseBackup(await file.text()))
-    } catch (error) {
-      window.alert(error instanceof Error ? error.message : 'Could not import backup file.')
-      return
-    }
-    setDataStatus('Backup imported — your library was replaced.')
-  }
-
-  async function handleImportRange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (!file) return
-    let imported: SavedRange
-    try {
-      imported = parseRangeExport(await file.text())
-    } catch (error) {
-      window.alert(error instanceof Error ? error.message : 'Could not import range file.')
-      return
-    }
-    // Add as a new range with a fresh id so importing never clobbers an existing one.
-    const now = new Date().toISOString()
-    const written = persist(
-      () => saveSavedRange({ ...imported, id: createRangeId(), createdAt: now, updatedAt: now }),
-      'Could not import range file.',
-    )
-    if (!written) return
-    setDataStatus(`Imported range “${imported.name}”.`)
-  }
-
-  async function handleImportRangeCsv(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (!file) return
-    let parsed: { name?: string; hands: PokerHand[] }
-    try {
-      parsed = parseRangeCsv(await file.text())
-    } catch (error) {
-      window.alert(error instanceof Error ? error.message : 'Could not import CSV file.')
-      return
-    }
-    // The CSV may omit a name; fall back to the file name (sans extension).
-    const fallbackName = file.name.replace(/\.csv$/i, '').trim() || 'Imported range'
-    const now = new Date().toISOString()
-    const name = parsed.name?.trim() || fallbackName
-    const written = persist(
-      () =>
-        saveSavedRange({
-          id: createRangeId(),
-          name,
-          hands: parsed.hands,
-          createdAt: now,
-          updatedAt: now,
-        }),
-      'Could not import CSV file.',
-    )
-    if (!written) return
-    setDataStatus(`Imported range “${name}” from CSV.`)
-  }
-
-  function handleExportPack() {
-    downloadTextFile(
-      `poker-range-pack-${new Date().toISOString().slice(0, 10)}.json`,
-      serializeRangePack('', loadSavedRanges()),
-    )
-    setDataStatus('Pack downloaded.')
-  }
-
-  async function handleImportPack(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (!file) return
-    let pack: { name?: string; ranges: SavedRange[] }
-    try {
-      pack = parseRangePack(await file.text())
-    } catch (error) {
-      window.alert(error instanceof Error ? error.message : 'Could not import pack file.')
-      return
-    }
-    // Add every range as a new range so importing never clobbers existing ones.
-    // Saved in ONE write, so a store that refuses partway cannot leave half the
-    // pack in the library under a message claiming all of it arrived.
-    const now = new Date().toISOString()
-    const written = persist(
-      () =>
-        saveSavedRanges(
-          pack.ranges.map((range) => ({
-            ...range,
-            id: createRangeId(),
-            createdAt: now,
-            updatedAt: now,
-          })),
-        ),
-      'Could not import pack file.',
-    )
-    if (!written) return
-    setDataStatus(
-      `Imported ${pack.ranges.length} range${pack.ranges.length === 1 ? '' : 's'} from the pack.`,
-    )
-  }
-
   return (
     <div className="account">
       <h1>Account</h1>
@@ -303,8 +102,7 @@ export function AccountScreen() {
         <h2>Cloud</h2>
         {!auth.isCloudConfigured && (
           <p className="account-note">
-            Running local-only: your ranges and stats live in this browser. Use the backups below
-            to move them between devices.
+            Running local-only: your ranges and stats live in this browser.
           </p>
         )}
         <AuthPanel isCloudConfigured={auth.isCloudConfigured} session={auth.session} />
@@ -323,18 +121,6 @@ export function AccountScreen() {
             >
               Delete cloud data
             </button>
-            <button type="button" className="coach-btn" onClick={() => void handlePublishPack()}>
-              Publish pack link
-            </button>
-            {publishedPackId && (
-              <button
-                type="button"
-                className="coach-btn"
-                onClick={() => void handleUnpublishPack()}
-              >
-                Unpublish pack
-              </button>
-            )}
           </div>
         )}
         {syncStatus && (
@@ -346,36 +132,7 @@ export function AccountScreen() {
 
       <section className="coach-card account-section" aria-label="Data">
         <h2>Data</h2>
-        <p className="account-note">
-          Backups include everything: ranges, stats, history, review schedules, and your daily
-          goal.
-        </p>
         <div className="account-actions">
-          <button type="button" className="coach-btn" onClick={handleExportBackup}>
-            Export backup
-          </button>
-          <label className="coach-btn account-file">
-            Import backup
-            <input type="file" accept="application/json,.json" onChange={handleImportBackup} />
-          </label>
-          <label className="coach-btn account-file">
-            Import range
-            <input type="file" accept="application/json,.json" onChange={handleImportRange} />
-          </label>
-          <label className="coach-btn account-file">
-            Import CSV
-            <input type="file" accept=".csv,text/csv" onChange={handleImportRangeCsv} />
-          </label>
-          <button type="button" className="coach-btn" onClick={handleExportPack}>
-            Export pack
-          </button>
-          <label className="coach-btn account-file">
-            Import pack
-            <input type="file" accept="application/json,.json" onChange={handleImportPack} />
-          </label>
-          <button type="button" className="coach-btn" onClick={handleAddStarterRanges}>
-            Add starter ranges
-          </button>
           {/* The only clean slate that keeps the charts: deleting ranges takes
               their records with them, and clearing site data takes everything. */}
           <button type="button" className="coach-btn" onClick={handleResetStats}>

@@ -1,12 +1,5 @@
 import { useState } from 'react'
-import { RangeThumbnail } from '../components/RangeThumbnail'
 import { formatDateLine, formatDayDistance, greetingFor } from '../app/format'
-import {
-  buildDailyWorkout,
-  summarizeWorkout,
-  workoutCompletedToday,
-  type DailyWorkout,
-} from '../domain/dailyWorkout'
 import {
   describeFreePractice,
   freePracticeAction,
@@ -14,21 +7,16 @@ import {
 } from '../domain/freePractice'
 import type { PokerHand } from '../domain/pokerHands'
 import { practiceAccuracyPercentage } from '../domain/practiceStats'
-import { buildStarterRanges, STARTER_RANGE_TEMPLATES } from '../domain/starterRanges'
 import { currentStreak, selectDueRanges } from '../domain/spacedRepetition'
-import { buildSpotCoverage, inferLibraryContext } from '../domain/spotCoverage'
 import { GOAL_OPTIONS, evaluateDailyGoal, goalLine } from '../domain/trainingGoal'
 import { sessionsForLibrary, summarizeWeek } from '../domain/weeklyStats'
 import { loadHandAccuracy } from '../storage/handAccuracyStorage'
 import { loadPracticeStats } from '../storage/practiceStatsStorage'
 import { loadReviewStates } from '../storage/reviewStateStorage'
-import { createRangeId } from '../app/ids'
-import { loadSavedRanges, saveSavedRanges } from '../storage/rangeStorage'
+import { loadSavedRanges } from '../storage/rangeStorage'
 import { loadSessionHistory } from '../storage/sessionHistoryStorage'
-import { loadSpotAccuracy } from '../storage/spotAccuracyStorage'
 import { loadTrainingGoal, saveTrainingGoal } from '../storage/trainingGoalStorage'
-import { loadWorkoutCompletion } from '../storage/workoutStorage'
-import type { SavedRange, TableSize } from '../types/range'
+import type { SavedRange } from '../types/range'
 import './TodayScreen.css'
 
 /** Rough drill length used for the "~X min" estimate on the review CTA. */
@@ -39,10 +27,6 @@ interface TodayScreenProps {
   onStartReview: (queue: SavedRange[]) => void
   /** Drill the queued ranges, each restricted to its own weak-hand pool. */
   onDrillWeakHands: (queue: SavedRange[], pools: Record<string, PokerHand[]>) => void
-  /** Start the spot drill over the whole library at the given format. */
-  onPlaySpots: (format: { tableSize: TableSize; stackDepthBb: number }) => void
-  /** Run the composed daily workout. */
-  onStartWorkout: (workout: DailyWorkout) => void
 }
 
 /**
@@ -50,36 +34,15 @@ interface TodayScreenProps {
  * once on mount (practice unmounts this screen, so returning always re-reads
  * fresh stats).
  */
-export function TodayScreen({
-  onStartReview,
-  onDrillWeakHands,
-  onPlaySpots,
-  onStartWorkout,
-}: TodayScreenProps) {
+export function TodayScreen({ onStartReview, onDrillWeakHands }: TodayScreenProps) {
   const [now] = useState(() => new Date())
-  const [ranges, setRanges] = useState(() => loadSavedRanges())
+  const [ranges] = useState(() => loadSavedRanges())
   const [reviewStates] = useState(() => loadReviewStates())
   const [storedHistory] = useState(() => loadSessionHistory())
   const [practiceStats] = useState(() => loadPracticeStats())
   const [handAccuracy] = useState(() => loadHandAccuracy())
-  const [spotAccuracy] = useState(() => loadSpotAccuracy())
-  const [workoutCompletion] = useState(() => loadWorkoutCompletion())
   const [goal, setGoal] = useState(() => loadTrainingGoal())
-  const [starterError, setStarterError] = useState<string | null>(null)
   const [goalError, setGoalError] = useState<string | null>(null)
-
-  // The welcome card's shortcut past an empty library. Only reachable while there
-  // are no ranges, so the whole pack goes in without the Account tab's top-up check.
-  function addStarterRanges() {
-    try {
-      saveSavedRanges(buildStarterRanges(new Date().toISOString(), createRangeId))
-    } catch (error) {
-      setStarterError(error instanceof Error ? error.message : 'Could not add the starter ranges.')
-      return
-    }
-    setStarterError(null)
-    setRanges(loadSavedRanges())
-  }
 
   const nowIso = now.toISOString()
   // Sessions recorded against ranges that have since gone away would still count
@@ -100,9 +63,6 @@ export function TodayScreen({
     : null
   const estimatedMinutes = Math.max(1, Math.ceil(due.length * MINUTES_PER_RANGE))
   const goalProgress = evaluateDailyGoal(history, nowIso, goal)
-  // The spot drill only has something to deal once a range describes a situation.
-  const spotFormat = inferLibraryContext(ranges)
-  const spotCoverage = buildSpotCoverage(ranges, spotFormat.tableSize, spotFormat.stackDepthBb)
   // Only worth computing when nothing is due, which is exactly when it is shown.
   const freePractice =
     due.length === 0
@@ -117,19 +77,6 @@ export function TodayScreen({
     }
     onStartReview([freePractice.range])
   }
-
-  // A finished workout stays finished for the day; the card flips to its done
-  // state instead of re-offering the same plan.
-  const workoutDone = workoutCompletedToday(workoutCompletion, nowIso)
-  const workout = workoutDone
-    ? null
-    : buildDailyWorkout({
-        ranges,
-        reviewStates,
-        spotAccuracy,
-        now: nowIso,
-        goalHands: goal,
-      })
 
   return (
     <div className="today">
@@ -154,20 +101,14 @@ export function TodayScreen({
           <div className="today-cta-copy">
             <h2>Welcome</h2>
             <p>
-              You have no ranges yet. Start with {STARTER_RANGE_TEMPLATES.length} standard 6-max
-              100bb charts (ordinary ranges you can edit or delete), or build your own in the
-              Library.
+              You have no ranges yet. Create your first one — pick the hands on the grid, save
+              it, and it shows up here ready to train.
             </p>
-            {starterError && (
-              <p className="today-cta-error" role="alert">
-                {starterError}
-              </p>
-            )}
           </div>
           <div className="today-cta-actions">
-            <button type="button" className="coach-btn primary" onClick={addStarterRanges}>
-              Add starter ranges
-            </button>
+            <a className="coach-btn primary" href="#/library/new">
+              Create a range
+            </a>
             <a className="coach-btn" href="#/library">
               Open Library
             </a>
@@ -175,33 +116,6 @@ export function TodayScreen({
         </section>
       ) : (
         <>
-          {workoutDone ? (
-            <section className="coach-card today-cta" aria-label="Daily workout">
-              <div className="today-cta-copy">
-                <h2>Daily workout</h2>
-                <p className="coach-tabular">
-                  Done for today. {goal > 0 ? goalLine(goalProgress) : 'See you tomorrow.'}
-                </p>
-              </div>
-            </section>
-          ) : (
-            workout && (
-              <section className="coach-card today-cta" aria-label="Daily workout">
-                <div className="today-cta-copy">
-                  <h2>Daily workout</h2>
-                  <p className="coach-tabular">{summarizeWorkout(workout)}</p>
-                </div>
-                <button
-                  type="button"
-                  className="coach-btn primary"
-                  onClick={() => onStartWorkout(workout)}
-                >
-                  Start workout
-                </button>
-              </section>
-            )
-          )}
-
           {due.length > 0 ? (
             <section className="coach-card today-cta" aria-label="Today's review">
               <div className="today-cta-copy">
@@ -213,7 +127,7 @@ export function TodayScreen({
               </div>
               <button
                 type="button"
-                className={workout ? 'coach-btn' : 'coach-btn primary'}
+                className="coach-btn primary"
                 onClick={() => onStartReview(due)}
               >
                 Start review
@@ -244,25 +158,6 @@ export function TodayScreen({
             </section>
           )}
 
-          {spotCoverage.covered > 0 && (
-            <section className="coach-card today-cta" aria-label="Play the spot">
-              <div className="today-cta-copy">
-                <h2>Play the spot</h2>
-                <p className="coach-tabular">
-                  The table deals the situation &middot; {spotCoverage.covered} of{' '}
-                  {spotCoverage.total} spots covered
-                </p>
-              </div>
-              <button
-                type="button"
-                className="coach-btn"
-                onClick={() => onPlaySpots(spotFormat)}
-              >
-                Play
-              </button>
-            </section>
-          )}
-
           {due.length > 0 && (
             <section className="coach-card today-due" aria-label="Due now">
               <h2>Due now</h2>
@@ -271,7 +166,6 @@ export function TodayScreen({
                   const stats = practiceStats[range.id]
                   return (
                     <li key={range.id} className="today-due-row">
-                      <RangeThumbnail hands={range.hands} size={40} />
                       <div className="today-due-info">
                         <span className="today-due-name">{range.name}</span>
                         <span className="today-due-meta coach-tabular">

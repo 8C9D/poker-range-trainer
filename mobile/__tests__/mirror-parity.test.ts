@@ -1,5 +1,4 @@
 import * as webFormat from '@core/app/format';
-import { safeRangeFileName as webSafeRangeFileName } from '@core/app/rangeFiles';
 import * as webRecording from '@core/app/sessionRecording';
 import * as webPacing from '@core/practice/drillPacing';
 import * as webScenario from '@core/practice/scenario';
@@ -172,13 +171,6 @@ describe('format mirrors the web module without Intl', () => {
     }
   });
 
-  it('reduces a range name to the same file stem', () => {
-    for (const name of ['UTG open — 100bb (v2)', '   ', '***', 'BB defend vs BTN']) {
-      expect(mobileFormat.safeRangeFileName(name)).toBe(
-        webSafeRangeFileName({ ...RANGES[0], name }),
-      );
-    }
-  });
 });
 
 describe('sessionRecording mirrors the web module', () => {

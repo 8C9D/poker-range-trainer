@@ -1,14 +1,12 @@
 import { useSyncExternalStore } from 'react'
-import { encodeScenarioParams, parseScenarioParams } from '../domain/scenarioParams'
-import type { RangeMetadata } from '../types/range'
 
-export const RANGE_TABS = ['overview', 'edit', 'actions', 'combos', 'frequencies', 'stats'] as const
+export const RANGE_TABS = ['overview', 'edit', 'stats'] as const
 export type RangeTab = (typeof RANGE_TABS)[number]
 
 export type AppRoute =
   | { screen: 'today' }
   | { screen: 'library' }
-  | { screen: 'newRange'; prefill?: RangeMetadata }
+  | { screen: 'newRange' }
   | { screen: 'range'; id: string; tab: RangeTab }
   | { screen: 'progress' }
   | { screen: 'account' }
@@ -39,19 +37,14 @@ function decodeRangeId(segment: string): string {
  * anything unrecognized falls back to the default screen.
  */
 export function parseAppRoute(hash: string): AppRoute {
-  const [path, query = ''] = hash.replace(/^#\/?/, '').split('?')
+  const [path] = hash.replace(/^#\/?/, '').split('?')
   const parts = path.split('/').filter(Boolean)
   switch (parts[0]) {
     case 'today':
       return { screen: 'today' }
     case 'library': {
       if (!parts[1]) return { screen: 'library' }
-      if (parts[1] === 'new') {
-        const prefill = parseScenarioParams(
-          Object.fromEntries(new URLSearchParams(query).entries()),
-        )
-        return prefill ? { screen: 'newRange', prefill } : { screen: 'newRange' }
-      }
+      if (parts[1] === 'new') return { screen: 'newRange' }
       const id = decodeRangeId(parts[1])
       const tab = (RANGE_TABS as readonly string[]).includes(parts[2])
         ? (parts[2] as RangeTab)
@@ -73,13 +66,8 @@ export function routeHash(route: AppRoute): string {
       return '#/today'
     case 'library':
       return '#/library'
-    case 'newRange': {
-      // The spot coverage map opens the editor already describing a situation.
-      const query = route.prefill
-        ? new URLSearchParams(encodeScenarioParams(route.prefill)).toString()
-        : ''
-      return query ? `#/library/new?${query}` : '#/library/new'
-    }
+    case 'newRange':
+      return '#/library/new'
     case 'range':
       return route.tab === 'overview'
         ? `#/library/${encodeURIComponent(route.id)}`

@@ -57,19 +57,19 @@ describe('accessible names', () => {
   it('has something to check', () => {
     // Guards the guard: a screen that rendered nothing would pass every case.
     seed('a', 'BTN open')
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
     expect(document.querySelectorAll('[aria-label]').length).toBeGreaterThan(3)
   })
 
   it('never labels an element that cannot carry a name on Today', () => {
     seed('a', 'BTN open')
-    render(<TodayScreen onStartReview={vi.fn()} onDrillWeakHands={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
+    render(<TodayScreen onStartReview={vi.fn()} onDrillWeakHands={vi.fn()} />)
     expect(droppedLabels()).toEqual([])
   })
 
   it('never labels an element that cannot carry a name on Library', () => {
     seed('a', 'BTN open')
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
     expect(droppedLabels()).toEqual([])
   })
 
@@ -79,7 +79,7 @@ describe('accessible names', () => {
     recordHandAccuracy('a', [
       { hand: 'AA', attempts: 3, correct: 1, falsePositives: 0, falseNegatives: 2 },
     ])
-    render(<ProgressScreen onDrillWeakHands={vi.fn()} onDrillSpot={vi.fn()} />)
+    render(<ProgressScreen onDrillWeakHands={vi.fn()} />)
     expect(droppedLabels()).toEqual([])
   })
 
@@ -115,17 +115,7 @@ describe('accessible names', () => {
  * a practising user actually reaches.
  */
 describe('accessible names in practice', () => {
-  const DRILLED: PracticeMode[] = [
-    'recognize',
-    'timed',
-    'weakness',
-    'edges',
-    'build',
-    'action',
-    'mixed',
-    'combo',
-    'board',
-  ]
+  const DRILLED: PracticeMode[] = ['recognize', 'timed', 'weakness', 'edges', 'build']
 
   function drillable(): SavedRange {
     const range: SavedRange = {
@@ -135,14 +125,6 @@ describe('accessible names in practice', () => {
       hands: ['AA', 'KK', 'QQ', 'AKs', 'AQs', 'AKo'],
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
-      // The action and frequency quizzes only appear for a range that has them.
-      handActions: { AA: 'raise', KK: 'raise', AKs: 'call' },
-      mixedStrategies: {
-        AA: [
-          { action: 'raise', frequency: 75 },
-          { action: 'call', frequency: 25 },
-        ],
-      },
     }
     saveSavedRange(range)
     return range
@@ -162,7 +144,6 @@ describe('accessible names in practice', () => {
           correctAnswers: 8,
           accuracy: 80,
           deltaLine: 'Up 5 points from your last session.',
-          goalLine: '8 of 20 hands today.',
           streakLine: '3 day streak.',
         }}
         hasNext

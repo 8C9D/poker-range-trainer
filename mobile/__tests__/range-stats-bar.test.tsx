@@ -20,16 +20,6 @@ describe('RangeStatsBar', () => {
     expect(getByTestId('stat-percent')).toHaveTextContent('0.8%');
   });
 
-  it('counts a narrowed hand class at its refined size', async () => {
-    // AA is down to one combo, so the range holds 5, not the hand-class 10.
-    const { getByTestId } = await render(
-      <RangeStatsBar hands={['AA', 'AKs']} comboSelections={{ AA: ['AhAs'] }} />,
-    );
-
-    expect(getByTestId('stat-combos')).toHaveTextContent('5/1326 combos');
-    expect(getByTestId('stat-percent')).toHaveTextContent('0.4%');
-  });
-
   it('uses the singular "hand" for one selection', async () => {
     const { getByTestId } = await render(<RangeStatsBar hands={['AA']} />);
 

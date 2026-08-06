@@ -1,6 +1,5 @@
 import { ALL_HANDS, type PokerHand } from './pokerHands'
-import type { ActionAttempt, PracticeAttempt } from '../types/practice'
-import { RANGE_ACTIONS, type RangeAction } from '../types/range'
+import type { PracticeAttempt } from '../types/practice'
 
 /**
  * The end-of-session miss recap.
@@ -11,9 +10,9 @@ import { RANGE_ACTIONS, type RangeAction } from '../types/range'
  * incorrect attempts back into the two lists that are actually actionable:
  * hands to start playing, and hands to start folding.
  *
- * Split by direction rather than by range, because a spot session spans several
- * charts and "fold 72o" reads the same whichever one it came from. Pure — the
- * caller passes the attempts.
+ * Split by direction, because a review queue spans several charts and "fold
+ * 72o" reads the same whichever one it came from. Pure — the caller passes
+ * the attempts.
  */
 
 /** How many missed hands the recap names before it just counts the rest. */
@@ -36,7 +35,7 @@ const HAND_ORDER = new Map<PokerHand, number>(ALL_HANDS.map((hand, index) => [ha
  * `limit`. Returns null when nothing was missed — there is no recap to show.
  *
  * A hand is keyed with its direction, not alone: the same hand can be a member
- * of one chart and a fold in another, and a spot session deals both, so
+ * of one chart and a fold in another, and a queued run deals both, so
  * collapsing them would report one of the two as the wrong lesson.
  */
 export function recapMisses(
@@ -67,55 +66,4 @@ export function recapMisses(
 /** Unknown notation sorts last rather than tying with AA at index 0. */
 function handOrder(hand: PokerHand): number {
   return HAND_ORDER.get(hand) ?? ALL_HANDS.length
-}
-
-/** The hands one action wanted, for {@link ActionMissRecap}. */
-export interface ActionMissGroup {
-  action: RangeAction
-  hands: PokerHand[]
-}
-
-export interface ActionMissRecap {
-  /** Missed hands by the action they wanted, in canonical `RANGE_ACTIONS` order. */
-  groups: ActionMissGroup[]
-  /** Missed hands the cap left out of the groups. */
-  hiddenCount: number
-}
-
-/**
- * The action quiz's {@link recapMisses}: the hands whose action the session got
- * wrong, grouped by the action each one actually wanted.
- *
- * The recognition drill splits its recap into play/fold because in/out of range
- * is the only question it asks. The action quiz has the whole `RANGE_ACTIONS`
- * vocabulary, so "wrong" is not the lesson — which action the hand wanted is,
- * and grouping by it says "3-bet these" in one line instead of naming a
- * correction per hand. Grouped by the EXPECTED action rather than the chosen
- * one for the same reason: what to do next time is the takeaway.
- *
- * Returns null when nothing was missed. Same cap and ordering as `recapMisses`.
- */
-export function recapActionMisses(
-  attempts: ActionAttempt[],
-  limit: number = MISS_RECAP_LIMIT,
-): ActionMissRecap | null {
-  const counts = new Map<string, { hand: PokerHand; expected: RangeAction; times: number }>()
-  for (const attempt of attempts) {
-    if (attempt.correct) continue
-    const key = `${attempt.hand}:${attempt.expected}`
-    const entry = counts.get(key)
-    if (entry) entry.times += 1
-    else counts.set(key, { hand: attempt.hand, expected: attempt.expected, times: 1 })
-  }
-  if (counts.size === 0) return null
-
-  const ranked = [...counts.values()].sort(
-    (a, b) => b.times - a.times || handOrder(a.hand) - handOrder(b.hand),
-  )
-  const named = ranked.slice(0, Math.max(0, limit))
-  const groups = RANGE_ACTIONS.map((action) => ({
-    action,
-    hands: named.filter((miss) => miss.expected === action).map((miss) => miss.hand),
-  })).filter((group) => group.hands.length > 0)
-  return { groups, hiddenCount: ranked.length - named.length }
 }

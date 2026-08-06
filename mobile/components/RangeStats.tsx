@@ -3,52 +3,38 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Link } from 'expo-router';
 
 import { accuracyPercentage } from '@core/domain/accuracy';
-import { actionAccuracyRate } from '@core/domain/actionRange';
 import { handAccuracyRate, handsWithMistakes, rankHandAccuracy } from '@core/domain/practice';
-import { loadActionAccuracy } from '@core/storage/actionAccuracyStorage';
 import { loadHandAccuracy } from '@core/storage/handAccuracyStorage';
 import { loadSessionHistory } from '@core/storage/sessionHistoryStorage';
 
-import { HandHeatmap } from './HandHeatmap';
 import { fonts } from '../theme/fonts';
 import { useTheme } from '../theme/colors';
 import type { ThemeColors } from '../theme/colors';
 
 
 /**
- * The Range page's Stats tab: accuracy heatmap (+ legend), weakest hands with a
- * "Practice weak hands" shortcut, per-action accuracy, and session history. All stats
- * come from the reused `@core` storage/domain; this only lays them out. "Practice weak
- * hands" links to the recognition drill (its mistakes-only toggle restricts the pool);
- * the queued pool lands with the practice overlay (M6).
+ * The Range page's Stats tab: weakest hands with a "Practice weak hands" shortcut,
+ * and session history. All stats come from the reused `@core` storage/domain; this
+ * only lays them out. "Practice weak hands" links to the recognition drill restricted
+ * to the mistake pool.
  */
 export function RangeStats({ id }: { id: string }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
 
   const [handAccuracy] = useState(() => loadHandAccuracy()[id] ?? {});
-  const [actionAccuracy] = useState(() => loadActionAccuracy()[id] ?? {});
   const [history] = useState(() => loadSessionHistory()[id] ?? []);
 
   const weakest = rankHandAccuracy(handAccuracy).slice(0, 8);
   const mistakePool = handsWithMistakes(handAccuracy);
-  const actionEntries = Object.values(actionAccuracy).filter((stat) => stat.attempts > 0);
   const recentSessions = history.slice(-8).reverse();
-  const hasAnyData = weakest.length > 0 || actionEntries.length > 0 || history.length > 0;
-
-  // Legend swatches mirror the HandHeatmap heat ramp: untested / <50 / 50-79 / 80+.
-  const legend = [
-    { label: 'Untested', color: theme.cellbg },
-    { label: '<50%', color: theme.h1c },
-    { label: '50–79%', color: theme.h2c },
-    { label: '80+%', color: theme.h3c },
-  ];
+  const hasAnyData = weakest.length > 0 || history.length > 0;
 
   if (!hasAnyData) {
     return (
       <View style={styles.card}>
         <Text style={styles.emptyText}>
-          No practice data yet. Run a session to see your accuracy heatmap, weak hands, and history.
+          No practice data yet. Run a session to see your weak hands and history.
         </Text>
       </View>
     );
@@ -56,21 +42,6 @@ export function RangeStats({ id }: { id: string }) {
 
   return (
     <View style={styles.stack}>
-      {weakest.length > 0 ? (
-        <View style={styles.card}>
-          <Text accessibilityRole="header" style={styles.sectionTitle}>Accuracy heatmap</Text>
-          <HandHeatmap accuracy={handAccuracy} />
-          <View style={styles.legend}>
-            {legend.map((entry) => (
-              <View key={entry.label} style={styles.legendItem}>
-                <View style={[styles.swatch, { backgroundColor: entry.color }]} />
-                <Text style={styles.legendLabel}>{entry.label}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      ) : null}
-
       {weakest.length > 0 ? (
         <View style={styles.card}>
           <Text accessibilityRole="header" style={styles.sectionTitle}>Weakest hands</Text>
@@ -96,21 +67,6 @@ export function RangeStats({ id }: { id: string }) {
               </Pressable>
             </Link>
           ) : null}
-        </View>
-      ) : null}
-
-      {actionEntries.length > 0 ? (
-        <View style={styles.card}>
-          <Text accessibilityRole="header" style={styles.sectionTitle}>Per-action accuracy</Text>
-          {actionEntries.map((stat) => (
-            <View key={stat.action} style={styles.actionRow}>
-              <Text style={styles.actionName}>{stat.action}</Text>
-              <Text style={styles.actionRate}>
-                {actionAccuracyRate(stat).toFixed(0)}% · {stat.attempts} tr
-                {stat.attempts === 1 ? 'y' : 'ies'}
-              </Text>
-            </View>
-          ))}
         </View>
       ) : null}
 
@@ -145,10 +101,6 @@ function makeStyles(theme: ThemeColors) {
     },
     emptyText: { fontFamily: fonts.body, fontSize: 15, color: theme.ink2 },
     sectionTitle: { fontFamily: fonts.bodySemibold, fontSize: 14, color: theme.ink },
-    legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-    legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    swatch: { width: 14, height: 14, borderRadius: 3 },
-    legendLabel: { fontFamily: fonts.body, fontSize: 12, color: theme.ink2 },
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     statChip: {
       borderWidth: StyleSheet.hairlineWidth,

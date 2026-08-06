@@ -1,59 +1,26 @@
 import { useEffect, useRef, useState } from 'react'
-import {
-  copyRangeShareLink,
-  exportRangeCsvFile,
-  exportRangeJsonFile,
-  exportRangeSvgFile,
-} from '../app/rangeFiles'
 import { createRangeId } from '../app/ids'
 import { navigate, routeHash, RANGE_TABS, type RangeTab } from '../app/routes'
-import { ActionNotation } from '../components/ActionNotation'
-import { ComboSelector } from '../components/ComboSelector'
-import { MixedNotation } from '../components/MixedNotation'
-import { MixedStrategyEditor } from '../components/MixedStrategyEditor'
-import { MixedStrategyGrid } from '../components/MixedStrategyGrid'
-import { MultiActionEditor } from '../components/MultiActionEditor'
-import { RangeDiffView } from '../components/RangeDiffView'
 import { RangePerformance } from '../components/RangePerformance'
-import { RangeThumbnail } from '../components/RangeThumbnail'
-import { useAuthSession } from '../cloud/useAuthSession'
-import { publishSharedRange, unpublishSharedRange } from '../cloud/sharedRangesRepo'
-import type { Card } from '../domain/cards'
-import {
-  allCombosForHand,
-  countRangeCombos,
-  deserializeComboSelection,
-  rangeComboPercentage,
-  serializeComboSelection,
-  toggleCombo,
-  type ComboSelection,
-} from '../domain/comboSelection'
-import { incompleteMixedHands, type HandMixedStrategy } from '../domain/mixedStrategy'
 import type { PokerHand } from '../domain/pokerHands'
 import { handsWithMistakes } from '../domain/practice'
 import { setRangeArchived } from '../domain/rangeArchive'
 import { duplicateRange } from '../domain/rangeDuplication'
 import { setRangeFavorite } from '../domain/rangeFavorite'
-import { TOTAL_HOLDEM_COMBOS } from '../domain/rangeMath'
-import { describeRangeChart } from '../domain/rangeNotation'
-import { sourceReferenceUrl } from '../domain/sourceReference'
+import { calculateRangePercentage, countSelectedCombos } from '../domain/rangeMath'
 
 import { accuracyPercentage } from '../domain/accuracy'
 import { formatDayDistance } from '../app/format'
-import { loadActionAccuracy } from '../storage/actionAccuracyStorage'
 import { loadHandAccuracy } from '../storage/handAccuracyStorage'
 import { loadReviewStates } from '../storage/reviewStateStorage'
 import { loadSessionHistory } from '../storage/sessionHistoryStorage'
-import { findSavedRangeById, loadSavedRanges, saveSavedRange } from '../storage/rangeStorage'
+import { findSavedRangeById, saveSavedRange } from '../storage/rangeStorage'
 import { deleteRangesWithRecords, rememberDeletedRanges } from '../storage/rangeRemoval'
 import {
   ACTION_TYPE_LABELS,
   GAME_TYPE_LABELS,
   POSITION_LABELS,
-  RANGE_SOURCE_KIND_LABELS,
   TABLE_SIZE_LABELS,
-  type RangeAction,
-  type RangeMetadata,
   type SavedRange,
 } from '../types/range'
 import { RangeEditTab } from './RangeEditTab'
@@ -62,51 +29,37 @@ import './RangeScreen.css'
 const TAB_LABELS: Record<RangeTab, string> = {
   overview: 'Overview',
   edit: 'Edit',
-  actions: 'Actions',
-  combos: 'Combos',
-  frequencies: 'Frequencies',
   stats: 'Stats',
 }
-
-/** How many unfinished hands the Frequencies warning names before summarizing. */
-const MAX_LISTED_INCOMPLETE = 6
 
 interface RangeScreenProps {
   /** The saved range id, or null when composing a new range. */
   id: string | null
   tab: RangeTab
-  /** Scenario metadata to start a new range from; only used when `id` is null. */
-  prefill?: RangeMetadata
   /** Launch practice for the range, optionally restricted to a hand pool. */
   onPractice: (range: SavedRange, handPool?: PokerHand[]) => void
 }
 
 /**
  * The per-range page: header (back, name, chips, Practice, overflow menu) and
- * the Overview / Edit / Actions / Combos / Frequencies / Stats tabs. All
- * mutations persist immediately and refresh the local copy from storage.
+ * the Overview / Edit / Stats tabs. All mutations persist immediately and
+ * refresh the local copy from storage.
  */
-export function RangeScreen({ id, tab, prefill, onPractice }: RangeScreenProps) {
-  const auth = useAuthSession()
+export function RangeScreen({ id, tab, onPractice }: RangeScreenProps) {
   const [range, setRange] = useState<SavedRange | null>(() =>
     id ? (findSavedRangeById(id) ?? null) : null,
   )
   const [menuOpen, setMenuOpen] = useState(false)
-  const [compareOpen, setCompareOpen] = useState(false)
-  const [compareOtherId, setCompareOtherId] = useState('')
-  // Cloud share status line + ids published this session (enables Unpublish).
-  const [shareStatus, setShareStatus] = useState('')
   const [actionError, setActionError] = useState<string | null>(null)
-  const [publishedShareId, setPublishedShareId] = useState<string | null>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const tabsRef = useRef<HTMLElement>(null)
 
-  // The tab strip scrolls sideways once the tabs stop fitting, which on a phone
-  // is always. Only a tap on a visible tab scrolls it; arriving any other way (a
-  // deep link, back/forward, a redirect after saving) leaves the strip at the
-  // start with the current tab off its right edge — so the screen shows a row of
-  // tabs with none of them marked, and no hint that it scrolls.
+  // The tab strip scrolls sideways once the tabs stop fitting. Only a tap on a
+  // visible tab scrolls it; arriving any other way (a deep link, back/forward,
+  // a redirect after saving) leaves the strip at the start with the current tab
+  // off its right edge — so the screen shows a row of tabs with none of them
+  // marked, and no hint that it scrolls.
   useEffect(() => {
     const active = tabsRef.current?.querySelector('[aria-current="page"]')
     // `nearest` keeps a tab that is already visible exactly where it is, and
@@ -154,7 +107,6 @@ export function RangeScreen({ id, tab, prefill, onPractice }: RangeScreenProps) 
         <h1 className="range-screen-title">New range</h1>
         <RangeEditTab
           range={null}
-          prefill={prefill}
           onSaved={(saved) => navigate({ screen: 'range', id: saved.id, tab: 'overview' })}
         />
       </div>
@@ -212,42 +164,6 @@ export function RangeScreen({ id, tab, prefill, onPractice }: RangeScreenProps) 
     }
     setActionError(null)
     return true
-  }
-
-  async function handlePublish() {
-    if (!range) return
-    // OK = public (anyone with the link); Cancel = private (link carries a token).
-    const isPublic = window.confirm(
-      `Publish "${range.name}" as a shareable link?\n\nOK = public (anyone with the link can view)\nCancel = private (link includes a secret token)`,
-    )
-    setShareStatus('Publishing…')
-    try {
-      const { id: shareId, token } = await publishSharedRange(range, isPublic)
-      setPublishedShareId(shareId)
-      const base = `${window.location.origin}${window.location.pathname}#/r/${shareId}`
-      const link = token ? `${base}?t=${token}` : base
-      try {
-        await navigator.clipboard.writeText(link)
-        setShareStatus('Share link copied to clipboard.')
-      } catch {
-        window.prompt('Copy this share link:', link)
-        setShareStatus('Share link ready.')
-      }
-    } catch (error) {
-      setShareStatus(error instanceof Error ? error.message : 'Publish failed.')
-    }
-  }
-
-  async function handleUnpublish() {
-    if (!publishedShareId) return
-    setShareStatus('Unpublishing…')
-    try {
-      await unpublishSharedRange(publishedShareId)
-      setPublishedShareId(null)
-      setShareStatus('Shared link unpublished.')
-    } catch (error) {
-      setShareStatus(error instanceof Error ? error.message : 'Unpublish failed.')
-    }
   }
 
   const visibleTabs = RANGE_TABS
@@ -316,46 +232,6 @@ export function RangeScreen({ id, tab, prefill, onPractice }: RangeScreenProps) 
           <button
             type="button"
             role="menuitem"
-            onClick={menuAction(() => {
-              setCompareOpen(true)
-              setCompareOtherId('')
-            })}
-          >
-            Compare…
-          </button>
-          <button type="button" role="menuitem" onClick={menuAction(() => exportRangeJsonFile(range))}>
-            Export JSON
-          </button>
-          <button type="button" role="menuitem" onClick={menuAction(() => exportRangeCsvFile(range))}>
-            Export CSV
-          </button>
-          <button type="button" role="menuitem" onClick={menuAction(() => exportRangeSvgFile(range))}>
-            Export SVG
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={menuAction(() => void copyRangeShareLink(range))}
-          >
-            Copy share link
-          </button>
-          {auth.session && (
-            <button type="button" role="menuitem" onClick={menuAction(() => void handlePublish())}>
-              Publish link
-            </button>
-          )}
-          {auth.session && publishedShareId && (
-            <button
-              type="button"
-              role="menuitem"
-              onClick={menuAction(() => void handleUnpublish())}
-            >
-              Unpublish link
-            </button>
-          )}
-          <button
-            type="button"
-            role="menuitem"
             className="range-screen-menu-danger"
             onClick={menuAction(() => {
               if (
@@ -388,51 +264,32 @@ export function RangeScreen({ id, tab, prefill, onPractice }: RangeScreenProps) 
           ))}
         </div>
       )}
-      {shareStatus && (
-        <p className="range-screen-status" role="status">
-          {shareStatus}
-        </p>
-      )}
       {actionError && (
         <p className="range-screen-error" role="alert">
           {actionError}
         </p>
       )}
 
-      {compareOpen ? (
-        <ComparePanel
-          range={range}
-          otherId={compareOtherId}
-          onPickOther={setCompareOtherId}
-          onClose={() => setCompareOpen(false)}
-        />
-      ) : (
-        <>
-          <nav className="coach-seg range-screen-tabs" aria-label="Range sections" ref={tabsRef}>
-            {visibleTabs.map((tabKey) => (
-              <a
-                key={tabKey}
-                href={routeHash({ screen: 'range', id: range.id, tab: tabKey })}
-                aria-current={tab === tabKey ? 'page' : undefined}
-              >
-                {TAB_LABELS[tabKey]}
-              </a>
-            ))}
-          </nav>
+      <nav className="coach-seg range-screen-tabs" aria-label="Range sections" ref={tabsRef}>
+        {visibleTabs.map((tabKey) => (
+          <a
+            key={tabKey}
+            href={routeHash({ screen: 'range', id: range.id, tab: tabKey })}
+            aria-current={tab === tabKey ? 'page' : undefined}
+          >
+            {TAB_LABELS[tabKey]}
+          </a>
+        ))}
+      </nav>
 
-          {tab === 'overview' && <OverviewTab range={range} />}
-          {tab === 'edit' && <RangeEditTab range={range} onSaved={refresh} />}
-          {tab === 'actions' && <ActionsTab range={range} onSaved={refresh} />}
-          {tab === 'combos' && <CombosTab range={range} onSaved={refresh} />}
-          {tab === 'frequencies' && <FrequenciesTab range={range} onSaved={refresh} />}
-          {tab === 'stats' && (
-            <StatsTab
-              range={range}
-              onPracticeMistakes={(pool) => onPractice(range, pool)}
-              onClose={() => navigate({ screen: 'range', id: range.id, tab: 'overview' })}
-            />
-          )}
-        </>
+      {tab === 'overview' && <OverviewTab range={range} />}
+      {tab === 'edit' && <RangeEditTab range={range} onSaved={refresh} />}
+      {tab === 'stats' && (
+        <StatsTab
+          range={range}
+          onPracticeMistakes={(pool) => onPractice(range, pool)}
+          onClose={() => navigate({ screen: 'range', id: range.id, tab: 'overview' })}
+        />
       )}
     </div>
   )
@@ -443,17 +300,16 @@ function OverviewTab({ range }: { range: SavedRange }) {
   const [reviewState] = useState(() => loadReviewStates()[range.id])
   const [nowIso] = useState(() => new Date().toISOString())
 
-  const combos = countRangeCombos(range.hands, range.comboSelections)
-  const percentage = rangeComboPercentage(range.hands, range.comboSelections)
+  // Hand-class model only: saved per-combo selections are ignored here, so a
+  // range whose AA is narrowed to one combo still counts all six.
+  const combos = countSelectedCombos(range.hands)
+  const percentage = calculateRangePercentage(range.hands)
   const lastSession = history.length > 0 ? history[history.length - 1] : null
   const recentSessions = history.slice(-5).reverse()
-  const handNoteCount = Object.keys(range.handNotes ?? {}).length
-  const sourceUrl = sourceReferenceUrl(range.source?.reference)
 
   return (
     <div className="range-overview">
-      <section className="coach-card range-overview-grid" aria-label="Range preview">
-        <RangeThumbnail hands={range.hands} size={280} label={describeRangeChart(range.hands)} />
+      <section className="coach-card range-overview-grid" aria-label="Range facts">
         <div className="range-overview-facts coach-tabular">
           <p>
             {range.hands.length} hand{range.hands.length === 1 ? '' : 's'} · {combos} combos ·{' '}
@@ -472,28 +328,6 @@ function OverviewTab({ range }: { range: SavedRange }) {
               : 'none yet'}
           </p>
           {range.metadata?.notes && <p className="range-overview-notes">{range.metadata.notes}</p>}
-          {range.source && (
-            <p>
-              Source: {RANGE_SOURCE_KIND_LABELS[range.source.kind]}
-              {range.source.reference && (
-                <>
-                  {' · '}
-                  {sourceUrl ? (
-                    <a href={sourceUrl} target="_blank" rel="noreferrer">
-                      {range.source.reference}
-                    </a>
-                  ) : (
-                    range.source.reference
-                  )}
-                </>
-              )}
-            </p>
-          )}
-          {handNoteCount > 0 && (
-            <p>
-              {handNoteCount} hand note{handNoteCount === 1 ? '' : 's'}
-            </p>
-          )}
         </div>
       </section>
 
@@ -517,254 +351,6 @@ function OverviewTab({ range }: { range: SavedRange }) {
   )
 }
 
-function ActionsTab({ range, onSaved }: { range: SavedRange; onSaved: () => void }) {
-  const [draft, setDraft] = useState<Record<PokerHand, RangeAction>>({
-    ...(range.handActions ?? {}),
-  })
-  const status = useTabSave()
-  return (
-    <div className="range-tab-stack">
-      <div className="range-tab-actions">
-        <button
-          type="button"
-          className="coach-btn"
-          onClick={() => {
-            const written = status.save(() =>
-              saveSavedRange({ ...range, handActions: draft, updatedAt: new Date().toISOString() }),
-            )
-            if (written) onSaved()
-          }}
-        >
-          Save actions
-        </button>
-        <TabSaveStatus saved={status.saved} error={status.error} label="Actions saved." />
-      </div>
-      <MultiActionEditor
-        handActions={draft}
-        rangeHands={range.hands}
-        onSetHandAction={(hand, action) => {
-          status.reset()
-          setDraft((prev) => ({ ...prev, [hand]: action }))
-        }}
-      />
-      <ActionNotation
-        handActions={draft}
-        onReplaceActions={(next) => {
-          status.reset()
-          setDraft(next)
-        }}
-      />
-    </div>
-  )
-}
-
-/**
- * The Save-button state the Actions, Combos and Frequencies tabs share: a write
- * that lands shows "saved", one the store refuses shows why. Without this the
- * confirmation appeared either way, so a full or blocked store looked like a
- * successful save right up until the edits vanished on reload.
- */
-function useTabSave() {
-  const [saved, setSaved] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  return {
-    saved,
-    error,
-    save(write: () => void) {
-      try {
-        write()
-      } catch (failure) {
-        setError(failure instanceof Error ? failure.message : 'Could not save this range.')
-        setSaved(false)
-        return false
-      }
-      setError(null)
-      setSaved(true)
-      return true
-    },
-    /** An edit invalidates the last outcome: neither line describes the draft now. */
-    reset() {
-      setSaved(false)
-      setError(null)
-    },
-  }
-}
-
-/** The Save button's outcome line: confirmation, or why the write was refused. */
-function TabSaveStatus({ saved, error, label }: { saved: boolean; error: string | null; label: string }) {
-  if (error) {
-    return (
-      <p className="range-screen-error" role="alert">
-        {error}
-      </p>
-    )
-  }
-  return saved ? (
-    <p className="range-screen-status" role="status">
-      {label}
-    </p>
-  ) : null
-}
-
-function CombosTab({ range, onSaved }: { range: SavedRange; onSaved: () => void }) {
-  const [draft, setDraft] = useState<Record<PokerHand, ComboSelection>>(() => {
-    const initial: Record<PokerHand, ComboSelection> = {}
-    for (const hand of range.hands) {
-      const saved = range.comboSelections?.[hand]
-      initial[hand] = saved ? deserializeComboSelection(saved) : allCombosForHand(hand)
-    }
-    return initial
-  })
-  const status = useTabSave()
-
-  function setDraftCombo(hand: PokerHand, combo: Card[]) {
-    status.reset()
-    setDraft((prev) => ({
-      ...prev,
-      [hand]: toggleCombo(prev[hand] ?? allCombosForHand(hand), combo),
-    }))
-  }
-
-  function handleSave() {
-    // Persist only hand classes that are NOT fully selected, so an all-on range
-    // stays without the field (absence = all combos selected, the default).
-    const comboSelections: Record<PokerHand, string[]> = {}
-    for (const hand of range.hands) {
-      const selection = draft[hand] ?? allCombosForHand(hand)
-      const full = allCombosForHand(hand).size
-      if (selection.size < full) {
-        comboSelections[hand] = serializeComboSelection(selection)
-      }
-    }
-    const written = status.save(() =>
-      saveSavedRange({
-        ...range,
-        comboSelections: Object.keys(comboSelections).length > 0 ? comboSelections : undefined,
-        updatedAt: new Date().toISOString(),
-      }),
-    )
-    if (written) onSaved()
-  }
-
-  // Hand classes never share a combo, so the per-hand sizes add up to the range
-  // total without deduplication.
-  const selectedCombos = range.hands.reduce(
-    (total, hand) => total + (draft[hand] ?? allCombosForHand(hand)).size,
-    0,
-  )
-  const totalCombos = countRangeCombos(range.hands)
-
-  return (
-    <div className="range-tab-stack">
-      <div className="range-tab-actions">
-        <button type="button" className="coach-btn" onClick={handleSave}>
-          Save combos
-        </button>
-        <TabSaveStatus saved={status.saved} error={status.error} label="Combos saved." />
-      </div>
-      <p className="range-combo-total coach-tabular">
-        {selectedCombos} of {totalCombos} combos ·{' '}
-        {((selectedCombos / TOTAL_HOLDEM_COMBOS) * 100).toFixed(1)}% of all hands
-      </p>
-      {range.hands.map((hand) => (
-        <div key={hand} className="coach-card range-combo-hand">
-          <h2>{hand}</h2>
-          <ComboSelector
-            hand={hand}
-            selection={draft[hand] ?? allCombosForHand(hand)}
-            onToggle={(combo) => setDraftCombo(hand, combo)}
-          />
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function FrequenciesTab({ range, onSaved }: { range: SavedRange; onSaved: () => void }) {
-  const [draft, setDraft] = useState<Record<PokerHand, HandMixedStrategy>>({
-    ...(range.mixedStrategies ?? {}),
-  })
-  const [activeHand, setActiveHand] = useState<PokerHand | null>(range.hands[0] ?? null)
-  const status = useTabSave()
-  const incomplete = incompleteMixedHands(draft)
-
-  return (
-    <div className="range-tab-stack">
-      <div className="range-tab-actions">
-        <button
-          type="button"
-          className="coach-btn"
-          onClick={() => {
-            const written = status.save(() =>
-              saveSavedRange({
-                ...range,
-                mixedStrategies: draft,
-                updatedAt: new Date().toISOString(),
-              }),
-            )
-            if (written) onSaved()
-          }}
-        >
-          Save frequencies
-        </button>
-        <TabSaveStatus saved={status.saved} error={status.error} label="Frequencies saved." />
-      </div>
-      {/* The editor only ever shows one hand's total, so a mix left short is
-          invisible the moment you switch hands. Name them here, where the whole
-          range is in view, and offer a jump to the first one. */}
-      {incomplete.length > 0 && (
-        <p className="range-freq-incomplete">
-          {incomplete.length} hand{incomplete.length === 1 ? '' : 's'} not at 100%:{' '}
-          {incomplete.slice(0, MAX_LISTED_INCOMPLETE).join(', ')}
-          {incomplete.length > MAX_LISTED_INCOMPLETE
-            ? ` and ${incomplete.length - MAX_LISTED_INCOMPLETE} more`
-            : ''}
-          .{' '}
-          <button
-            type="button"
-            className="range-freq-jump"
-            onClick={() => setActiveHand(incomplete[0])}
-          >
-            Fix {incomplete[0]}
-          </button>
-        </p>
-      )}
-      <MixedStrategyGrid mixedStrategies={draft} />
-      <label className="range-freq-hand">
-        Hand
-        <select
-          className="coach-input"
-          value={activeHand ?? ''}
-          onChange={(event) => setActiveHand(event.target.value as PokerHand)}
-        >
-          {range.hands.map((hand) => (
-            <option key={hand} value={hand}>
-              {hand}
-            </option>
-          ))}
-        </select>
-      </label>
-      {activeHand && (
-        <MixedStrategyEditor
-          strategy={draft[activeHand] ?? []}
-          onChange={(next) => {
-            status.reset()
-            setDraft((prev) => ({ ...prev, [activeHand]: next }))
-          }}
-        />
-      )}
-      <MixedNotation
-        mixedStrategies={draft}
-        onReplace={(next) => {
-          status.reset()
-          setDraft(next)
-          setActiveHand(range.hands[0] ?? null)
-        }}
-      />
-    </div>
-  )
-}
-
 function StatsTab({
   range,
   onPracticeMistakes,
@@ -776,14 +362,12 @@ function StatsTab({
 }) {
   const [handAccuracy] = useState(() => loadHandAccuracy()[range.id] ?? {})
   const [history] = useState(() => loadSessionHistory()[range.id] ?? [])
-  const [actionAccuracy] = useState(() => loadActionAccuracy()[range.id] ?? {})
 
   return (
     <RangePerformance
       range={range}
       accuracy={handAccuracy}
       history={history}
-      actionAccuracy={actionAccuracy}
       onClose={onClose}
       onPracticeMistakes={() => {
         const pool = handsWithMistakes(handAccuracy)
@@ -791,54 +375,5 @@ function StatsTab({
         onPracticeMistakes(pool)
       }}
     />
-  )
-}
-
-function ComparePanel({
-  range,
-  otherId,
-  onPickOther,
-  onClose,
-}: {
-  range: SavedRange
-  otherId: string
-  onPickOther: (id: string) => void
-  onClose: () => void
-}) {
-  const [others] = useState(() => loadSavedRanges().filter((r) => r.id !== range.id))
-  const other = others.find((r) => r.id === otherId) ?? null
-  return (
-    <section className="coach-card range-compare" aria-label="Range comparison">
-      <div className="range-compare-bar">
-        <label className="range-freq-hand">
-          Compare with
-          <select
-            className="coach-input"
-            value={otherId}
-            onChange={(event) => onPickOther(event.target.value)}
-          >
-            <option value="">Select a range…</option>
-            {others.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button type="button" className="coach-btn quiet" onClick={onClose}>
-          Close comparison
-        </button>
-      </div>
-      {other ? (
-        <RangeDiffView
-          handsA={range.hands}
-          handsB={other.hands}
-          labelA={range.name}
-          labelB={other.name}
-        />
-      ) : (
-        <p className="range-compare-hint">Pick a range to compare against.</p>
-      )}
-    </section>
   )
 }

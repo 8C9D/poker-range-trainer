@@ -27,13 +27,12 @@ describe('SessionSummary', () => {
     expect(screen.getByRole('region', { name: 'Session summary' })).toBeInTheDocument()
   })
 
-  it('shows the delta, goal and streak lines when the run has them', () => {
+  it('shows the delta and streak lines when the run has them', () => {
     render(
       <SessionSummary
         data={{
           ...BASE,
           deltaLine: '+8 points on last time.',
-          goalLine: '20 of 20 hands today.',
           streakLine: '4-day streak.',
         }}
         hasNext={false}
@@ -43,7 +42,6 @@ describe('SessionSummary', () => {
     )
 
     expect(screen.getByText('+8 points on last time.')).toBeInTheDocument()
-    expect(screen.getByText('20 of 20 hands today.')).toBeInTheDocument()
     expect(screen.getByText('4-day streak.')).toBeInTheDocument()
   })
 

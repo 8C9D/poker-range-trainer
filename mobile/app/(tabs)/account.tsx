@@ -1,19 +1,16 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AuthPanel } from '../../components/AuthPanel';
-import { BackupPanel } from '../../components/BackupPanel';
-import { RangeFilesPanel } from '../../components/RangeFilesPanel';
-import { SharePackPanel } from '../../components/SharePackPanel';
+import { ResetStatsPanel } from '../../components/ResetStatsPanel';
 import { Screen } from '../../components/Screen';
-import { StarterRangesPanel } from '../../components/StarterRangesPanel';
 import { fonts } from '../../theme/fonts';
 import { useTheme } from '../../theme/colors';
 
 /**
- * Account tab: sign-in + cloud sync (push/pull with confirm-before-overwrite, delete cloud data),
- * offline file backup, range files, and the built-in starter charts, plus the local-only note when
- * Supabase env is unset. All logic lives in the reused `@core/cloud` + `@core/storage` behind the
- * AuthPanel / BackupPanel / RangeFilesPanel / StarterRangesPanel components.
+ * Account tab: sign-in + cloud sync (push/pull with confirm-before-overwrite, delete cloud data)
+ * and the practice-record reset, plus the local-only note when Supabase env is unset. All logic
+ * lives in the reused `@core/cloud` + `@core/storage` behind the AuthPanel / ResetStatsPanel
+ * components.
  */
 export default function AccountScreen() {
   const theme = useTheme();
@@ -22,13 +19,8 @@ export default function AccountScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <Text accessibilityRole="header" style={[styles.title, { color: theme.ink }]}>Account</Text>
         <AuthPanel />
-        <SharePackPanel />
         <View style={[styles.divider, { backgroundColor: theme.line }]} />
-        <BackupPanel />
-        <View style={[styles.divider, { backgroundColor: theme.line }]} />
-        <RangeFilesPanel />
-        <View style={[styles.divider, { backgroundColor: theme.line }]} />
-        <StarterRangesPanel />
+        <ResetStatsPanel />
       </ScrollView>
     </Screen>
   );

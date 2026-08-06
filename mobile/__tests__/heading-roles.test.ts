@@ -25,9 +25,6 @@ const NOT_HEADINGS = new Map([
   // The practice chrome's truncated caption, next to the close button and the
   // progress bar. The web mirror is the dialog's aria-label, not a heading.
   ['components/practice/OverlayFrame.tsx:title', 'drill chrome, not a section title'],
-  // A muted caption naming the range the drill came from; the nav bar's own
-  // "Postflop" title is this screen's heading.
-  ['app/postflop.tsx:rangeName', 'context line under the nav title'],
 ]);
 
 function sourcesUnder(dir: string): string[] {

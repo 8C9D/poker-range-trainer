@@ -13,15 +13,6 @@ import {
   summarizeMistakeBias,
 } from '@core/domain/mistakeBias';
 import { currentStreak } from '@core/domain/spacedRepetition';
-import { describeSpot, matchRangeToSpot, spotKey } from '@core/domain/spot';
-import { rankSpotLeaks } from '@core/domain/spotLeaks';
-import {
-  accuracyByActionType,
-  accuracyByPosition,
-  rangesAtPosition,
-  rangesWithActionType,
-  type AccuracyGroup,
-} from '@core/domain/seatAccuracy';
 import { rankWeakHands, weakHandPools } from '@core/domain/weakHands';
 import {
   dailyHandCounts,
@@ -33,8 +24,7 @@ import { loadHandAccuracy } from '@core/storage/handAccuracyStorage';
 import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
 import { loadSavedRanges } from '@core/storage/rangeStorage';
 import { loadSessionHistory } from '@core/storage/sessionHistoryStorage';
-import { loadSpotAccuracy } from '@core/storage/spotAccuracyStorage';
-import { ACTION_TYPE_LABELS, POSITION_LABELS, type SavedRange } from '@core/types/range';
+import { POSITION_LABELS } from '@core/types/range';
 
 import { Screen } from '../../components/Screen';
 import { fonts } from '../../theme/fonts';
@@ -85,11 +75,6 @@ function loadProgressState() {
   );
   const weakHands = rankWeakHands(liveAccuracy);
   const leaks = rankHandClassLeaks(liveAccuracy);
-  const spotLeaks = rankSpotLeaks(loadSpotAccuracy()).filter(
-    (leak) => matchRangeToSpot(ranges, leak.spot) !== null,
-  );
-  const seatGroups = accuracyByPosition(ranges, practiceStats);
-  const actionGroups = accuracyByActionType(ranges, practiceStats);
   const bias = summarizeMistakeBias(liveAccuracy);
   // Each lean carries its own drill pool: a Link needs its destination up front,
   // unlike the web card, which can build the pool when the button is pressed.
@@ -107,15 +92,12 @@ function loadProgressState() {
     trend,
     weakHands,
     leaks,
-    seatGroups,
-    actionGroups,
-    spotLeaks,
     bias,
     seatBias,
   };
 }
 
-/** Long-term training overview: streak, accuracy, volume, and weak spots. */
+/** Long-term training overview: streak, accuracy, volume, and weak hands. */
 export default function ProgressScreen() {
   const theme = useTheme();
   const styles = makeStyles(theme);
@@ -128,7 +110,6 @@ export default function ProgressScreen() {
 
   const {
     ranges,
-    practiceStats,
     streak,
     month,
     analytics,
@@ -136,9 +117,6 @@ export default function ProgressScreen() {
     trend,
     weakHands,
     leaks,
-    seatGroups,
-    actionGroups,
-    spotLeaks,
     bias,
     seatBias,
   } = state;
@@ -299,69 +277,6 @@ export default function ProgressScreen() {
           )}
         </View>
 
-        {spotLeaks.length > 0 ? (
-          <View testID="spot-leaks" style={styles.card}>
-            <Text accessibilityRole="header" style={styles.sectionTitle}>Weakest spots</Text>
-            <View style={styles.spotList}>
-              {spotLeaks.slice(0, 5).map((leak) => (
-                <View key={spotKey(leak.spot)} style={styles.spotRow}>
-                  <View style={styles.spotInfo}>
-                    <Text style={styles.spotName}>{describeSpot(leak.spot)}</Text>
-                    <Text style={styles.spotMeta}>
-                      {leak.correct}/{leak.attempts} · {leak.accuracy.toFixed(0)}%
-                    </Text>
-                  </View>
-                  <Link
-                    href={{
-                      pathname: '/practice',
-                      params: {
-                        mode: 'spots',
-                        table: leak.spot.tableSize,
-                        stack: String(leak.spot.stackDepthBb),
-                        spot: spotKey(leak.spot),
-                      },
-                    }}
-                    asChild
-                  >
-                    <Text testID={`drill-spot-${spotKey(leak.spot)}`} style={styles.drillBtn}>
-                      Drill
-                    </Text>
-                  </Link>
-                </View>
-              ))}
-            </View>
-          </View>
-        ) : null}
-
-        <View testID="seat-leaks" style={styles.card}>
-          <Text accessibilityRole="header" style={styles.sectionTitle}>Where you leak</Text>
-          {seatGroups.length === 0 && actionGroups.length === 0 ? (
-            <Text style={styles.empty}>
-              Practice ranges that record a position or an action and this will show which seats
-              and which actions you are weakest in.
-            </Text>
-          ) : (
-            <>
-              <LeakColumn
-                heading="By seat"
-                groups={seatGroups}
-                labels={POSITION_LABELS}
-                drillQueue={(key) => rangesAtPosition(ranges, practiceStats, key)}
-                styles={styles}
-                theme={theme}
-              />
-              <LeakColumn
-                heading="By action"
-                groups={actionGroups}
-                labels={ACTION_TYPE_LABELS}
-                drillQueue={(key) => rangesWithActionType(ranges, practiceStats, key)}
-                styles={styles}
-                theme={theme}
-              />
-            </>
-          )}
-        </View>
-
         <View testID="miss-direction" style={styles.card}>
           <Text accessibilityRole="header" style={styles.sectionTitle}>Which way you miss</Text>
           <Text style={styles.biasVerdict}>{describeMistakeBias(bias)}</Text>
@@ -503,67 +418,6 @@ export default function ProgressScreen() {
   );
 }
 
-/**
- * One ranked column of the v8.4 leak breakdown: weakest group first, each an
- * accuracy bar. Renders nothing when the cut has no group above the threshold.
- */
-function LeakColumn<T extends string>({
-  heading,
-  groups,
-  labels,
-  drillQueue,
-  styles,
-  theme,
-}: {
-  heading: string;
-  groups: AccuracyGroup<T>[];
-  labels: Record<T, string>;
-  /** The charts behind a group's number — the queue its Drill shortcut runs. */
-  drillQueue: (key: T) => SavedRange[];
-  styles: ReturnType<typeof makeStyles>;
-  theme: ThemeColors;
-}) {
-  if (groups.length === 0) return null;
-  return (
-    <View style={styles.seatColumn}>
-      <Text style={styles.seatHeading}>{heading}</Text>
-      {groups.map((group) => {
-        const queue = drillQueue(group.key);
-        return (
-          <View key={group.key} testID={`seat-row-${group.key}`} style={styles.seatRow}>
-            <Text style={styles.seatName}>{labels[group.key]}</Text>
-            <View style={styles.seatBar}>
-              <View
-                style={[
-                  styles.seatFill,
-                  { width: `${Math.max(2, group.accuracy)}%`, backgroundColor: theme.goldFill },
-                ]}
-              />
-            </View>
-            <Text style={styles.seatValue}>{group.accuracy.toFixed(0)}%</Text>
-            {/* Naming a leak with no way to act on it is the one report that left
-                the user to go and find the charts themselves. No pools: what is
-                weak here is the situation, so each chart is drilled whole. */}
-            {queue.length > 0 ? (
-              <Link
-                href={{
-                  pathname: '/practice',
-                  params: { queue: queue.map((range) => range.id).join(','), mode: 'recognize' },
-                }}
-                asChild
-              >
-                <Text testID={`drill-seat-${group.key}`} style={styles.drillBtn}>
-                  Drill
-                </Text>
-              </Link>
-            ) : null}
-          </View>
-        );
-      })}
-    </View>
-  );
-}
-
 function makeStyles(theme: ThemeColors) {
   const tabular = { fontVariant: ['tabular-nums' as const] };
   return StyleSheet.create({
@@ -623,16 +477,6 @@ function makeStyles(theme: ThemeColors) {
       paddingVertical: 8,
     },
     empty: { fontFamily: fonts.body, fontSize: 14, color: theme.ink2 },
-    spotList: { gap: 12, marginTop: 6 },
-    spotRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-    spotInfo: { flex: 1, gap: 2 },
-    spotName: { fontFamily: fonts.bodyMedium, fontSize: 13.5, color: theme.ink },
-    spotMeta: {
-      fontFamily: fonts.body,
-      fontSize: 12.5,
-      color: theme.ink2,
-      fontVariant: ['tabular-nums'],
-    },
     // Two colors rather than a fill on a track, since both halves are mistakes
     // and neither is the "good" side — so they take the chart's own raise and
     // fold colors rather than a red/green pairing, which would read as tight
@@ -643,20 +487,6 @@ function makeStyles(theme: ThemeColors) {
     biasCounts: { fontFamily: fonts.body, fontSize: 12.5, color: theme.ink2, ...tabular },
     biasSeatRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
     biasSeat: { flex: 1, fontFamily: fonts.body, fontSize: 13, color: theme.ink2 },
-    seatColumn: { gap: 7 },
-    seatHeading: { fontFamily: fonts.bodySemibold, fontSize: 12, color: theme.ink3 },
-    seatRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    seatName: { width: 58, fontFamily: fonts.body, fontSize: 13, color: theme.ink2 },
-    seatBar: { flex: 1, height: 7, borderRadius: 4, backgroundColor: theme.well, overflow: 'hidden' },
-    seatFill: { height: '100%', borderRadius: 4 },
-    seatValue: {
-      width: 40,
-      textAlign: 'right',
-      fontFamily: fonts.body,
-      fontSize: 13,
-      color: theme.ink2,
-      fontVariant: ['tabular-nums'],
-    },
     weakList: { gap: 2 },
     weakRowHead: { flexDirection: 'row', paddingBottom: 4, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.line },
     weakRow: { flexDirection: 'row', paddingVertical: 5 },

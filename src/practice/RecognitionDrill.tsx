@@ -7,7 +7,7 @@ import {
   getRandomHandFrom,
   getRandomPracticeHand,
 } from '../domain/practice'
-import { explainHand, handNoteFor } from '../domain/missExplanation'
+import { explainHand } from '../domain/missExplanation'
 import type { PokerHand } from '../domain/pokerHands'
 import { DEFAULT_DRILL_SECONDS, getRemainingSeconds, isDrillOver } from '../domain/timedDrill'
 import { getWeaknessFocusedHand } from '../domain/weaknessDrill'
@@ -204,9 +204,6 @@ export function RecognitionDrill({
       ? 1 - (remainingSeconds ?? 0) / durationSeconds
       : attempts.length / questionCount
 
-  // What the user wrote about the hand they just missed, if anything.
-  const missNote = feedback && !feedback.correct ? handNoteFor(range, feedback.hand) : null
-
   return (
     <OverlayFrame
       title={range.name}
@@ -236,12 +233,9 @@ export function RecognitionDrill({
                 {feedbackLine(feedback.hand, feedback.expectedInRange, feedback.correct, verbs)}
               </p>
               {/* A miss is the teachable moment: say where the hand sits in the
-                  chart, then hand back whatever the user wrote about it. */}
+                  chart. */}
               {!feedback.correct && (
-                <>
-                  <p className="drill-why">{explainHand(feedback.hand, range.hands).line}</p>
-                  {missNote && <p className="drill-note">Your note: {missNote}</p>}
-                </>
+                <p className="drill-why">{explainHand(feedback.hand, range.hands).line}</p>
               )}
             </>
           )}

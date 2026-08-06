@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { AccessibilityInfo, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import type { ActionMissRecap, MissRecap } from '@core/domain/missRecap';
+import type { MissRecap } from '@core/domain/missRecap';
 import type { PokerHand } from '@core/domain/pokerHands';
-import { RANGE_ACTION_LABELS } from '@core/types/range';
 
 import { SaveErrorBanner } from '../liveSave';
 import { fonts } from '../../theme/fonts';
@@ -17,14 +16,10 @@ export interface SessionSummaryData {
   accuracy: number;
   /** Growth-framed comparison line, or null when there is nothing to compare. */
   deltaLine: string | null;
-  /** Daily-goal progress line (the workout reports it), or null to omit. */
-  goalLine?: string | null;
   /** Streak confirmation line, or null when no streak is active. */
   streakLine: string | null;
   /** The session's missed hands, or null when nothing was missed. */
   misses?: MissRecap | null;
-  /** The same for an action quiz, whose misses group by the action wanted. */
-  actionMisses?: ActionMissRecap | null;
   /** Why the run could not be persisted, or null when it saved. */
   saveError?: string | null;
 }
@@ -83,7 +78,6 @@ export function SessionSummary({
         {data.correctAnswers} of {data.totalQuestions} correct
       </Text>
       {data.deltaLine ? <Text style={styles.delta}>{data.deltaLine}</Text> : null}
-      {data.goalLine ? <Text style={styles.goal}>{data.goalLine}</Text> : null}
       {data.streakLine ? <Text style={styles.streak}>{data.streakLine}</Text> : null}
       {data.misses ? (
         <MissRecapList
@@ -92,17 +86,6 @@ export function SessionSummary({
             { label: 'Fold these', hands: data.misses.shouldFold },
           ]}
           hiddenCount={data.misses.hiddenCount}
-          styles={styles}
-          onDrill={onDrillMisses}
-        />
-      ) : null}
-      {data.actionMisses ? (
-        <MissRecapList
-          groups={data.actionMisses.groups.map((group) => ({
-            label: `${RANGE_ACTION_LABELS[group.action]} these`,
-            hands: group.hands,
-          }))}
-          hiddenCount={data.actionMisses.hiddenCount}
           styles={styles}
           onDrill={onDrillMisses}
         />
@@ -204,7 +187,6 @@ function makeStyles(theme: ThemeColors) {
       fontVariant: ['tabular-nums'],
     },
     delta: { fontFamily: fonts.bodySemibold, fontSize: 15.5, color: theme.ink2, textAlign: 'center' },
-    goal: { fontFamily: fonts.body, fontSize: 14, color: theme.ink2, textAlign: 'center' },
     streak: { fontFamily: fonts.body, fontSize: 14, color: theme.accentStrong, textAlign: 'center' },
     misses: {
       alignSelf: 'stretch',

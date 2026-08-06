@@ -12,7 +12,6 @@ import {
   clearDeletedRanges,
 } from '../storage/rangeRemoval'
 import { forgetLibraryView } from '../app/libraryView'
-import { STARTER_RANGE_TEMPLATES } from '../domain/starterRanges'
 import type { SavedRange } from '../types/range'
 
 beforeEach(() => {
@@ -42,19 +41,8 @@ function rowNames() {
 }
 
 describe('LibraryScreen', () => {
-  it('shows spot coverage for a non-empty library, and not for an empty one', () => {
-    const { unmount } = render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
-    expect(screen.queryByRole('region', { name: 'Spot coverage' })).toBeNull()
-    unmount()
-
-    saveSavedRange(makeRange('a', 'BTN open', { metadata: { position: 'btn', actionType: 'open' } }))
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
-    const coverage = screen.getByRole('region', { name: 'Spot coverage' })
-    expect(within(coverage).getByRole('button', { name: /BTN folded to you: 1 of 1/ })).toBeVisible()
-  })
-
   it('shows the empty state and the New range button', () => {
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
     expect(screen.getByRole('region', { name: 'Empty library' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'New range' })).toHaveAttribute(
       'href',
@@ -62,31 +50,15 @@ describe('LibraryScreen', () => {
     )
   })
 
-  it('fills an empty library with the starter pack in one action', async () => {
-    const user = userEvent.setup()
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
-
-    await user.click(screen.getByRole('button', { name: 'Add starter ranges' }))
-
-    const saved = loadSavedRanges()
-    expect(saved).toHaveLength(STARTER_RANGE_TEMPLATES.length)
-    expect(screen.queryByRole('region', { name: 'Empty library' })).toBeNull()
-    expect(rowNames()).toContain('BTN open (6-max 100bb)')
-    // The pack exists to make the rest of the app usable, so the spot map has to
-    // see it immediately.
-    expect(screen.getByRole('region', { name: 'Spot coverage' })).toBeVisible()
-  })
-
-  it('renders rows with thumbnails, chips, and links to the range page', () => {
+  it('renders rows with chips and links to the range page', () => {
     saveSavedRange(
       makeRange('a', 'UTG open', {
         metadata: { position: 'utg', actionType: 'open' },
       }),
     )
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
     const row = screen.getByRole('link', { name: 'Open range UTG open' })
     expect(row).toHaveAttribute('href', '#/library/a')
-    expect(within(row).getByTestId('range-thumbnail')).toBeInTheDocument()
     expect(within(row).getByText('UTG')).toBeInTheDocument()
     expect(within(row).getByText('Open')).toBeInTheDocument()
     // 3 hands: AA+KK (12) + AKs (4) = 16 combos of 1326 -> 1.2%
@@ -100,12 +72,11 @@ describe('LibraryScreen', () => {
     saveSavedRange(
       makeRange('a', 'UTG open', {
         favorite: true,
-        tags: ['Starter'],
         metadata: { position: 'utg', actionType: 'open' },
       }),
     )
     recordPracticeSession('a', { totalQuestions: 10, correctAnswers: 9 }, new Date().toISOString())
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
 
     // A row's own aria-label replaces its contents for a screen reader, so
     // everything the row draws has to be pointed back at explicitly or it is
@@ -121,7 +92,6 @@ describe('LibraryScreen', () => {
     expect(spoken).toContain('UTG')
     expect(spoken).toContain('Open')
     expect(spoken).toContain('1.2%')
-    expect(spoken).toContain('Starter')
     expect(spoken).toContain('90%')
     expect(spoken).not.toContain('MISSING')
     // The star is drawn, so "favorite" has to be said rather than shown.
@@ -138,7 +108,7 @@ describe('LibraryScreen', () => {
       { totalQuestions: 10, correctAnswers: 9 },
       new Date().toISOString(),
     )
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
     const row = screen.getByRole('link', { name: 'Open range UTG open' })
     expect(within(row).getByText('90%')).toBeInTheDocument()
     expect(within(row).getByText('today')).toBeInTheDocument()
@@ -153,7 +123,7 @@ describe('LibraryScreen', () => {
       dueAt: new Date(Date.now() + 5 * 86_400_000).toISOString(),
       lastReviewedAt: new Date().toISOString(),
     })
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
     expect(screen.queryByText('Due')).not.toBeInTheDocument()
   })
 
@@ -161,8 +131,8 @@ describe('LibraryScreen', () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'UTG open'))
     saveSavedRange(makeRange('b', 'BTN defend'))
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
-    await user.type(screen.getByLabelText('Search ranges by name, tag, notes or a hand'), 'btn')
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
+    await user.type(screen.getByLabelText('Search ranges by name, notes or a hand'), 'btn')
     expect(rowNames()).toEqual(['BTN defend'])
   })
 
@@ -170,8 +140,8 @@ describe('LibraryScreen', () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'UTG open'))
     saveSavedRange(makeRange('b', 'BTN 3-bet vs CO open'))
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
-    await user.type(screen.getByLabelText('Search ranges by name, tag, notes or a hand'), 'co btn')
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
+    await user.type(screen.getByLabelText('Search ranges by name, notes or a hand'), 'co btn')
     expect(rowNames()).toEqual(['BTN 3-bet vs CO open'])
   })
 
@@ -179,37 +149,28 @@ describe('LibraryScreen', () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'UTG open', { hands: ['AA', 'KK'] }))
     saveSavedRange(makeRange('b', 'BTN open', { hands: ['AA', 'KK', 'A5s'] }))
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
 
     // "How do I play A5s?" — the library is the only screen that can answer it.
-    await user.type(screen.getByLabelText('Search ranges by name, tag, notes or a hand'), 'a5s')
+    await user.type(screen.getByLabelText('Search ranges by name, notes or a hand'), 'a5s')
 
     expect(rowNames()).toEqual(['BTN open'])
-  })
-
-  it('searches by tag, so the box agrees with the tag filter beside it', async () => {
-    const user = userEvent.setup()
-    saveSavedRange(makeRange('a', 'UTG open', { tags: ['MTT'] }))
-    saveSavedRange(makeRange('b', 'BTN open', { tags: ['cash'] }))
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
-    await user.type(screen.getByLabelText('Search ranges by name, tag, notes or a hand'), 'mtt')
-    expect(rowNames()).toEqual(['UTG open'])
   })
 
   it('searches the range’s scenario notes', async () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'UTG open', { metadata: { notes: 'Widen vs a nitty BB.' } }))
     saveSavedRange(makeRange('b', 'BTN open'))
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
-    await user.type(screen.getByLabelText('Search ranges by name, tag, notes or a hand'), 'nitty')
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
+    await user.type(screen.getByLabelText('Search ranges by name, notes or a hand'), 'nitty')
     expect(rowNames()).toEqual(['UTG open'])
   })
 
   it('shows a no-match message for a search without hits', async () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'UTG open'))
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
-    await user.type(screen.getByLabelText('Search ranges by name, tag, notes or a hand'), 'zzz')
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
+    await user.type(screen.getByLabelText('Search ranges by name, notes or a hand'), 'zzz')
     expect(screen.getByText(/No ranges match “zzz”/)).toBeInTheDocument()
   })
 
@@ -217,7 +178,7 @@ describe('LibraryScreen', () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'UTG open', { metadata: { position: 'utg' } }))
     saveSavedRange(makeRange('b', 'BTN open', { metadata: { position: 'btn' } }))
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
 
     // Filters are collapsed by default.
     expect(screen.queryByLabelText('Filter ranges by position')).not.toBeInTheDocument()
@@ -226,30 +187,6 @@ describe('LibraryScreen', () => {
     expect(rowNames()).toEqual(['BTN open'])
     // The filter button shows the active count.
     expect(screen.getByRole('button', { name: 'Filters (1)' })).toBeInTheDocument()
-  })
-
-  it('shows tag chips on rows and filters by tag', async () => {
-    const user = userEvent.setup()
-    saveSavedRange(makeRange('a', 'MTT open', { tags: ['MTT'] }))
-    saveSavedRange(makeRange('b', 'Cash open', { tags: ['Cash'] }))
-    saveSavedRange(makeRange('c', 'No tags'))
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
-
-    // The tag chip renders on its row (before the filter panel is opened).
-    expect(screen.getByText('MTT')).toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: 'Filters' }))
-    await user.selectOptions(screen.getByLabelText('Filter ranges by tag'), 'Cash')
-    expect(rowNames()).toEqual(['Cash open'])
-    expect(screen.getByRole('button', { name: 'Filters (1)' })).toBeInTheDocument()
-  })
-
-  it('offers no tag filter when no range is tagged', async () => {
-    const user = userEvent.setup()
-    saveSavedRange(makeRange('a', 'UTG open'))
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
-    await user.click(screen.getByRole('button', { name: 'Filters' }))
-    expect(screen.queryByLabelText('Filter ranges by tag')).not.toBeInTheDocument()
   })
 
   it('filters by stack depth, action, and game type', async () => {
@@ -264,7 +201,7 @@ describe('LibraryScreen', () => {
         metadata: { stackDepthBb: 40, actionType: 'jam', gameType: 'tournament' },
       }),
     )
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
     await user.click(screen.getByRole('button', { name: 'Filters' }))
     await user.selectOptions(screen.getByLabelText('Filter ranges by stack depth'), '40')
     expect(rowNames()).toEqual(['MTT 40bb jam'])
@@ -277,8 +214,8 @@ describe('LibraryScreen', () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'UTG open', { metadata: { position: 'utg' } }))
     saveSavedRange(makeRange('b', 'BTN 3-bet', { metadata: { position: 'btn' } }))
-    const first = render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
-    await user.type(screen.getByLabelText('Search ranges by name, tag, notes or a hand'), 'btn')
+    const first = render(<LibraryScreen onPracticeSelected={vi.fn()} />)
+    await user.type(screen.getByLabelText('Search ranges by name, notes or a hand'), 'btn')
     await user.click(screen.getByRole('button', { name: 'Filters' }))
     await user.selectOptions(screen.getByLabelText('Filter ranges by position'), 'btn')
     await user.selectOptions(screen.getByLabelText('Sort ranges'), 'name')
@@ -286,12 +223,12 @@ describe('LibraryScreen', () => {
 
     // Opening a range unmounts this screen; coming back mounts a fresh one.
     first.unmount()
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
 
     // Working through a filtered group must not mean re-typing the filter after
     // every chart.
     expect(rowNames()).toEqual(['BTN 3-bet'])
-    expect(screen.getByLabelText('Search ranges by name, tag, notes or a hand')).toHaveValue('btn')
+    expect(screen.getByLabelText('Search ranges by name, notes or a hand')).toHaveValue('btn')
     expect(screen.getByLabelText('Filter ranges by position')).toHaveValue('btn')
     expect(screen.getByLabelText('Sort ranges')).toHaveValue('name')
   })
@@ -300,12 +237,12 @@ describe('LibraryScreen', () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'UTG open'))
     saveSavedRange(makeRange('b', 'BTN 3-bet'))
-    const first = render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
-    await user.type(screen.getByLabelText('Search ranges by name, tag, notes or a hand'), 'btn')
+    const first = render(<LibraryScreen onPracticeSelected={vi.fn()} />)
+    await user.type(screen.getByLabelText('Search ranges by name, notes or a hand'), 'btn')
     await user.click(screen.getByRole('button', { name: 'Clear filters' }))
 
     first.unmount()
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
 
     expect(rowNames()).toEqual(['UTG open', 'BTN 3-bet'])
   })
@@ -314,12 +251,12 @@ describe('LibraryScreen', () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'UTG open'))
     saveSavedRange(makeRange('b', 'BTN 3-bet'))
-    const first = render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    const first = render(<LibraryScreen onPracticeSelected={vi.fn()} />)
     await user.click(screen.getByRole('button', { name: 'Manage' }))
     await user.click(screen.getByRole('checkbox', { name: 'Select BTN 3-bet' }))
 
     first.unmount()
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
 
     // Back on a plain list: no ticked ranges waiting behind a Delete button.
     expect(screen.queryByRole('checkbox', { name: 'Select BTN 3-bet' })).toBeNull()
@@ -330,16 +267,16 @@ describe('LibraryScreen', () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'Zebra', { metadata: { position: 'utg' } }))
     saveSavedRange(makeRange('b', 'Alpha', { metadata: { position: 'btn' } }))
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
 
-    await user.type(screen.getByLabelText('Search ranges by name, tag, notes or a hand'), 'alpha')
+    await user.type(screen.getByLabelText('Search ranges by name, notes or a hand'), 'alpha')
     await user.selectOptions(screen.getByLabelText('Sort ranges'), 'name')
     await user.click(screen.getByRole('button', { name: 'Filters' }))
     await user.selectOptions(screen.getByLabelText('Filter ranges by position'), 'btn')
     expect(rowNames()).toEqual(['Alpha'])
 
     await user.click(screen.getByRole('button', { name: 'Clear filters' }))
-    expect(screen.getByLabelText('Search ranges by name, tag, notes or a hand')).toHaveValue('')
+    expect(screen.getByLabelText('Search ranges by name, notes or a hand')).toHaveValue('')
     expect(screen.getByLabelText('Sort ranges')).toHaveValue('')
     expect(rowNames()).toEqual(['Zebra', 'Alpha'])
   })
@@ -348,7 +285,7 @@ describe('LibraryScreen', () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'Active range'))
     saveSavedRange(makeRange('b', 'Old range', { archived: true }))
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
     expect(rowNames()).toEqual(['Active range'])
     await user.click(screen.getByRole('button', { name: 'Filters' }))
     await user.click(screen.getByRole('button', { name: 'Show archived' }))
@@ -360,7 +297,7 @@ describe('LibraryScreen', () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'Plain range'))
     saveSavedRange(makeRange('b', 'Starred range', { favorite: true }))
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
     await user.click(screen.getByRole('button', { name: 'Filters' }))
     await user.click(screen.getByRole('button', { name: 'Favorites only' }))
     expect(rowNames()).toEqual(['Starred range'])
@@ -370,7 +307,7 @@ describe('LibraryScreen', () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'Zebra'))
     saveSavedRange(makeRange('b', 'Alpha'))
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
     expect(rowNames()).toEqual(['Zebra', 'Alpha'])
     await user.selectOptions(screen.getByLabelText('Sort ranges'), 'name')
     expect(rowNames()).toEqual(['Alpha', 'Zebra'])
@@ -383,7 +320,7 @@ describe('LibraryScreen', () => {
     saveSavedRange(makeRange('c', 'Rusty'))
     recordPracticeSession('b', { totalQuestions: 10, correctAnswers: 9 })
     recordPracticeSession('c', { totalQuestions: 10, correctAnswers: 4 })
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
     await user.selectOptions(screen.getByLabelText('Sort ranges'), 'accuracy')
     expect(rowNames()).toEqual(['Sharp', 'Rusty', 'Never practiced'])
   })
@@ -394,7 +331,7 @@ describe('LibraryScreen', () => {
     saveSavedRange(makeRange('b', 'Delete one'))
     saveSavedRange(makeRange('c', 'Delete two'))
     vi.spyOn(window, 'confirm').mockReturnValue(true)
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
 
     await user.click(screen.getByRole('button', { name: 'Manage' }))
     await user.click(screen.getByRole('checkbox', { name: 'Select Delete one' }))
@@ -414,7 +351,7 @@ describe('LibraryScreen', () => {
       recordPracticeSessionHistory(id, { totalQuestions: 10, correctAnswers: 8 })
     }
     vi.spyOn(window, 'confirm').mockReturnValue(true)
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
 
     await user.click(screen.getByRole('button', { name: 'Manage' }))
     await user.click(screen.getByRole('checkbox', { name: 'Select Delete one' }))
@@ -434,7 +371,7 @@ describe('LibraryScreen', () => {
     recordPracticeSession('b', { totalQuestions: 10, correctAnswers: 8 })
     recordPracticeSessionHistory('b', { totalQuestions: 10, correctAnswers: 8 })
     vi.spyOn(window, 'confirm').mockReturnValue(true)
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
 
     await user.click(screen.getByRole('button', { name: 'Manage' }))
     await user.click(screen.getByRole('checkbox', { name: 'Select Delete one' }))
@@ -455,7 +392,7 @@ describe('LibraryScreen', () => {
     saveSavedRange(makeRange('a', 'Keep'))
     saveSavedRange(makeRange('b', 'Delete one'))
     vi.spyOn(window, 'confirm').mockReturnValue(true)
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
 
     await user.click(screen.getByRole('button', { name: 'Manage' }))
     await user.click(screen.getByRole('checkbox', { name: 'Select Delete one' }))
@@ -470,7 +407,7 @@ describe('LibraryScreen', () => {
 
   it('offers no undo until something is deleted', () => {
     saveSavedRange(makeRange('a', 'Keep'))
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
 
     expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
   })
@@ -481,7 +418,7 @@ describe('LibraryScreen', () => {
     saveSavedRange(makeRange('b', 'Deleted elsewhere'))
     // What the range page does before it navigates back here.
     rememberDeletedRanges(deleteRangesWithRecords(['b']))
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
 
     expect(screen.getByText(/“Deleted elsewhere” deleted/)).toBeVisible()
     await user.click(screen.getByRole('button', { name: 'Undo' }))
@@ -494,7 +431,7 @@ describe('LibraryScreen', () => {
     saveSavedRange(makeRange('a', 'Keep'))
     saveSavedRange(makeRange('b', 'Archive one'))
     saveSavedRange(makeRange('c', 'Archive two'))
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
 
     await user.click(screen.getByRole('button', { name: 'Manage' }))
     await user.click(screen.getByRole('checkbox', { name: 'Select Archive one' }))
@@ -521,7 +458,7 @@ describe('LibraryScreen', () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'Keep'))
     saveSavedRange(makeRange('b', 'Archive one'))
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
 
     await user.click(screen.getByRole('button', { name: 'Manage' }))
     await user.click(screen.getByRole('checkbox', { name: 'Select Archive one' }))
@@ -545,7 +482,7 @@ describe('LibraryScreen', () => {
     saveSavedRange(makeRange('a', 'Keep'))
     saveSavedRange(makeRange('b', 'Favorite one'))
     saveSavedRange(makeRange('c', 'Favorite two'))
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
 
     await user.click(screen.getByRole('button', { name: 'Manage' }))
     await user.click(screen.getByRole('checkbox', { name: 'Select Favorite one' }))
@@ -568,7 +505,7 @@ describe('LibraryScreen', () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'One'))
     saveSavedRange(makeRange('b', 'Two'))
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
 
     await user.click(screen.getByRole('button', { name: 'Manage' }))
     await user.click(screen.getByRole('button', { name: 'Select visible' }))
@@ -586,11 +523,11 @@ describe('LibraryScreen', () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange('a', 'Keep'))
     saveSavedRange(makeRange('b', 'Hide me'))
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
 
     await user.click(screen.getByRole('button', { name: 'Manage' }))
     await user.click(screen.getByRole('checkbox', { name: 'Select Hide me' }))
-    await user.type(screen.getByLabelText('Search ranges by name, tag, notes or a hand'), 'keep')
+    await user.type(screen.getByLabelText('Search ranges by name, notes or a hand'), 'keep')
 
     expect(screen.getByText('0 selected')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Practice selected' })).toBeDisabled()
@@ -606,7 +543,7 @@ describe('LibraryScreen', () => {
     saveSavedRange(makeRange('a', 'BTN 3-bet'))
     saveSavedRange(makeRange('b', 'Skip me'))
     saveSavedRange(makeRange('c', 'SB 3-bet'))
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={onPracticeSelected} />)
+    render(<LibraryScreen onPracticeSelected={onPracticeSelected} />)
 
     await user.click(screen.getByRole('button', { name: 'Manage' }))
     await user.click(screen.getByRole('checkbox', { name: 'Select SB 3-bet' }))
@@ -626,11 +563,11 @@ describe('LibraryScreen', () => {
     const onPracticeSelected = vi.fn()
     saveSavedRange(makeRange('a', 'Keep'))
     saveSavedRange(makeRange('b', 'Hide me'))
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={onPracticeSelected} />)
+    render(<LibraryScreen onPracticeSelected={onPracticeSelected} />)
 
     await user.click(screen.getByRole('button', { name: 'Manage' }))
     await user.click(screen.getByRole('button', { name: 'Select visible' }))
-    await user.type(screen.getByLabelText('Search ranges by name, tag, notes or a hand'), 'keep')
+    await user.type(screen.getByLabelText('Search ranges by name, notes or a hand'), 'keep')
     await user.click(screen.getByRole('button', { name: 'Practice selected' }))
 
     expect(onPracticeSelected.mock.calls[0][0].map((range: SavedRange) => range.name)).toEqual([

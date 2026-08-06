@@ -14,7 +14,6 @@ import {
   rememberDeletedRanges,
   clearDeletedRanges,
 } from '@core/storage/rangeRemoval';
-import { STARTER_RANGE_TEMPLATES } from '@core/domain/starterRanges';
 import type { SavedRange } from '@core/types/range';
 
 import LibraryScreen from '../app/(tabs)/library';
@@ -64,15 +63,14 @@ describe('LibraryScreen', () => {
     });
   });
 
-  it('lists saved ranges with thumbnails', async () => {
+  it('lists saved ranges', async () => {
     seed({ id: 'r1', name: 'UTG Open' });
     seed({ id: 'r2', name: 'BTN Open' });
 
-    const { getByText, getAllByTestId } = await render(<LibraryScreen />);
+    const { getByText } = await render(<LibraryScreen />);
 
     expect(getByText('UTG Open')).toBeTruthy();
     expect(getByText('BTN Open')).toBeTruthy();
-    expect(getAllByTestId('range-thumbnail')).toHaveLength(2);
   });
 
   it('announces what a row shows, not just the range name', async () => {
@@ -80,7 +78,6 @@ describe('LibraryScreen', () => {
       id: 'r1',
       name: 'UTG Open',
       favorite: true,
-      tags: ['Starter'],
       metadata: { position: 'utg', actionType: 'open' },
     });
 
@@ -94,7 +91,6 @@ describe('LibraryScreen', () => {
     expect(label).toContain('UTG');
     expect(label).toContain('Open');
     expect(label).toContain('due');
-    expect(label).toContain('Starter');
     expect(label).toContain('not practiced');
   });
 
@@ -102,18 +98,6 @@ describe('LibraryScreen', () => {
     const { getByTestId } = await render(<LibraryScreen />);
 
     expect(getByTestId('library-empty')).toBeTruthy();
-  });
-
-  it('fills an empty library with the starter pack in one action', async () => {
-    const { getByTestId, getByText, queryByTestId } = await render(<LibraryScreen />);
-
-    await act(async () => {
-      fireEvent.press(getByTestId('add-starter-ranges'));
-    });
-
-    expect(loadSavedRanges()).toHaveLength(STARTER_RANGE_TEMPLATES.length);
-    await waitFor(() => expect(queryByTestId('library-empty')).toBeNull());
-    expect(getByText('BTN open (6-max 100bb)')).toBeTruthy();
   });
 
   it('filters the list by the search query', async () => {
@@ -148,17 +132,6 @@ describe('LibraryScreen', () => {
 
     await waitFor(() => expect(queryByText('UTG Open')).toBeNull());
     expect(getByText('BTN Open')).toBeTruthy();
-  });
-
-  it('searches by tag, so the box agrees with the tag filter beside it', async () => {
-    seed({ id: 'r1', name: 'UTG Open', tags: ['MTT'] });
-    seed({ id: 'r2', name: 'BTN Open', tags: ['cash'] });
-
-    const { getByTestId, getByText, queryByText } = await render(<LibraryScreen />);
-    await fireEvent.changeText(getByTestId('library-search'), 'mtt');
-
-    await waitFor(() => expect(queryByText('BTN Open')).toBeNull());
-    expect(getByText('UTG Open')).toBeTruthy();
   });
 
   it('searches the range’s scenario notes', async () => {
@@ -238,36 +211,6 @@ describe('LibraryScreen', () => {
     await fireEvent.press(await findByTestId('toggle-archived'));
 
     await waitFor(() => expect(queryByText('UTG Open')).not.toBeNull());
-  });
-
-  it('filters by a tag chip and shows tag chips on rows', async () => {
-    seed({ id: 'r1', name: 'UTG Open', tags: ['MTT'] });
-    seed({ id: 'r2', name: 'BTN Open', tags: ['Cash'] });
-    seed({ id: 'r3', name: 'SB Open' });
-
-    const { getByTestId, findByTestId, getByText, queryByText } = await render(<LibraryScreen />);
-
-    // Each row shows its tag chips.
-    expect(getByText('MTT')).toBeTruthy();
-    expect(getByText('Cash')).toBeTruthy();
-
-    await fireEvent.press(getByTestId('filters-toggle'));
-    await fireEvent.press(await findByTestId('filter-tag-MTT'));
-
-    await waitFor(() => expect(queryByText('BTN Open')).toBeNull());
-    expect(queryByText('SB Open')).toBeNull();
-    expect(getByText('UTG Open')).toBeTruthy();
-  });
-
-  it('offers no tag filter when no range carries a tag', async () => {
-    seed({ id: 'r1', name: 'UTG Open' });
-
-    const { getByTestId, findByTestId, queryByTestId } = await render(<LibraryScreen />);
-    await fireEvent.press(getByTestId('filters-toggle'));
-
-    // The other filter groups appear, but no tag group.
-    await findByTestId('filter-position-btn');
-    expect(queryByTestId('filter-tag-MTT')).toBeNull();
   });
 
   it('shows per-range accuracy on the row', async () => {

@@ -4,9 +4,6 @@ import {
   inferScenarioFromName,
   scenarioSuggestionFor,
 } from './scenarioFromName'
-import { STARTER_RANGE_TEMPLATES } from './starterRanges'
-import { matchRangeToSpot } from './spot'
-import type { SavedRange } from '../types/range'
 
 describe('inferScenarioFromName', () => {
   it('reads a seat and an action', () => {
@@ -94,42 +91,6 @@ describe('inferScenarioFromName', () => {
   it('says nothing about a name with no scenario in it', () => {
     expect(inferScenarioFromName('My favourite chart')).toEqual({})
     expect(inferScenarioFromName('')).toEqual({})
-  })
-
-  it('reads every starter range’s own name back to its own metadata', () => {
-    // The starter pack is the app's own naming convention, so a name written that
-    // way has to parse back to exactly the scenario the pack recorded — every
-    // field but the game type, which no one puts in a chart's name.
-    for (const template of STARTER_RANGE_TEMPLATES) {
-      const named = { ...template.metadata, gameType: undefined }
-      expect({
-        name: template.name,
-        gameType: undefined,
-        ...inferScenarioFromName(template.name),
-      }).toEqual({ name: template.name, ...named })
-    }
-  })
-
-  it('produces metadata a spot can actually be matched against', () => {
-    const range: SavedRange = {
-      id: 'r1',
-      name: 'SB 3-bet vs BTN open (6-max 100bb)',
-      hands: ['AA'],
-      createdAt: '2026-01-01T00:00:00.000Z',
-      updatedAt: '2026-01-01T00:00:00.000Z',
-      metadata: inferScenarioFromName('SB 3-bet vs BTN open (6-max 100bb)'),
-    }
-
-    // The whole point: the name alone now answers a spot the drill can deal.
-    expect(
-      matchRangeToSpot([range], {
-        tableSize: 'sixMax',
-        position: 'sb',
-        situation: 'facingOpen',
-        versusPosition: 'btn',
-        stackDepthBb: 100,
-      }),
-    ).not.toBeNull()
   })
 })
 

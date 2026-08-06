@@ -1,6 +1,5 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
-import * as Linking from 'expo-linking';
 
 import { recordHandAccuracy } from '@core/storage/handAccuracyStorage';
 import { recordPracticeSessionHistory } from '@core/storage/sessionHistoryStorage';
@@ -62,46 +61,12 @@ describe('RangeScreen', () => {
     expect(getByText(/1 hand · 6 combos/)).toBeTruthy();
   });
 
-  it('gives the overview chart the hands it draws as its label', async () => {
-    seed({ id: 'r1', name: 'UTG Open' });
-
-    const { getByTestId } = await render(<RangeScreen />);
-
-    expect(getByTestId('range-thumbnail').props.accessibilityLabel).toBe(
-      'Range chart: AA, AKs, KK',
-    );
-  });
-
   it('renders metadata chips', async () => {
     seed({ id: 'r1', name: 'UTG Open', metadata: { position: 'utg', actionType: 'open' } });
 
     const { getByText } = await render(<RangeScreen />);
 
     expect(getByText('UTG')).toBeTruthy();
-  });
-
-  it('opens web source references', async () => {
-    seed({
-      id: 'r1',
-      name: 'UTG Open',
-      source: { kind: 'solver', reference: 'https://example.com/utg-open' },
-    });
-
-    const { getByTestId } = await render(<RangeScreen />);
-    fireEvent.press(getByTestId('source-reference-link'));
-    expect(Linking.openURL).toHaveBeenCalledWith('https://example.com/utg-open');
-  });
-
-  it('leaves source citations as plain text', async () => {
-    seed({
-      id: 'r1',
-      name: 'UTG Open',
-      source: { kind: 'solver', reference: 'GTOWizard 6-max' },
-    });
-
-    const { getByText, queryByTestId } = await render(<RangeScreen />);
-    expect(getByText(/GTOWizard 6-max/)).toBeTruthy();
-    expect(queryByTestId('source-reference-link')).toBeNull();
   });
 
   it('switches to the Edit tab', async () => {
@@ -113,44 +78,17 @@ describe('RangeScreen', () => {
     expect(await findByTestId('range-name-input')).toBeTruthy();
   });
 
-  it('shows the actions editor in the Actions tab', async () => {
-    seed({ id: 'r1', name: 'UTG Open' });
-
-    const { getByTestId, findByTestId } = await render(<RangeScreen />);
-    fireEvent.press(getByTestId('range-tab-actions'));
-
-    expect(await findByTestId('action-cell-AA')).toBeTruthy();
-  });
-
-  it('shows the combo explorer in the Combos tab', async () => {
-    seed({ id: 'r1', name: 'UTG Open' });
-
-    const { getByTestId, findByTestId } = await render(<RangeScreen />);
-    fireEvent.press(getByTestId('range-tab-combos'));
-
-    expect(await findByTestId('combo-hand-input')).toBeTruthy();
-  });
-
-  it('shows the frequencies editor in the Frequencies tab', async () => {
-    seed({ id: 'r1', name: 'UTG Open' });
-
-    const { getByTestId, findByTestId } = await render(<RangeScreen />);
-    fireEvent.press(getByTestId('range-tab-frequencies'));
-
-    expect(await findByTestId('freq-hand-AA')).toBeTruthy();
-  });
-
-  it('shows the accuracy heatmap in the Stats tab when there is practice data', async () => {
+  it('shows the weakest hands in the Stats tab when there is practice data', async () => {
     seed({ id: 'r1', name: 'UTG Open' });
     recordHandAccuracy('r1', [
       { hand: 'AA', attempts: 4, correct: 1, falsePositives: 0, falseNegatives: 3 },
     ]);
 
-    const { getByTestId, findByTestId, getByText } = await render(<RangeScreen />);
+    const { getByTestId, findByText } = await render(<RangeScreen />);
     fireEvent.press(getByTestId('range-tab-stats'));
 
-    expect(await findByTestId('heat-cell-AA')).toBeTruthy();
-    expect(getByText('Weakest hands')).toBeTruthy();
+    expect(await findByText('Weakest hands')).toBeTruthy();
+    expect(await findByText(/AA 25%/)).toBeTruthy();
   });
 
   it('opens the overflow menu and toggles favorite', async () => {
@@ -158,10 +96,9 @@ describe('RangeScreen', () => {
 
     const { getByTestId, findByTestId, queryByTestId } = await render(<RangeScreen />);
     fireEvent.press(getByTestId('range-menu-button'));
-    // Export items are present in the menu.
-    expect(await findByTestId('menu-copy-notation')).toBeTruthy();
-    expect(getByTestId('menu-copy-csv')).toBeTruthy();
-    // Cloud is unconfigured in tests (no session), so the publish item is gated out.
+    expect(await findByTestId('menu-duplicate')).toBeTruthy();
+    // Export, share and publish items left with their archived features.
+    expect(queryByTestId('menu-copy-notation')).toBeNull();
     expect(queryByTestId('menu-publish')).toBeNull();
     fireEvent.press(getByTestId('menu-favorite'));
 

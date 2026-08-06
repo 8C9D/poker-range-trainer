@@ -1,6 +1,5 @@
 import { HAND_CLASS_NOUNS, classifyHandClass, type HandClass } from './handClass'
 import { RANKS, generateHandMatrix, isValidHand, type PokerHand } from './pokerHands'
-import type { SavedRange } from '../types/range'
 
 /**
  * Why a hand is (or is not) in a range (v7.1 "explain every miss").
@@ -94,36 +93,4 @@ export function explainHand(hand: PokerHand, rangeHands: PokerHand[]): HandExpla
     borderline,
     line: `${opening}: ${classPart}, and ${neighbourPart}.${edgePart}`,
   }
-}
-
-/** How much of a note a drill shows before cutting it down to a glance. */
-const NOTE_DISPLAY_LIMIT = 140
-
-/**
- * The note the user wrote about `hand` on this chart, ready to show in a drill,
- * or null when they wrote none.
- *
- * Per-hand notes were only ever visible in the editor — the one place the answer
- * is already on screen. The moment they earn their keep is a miss: the note was
- * written to remember exactly this hand, in the user's own words, and it beats
- * anything the app can derive. A drill has room for a reminder rather than an
- * essay, so an over-long note is cut back to the last whole word and ellipsed.
- *
- * Notes are only stored for hands the chart plays, so a hand wrongly PLAYED
- * never has one to show; a hand wrongly folded usually does.
- */
-export function handNoteFor(
-  range: Pick<SavedRange, 'handNotes'>,
-  hand: PokerHand,
-  limit: number = NOTE_DISPLAY_LIMIT,
-): string | null {
-  const note = range.handNotes?.[hand]?.trim()
-  if (!note) return null
-  if (note.length <= limit) return note
-  const cut = note.slice(0, limit)
-  const lastSpace = cut.lastIndexOf(' ')
-  // Only break at a space that leaves most of the allowance used; one very long
-  // word would otherwise cut the note to almost nothing.
-  const kept = lastSpace > limit * 0.6 ? cut.slice(0, lastSpace) : cut
-  return `${kept.trimEnd()}…`
 }

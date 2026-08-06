@@ -3,7 +3,6 @@ import { Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'r
 import { Link, useFocusEffect, useRouter } from 'expo-router';
 
 import {
-  collectRangeTags,
   distinctStackDepths,
   filterArchivedRanges,
   filterFavoriteRanges,
@@ -12,18 +11,16 @@ import {
   filterRangesBySearch,
   filterRangesByPosition,
   filterRangesByStackDepth,
-  filterRangesByTag,
   sortRangesByAccuracy,
   sortRangesByLastPracticed,
   sortRangesByName,
   sortRangesByUpdatedAt,
 } from '@core/domain/rangeLibrary';
-import { rangeComboPercentage } from '@core/domain/comboSelection';
+import { calculateRangePercentage } from '@core/domain/rangeMath';
 import { practiceAccuracyPercentage } from '@core/domain/practiceStats';
 import { setRangeArchived } from '@core/domain/rangeArchive';
 import { setRangeFavorite } from '@core/domain/rangeFavorite';
 import { selectDueRanges } from '@core/domain/spacedRepetition';
-import { buildStarterRanges, STARTER_RANGE_TEMPLATES } from '@core/domain/starterRanges';
 import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
 import { loadReviewStates } from '@core/storage/reviewStateStorage';
 import { loadSavedRanges, saveSavedRanges } from '@core/storage/rangeStorage';
@@ -49,13 +46,10 @@ import {
 } from '@core/types/range';
 
 import { SaveErrorBanner } from '../../components/liveSave';
-import { RangeThumbnail } from '../../components/RangeThumbnail';
 import { Screen } from '../../components/Screen';
-import { SpotCoverage } from '../../components/SpotCoverage';
 import { Chip, Segmented } from '../../components/ui';
 import type { SegmentedOption } from '../../components/ui';
 import { formatDayDistance } from '../../lib/format';
-import { createRangeId } from '../../platform/createRangeId';
 import { fonts } from '../../theme/fonts';
 import { useTheme } from '../../theme/colors';
 import type { ThemeColors } from '../../theme/colors';
@@ -116,7 +110,6 @@ export default function LibraryScreen() {
   const [actionType, setActionType] = useState<ActionType | undefined>(undefined);
   const [stackDepth, setStackDepth] = useState<number | undefined>(undefined);
   const [gameType, setGameType] = useState<GameType | undefined>(undefined);
-  const [tag, setTag] = useState<string | undefined>(undefined);
   const [sort, setSort] = useState<SortOrder | undefined>(undefined);
   const [showArchived, setShowArchived] = useState(false);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
@@ -127,11 +120,6 @@ export default function LibraryScreen() {
 
   const stackOptions = useMemo<SegmentedOption<number>[]>(
     () => distinctStackDepths(ranges).map((d) => ({ key: d, label: `${d}bb` })),
-    [ranges],
-  );
-
-  const tagOptions = useMemo<SegmentedOption<string>[]>(
-    () => collectRangeTags(ranges).map((t) => ({ key: t, label: t })),
     [ranges],
   );
 
@@ -150,24 +138,21 @@ export default function LibraryScreen() {
   const visibleRanges = useMemo(() => {
     // Same pipeline as the web library: archived drop out first (unless revealed),
     // then favorites-only, then the name/metadata filters narrow.
-    const filtered = filterRangesByTag(
-      filterRangesByGameType(
-        filterRangesByStackDepth(
-          filterRangesByActionType(
-            filterRangesByPosition(
-              filterRangesBySearch(
-                filterFavoriteRanges(filterArchivedRanges(ranges, showArchived), favoritesOnly),
-                query,
-              ),
-              position ?? null,
+    const filtered = filterRangesByGameType(
+      filterRangesByStackDepth(
+        filterRangesByActionType(
+          filterRangesByPosition(
+            filterRangesBySearch(
+              filterFavoriteRanges(filterArchivedRanges(ranges, showArchived), favoritesOnly),
+              query,
             ),
-            actionType ?? null,
+            position ?? null,
           ),
-          stackDepth ?? null,
+          actionType ?? null,
         ),
-        gameType ?? null,
+        stackDepth ?? null,
       ),
-      tag ?? null,
+      gameType ?? null,
     );
     switch (sort) {
       case 'name':
@@ -190,7 +175,6 @@ export default function LibraryScreen() {
     actionType,
     stackDepth,
     gameType,
-    tag,
     sort,
     practiceStats,
   ]);
@@ -209,7 +193,6 @@ export default function LibraryScreen() {
     (actionType ? 1 : 0) +
     (stackDepth !== undefined ? 1 : 0) +
     (gameType ? 1 : 0) +
-    (tag ? 1 : 0) +
     (favoritesOnly ? 1 : 0) +
     (showArchived ? 1 : 0);
   const hasViewChanges = query.length > 0 || sort !== undefined || activeFilterCount > 0;
@@ -244,19 +227,12 @@ export default function LibraryScreen() {
     setData(loadLibraryState());
   };
 
-  const addStarterRanges = () => {
-    if (!persist(() => saveSavedRanges(buildStarterRanges(new Date().toISOString(), createRangeId))))
-      return;
-    setData(loadLibraryState());
-  };
-
   const clearViewChanges = () => {
     setQuery('');
     setPosition(undefined);
     setActionType(undefined);
     setStackDepth(undefined);
     setGameType(undefined);
-    setTag(undefined);
     setSort(undefined);
     setFavoritesOnly(false);
     setShowArchived(false);
@@ -279,11 +255,6 @@ export default function LibraryScreen() {
               <Text style={styles.ghostBtnText}>{managing ? 'Done' : 'Manage'}</Text>
             </Pressable>
           ) : null}
-          <Link href="/import" asChild>
-            <Pressable testID="import-range" style={styles.ghostBtn}>
-              <Text style={styles.ghostBtnText}>Import</Text>
-            </Pressable>
-          </Link>
           <Link href="/range/new" asChild>
             <Pressable testID="new-range" style={styles.primaryBtn}>
               <Text style={styles.primaryBtnText}>New range</Text>
@@ -517,16 +488,6 @@ export default function LibraryScreen() {
                   testIdPrefix="filter-game"
                 />
               </FilterGroup>
-              {tagOptions.length > 0 ? (
-                <FilterGroup label="Tag" theme={theme}>
-                  <Segmented
-                    options={tagOptions}
-                    value={tag}
-                    onSelect={setTag}
-                    testIdPrefix="filter-tag"
-                  />
-                </FilterGroup>
-              ) : null}
               <View style={styles.toggles}>
                 <Toggle
                   testID="filter-favorites"
@@ -556,13 +517,6 @@ export default function LibraryScreen() {
         data={visibleRanges}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={header}
-        ListFooterComponent={
-          ranges.length === 0 ? null : (
-            <View style={styles.footer}>
-              <SpotCoverage ranges={ranges} />
-            </View>
-          )
-        }
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
           <RangeRow
@@ -589,20 +543,14 @@ export default function LibraryScreen() {
             <View testID="library-empty" style={styles.emptyCard}>
               <Text style={styles.emptyTitle}>No ranges yet</Text>
               <Text style={styles.emptyBody}>
-                Create your first range and it will show up here, ready to train.
+                Create your first range and it will show up here, ready to train: pick the hands
+                on the grid, save it, then drill it until you know it cold.
               </Text>
-              <Text style={styles.emptyBody}>
-                In a hurry? Add {STARTER_RANGE_TEMPLATES.length} standard 6-max 100bb charts
-                (opens for every seat, big-blind defences, and 3-bets) and start training now.
-                They are ordinary ranges: edit or delete any of them.
-              </Text>
-              <Pressable
-                testID="add-starter-ranges"
-                style={styles.emptyPrimaryBtn}
-                onPress={addStarterRanges}
-              >
-                <Text style={styles.primaryBtnText}>Add starter ranges</Text>
-              </Pressable>
+              <Link href="/range/new" asChild>
+                <Pressable testID="create-first-range" style={styles.emptyPrimaryBtn}>
+                  <Text style={styles.primaryBtnText}>Create a range</Text>
+                </Pressable>
+              </Link>
             </View>
           ) : (
             <Text testID="no-match" style={styles.noMatch}>
@@ -691,9 +639,11 @@ function RangeRow({
   onToggle: () => void;
 }) {
   const meta = range.metadata;
-  const percentage = rangeComboPercentage(range.hands, range.comboSelections);
+  // Hand-class model only: saved per-combo selections are ignored here, so a
+  // range whose AA is narrowed to one combo still counts all six.
+  const percentage = calculateRangePercentage(range.hands);
   // VoiceOver reads a Pressable's own label instead of its children, so without
-  // this the chips and the practice line below — seat, action, size, due, tags,
+  // this the chips and the practice line below — seat, action, size, due,
   // accuracy — are announced to nobody. The web row points at them by id;
   // React Native has no describedby, so the same facts are said here.
   const spokenFacts = [
@@ -705,7 +655,6 @@ function RangeRow({
     `${percentage.toFixed(1)}%`,
     due ? 'due' : null,
     range.archived ? 'archived' : null,
-    ...(range.tags ?? []),
     stats && stats.totalAttempts > 0
       ? `${practiceAccuracyPercentage(stats).toFixed(0)}% accuracy, practiced ${formatDayDistance(stats.lastPracticedAt, nowIso)}`
       : 'not practiced',
@@ -726,7 +675,6 @@ function RangeRow({
         style={styles.row}
       >
         {managing ? <Text style={styles.selectionBox}>{selected ? '✓' : '○'}</Text> : null}
-        <RangeThumbnail hands={range.hands} size={44} />
         <View style={styles.rowInfo}>
           <View style={styles.rowNameLine}>
             {range.favorite ? (
@@ -748,7 +696,6 @@ function RangeRow({
             <Chip label={`${percentage.toFixed(1)}%`} />
             {due ? <Chip label="Due" tone="due" testID={`due-${range.id}`} /> : null}
             {range.archived ? <Chip label="Archived" /> : null}
-            {range.tags?.map((rangeTag) => <Chip key={rangeTag} label={rangeTag} />)}
           </View>
         </View>
         <View style={styles.rowStats}>
@@ -778,7 +725,6 @@ function makeStyles(theme: ThemeColors) {
   return StyleSheet.create({
     listContent: { padding: 16, gap: 12, paddingBottom: 32 },
     header: { gap: 12, marginBottom: 4 },
-    footer: { marginTop: 4 },
     titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     titleActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     bulkActions: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },

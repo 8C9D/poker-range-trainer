@@ -12,7 +12,6 @@ import type { SavedRange } from '@core/types/range';
 import TodayScreen from '../app/(tabs)/index';
 import LibraryScreen from '../app/(tabs)/library';
 import ProgressScreen from '../app/(tabs)/progress';
-import DiffScreen from '../app/diff';
 import RangeScreen from '../app/range/[id]';
 import PracticeScreen from '../app/practice';
 import { installLocalStorage, localStorageShim } from '../platform/localStorageShim';
@@ -141,19 +140,6 @@ describe('accessible names', () => {
     const { getByTestId, toJSON } = await render(<RangeScreen />);
 
     await user.press(getByTestId(`range-tab-${tab}`));
-
-    expect(droppedLabels(toJSON())).toEqual([]);
-  });
-
-  it('never labels a container that cannot carry a name on the diff', async () => {
-    seed('r1', 'Range One');
-    seed('r2', 'Range Two', ['KK', 'QQ']);
-    const user = userEvent.setup();
-    const { getByTestId, toJSON } = await render(<DiffScreen />);
-
-    // The grid only exists once both sides are chosen.
-    await user.press(getByTestId('diff-a-r1'));
-    await user.press(getByTestId('diff-b-r2'));
 
     expect(droppedLabels(toJSON())).toEqual([]);
   });

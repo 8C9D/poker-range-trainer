@@ -32,118 +32,52 @@ describe('RangeEditTab summary', () => {
   })
 })
 
-describe('RangeEditTab per-hand notes', () => {
-  it('drops a note for a hand that is deselected before saving', () => {
-    const onSaved = vi.fn()
-    render(
-      <RangeEditTab
-        range={makeRange({ handNotes: { AA: 'note on aces', KK: 'note on kings' } })}
-        onSaved={onSaved}
-      />,
-    )
-
-    // A detail-0 click takes the grid's keyboard/assistive toggle path, so this
-    // deselects AA without simulating a drag gesture.
-    fireEvent.click(screen.getByRole('button', { name: 'AA' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
-
-    expect(onSaved).toHaveBeenCalledTimes(1)
-    const saved = onSaved.mock.calls[0][0] as SavedRange
-    expect(saved.hands).toEqual(['KK'])
-    expect(saved.handNotes).toEqual({ KK: 'note on kings' })
-    expect(saved.handNotes).not.toHaveProperty('AA')
-  })
-
-  it('saves tags added in the editor', async () => {
-    const user = userEvent.setup()
-    const onSaved = vi.fn()
-    render(<RangeEditTab range={makeRange()} onSaved={onSaved} />)
-
-    await user.type(screen.getByLabelText('Add a tag'), 'MTT{Enter}')
-    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
-
-    const saved = onSaved.mock.calls[0][0] as SavedRange
-    expect(saved.tags).toEqual(['MTT'])
-  })
-
-  it('keeps notes for hands that remain selected', () => {
-    const onSaved = vi.fn()
-    render(
-      <RangeEditTab
-        range={makeRange({ handNotes: { AA: 'note on aces', KK: 'note on kings' } })}
-        onSaved={onSaved}
-      />,
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
-
-    const saved = onSaved.mock.calls[0][0] as SavedRange
-    expect(saved.handNotes).toEqual({ AA: 'note on aces', KK: 'note on kings' })
-  })
-})
-
-describe('RangeEditTab per-hand overlays', () => {
-  const overlays = {
+describe('RangeEditTab archived-feature data', () => {
+  const stored = {
+    handNotes: { AA: 'note on aces', KK: 'note on kings' },
     mixedStrategies: {
       AA: [{ action: 'raise' as const, frequency: 100 }],
       KK: [{ action: 'call' as const, frequency: 100 }],
     },
-    comboSelections: { AA: ['AhAs'], KK: ['KhKs'] },
+    comboSelections: { AA: ['AcAd'], KK: ['KcKd'] },
+    handActions: { AA: 'raise' as const },
+    tags: ['MTT'],
+    source: { kind: 'book' as const, reference: 'Ch. 4' },
   }
 
-  it('drops the mixed strategy and combo selection of a deselected hand', () => {
+  it('carries stored overlays, tags and source through a save untouched', () => {
     const onSaved = vi.fn()
-    render(<RangeEditTab range={makeRange(overlays)} onSaved={onSaved} />)
+    render(<RangeEditTab range={makeRange(stored)} onSaved={onSaved} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'AA' }))
     fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
 
     const saved = onSaved.mock.calls[0][0] as SavedRange
-    expect(saved.hands).toEqual(['KK'])
-    // Otherwise the frequency quiz keeps drilling AA, which the Frequencies tab
-    // can no longer show or clear because it lists only the range's hands.
-    expect(saved.mixedStrategies).toEqual({ KK: overlays.mixedStrategies.KK })
-    expect(saved.comboSelections).toEqual({ KK: overlays.comboSelections.KK })
+    expect(saved.handNotes).toEqual(stored.handNotes)
+    expect(saved.mixedStrategies).toEqual(stored.mixedStrategies)
+    expect(saved.comboSelections).toEqual(stored.comboSelections)
+    expect(saved.handActions).toEqual(stored.handActions)
+    expect(saved.tags).toEqual(stored.tags)
+    expect(saved.source).toEqual(stored.source)
   })
 
-  it('keeps the overlays of hands that remain selected', () => {
+  it('restores a deselected hand’s overlays when it is re-selected in the session', () => {
     const onSaved = vi.fn()
-    render(<RangeEditTab range={makeRange(overlays)} onSaved={onSaved} />)
+    render(<RangeEditTab range={makeRange(stored)} onSaved={onSaved} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
-
-    const saved = onSaved.mock.calls[0][0] as SavedRange
-    expect(saved.mixedStrategies).toEqual(overlays.mixedStrategies)
-    expect(saved.comboSelections).toEqual(overlays.comboSelections)
-  })
-
-  it('restores a deselected hand’s overlays when it is re-selected in the same session', () => {
-    const onSaved = vi.fn()
-    render(<RangeEditTab range={makeRange(overlays)} onSaved={onSaved} />)
-
+    // A detail-0 click takes the grid's keyboard/assistive toggle path, so this
+    // toggles AA without simulating a drag gesture.
     fireEvent.click(screen.getByRole('button', { name: 'AA' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
     fireEvent.click(screen.getByRole('button', { name: 'AA' }))
     fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
 
-    const saved = onSaved.mock.calls[0][0] as SavedRange
-    expect(saved.mixedStrategies).toEqual(overlays.mixedStrategies)
-    expect(saved.comboSelections).toEqual(overlays.comboSelections)
-  })
-
-  it('drops the fields entirely when no selected hand has an overlay', () => {
-    const onSaved = vi.fn()
-    render(
-      <RangeEditTab
-        range={makeRange({ mixedStrategies: { AA: [{ action: 'raise', frequency: 100 }] } })}
-        onSaved={onSaved}
-      />,
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: 'AA' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
-
-    const saved = onSaved.mock.calls[0][0] as SavedRange
-    expect(saved).not.toHaveProperty('mixedStrategies')
+    // Storage scopes overlays to the range's hands, so the first save dropped
+    // AA's entries; the session snapshot brings them back with the hand.
+    const saved = onSaved.mock.calls[1][0] as SavedRange
+    expect(saved.hands).toEqual(['AA', 'KK'])
+    expect(saved.handNotes).toEqual(stored.handNotes)
+    expect(saved.mixedStrategies).toEqual(stored.mixedStrategies)
+    expect(saved.comboSelections).toEqual(stored.comboSelections)
   })
 })
 
@@ -180,16 +114,6 @@ describe('RangeEditTab save accessibility', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
-  it('clears the saved status when a per-hand note changes', async () => {
-    const user = userEvent.setup()
-    render(<RangeEditTab range={makeRange()} onSaved={vi.fn()} />)
-
-    await user.click(screen.getByRole('button', { name: 'Save Changes' }))
-    expect(screen.getByRole('status')).toBeInTheDocument()
-
-    await user.type(screen.getByLabelText('Note for AA'), 'Never fold')
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
-  })
 })
 
 describe('RangeEditTab selection history', () => {
@@ -231,43 +155,6 @@ describe('RangeEditTab selection history', () => {
 
     fireEvent.keyDown(screen.getByLabelText('Range name'), { key: 'z', ctrlKey: true })
     expect(aces).toHaveAttribute('aria-pressed', 'false')
-  })
-})
-
-describe('RangeEditTab scenario pre-fill', () => {
-  it('starts a new range from the supplied scenario metadata', () => {
-    render(
-      <RangeEditTab
-        range={null}
-        prefill={{
-          position: 'bb',
-          actionType: 'defend',
-          versusPosition: 'co',
-          tableSize: 'sixMax',
-          stackDepthBb: 40,
-        }}
-        onSaved={vi.fn()}
-      />,
-    )
-
-    expect(screen.getByLabelText('Position')).toHaveValue('bb')
-    expect(screen.getByLabelText('Action type')).toHaveValue('defend')
-    expect(screen.getByLabelText('Versus position')).toHaveValue('co')
-    expect(screen.getByLabelText('Table size')).toHaveValue('sixMax')
-    expect(screen.getByLabelText('Stack depth')).toHaveValue(40)
-  })
-
-  it('ignores a pre-fill when an existing range is being edited', () => {
-    render(
-      <RangeEditTab
-        range={makeRange({ metadata: { position: 'btn', actionType: 'open' } })}
-        prefill={{ position: 'bb', actionType: 'defend' }}
-        onSaved={vi.fn()}
-      />,
-    )
-
-    expect(screen.getByLabelText('Position')).toHaveValue('btn')
-    expect(screen.getByLabelText('Action type')).toHaveValue('open')
   })
 })
 

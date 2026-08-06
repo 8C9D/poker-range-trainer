@@ -2,8 +2,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Link, Stack, useLocalSearchParams, useRouter } from 'expo-router';
 
 import { isValidHand, type PokerHand } from '@core/domain/pokerHands';
-import { findSavedRangeById, loadSavedRanges } from '@core/storage/rangeStorage';
-import { TABLE_SIZES, type SavedRange, type TableSize } from '@core/types/range';
+import { findSavedRangeById } from '@core/storage/rangeStorage';
+import type { SavedRange } from '@core/types/range';
 
 import { PracticeHost, type PracticeRequest } from '../components/practice/PracticeHost';
 import type { PracticeMode } from '../components/practice/ModePicker';
@@ -11,18 +11,7 @@ import { Screen } from '../components/Screen';
 import { fonts } from '../theme/fonts';
 import { useTheme } from '../theme/colors';
 
-const MODES: PracticeMode[] = [
-  'recognize',
-  'spots',
-  'build',
-  'timed',
-  'weakness',
-  'action',
-  'mixed',
-  'combo',
-  'postflop',
-  'board',
-];
+const MODES: PracticeMode[] = ['recognize', 'build', 'timed', 'weakness', 'edges'];
 
 type RouteValue = string | string[] | undefined;
 
@@ -42,11 +31,6 @@ function commaList(value: RouteValue): string[] {
 
 function handList(value: RouteValue): PokerHand[] {
   return commaList(value).filter(isValidHand);
-}
-
-function positiveNumber(value: RouteValue, fallback: number): number {
-  const parsed = Number(single(value));
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
 /** Parse the per-range weak-hand pools (`pools` = JSON of Record<rangeId, hand[]>). */
@@ -86,20 +70,13 @@ export default function PracticeScreen() {
     mode?: RouteValue;
     pool?: RouteValue;
     pools?: RouteValue;
-    table?: RouteValue;
-    stack?: RouteValue;
-    spot?: RouteValue;
   }>();
 
   const mode = asMode(params.mode);
-  // The spot drill is not launched from a range: it deals from the whole library.
   const ids = params.queue ? commaList(params.queue) : single(params.id) ? [single(params.id)!] : [];
-  const ranges =
-    mode === 'spots'
-      ? loadSavedRanges()
-      : ids
-          .map((id) => findSavedRangeById(id))
-          .filter((range): range is SavedRange => range !== undefined);
+  const ranges = ids
+    .map((id) => findSavedRangeById(id))
+    .filter((range): range is SavedRange => range !== undefined);
   const handPool = handList(params.pool);
 
   const close = () => {
@@ -112,7 +89,10 @@ export default function PracticeScreen() {
       <Screen>
         <Stack.Screen options={{ headerShown: false }} />
         <View style={styles.notFound}>
-          <Text style={[styles.notFoundText, { color: theme.ink2 }]}>Range not found.</Text>
+          <Text style={[styles.notFoundText, { color: theme.ink2 }]}>
+            Nothing to practice — this link points at a range that no longer exists. Create or
+            open a range in the Library to start a drill.
+          </Text>
           <Link href="/library" asChild>
             <Text style={[styles.link, { color: theme.accentStrong }]}>Back to Library</Text>
           </Link>
@@ -124,16 +104,6 @@ export default function PracticeScreen() {
   const request: PracticeRequest = {
     ranges,
     mode,
-    spotFormat:
-      mode === 'spots'
-        ? {
-            tableSize: (TABLE_SIZES as readonly string[]).includes(single(params.table) ?? '')
-              ? (single(params.table) as TableSize)
-              : 'sixMax',
-            stackDepthBb: positiveNumber(params.stack, 100),
-          }
-        : undefined,
-    spotKeys: mode === 'spots' && single(params.spot) ? [single(params.spot)!] : undefined,
     handPool: handPool.length > 0 ? handPool : undefined,
     handPools: parsePools(params.pools),
   };

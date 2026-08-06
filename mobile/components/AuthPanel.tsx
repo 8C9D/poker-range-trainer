@@ -4,8 +4,6 @@ import type { Session, SupabaseClient } from '@supabase/supabase-js';
 
 import { getCurrentSession, onAuthChange, signIn, signOut, signUp } from '@core/cloud/auth';
 import { deleteBackup, pullBackup, pushBackup } from '@core/cloud/backupRepo';
-import { unpublishAllSharedPacks } from '@core/cloud/sharedPacksRepo';
-import { unpublishAllSharedRanges } from '@core/cloud/sharedRangesRepo';
 import { buildBackup, restoreBackup } from '@core/storage/backup';
 
 import { getMobileSupabaseClient } from '../platform/supabaseClient';
@@ -120,7 +118,7 @@ export function AuthPanel() {
     if (!client) return;
     Alert.alert(
       'Delete cloud data',
-      'Remove your cloud backup and revoke every share link you have published? Your ranges stay on this device.',
+      'Remove your cloud backup? Your ranges stay on this device.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -128,24 +126,13 @@ export function AuthPanel() {
           style: 'destructive',
           onPress: () =>
             void run(async () => {
-              const resolveUserId = async () => session?.user?.id ?? null;
-              // Best-effort: attempt all three so a failure in one still clears the rest.
-              const results = await Promise.allSettled([
-                deleteBackup({ client }),
-                unpublishAllSharedPacks({ client, resolveUserId }),
-                unpublishAllSharedRanges({ client, resolveUserId }),
-              ]);
-              const failure = results.find((result) => result.status === 'rejected');
-              if (failure?.status === 'rejected') {
-                const { reason } = failure;
-                throw reason instanceof Error ? reason : new Error('Delete failed.');
-              }
-              setSyncStatus('Deleted your cloud backup and revoked your published share links.');
+              await deleteBackup({ client });
+              setSyncStatus('Deleted your cloud backup.');
             }),
         },
       ],
     );
-  }, [client, run, session]);
+  }, [client, run]);
 
   return (
     <View style={styles.panel}>

@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { SVG_PALETTE } from './domain/rangeTransfer'
 
 /**
  * Guards the stylesheets against referencing custom properties nothing defines.
@@ -209,7 +208,9 @@ describe('wide tables', () => {
       })
     }
     // Guards the guard: an empty sweep would pass no matter what the JSX says.
-    expect(tables).toBeGreaterThanOrEqual(5)
+    // (Three tables remain after the v1 trim: per-hand accuracy, session
+    // history, and the Progress weakest-hands table.)
+    expect(tables).toBeGreaterThanOrEqual(3)
     expect(unwrapped).toEqual([])
   })
 })
@@ -528,33 +529,6 @@ describe('app icons', () => {
     for (const file of shipped) {
       expect(`${referenced}${manifest}`, `nothing references public/${file}`).toContain(file)
     }
-  })
-})
-
-/**
- * The one place a palette value is legitimately copied out of the stylesheet.
- *
- * A downloaded SVG is opened outside the app, where no `theme.css` defines the
- * tokens, so the export has to inline literals. Copied once and then left alone,
- * they froze: the file kept painting the purple-on-near-black scheme the app had
- * long since replaced, so "export as image" handed the user a chart in colors
- * their trainer no longer uses anywhere. This pins each literal back to the
- * light-theme declaration it stands for, following one level of `var()` aliasing
- * (`--act-call: var(--good)`), so the next palette change cannot re-freeze them.
- */
-describe('SVG export palette', () => {
-  const css = readFileSync(join(SRC, 'theme.css'), 'utf8')
-  const light = css.slice(0, css.indexOf('@media (prefers-color-scheme: dark)'))
-  const literals = tokensIn(light)
-  const aliases: Record<string, string> = {}
-  for (const match of light.matchAll(/(--[\w-]+):\s*var\((--[\w-]+)\)\s*;/g)) {
-    aliases[match[1]] = match[2]
-  }
-
-  it.each(Object.entries(SVG_PALETTE))('keeps %s at the value theme.css gives it', (token, hex) => {
-    const resolved = literals[token] ?? literals[aliases[token]]
-    expect(resolved, `theme.css defines no light value for ${token}`).toMatch(/^#[0-9a-f]{6}$/)
-    expect(resolved).toBe(hex)
   })
 })
 

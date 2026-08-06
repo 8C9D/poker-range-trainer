@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
-import type { ActionMissRecap, MissRecap } from '../domain/missRecap'
+import type { MissRecap } from '../domain/missRecap'
 import type { PokerHand } from '../domain/pokerHands'
-import { RANGE_ACTION_LABELS } from '../types/range'
 
 export interface SessionSummaryData {
   totalQuestions: number
@@ -10,14 +9,10 @@ export interface SessionSummaryData {
   accuracy: number
   /** Growth-framed comparison line, or null when there is nothing to compare. */
   deltaLine: string | null
-  /** Daily-goal progress line (the workout reports it), or null to omit. */
-  goalLine?: string | null
   /** Streak confirmation line, or null when no streak is active. */
   streakLine: string | null
   /** The session's missed hands, or null when nothing was missed. */
   misses?: MissRecap | null
-  /** The same for an action quiz, whose misses group by the action wanted. */
-  actionMisses?: ActionMissRecap | null
   /** Why the run could not be persisted, or null when it saved. */
   saveError?: string | null
 }
@@ -115,7 +110,6 @@ export function SessionSummary({
         {data.correctAnswers} of {data.totalQuestions} correct
       </p>
       {data.deltaLine && <p className="session-summary-delta">{data.deltaLine}</p>}
-      {data.goalLine && <p className="session-summary-goal">{data.goalLine}</p>}
       {data.streakLine && <p className="session-summary-streak">{data.streakLine}</p>}
       {data.misses && (
         <MissRecapList
@@ -124,16 +118,6 @@ export function SessionSummary({
             { label: 'Fold these', hands: data.misses.shouldFold },
           ]}
           hiddenCount={data.misses.hiddenCount}
-          onDrill={onDrillMisses}
-        />
-      )}
-      {data.actionMisses && (
-        <MissRecapList
-          groups={data.actionMisses.groups.map((group) => ({
-            label: `${RANGE_ACTION_LABELS[group.action]} these`,
-            hands: group.hands,
-          }))}
-          hiddenCount={data.actionMisses.hiddenCount}
           onDrill={onDrillMisses}
         />
       )}
@@ -188,8 +172,8 @@ function MissRecapList({
 }) {
   return (
     <section className="session-summary-misses" aria-label="What you missed">
-      {/* h2, matching the workout hand-off: the overlay's own title is a span,
-          so this is the first heading inside the dialog. */}
+      {/* h2: the overlay's own title is a span, so this is the first heading
+          inside the dialog. */}
       <h2>What you missed</h2>
       {groups
         .filter((group) => group.hands.length > 0)

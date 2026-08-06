@@ -1,92 +1,24 @@
 import { lazy, Suspense, useCallback, useState, type ReactNode } from 'react'
 import { ErrorBoundary } from './components/ErrorBoundary'
-import { SharedRangePage } from './components/SharedRangePage'
-import { SharedPackPage } from './components/SharedPackPage'
-import { parsePackShareRoute, parseShareRoute } from './domain/shareRoute'
-import { decodeRangeFromHash } from './domain/rangeTransfer'
-import { loadSavedRanges } from './storage/rangeStorage'
 import { AppShell } from './app/AppShell'
-import { forkSharedPack, forkSharedRange } from './app/forkShared'
 import { routeHash, useHashRoute } from './app/routes'
 import { useBackToClose } from './app/useBackToClose'
 import type { PracticeRequest } from './practice/PracticeHost'
 
-// The practice/drill/postflop subtree is large and only rendered once a user
-// starts a session, so load it lazily to keep it out of the initial bundle.
+// The practice/drill subtree is large and only rendered once a user starts a
+// session, so load it lazily to keep it out of the initial bundle.
 const PracticeHost = lazy(() =>
   import('./practice/PracticeHost').then((module) => ({ default: module.PracticeHost })),
-)
-const WorkoutHost = lazy(() =>
-  import('./practice/WorkoutHost').then((module) => ({ default: module.WorkoutHost })),
 )
 import { AccountScreen } from './screens/AccountScreen'
 import { LibraryScreen } from './screens/LibraryScreen'
 import { ProgressScreen } from './screens/ProgressScreen'
 import { RangeScreen } from './screens/RangeScreen'
 import { TodayScreen } from './screens/TodayScreen'
-import type { DailyWorkout } from './domain/dailyWorkout'
 import type { PokerHand } from './domain/pokerHands'
-import { spotKey } from './domain/spot'
 import type { SavedRange } from './types/range'
 
-/**
- * Import a range shared via a `#range=<hash>` link into local storage once, at
- * module load, then replace the hash so a refresh won't re-import. Doing this
- * before React renders lets the normal `loadSavedRanges()` initializer pick it
- * up without a synchronous setState in an effect. No-op when there's no hash.
- *
- * A successful import opens the range it just added, the same landing as saving
- * a new range or duplicating one. Clearing the hash instead dropped the visitor
- * on Today with the library silently one longer — a failed link at least said
- * so, while a working one said nothing at all.
- */
-function importSharedRangeFromHash() {
-  if (typeof window === 'undefined') return
-  const match = /^#range=(.+)$/.exec(window.location.hash)
-  if (!match) return
-  let landing = ''
-  try {
-    const id = forkSharedRange(decodeRangeFromHash(match[1]))
-    landing = routeHash({ screen: 'range', id, tab: 'overview' })
-  } catch (error) {
-    window.alert(error instanceof Error ? error.message : 'Could not open shared range.')
-  }
-  window.history.replaceState(
-    null,
-    '',
-    window.location.pathname + window.location.search + landing,
-  )
-}
-
-importSharedRangeFromHash()
-
 function App() {
-  // A `#/r/:id` share link shows the read-only shared page instead of the app.
-  // Parsed once at render; visiting a share link is a fresh page load.
-  const shareRoute = typeof window !== 'undefined' ? parseShareRoute(window.location.hash) : null
-  if (shareRoute) {
-    return (
-      <SharedRangePage
-        id={shareRoute.id}
-        token={shareRoute.token}
-        onForkRange={forkSharedRange}
-      />
-    )
-  }
-
-  // A `#/p/:id` link shows the read-only shared PACK page (bundle of ranges).
-  const packRoute =
-    typeof window !== 'undefined' ? parsePackShareRoute(window.location.hash) : null
-  if (packRoute) {
-    return (
-      <SharedPackPage
-        id={packRoute.id}
-        token={packRoute.token}
-        onForkPack={forkSharedPack}
-      />
-    )
-  }
-
   return <CoachApp />
 }
 
@@ -99,25 +31,9 @@ function App() {
 function CoachApp() {
   const route = useHashRoute()
   const [practice, setPractice] = useState<PracticeRequest | null>(null)
-  const [workout, setWorkout] = useState<DailyWorkout | null>(null)
 
   const closePractice = useCallback(() => setPractice(null), [])
-  const closeWorkout = useCallback(() => setWorkout(null), [])
-  /**
-   * ONE Back handler for both hosts, not one each.
-   *
-   * At most one is on screen (the workout wins), so this is the same behavior —
-   * but as two hooks the workout-to-practice hand-off closed the run it had just
-   * opened: dropping the workout tore down its hook, whose cleanup pops the
-   * entry it pushed, while the practice hook pushed a fresh one in the same
-   * commit. The pop then landed on an unmarked entry and read as a real Back.
-   * Held open across the hand-off, the pushed entry simply stays.
-   */
-  const closeSession = useCallback(
-    () => (workout !== null ? closeWorkout() : closePractice()),
-    [workout, closeWorkout, closePractice],
-  )
-  useBackToClose(workout !== null || practice !== null, closeSession)
+  useBackToClose(practice !== null, closePractice)
 
   function startReview(queue: SavedRange[]) {
     if (queue.length === 0) return
@@ -129,32 +45,6 @@ function CoachApp() {
     // A restricted pool (weak hands) goes straight to recognition; otherwise
     // open the mode picker.
     setPractice({ ranges: [range], mode: handPool ? 'recognize' : null, handPool })
-  }
-
-  /**
-   * Re-drill a finished workout's misses. The run spans several ranges, so it
-   * hands its pools up here to be replayed as one recognition queue over the
-   * ranges that actually missed something — the same shape the Progress
-   * screen's weak-hands drill uses.
-   */
-  function drillWorkoutMisses(pools: Record<string, PokerHand[]>) {
-    const queue = loadSavedRanges().filter((range) => pools[range.id]?.length)
-    setWorkout(null)
-    if (queue.length === 0) return
-    setPractice({ ranges: queue, mode: 'recognize', handPools: pools })
-  }
-
-  if (workout) {
-    return (
-      <SessionChunk onGiveUp={closeWorkout}>
-        <WorkoutHost
-          workout={workout}
-          ranges={loadSavedRanges()}
-          onClose={closeWorkout}
-          onDrillMisses={drillWorkoutMisses}
-        />
-      </SessionChunk>
-    )
   }
 
   if (practice) {
@@ -173,40 +63,17 @@ function CoachApp() {
           onDrillWeakHands={(queue, pools) =>
             setPractice({ ranges: queue, mode: 'recognize', handPools: pools })
           }
-          onPlaySpots={(spotFormat) =>
-            setPractice({ ranges: loadSavedRanges(), mode: 'spots', spotFormat })
-          }
-          onStartWorkout={setWorkout}
         />
       ) : route.screen === 'library' ? (
-        <LibraryScreen
-          onPlaySpots={(spotFormat) =>
-            setPractice({ ranges: loadSavedRanges(), mode: 'spots', spotFormat })
-          }
-          onPracticeSelected={startReview}
-        />
+        <LibraryScreen onPracticeSelected={startReview} />
       ) : route.screen === 'range' ? (
         <RangeScreen key={route.id} id={route.id} tab={route.tab} onPractice={startPractice} />
       ) : route.screen === 'newRange' ? (
-        <RangeScreen
-          key={routeHash(route)}
-          id={null}
-          tab="edit"
-          prefill={route.prefill}
-          onPractice={startPractice}
-        />
+        <RangeScreen key={routeHash(route)} id={null} tab="edit" onPractice={startPractice} />
       ) : route.screen === 'progress' ? (
         <ProgressScreen
           onDrillWeakHands={(queue, pools) =>
             setPractice({ ranges: queue, mode: 'recognize', handPools: pools })
-          }
-          onDrillSpot={(spot) =>
-            setPractice({
-              ranges: loadSavedRanges(),
-              mode: 'spots',
-              spotFormat: { tableSize: spot.tableSize, stackDepthBb: spot.stackDepthBb },
-              spotKeys: [spotKey(spot)],
-            })
           }
         />
       ) : (
@@ -217,9 +84,8 @@ function CoachApp() {
 }
 
 /**
- * The wrapper the lazily-loaded practice and workout subtrees are mounted in:
- * their Suspense fallback, plus a boundary that keeps a failed chunk load inside
- * the session.
+ * The wrapper the lazily-loaded practice subtree is mounted in: its Suspense
+ * fallback, plus a boundary that keeps a failed chunk load inside the session.
  *
  * Without it the failure reaches the ROOT boundary, which replaces the entire
  * app — and its "Try again" cannot recover: React caches a rejected `lazy`

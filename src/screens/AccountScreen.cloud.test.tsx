@@ -3,8 +3,6 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AccountScreen } from './AccountScreen'
 import { deleteBackup, pullBackup } from '../cloud/backupRepo'
-import { publishSharedPack, unpublishAllSharedPacks } from '../cloud/sharedPacksRepo'
-import { unpublishAllSharedRanges } from '../cloud/sharedRangesRepo'
 import { buildBackup, type Backup } from '../storage/backup'
 import { loadSavedRanges, saveSavedRange } from '../storage/rangeStorage'
 import type { SavedRange } from '../types/range'
@@ -23,14 +21,6 @@ vi.mock('../cloud/backupRepo', () => ({
   pushBackup: vi.fn(),
   pullBackup: vi.fn(),
   deleteBackup: vi.fn(),
-}))
-vi.mock('../cloud/sharedPacksRepo', () => ({
-  publishSharedPack: vi.fn(),
-  unpublishSharedPack: vi.fn(),
-  unpublishAllSharedPacks: vi.fn(),
-}))
-vi.mock('../cloud/sharedRangesRepo', () => ({
-  unpublishAllSharedRanges: vi.fn(),
 }))
 
 beforeEach(() => {
@@ -115,31 +105,14 @@ describe('AccountScreen cloud sync (signed in)', () => {
     expect(loadSavedRanges().map((range) => range.name)).toEqual(['Local range'])
   })
 
-  it('names a one-range library in the singular when asking to publish it', async () => {
-    const user = userEvent.setup()
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
-    vi.mocked(publishSharedPack).mockResolvedValue({ id: 'p1', token: null, isPublic: true })
-    saveSavedRange(makeRange('l1', 'Local range'))
-
-    render(<AccountScreen />)
-    await user.click(screen.getByRole('button', { name: 'Publish pack link' }))
-
-    expect(confirm.mock.calls[0][0]).toContain('Publish all 1 range as')
-  })
-
-  it('delete cloud data still attempts every revocation and surfaces the failure', async () => {
+  it('surfaces a failed cloud-data delete', async () => {
     const user = userEvent.setup()
     vi.spyOn(window, 'confirm').mockReturnValue(true)
     vi.mocked(deleteBackup).mockRejectedValue(new Error('Backup delete failed.'))
-    vi.mocked(unpublishAllSharedPacks).mockResolvedValue(undefined)
-    vi.mocked(unpublishAllSharedRanges).mockResolvedValue(undefined)
 
     render(<AccountScreen />)
     await user.click(screen.getByRole('button', { name: 'Delete cloud data' }))
 
     expect(await screen.findByText('Backup delete failed.')).toBeInTheDocument()
-    // Best-effort semantics: the share revocations ran despite the backup failure.
-    expect(unpublishAllSharedPacks).toHaveBeenCalledTimes(1)
-    expect(unpublishAllSharedRanges).toHaveBeenCalledTimes(1)
   })
 })

@@ -1,8 +1,11 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { PokerHand } from '@core/domain/pokerHands';
-import { countRangeCombos, rangeComboPercentage } from '@core/domain/comboSelection';
-import { TOTAL_HOLDEM_COMBOS } from '@core/domain/rangeMath';
+import {
+  TOTAL_HOLDEM_COMBOS,
+  calculateRangePercentage,
+  countSelectedCombos,
+} from '@core/domain/rangeMath';
 
 import { fonts } from '../theme/fonts';
 import { useTheme } from '../theme/colors';
@@ -10,19 +13,17 @@ import { useTheme } from '../theme/colors';
 export interface RangeStatsBarProps {
   /** The selected hands to summarize. */
   hands: PokerHand[];
-  /** Per-hand combo narrowing, when the range has any; absence = all combos on. */
-  comboSelections?: Record<PokerHand, string[]>;
 }
 
 /**
  * Live summary of a range: hand count, specific combos (of 1326), and the share of
- * all Hold'em combos it covers. Combos narrowed per hand count as narrowed, so the
- * figures match what the range actually holds.
+ * all Hold'em combos it covers. Hand-class model only: stored per-combo selections
+ * are ignored, so a range whose AA is narrowed to one combo still counts all six.
  */
-export function RangeStatsBar({ hands, comboSelections }: RangeStatsBarProps) {
+export function RangeStatsBar({ hands }: RangeStatsBarProps) {
   const theme = useTheme();
-  const combos = countRangeCombos(hands, comboSelections);
-  const percent = rangeComboPercentage(hands, comboSelections);
+  const combos = countSelectedCombos(hands);
+  const percent = calculateRangePercentage(hands);
   return (
     <View style={styles.bar}>
       <Text testID="stat-hands" style={[styles.stat, { color: theme.ink2 }]}>

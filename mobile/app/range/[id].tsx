@@ -1,25 +1,12 @@
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Link, Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import * as Clipboard from 'expo-clipboard';
-import * as Linking from 'expo-linking';
-import { documentDirectory, writeAsStringAsync } from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
 
-import { publishSharedRange, unpublishSharedRange } from '@core/cloud/sharedRangesRepo';
 import { accuracyPercentage } from '@core/domain/accuracy';
-import { describeRangeChart, formatRangeNotation } from '@core/domain/rangeNotation';
-import {
-  encodeRangeToHash,
-  formatRangeCsv,
-  serializeRangeExport,
-} from '@core/domain/rangeTransfer';
-
-import { countRangeCombos, rangeComboPercentage } from '@core/domain/comboSelection';
+import { calculateRangePercentage, countSelectedCombos } from '@core/domain/rangeMath';
 import { duplicateRange } from '@core/domain/rangeDuplication';
 import { setRangeArchived } from '@core/domain/rangeArchive';
 import { setRangeFavorite } from '@core/domain/rangeFavorite';
-import { sourceReferenceUrl } from '@core/domain/sourceReference';
 import { loadReviewStates } from '@core/storage/reviewStateStorage';
 import { loadSessionHistory } from '@core/storage/sessionHistoryStorage';
 import { findSavedRangeById, saveSavedRange } from '@core/storage/rangeStorage';
@@ -28,36 +15,26 @@ import {
   ACTION_TYPE_LABELS,
   GAME_TYPE_LABELS,
   POSITION_LABELS,
-  RANGE_SOURCE_KIND_LABELS,
   TABLE_SIZE_LABELS,
   type SavedRange,
 } from '@core/types/range';
 
-import { ActionsEditor } from '../../components/ActionsEditor';
-import { ComboExplorer } from '../../components/ComboExplorer';
-import { FrequenciesEditor } from '../../components/FrequenciesEditor';
 import { SaveErrorBanner, useLiveSave } from '../../components/liveSave';
 import { RangeEditor } from '../../components/RangeEditor';
 import { RangeStats } from '../../components/RangeStats';
-import { RangeThumbnail } from '../../components/RangeThumbnail';
 import { Screen } from '../../components/Screen';
 import { Chip } from '../../components/ui';
 import { createRangeId } from '../../platform/createRangeId';
-import { buildOfflineRangeLink, buildRangeShareLink } from '../../lib/shareLink';
-import { useMobileSession } from '../../lib/useMobileSession';
-import { formatDayDistance, safeRangeFileName } from '../../lib/format';
+import { formatDayDistance } from '../../lib/format';
 import { fonts } from '../../theme/fonts';
 import { useTheme } from '../../theme/colors';
 import type { ThemeColors } from '../../theme/colors';
 
-const TABS = ['overview', 'edit', 'actions', 'combos', 'frequencies', 'stats'] as const;
+const TABS = ['overview', 'edit', 'stats'] as const;
 type RangeTab = (typeof TABS)[number];
 const TAB_LABELS: Record<RangeTab, string> = {
   overview: 'Overview',
   edit: 'Edit',
-  actions: 'Actions',
-  combos: 'Combos',
-  frequencies: 'Frequencies',
   stats: 'Stats',
 };
 
@@ -82,9 +59,8 @@ function metadataChips(range: SavedRange): string[] {
 
 /**
  * The per-range page: header (back, name, chips, Practice, overflow menu) and the
- * Overview / Edit / Actions / Combos / Frequencies / Stats tabs. Overview + Edit are
- * inline; the remaining tabs link to the flat editors during the port (M5b/M5c inline
- * them). Mutations persist immediately and refresh the local copy from storage.
+ * Overview / Edit / Stats tabs. Mutations persist immediately and refresh the local
+ * copy from storage.
  */
 export default function RangeScreen() {
   const theme = useTheme();
@@ -95,9 +71,6 @@ export default function RangeScreen() {
   const [range, setRange] = useState<SavedRange | null>(() => findSavedRangeById(id) ?? null);
   const [tab, setTab] = useState<RangeTab>('overview');
   const [menuOpen, setMenuOpen] = useState(false);
-  const { client, session, resolveUserId } = useMobileSession();
-  const [publishedShareId, setPublishedShareId] = useState<string | null>(null);
-  const [shareStatus, setShareStatus] = useState('');
   const [actionError, runSave] = useLiveSave();
 
   const refresh = useCallback(() => {
@@ -147,31 +120,6 @@ export default function RangeScreen() {
     if (!runSave(() => saveSavedRange(setRangeArchived(range, !range.archived)))) return;
     refresh();
   };
-  const copyText = (text: string, label: string) => {
-    setMenuOpen(false);
-    Clipboard.setStringAsync(text)
-      .then(() => Alert.alert('Copied', `${label} copied to clipboard.`))
-      .catch(() => Alert.alert('Copy failed', 'Could not copy to the clipboard.'));
-  };
-  // Write the range's export envelope to a file and hand it to the share sheet, so it can
-  // land in Files/Mail/another device and be picked back up by the Account tab's importer.
-  const doExportFile = () => {
-    setMenuOpen(false);
-    void (async () => {
-      try {
-        const uri = `${documentDirectory ?? ''}${safeRangeFileName(range.name)}.json`;
-        await writeAsStringAsync(uri, serializeRangeExport(range));
-        if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(uri);
-          setShareStatus('Exported the range file.');
-        } else {
-          setShareStatus(`Saved the range to ${uri}`);
-        }
-      } catch (error) {
-        setShareStatus(error instanceof Error ? error.message : 'Export failed.');
-      }
-    })();
-  };
   const doDelete = () => {
     setMenuOpen(false);
     Alert.alert(
@@ -191,49 +139,6 @@ export default function RangeScreen() {
         },
       ],
     );
-  };
-
-  const publish = async (isPublic: boolean) => {
-    if (!client) return;
-    setShareStatus('Publishing…');
-    try {
-      const { id: shareId, token } = await publishSharedRange(range, isPublic, { client, resolveUserId });
-      setPublishedShareId(shareId);
-      const link = buildRangeShareLink(Linking.createURL, shareId, token);
-      try {
-        await Clipboard.setStringAsync(link);
-        setShareStatus('Share link copied to clipboard.');
-      } catch {
-        setShareStatus(`Share link ready: ${link}`);
-      }
-    } catch (error) {
-      setShareStatus(error instanceof Error ? error.message : 'Publish failed.');
-    }
-  };
-  const doPublish = () => {
-    setMenuOpen(false);
-    if (!client) return;
-    Alert.alert(
-      'Publish share link',
-      `Share "${range.name || 'Untitled'}" as a link?\n\nPublic links open for anyone; private links carry a secret token.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Private', onPress: () => void publish(false) },
-        { text: 'Public', onPress: () => void publish(true) },
-      ],
-    );
-  };
-  const doUnpublish = async () => {
-    setMenuOpen(false);
-    if (!client || !publishedShareId) return;
-    setShareStatus('Unpublishing…');
-    try {
-      await unpublishSharedRange(publishedShareId, { client, resolveUserId });
-      setPublishedShareId(null);
-      setShareStatus('Shared link unpublished.');
-    } catch (error) {
-      setShareStatus(error instanceof Error ? error.message : 'Unpublish failed.');
-    }
   };
 
   return (
@@ -280,62 +185,10 @@ export default function RangeScreen() {
               onPress={doToggleArchive}
               theme={theme}
             />
-            <Link href={{ pathname: '/diff', params: { id: range.id } }} asChild>
-              <Pressable testID="menu-compare" style={styles.menuItem} onPress={() => setMenuOpen(false)}>
-                <Text style={styles.menuItemText}>Compare…</Text>
-              </Pressable>
-            </Link>
-            <MenuItem
-              testID="menu-copy-notation"
-              label="Copy notation"
-              onPress={() => copyText(formatRangeNotation(range.hands), 'Range notation')}
-              theme={theme}
-            />
-            <MenuItem
-              testID="menu-copy-csv"
-              label="Copy CSV"
-              onPress={() => copyText(formatRangeCsv(range), 'Range CSV')}
-              theme={theme}
-            />
-            <MenuItem
-              testID="menu-export-file"
-              label="Export range file"
-              onPress={doExportFile}
-              theme={theme}
-            />
-            <MenuItem
-              testID="menu-copy-share-link"
-              label="Copy share link"
-              onPress={() =>
-                copyText(
-                  buildOfflineRangeLink(Linking.createURL, encodeRangeToHash(range)),
-                  'Share link',
-                )
-              }
-              theme={theme}
-            />
-            {session ? (
-              <>
-                <MenuItem testID="menu-publish" label="Publish link" onPress={doPublish} theme={theme} />
-                {publishedShareId ? (
-                  <MenuItem
-                    testID="menu-unpublish"
-                    label="Unpublish link"
-                    onPress={doUnpublish}
-                    theme={theme}
-                  />
-                ) : null}
-              </>
-            ) : null}
             <MenuItem testID="menu-delete" label="Delete" onPress={doDelete} theme={theme} danger />
           </View>
         ) : null}
 
-        {shareStatus ? (
-          <Text testID="range-share-status" style={styles.shareStatus}>
-            {shareStatus}
-          </Text>
-        ) : null}
         <SaveErrorBanner error={actionError} testID="range-action-error" />
 
         <Text accessibilityRole="header" style={styles.title}>{range.name || 'Untitled'}</Text>
@@ -374,9 +227,6 @@ export default function RangeScreen() {
         <View style={styles.tabContent}>
           {tab === 'overview' ? <OverviewTab range={range} theme={theme} styles={styles} /> : null}
           {tab === 'edit' ? <RangeEditor id={range.id} /> : null}
-          {tab === 'actions' ? <ActionsEditor id={range.id} /> : null}
-          {tab === 'combos' ? <ComboExplorer /> : null}
-          {tab === 'frequencies' ? <FrequenciesEditor id={range.id} /> : null}
           {tab === 'stats' ? <RangeStats id={range.id} /> : null}
         </View>
       </ScrollView>
@@ -434,19 +284,16 @@ function OverviewTab({
     }, [range.id]),
   );
 
-  const combos = countRangeCombos(range.hands, range.comboSelections);
-  const percentage = rangeComboPercentage(range.hands, range.comboSelections);
+  // Hand-class model only: saved per-combo selections are ignored here, so a
+  // range whose AA is narrowed to one combo still counts all six.
+  const combos = countSelectedCombos(range.hands);
+  const percentage = calculateRangePercentage(range.hands);
   const lastSession = history.length > 0 ? history[history.length - 1] : null;
   const recentSessions = history.slice(-5).reverse();
-  const handNoteCount = Object.keys(range.handNotes ?? {}).length;
-  const sourceUrl = sourceReferenceUrl(range.source?.reference);
 
   return (
     <View style={{ gap: 16 }}>
       <View style={styles.overviewCard}>
-        <View style={styles.thumbWrap}>
-          <RangeThumbnail hands={range.hands} size={260} label={describeRangeChart(range.hands)} />
-        </View>
         <View style={styles.facts}>
           <Text style={styles.factLine}>
             {range.hands.length} hand{range.hands.length === 1 ? '' : 's'} · {combos} combos ·{' '}
@@ -466,33 +313,6 @@ function OverviewTab({
           </Text>
           {range.metadata?.notes ? (
             <Text style={[styles.factLine, { color: theme.ink2 }]}>{range.metadata.notes}</Text>
-          ) : null}
-          {range.source ? (
-            sourceUrl && range.source.reference ? (
-              <View style={styles.sourceRow}>
-                <Text style={styles.factLine}>
-                  Source: {RANGE_SOURCE_KIND_LABELS[range.source.kind]} ·{' '}
-                </Text>
-                <Pressable
-                  testID="source-reference-link"
-                  accessibilityRole="link"
-                  accessibilityLabel={`Open source ${range.source.reference}`}
-                  onPress={() => void Linking.openURL(sourceUrl)}
-                >
-                  <Text style={styles.sourceLink}>{range.source.reference}</Text>
-                </Pressable>
-              </View>
-            ) : (
-              <Text style={styles.factLine}>
-                Source: {RANGE_SOURCE_KIND_LABELS[range.source.kind]}
-                {range.source.reference ? ` · ${range.source.reference}` : ''}
-              </Text>
-            )
-          ) : null}
-          {handNoteCount > 0 ? (
-            <Text style={styles.factLine}>
-              {handNoteCount} hand note{handNoteCount === 1 ? '' : 's'}
-            </Text>
           ) : null}
         </View>
       </View>
@@ -546,9 +366,6 @@ function makeStyles(theme: ThemeColors) {
       borderRadius: 14,
       overflow: 'hidden',
     },
-    menuItem: { paddingHorizontal: 16, paddingVertical: 12 },
-    menuItemText: { fontFamily: fonts.bodyMedium, fontSize: 15, color: theme.ink },
-    shareStatus: { fontFamily: fonts.bodySemibold, fontSize: 13, color: theme.accentStrong },
     title: { fontFamily: fonts.display, fontSize: 28, color: theme.ink },
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
     tabBar: {
@@ -572,20 +389,12 @@ function makeStyles(theme: ThemeColors) {
       padding: 16,
       gap: 12,
     },
-    thumbWrap: { alignItems: 'center' },
     facts: { gap: 6 },
     factLine: {
       fontFamily: fonts.body,
       fontSize: 14,
       color: theme.ink,
       fontVariant: ['tabular-nums'],
-    },
-    sourceRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline' },
-    sourceLink: {
-      fontFamily: fonts.body,
-      fontSize: 14,
-      color: theme.accentStrong,
-      textDecorationLine: 'underline',
     },
     sectionTitle: { fontFamily: fonts.bodySemibold, fontSize: 14, color: theme.ink },
     sessionRow: { flexDirection: 'row', justifyContent: 'space-between' },

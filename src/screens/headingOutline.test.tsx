@@ -58,7 +58,7 @@ function firstSkip(levels: number[]): string | null {
 describe('heading outline', () => {
   it('never skips a level on Today', () => {
     seed('a', 'BTN open')
-    render(<TodayScreen onStartReview={vi.fn()} onDrillWeakHands={vi.fn()} onPlaySpots={vi.fn()} onStartWorkout={vi.fn()} />)
+    render(<TodayScreen onStartReview={vi.fn()} onDrillWeakHands={vi.fn()} />)
 
     const levels = outline()
     expect(levels[0]).toBe(1)
@@ -67,7 +67,7 @@ describe('heading outline', () => {
 
   it('never skips a level on Library', () => {
     seed('a', 'BTN open')
-    render(<LibraryScreen onPlaySpots={vi.fn()} onPracticeSelected={vi.fn()} />)
+    render(<LibraryScreen onPracticeSelected={vi.fn()} />)
 
     const levels = outline()
     expect(levels[0]).toBe(1)
@@ -81,12 +81,11 @@ describe('heading outline', () => {
     recordHandAccuracy('a', [
       { hand: 'AA', attempts: 3, correct: 1, falsePositives: 0, falseNegatives: 2 },
     ])
-    render(<ProgressScreen onDrillWeakHands={vi.fn()} onDrillSpot={vi.fn()} />)
+    render(<ProgressScreen onDrillWeakHands={vi.fn()} />)
 
     const levels = outline()
-    // The seeded misses bring out "Where you leak" and its two ranked columns,
-    // which is where the deepest nesting lives.
-    expect(levels).toContain(3)
+    // The seeded misses bring out every conditional report card.
+    expect(levels).toContain(2)
     expect(firstSkip(levels)).toBeNull()
   })
 
@@ -116,12 +115,11 @@ describe('heading outline', () => {
     seed('a', 'BTN open')
     render(<RangeScreen id="a" tab="edit" onPractice={vi.fn()} />)
 
-    // The editor blocks are siblings of each other, all directly under the range
-    // name. A lone deeper heading (Tags was an h3) reads as a subsection of
-    // whichever block came before it, which is not where it lives.
-    expect(outline()).toEqual([1, 2, 2, 2, 2, 2])
+    // The editor blocks are siblings of each other, all directly under the
+    // range name.
+    expect(outline()).toEqual([1, 2, 2])
     expect(
       screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent),
-    ).toEqual(['Range shortcuts', 'Range notation', 'Scenario details', 'Tags', 'Hand notes'])
+    ).toEqual(['Range shortcuts', 'Scenario details'])
   })
 })

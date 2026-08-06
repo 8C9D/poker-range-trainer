@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { explainHand, gridNeighbours, handNoteFor } from './missExplanation'
+import { explainHand, gridNeighbours } from './missExplanation'
 
 describe('gridNeighbours', () => {
   it('gives four neighbours for a hand in the middle of the grid', () => {
@@ -56,40 +56,5 @@ describe('explainHand', () => {
 
   it('rejects a non-canonical hand', () => {
     expect(() => explainHand('XX', [])).toThrow(/Invalid hand/)
-  })
-})
-
-describe('handNoteFor', () => {
-  it('returns the note the user wrote about the hand', () => {
-    expect(handNoteFor({ handNotes: { AJo: 'Only vs weak blinds.' } }, 'AJo')).toBe(
-      'Only vs weak blinds.',
-    )
-  })
-
-  it('returns null for a hand with no note, and for a chart with none at all', () => {
-    expect(handNoteFor({ handNotes: { AJo: 'Only vs weak blinds.' } }, 'AA')).toBeNull()
-    expect(handNoteFor({}, 'AA')).toBeNull()
-  })
-
-  it('treats a blank note as no note', () => {
-    expect(handNoteFor({ handNotes: { AA: '   ' } }, 'AA')).toBeNull()
-  })
-
-  it('keeps a note that fits the limit exactly', () => {
-    const note = 'x'.repeat(140)
-    expect(handNoteFor({ handNotes: { AA: note } }, 'AA')).toBe(note)
-  })
-
-  it('cuts an over-long note back to the last whole word', () => {
-    const note = `${'word '.repeat(40)}tail`
-    const shown = handNoteFor({ handNotes: { AA: note } }, 'AA')
-
-    expect(shown).toMatch(/word…$/)
-    expect(shown!.length).toBeLessThanOrEqual(141)
-  })
-
-  it('cuts mid-word rather than to almost nothing when the note has no early space', () => {
-    const note = `${'x'.repeat(130)} and then some more`
-    expect(handNoteFor({ handNotes: { AA: note } }, 'AA')).toBe(`${'x'.repeat(130)} and then…`)
   })
 })

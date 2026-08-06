@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, onTestFinished, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { RangeScreen } from './RangeScreen'
 import { findSavedRangeById, loadSavedRanges, saveSavedRange } from '../storage/rangeStorage'
@@ -187,42 +187,6 @@ describe('RangeScreen header and menu', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Delete' }))
     expect(loadSavedRanges()).toHaveLength(1)
   })
-
-  it('exports JSON from the menu', async () => {
-    const user = userEvent.setup()
-    const createObjectURL = vi.fn(() => 'blob:x')
-    const revokeObjectURL = vi.fn()
-    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL, revokeObjectURL }))
-    saveSavedRange(makeRange())
-    render(<RangeScreen id="r1" tab="overview" onPractice={vi.fn()} />)
-    await user.click(screen.getByRole('button', { name: 'More actions' }))
-    await user.click(screen.getByRole('menuitem', { name: 'Export JSON' }))
-    expect(createObjectURL).toHaveBeenCalledTimes(1)
-    expect(revokeObjectURL).toHaveBeenCalledTimes(1)
-  })
-
-  it('hides cloud publishing when signed out', async () => {
-    const user = userEvent.setup()
-    saveSavedRange(makeRange())
-    render(<RangeScreen id="r1" tab="overview" onPractice={vi.fn()} />)
-    await user.click(screen.getByRole('button', { name: 'More actions' }))
-    expect(screen.queryByRole('menuitem', { name: 'Publish link' })).not.toBeInTheDocument()
-  })
-
-  it('opens the comparison panel from the menu', async () => {
-    const user = userEvent.setup()
-    saveSavedRange(makeRange())
-    saveSavedRange(makeRange({ id: 'r2', name: 'BTN open', hands: ['AA', 'A5s'] }))
-    render(<RangeScreen id="r1" tab="overview" onPractice={vi.fn()} />)
-    await user.click(screen.getByRole('button', { name: 'More actions' }))
-    await user.click(screen.getByRole('menuitem', { name: 'Compare…' }))
-    const panel = screen.getByRole('region', { name: 'Range comparison' })
-    await user.selectOptions(within(panel).getByLabelText('Compare with'), 'r2')
-    // Diff renders once a comparison target is picked.
-    expect(within(panel).getByText(/Only UTG open/)).toBeInTheDocument()
-    await user.click(within(panel).getByRole('button', { name: 'Close comparison' }))
-    expect(screen.queryByRole('region', { name: 'Range comparison' })).not.toBeInTheDocument()
-  })
 })
 
 describe('RangeScreen tabs', () => {
@@ -230,24 +194,20 @@ describe('RangeScreen tabs', () => {
     saveSavedRange(makeRange())
     render(<RangeScreen id="r1" tab="edit" onPractice={vi.fn()} />)
     const tabs = screen.getByRole('navigation', { name: 'Range sections' })
-    for (const label of ['Overview', 'Edit', 'Actions', 'Combos', 'Frequencies', 'Stats']) {
+    for (const label of ['Overview', 'Edit', 'Stats']) {
       expect(within(tabs).getByRole('link', { name: label })).toBeInTheDocument()
     }
     expect(within(tabs).getByRole('link', { name: 'Edit' })).toHaveAttribute(
       'aria-current',
       'page',
     )
+    for (const gone of ['Actions', 'Combos', 'Frequencies']) {
+      expect(within(tabs).queryByRole('link', { name: gone })).not.toBeInTheDocument()
+    }
     expect(within(tabs).getByRole('link', { name: 'Stats' })).toHaveAttribute(
       'href',
       '#/library/r1/stats',
     )
-  })
-
-  it('gives the overview chart the hands it draws as its text', () => {
-    saveSavedRange(makeRange())
-    render(<RangeScreen id="r1" tab="overview" onPractice={vi.fn()} />)
-
-    expect(screen.getByRole('img', { name: 'Range chart: AA, AKs, KK' })).toBeInTheDocument()
   })
 
   it('scrolls the active tab into view, since the strip scrolls sideways on a phone', () => {
@@ -292,33 +252,6 @@ describe('RangeScreen tabs', () => {
     expect(screen.getByText(/1 hand · 6 combos/)).toBeInTheDocument()
   })
 
-  it('links web source references and leaves citations as plain text', () => {
-    saveSavedRange(
-      makeRange({
-        source: { kind: 'solver', reference: 'https://example.com/btn-open' },
-      }),
-    )
-    const { unmount } = render(
-      <RangeScreen id="r1" tab="overview" onPractice={vi.fn()} />,
-    )
-
-    const link = screen.getByRole('link', { name: 'https://example.com/btn-open' })
-    expect(link).toHaveAttribute('href', 'https://example.com/btn-open')
-    expect(link).toHaveAttribute('target', '_blank')
-    expect(link).toHaveAttribute('rel', 'noreferrer')
-
-    unmount()
-    localStorage.clear()
-    saveSavedRange(
-      makeRange({
-        source: { kind: 'solver', reference: 'GTOWizard 6-max' },
-      }),
-    )
-    render(<RangeScreen id="r1" tab="overview" onPractice={vi.fn()} />)
-    expect(screen.getByText(/GTOWizard 6-max/)).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'GTOWizard 6-max' })).not.toBeInTheDocument()
-  })
-
   it('edits and saves the range from the Edit tab', async () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange())
@@ -327,122 +260,6 @@ describe('RangeScreen tabs', () => {
     await user.click(screen.getByRole('button', { name: 'Save Changes' }))
     expect(findSavedRangeById('r1')?.hands).toContain('QQ')
     expect(screen.getByRole('status')).toHaveTextContent('Saved “UTG open”.')
-  })
-
-  it('assigns and saves hand actions from the Actions tab', async () => {
-    const user = userEvent.setup()
-    saveSavedRange(makeRange())
-    render(<RangeScreen id="r1" tab="actions" onPractice={vi.fn()} />)
-    // Pick the "Raise" action from the palette, assign AA, save.
-    await user.click(screen.getByRole('button', { name: 'Raise' }))
-    await user.click(screen.getByRole('button', { name: 'AA: unassigned' }))
-    await user.click(screen.getByRole('button', { name: 'Save actions' }))
-    expect(findSavedRangeById('r1')?.handActions?.['AA']).toBe('raise')
-    expect(screen.getByRole('status')).toHaveTextContent('Actions saved.')
-
-    await user.click(screen.getByRole('button', { name: 'KK: unassigned' }))
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
-  })
-
-  it('does not claim a tab save the store refused', async () => {
-    const user = userEvent.setup()
-    saveSavedRange(makeRange())
-    render(<RangeScreen id="r1" tab="actions" onPractice={vi.fn()} />)
-    await user.click(screen.getByRole('button', { name: 'Raise' }))
-    await user.click(screen.getByRole('button', { name: 'AA: unassigned' }))
-    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new Error('QuotaExceededError')
-    })
-
-    try {
-      await user.click(screen.getByRole('button', { name: 'Save actions' }))
-    } finally {
-      spy.mockRestore()
-    }
-
-    expect(screen.getByRole('alert')).toHaveTextContent(/storage is full or unavailable/)
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
-    expect(findSavedRangeById('r1')?.handActions).toBeUndefined()
-  })
-
-  it('saves partial combo selections from the Combos tab', async () => {
-    const user = userEvent.setup()
-    saveSavedRange(makeRange({ hands: ['AA'] }))
-    render(<RangeScreen id="r1" tab="combos" onPractice={vi.fn()} />)
-    // Toggle one of AA's six combos off, then save.
-    const toggles = within(screen.getByLabelText('Combos for AA')).getAllByRole('button')
-    await user.click(toggles[0])
-    await user.click(screen.getByRole('button', { name: 'Save combos' }))
-    expect(findSavedRangeById('r1')?.comboSelections?.['AA']).toHaveLength(5)
-    expect(screen.getByRole('status')).toHaveTextContent('Combos saved.')
-
-    await user.click(toggles[1])
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
-  })
-
-  it('counts the selected combos on the Combos tab as they are toggled', async () => {
-    const user = userEvent.setup()
-    saveSavedRange(makeRange({ hands: ['AA', 'AKs'] }))
-    render(<RangeScreen id="r1" tab="combos" onPractice={vi.fn()} />)
-
-    expect(screen.getByText(/10 of 10 combos · 0\.8% of all hands/)).toBeInTheDocument()
-
-    const toggles = within(screen.getByLabelText('Combos for AA')).getAllByRole('button')
-    await user.click(toggles[0])
-
-    expect(screen.getByText(/9 of 10 combos · 0\.7% of all hands/)).toBeInTheDocument()
-  })
-
-  it('reports a narrowed range at its real size, not its hand-class size', () => {
-    saveSavedRange(makeRange({ hands: ['AA', 'AKs'], comboSelections: { AA: ['AsAh'] } }))
-    render(<RangeScreen id="r1" tab="overview" onPractice={vi.fn()} />)
-
-    // AA is down to one combo, so the range holds 5, not the full 10.
-    expect(screen.getByText(/2 hands · 5 combos · 0\.4% of all hands/)).toBeInTheDocument()
-  })
-
-  it('confirms frequency saves until the strategy changes again', async () => {
-    const user = userEvent.setup()
-    saveSavedRange(makeRange({ hands: ['AA'] }))
-    render(<RangeScreen id="r1" tab="frequencies" onPractice={vi.fn()} />)
-
-    fireEvent.change(screen.getByRole('slider', { name: 'Raise' }), {
-      target: { value: '100' },
-    })
-    await user.click(screen.getByRole('button', { name: 'Save frequencies' }))
-    expect(findSavedRangeById('r1')?.mixedStrategies?.['AA']).toEqual([
-      { action: 'raise', frequency: 100 },
-    ])
-    expect(screen.getByRole('status')).toHaveTextContent('Frequencies saved.')
-
-    fireEvent.change(screen.getByRole('slider', { name: 'Raise' }), {
-      target: { value: '50' },
-    })
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
-  })
-
-  it('names the hands whose frequencies do not total 100 and jumps to one', async () => {
-    const user = userEvent.setup()
-    saveSavedRange(
-      makeRange({
-        hands: ['AA', 'KK'],
-        mixedStrategies: {
-          AA: [{ action: 'raise', frequency: 60 }],
-          KK: [{ action: 'raise', frequency: 100 }],
-        },
-      }),
-    )
-    render(<RangeScreen id="r1" tab="frequencies" onPractice={vi.fn()} />)
-
-    // The editor shows one hand at a time, so the whole-range line is the only
-    // place a mix left at 60% is visible.
-    expect(screen.getByText(/1 hand not at 100%: AA/)).toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: 'Fix AA' }))
-    expect(screen.getByRole('combobox')).toHaveValue('AA')
-
-    fireEvent.change(screen.getByRole('slider', { name: 'Fold' }), { target: { value: '40' } })
-    expect(screen.queryByText(/not at 100%/)).not.toBeInTheDocument()
   })
 
   it('shows the stats tab with the performance view', () => {
@@ -495,20 +312,17 @@ describe('RangeScreen editor validation', () => {
     expect(screen.getByRole('button', { name: 'Save Range' })).toBeDisabled()
   })
 
-  it('persists scenario metadata and source through a save', async () => {
+  it('persists scenario metadata through a save', async () => {
     const user = userEvent.setup()
     saveSavedRange(makeRange())
     render(<RangeScreen id="r1" tab="edit" onPractice={vi.fn()} />)
     await user.selectOptions(screen.getByLabelText('Position'), 'btn')
     await user.selectOptions(screen.getByLabelText('Action type'), 'open')
     await user.type(screen.getByLabelText('Stack depth'), '100')
-    await user.selectOptions(screen.getByLabelText('Source'), 'solver')
-    await user.type(screen.getByLabelText('Reference'), 'GTOWizard 6-max')
     await user.click(screen.getByRole('button', { name: 'Save Changes' }))
 
     const saved = findSavedRangeById('r1')!
     expect(saved.metadata).toMatchObject({ position: 'btn', actionType: 'open', stackDepthBb: 100 })
-    expect(saved.source).toEqual({ kind: 'solver', reference: 'GTOWizard 6-max' })
     // The header chips reflect the saved metadata.
     expect(screen.getByText('BTN', { selector: '.coach-chip' })).toBeInTheDocument()
     expect(screen.getByText('100bb', { selector: '.coach-chip' })).toBeInTheDocument()
@@ -517,7 +331,7 @@ describe('RangeScreen editor validation', () => {
   it('fills the scenario from the range name in one action', async () => {
     const user = userEvent.setup()
     // A range named the way the app itself names ranges, with the dropdowns blank:
-    // invisible to the spot drill, the coverage map, and the leak reports.
+    // invisible to the Library filters.
     saveSavedRange(makeRange({ name: 'SB 3-bet vs BTN open (6-max 100bb)', metadata: undefined }))
     render(<RangeScreen id="r1" tab="edit" onPractice={vi.fn()} />)
 
@@ -560,17 +374,6 @@ describe('RangeScreen editor validation', () => {
     render(<RangeScreen id="r1" tab="edit" onPractice={vi.fn()} />)
 
     expect(screen.queryByRole('button', { name: 'Use this' })).toBeNull()
-  })
-
-  it('saves per-hand notes with the range', async () => {
-    const user = userEvent.setup()
-    saveSavedRange(makeRange())
-    render(<RangeScreen id="r1" tab="edit" onPractice={vi.fn()} />)
-    // The hand-notes editor lists the selected hands; note the first hand.
-    await user.selectOptions(screen.getByLabelText('Hand'), 'AA')
-    await user.type(screen.getByLabelText('Note for AA'), 'never fold')
-    await user.click(screen.getByRole('button', { name: 'Save Changes' }))
-    expect(findSavedRangeById('r1')?.handNotes?.['AA']).toBe('never fold')
   })
 })
 

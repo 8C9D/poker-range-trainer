@@ -11,15 +11,6 @@ import {
   type PositionMistakeBias,
 } from '../domain/mistakeBias'
 import { currentStreak } from '../domain/spacedRepetition'
-import {
-  accuracyByActionType,
-  accuracyByPosition,
-  rangesAtPosition,
-  rangesWithActionType,
-  type AccuracyGroup,
-} from '../domain/seatAccuracy'
-import { describeSpot, matchRangeToSpot, spotKey, type Spot } from '../domain/spot'
-import { rankSpotLeaks } from '../domain/spotLeaks'
 import { rankWeakHands, weakHandPools } from '../domain/weakHands'
 import {
   dailyHandCounts,
@@ -32,28 +23,20 @@ import { loadHandAccuracy } from '../storage/handAccuracyStorage'
 import { loadPracticeStats } from '../storage/practiceStatsStorage'
 import { loadSavedRanges } from '../storage/rangeStorage'
 import { loadSessionHistory } from '../storage/sessionHistoryStorage'
-import { loadSpotAccuracy } from '../storage/spotAccuracyStorage'
-import {
-  ACTION_TYPE_LABELS,
-  POSITION_LABELS,
-  type SavedRange,
-} from '../types/range'
+import { POSITION_LABELS, type SavedRange } from '../types/range'
 import './ProgressScreen.css'
 
 interface ProgressScreenProps {
   /** Drill the queued ranges, each restricted to its own weak-hand pool. */
   onDrillWeakHands: (queue: SavedRange[], pools: Record<string, PokerHand[]>) => void
-  /** Drill one recorded spot on its own. */
-  onDrillSpot: (spot: Spot) => void
 }
 
-/** Long-term training overview: streak, accuracy, volume, and weak spots. */
-export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreenProps) {
+/** Long-term training overview: streak, accuracy, volume, and weak hands. */
+export function ProgressScreen({ onDrillWeakHands }: ProgressScreenProps) {
   const [ranges] = useState(() => loadSavedRanges())
   const [storedHistory] = useState(() => loadSessionHistory())
   const [practiceStats] = useState(() => loadPracticeStats())
   const [handAccuracy] = useState(() => loadHandAccuracy())
-  const [spotAccuracy] = useState(() => loadSpotAccuracy())
   const [now] = useState(() => new Date())
 
   const nowIso = now.toISOString()
@@ -83,11 +66,6 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
   )
   const weakHands = rankWeakHands(liveAccuracy)
   const leaks = rankHandClassLeaks(liveAccuracy)
-  const spotLeaks = rankSpotLeaks(spotAccuracy).filter(
-    (leak) => matchRangeToSpot(ranges, leak.spot) !== null,
-  )
-  const seatGroups = accuracyByPosition(ranges, practiceStats)
-  const actionGroups = accuracyByActionType(ranges, practiceStats)
   const bias = summarizeMistakeBias(liveAccuracy)
   const seatBias = mistakeBiasByPosition(ranges, liveAccuracy)
 
@@ -114,16 +92,6 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
     const queue = ranges.filter((range) => pools[range.id]?.length)
     if (queue.length === 0) return
     onDrillWeakHands(queue, pools)
-  }
-
-  /**
-   * Drill a seat or action leak: the charts behind that number, each in full.
-   * No pools — unlike a hand-class leak, what is weak here is the situation, not
-   * a set of hands, so the whole chart is the thing to re-drill.
-   */
-  function drillGroup(queue: SavedRange[]) {
-    if (queue.length === 0) return
-    onDrillWeakHands(queue, {})
   }
 
   return (
@@ -251,31 +219,6 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
         )}
       </section>
 
-      <section className="coach-card" aria-label="Accuracy by seat and action">
-        <h2>Where you leak</h2>
-        {seatGroups.length === 0 && actionGroups.length === 0 ? (
-          <p className="progress-empty">
-            Practice ranges that record a position or an action and this will show which seats
-            and which actions you are weakest in.
-          </p>
-        ) : (
-          <div className="progress-seats">
-            <LeakColumn
-              heading="By seat"
-              groups={seatGroups}
-              labels={POSITION_LABELS}
-              onDrill={(key) => drillGroup(rangesAtPosition(ranges, practiceStats, key))}
-            />
-            <LeakColumn
-              heading="By action"
-              groups={actionGroups}
-              labels={ACTION_TYPE_LABELS}
-              onDrill={(key) => drillGroup(rangesWithActionType(ranges, practiceStats, key))}
-            />
-          </div>
-        )}
-      </section>
-
       <section className="coach-card" aria-label="Which way you miss">
         <h2>Which way you miss</h2>
         <p className="progress-bias-verdict">{describeMistakeBias(bias)}</p>
@@ -329,32 +272,6 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
           </>
         )}
       </section>
-
-      {spotLeaks.length > 0 && (
-        <section className="coach-card" aria-label="Weakest spots">
-          <h2>Weakest spots</h2>
-          <ul className="progress-spot-list">
-            {spotLeaks.slice(0, 5).map((leak) => (
-              <li key={spotKey(leak.spot)} className="progress-spot-row">
-                <div className="progress-spot-info">
-                  <span className="progress-spot-name">{describeSpot(leak.spot)}</span>
-                  <span className="progress-spot-meta coach-tabular">
-                    {leak.correct}/{leak.attempts} · {leak.accuracy.toFixed(0)}%
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  className="coach-btn"
-                  onClick={() => onDrillSpot(leak.spot)}
-                  aria-label={`Drill ${describeSpot(leak.spot)}`}
-                >
-                  Drill
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
 
       <section className="coach-card" aria-label="Leaks by hand type">
         <h2>Leaks by hand type</h2>
@@ -426,56 +343,6 @@ export function ProgressScreen({ onDrillWeakHands, onDrillSpot }: ProgressScreen
           </div>
         )}
       </section>
-    </div>
-  )
-}
-
-/**
- * One ranked column of the v8.4 leak breakdown: weakest group first, each an
- * accuracy bar with a shortcut into drilling it. Renders nothing when the cut
- * has no group above the threshold.
- */
-function LeakColumn<T extends string>({
-  heading,
-  groups,
-  labels,
-  onDrill,
-}: {
-  heading: string
-  groups: AccuracyGroup<T>[]
-  labels: Record<T, string>
-  onDrill: (key: T) => void
-}) {
-  if (groups.length === 0) return null
-  return (
-    <div className="progress-seat-column">
-      <h3 className="progress-seat-heading">{heading}</h3>
-      <ul className="progress-seat-list">
-        {groups.map((group) => (
-          <li key={group.key} className="progress-seat-row">
-            <span className="progress-seat-name">{labels[group.key]}</span>
-            <span className="progress-seat-bar">
-              <span
-                className="progress-seat-fill"
-                style={{ width: `${Math.max(2, group.accuracy)}%` }}
-              />
-            </span>
-            <span className="progress-seat-value coach-tabular">
-              {group.accuracy.toFixed(0)}%
-            </span>
-            {/* Naming a leak with no way to act on it is the one report that
-                left the user to go and find the charts themselves. */}
-            <button
-              type="button"
-              className="coach-btn progress-seat-drill"
-              onClick={() => onDrill(group.key)}
-              aria-label={`Drill ${labels[group.key]}`}
-            >
-              Drill
-            </button>
-          </li>
-        ))}
-      </ul>
     </div>
   )
 }

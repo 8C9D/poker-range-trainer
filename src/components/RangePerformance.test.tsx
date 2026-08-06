@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { RangePerformance } from './RangePerformance'
-import type { RangeActionAccuracy } from '../domain/actionRange'
 import type {
   HandAccuracyStat,
   PracticeSessionRecord,
@@ -44,15 +43,13 @@ function dataRows() {
 
 describe('RangePerformance', () => {
   it('shows the range name and an empty state when there is no data', () => {
-    const { container } = render(
+    render(
       <RangePerformance range={makeRange({ name: 'BTN' })} accuracy={{}} history={[]} onClose={vi.fn()} onPracticeMistakes={vi.fn()} />,
     )
 
     expect(screen.getByRole('heading', { name: 'Performance' })).toBeInTheDocument()
     expect(screen.getByText(/No practice data yet/)).toBeInTheDocument()
     expect(screen.queryByRole('table', { name: 'Per-hand accuracy' })).not.toBeInTheDocument()
-    // No heatmap in the empty state.
-    expect(container.querySelector('.hand-heatmap')).toBeNull()
   })
 
   it('lists hands weakest-first with accuracy and attempts', () => {
@@ -60,12 +57,9 @@ describe('RangePerformance', () => {
       AA: stat('AA', { attempts: 4, correct: 4 }), // 100%
       KK: stat('KK', { attempts: 4, correct: 1, falseNegatives: 3 }), // 25%
     }
-    const { container } = render(
+    render(
       <RangePerformance range={makeRange()} accuracy={accuracy} history={[]} onClose={vi.fn()} onPracticeMistakes={vi.fn()} />,
     )
-
-    // The heatmap is shown alongside the table when there is data.
-    expect(container.querySelector('.hand-heatmap')).not.toBeNull()
 
     const rows = dataRows()
     expect(within(rows[0]).getByText('KK')).toBeInTheDocument()
@@ -170,46 +164,6 @@ describe('RangePerformance', () => {
     expect(within(rows[0]).getByText('100%')).toBeInTheDocument()
     expect(within(rows[1]).getByText('2/4')).toBeInTheDocument()
     expect(within(rows[1]).getByText('50%')).toBeInTheDocument()
-  })
-
-  it('shows a per-action accuracy table in canonical order when given action data', () => {
-    const actionAccuracy: RangeActionAccuracy = {
-      threeBet: { action: 'threeBet', attempts: 4, correct: 1 }, // 25%
-      raise: { action: 'raise', attempts: 4, correct: 4 }, // 100%
-    }
-    render(
-      <RangePerformance
-        range={makeRange()}
-        accuracy={{}}
-        history={[]}
-        actionAccuracy={actionAccuracy}
-        onClose={vi.fn()}
-        onPracticeMistakes={vi.fn()}
-      />,
-    )
-
-    const rows = within(screen.getByRole('table', { name: 'Per-action accuracy' }))
-      .getAllByRole('row')
-      .slice(1) // drop the header row
-    // RANGE_ACTIONS order lists 'raise' before 'threeBet'.
-    expect(within(rows[0]).getByText('Raise')).toBeInTheDocument()
-    expect(within(rows[0]).getByText('100%')).toBeInTheDocument()
-    expect(within(rows[1]).getByText('3-bet')).toBeInTheDocument()
-    expect(within(rows[1]).getByText('25%')).toBeInTheDocument()
-  })
-
-  it('shows no per-action table when there is no action data', () => {
-    render(
-      <RangePerformance
-        range={makeRange()}
-        accuracy={{ AA: stat('AA', { attempts: 2, correct: 1, falseNegatives: 1 }) }}
-        history={[]}
-        onClose={vi.fn()}
-        onPracticeMistakes={vi.fn()}
-      />,
-    )
-
-    expect(screen.queryByRole('table', { name: 'Per-action accuracy' })).not.toBeInTheDocument()
   })
 
   it('shows no session history section when history is empty', () => {

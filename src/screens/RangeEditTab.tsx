@@ -1,11 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createRangeId } from '../app/ids'
 import { HandGrid } from '../components/HandGrid'
-import { HandNotesEditor } from '../components/HandNotesEditor'
 import { RangeMetadataEditor } from '../components/RangeMetadataEditor'
-import { RangeNotation } from '../components/RangeNotation'
 import { RangeShortcuts } from '../components/RangeShortcuts'
-import { RangeTagEditor } from '../components/RangeTagEditor'
 import type { HandMixedStrategy } from '../domain/mixedStrategy'
 import type { PokerHand } from '../domain/pokerHands'
 import {
@@ -14,10 +11,12 @@ import {
   redoHandSelection,
   undoHandSelection,
 } from '../domain/handSelectionHistory'
-import { countRangeCombos, rangeComboPercentage } from '../domain/comboSelection'
-import { normalizeTags } from '../domain/rangeLibrary'
 import { describeScenario, scenarioSuggestionFor } from '../domain/scenarioFromName'
-import { normalizeRangeHands } from '../domain/rangeMath'
+import {
+  calculateRangePercentage,
+  countSelectedCombos,
+  normalizeRangeHands,
+} from '../domain/rangeMath'
 import { mergeShortcutHands } from '../domain/rangeShortcuts'
 import { saveSavedRange } from '../storage/rangeStorage'
 import type {
@@ -25,8 +24,6 @@ import type {
   GameType,
   Position,
   RangeMetadata,
-  RangeSource,
-  RangeSourceKind,
   SavedRange,
   TableSize,
 } from '../types/range'
@@ -34,24 +31,20 @@ import type {
 interface RangeEditTabProps {
   /** The saved range being edited, or null when composing a new range. */
   range: SavedRange | null
-  /**
-   * Scenario metadata to start a new range from (the v8.1 coverage map opens the
-   * editor already describing the missing spot). Ignored when editing a saved
-   * range, whose own metadata always wins.
-   */
-  prefill?: RangeMetadata
   /** Called with the persisted range after every successful save. */
   onSaved: (range: SavedRange) => void
 }
 
 /**
- * The Edit tab: grid painting, shortcuts, notation, scenario metadata, source,
- * and per-hand notes for one range. Ports the legacy editor's save semantics -
- * blank metadata fields are dropped on save, unknown future fields survive via
- * the spread, and editing keeps the range's id and createdAt.
+ * The Edit tab: grid painting, shortcuts, and scenario metadata for one range.
+ * Ports the legacy editor's save semantics - blank metadata fields are dropped
+ * on save, unknown future fields survive via the spread, and editing keeps the
+ * range's id and createdAt. Stored per-hand overlays (actions, frequencies,
+ * combo selections, notes) and tags are carried through a save untouched: their
+ * editors are out of v1, but the data must survive an edit.
  */
-export function RangeEditTab({ range, prefill, onSaved }: RangeEditTabProps) {
-  const initial = range?.metadata ?? (range ? undefined : prefill)
+export function RangeEditTab({ range, onSaved }: RangeEditTabProps) {
+  const initial = range?.metadata
   const [name, setName] = useState(range?.name ?? '')
   const [selectionHistory, setSelectionHistory] = useState(() =>
     createHandSelectionHistory(range?.hands ?? []),
@@ -66,16 +59,13 @@ export function RangeEditTab({ range, prefill, onSaved }: RangeEditTabProps) {
   const [versusPosition, setVersusPosition] = useState<Position | ''>(initial?.versusPosition ?? '')
   const [actionType, setActionType] = useState<ActionType | ''>(initial?.actionType ?? '')
   const [notes, setNotes] = useState(initial?.notes ?? '')
-  const [sourceKind, setSourceKind] = useState<RangeSourceKind | ''>(range?.source?.kind ?? '')
-  const [sourceReference, setSourceReference] = useState(range?.source?.reference ?? '')
-  const [notesDraft, setNotesDraft] = useState<Record<PokerHand, string>>({
+  // Mount-time snapshots of the per-hand overlay maps. Storage scopes them to the
+  // range's hands on every save, so a transient deselect would silently destroy
+  // data whose editors are out of v1; saving re-attaches a snapshot entry when
+  // its hand is selected again in the same editing session.
+  const [notesSnapshot] = useState<Record<PokerHand, string>>(() => ({
     ...(range?.handNotes ?? {}),
-  })
-  const [tagsDraft, setTagsDraft] = useState<string[]>(() => range?.tags ?? [])
-  // Snapshots of the per-hand overlays taken when the tab mounts. Saving prunes
-  // them to the selected hands (see `handleSave`), but they are read from here so
-  // re-selecting a hand in the same editing session restores its data, exactly
-  // like the per-hand notes draft.
+  }))
   const [mixedSnapshot] = useState<Record<PokerHand, HandMixedStrategy>>(() => ({
     ...(range?.mixedStrategies ?? {}),
   }))
@@ -90,27 +80,12 @@ export function RangeEditTab({ range, prefill, onSaved }: RangeEditTabProps) {
   const [saveError, setSaveError] = useState<string | null>(null)
 
   // Derived from `selected` only, so memoize to skip the hand-set math on every
-  // unrelated re-render (e.g. each keystroke in the name field).
+  // unrelated re-render (e.g. each keystroke in the name field). Counts use the
+  // hand-class model only: stored per-combo selections are ignored, so a range
+  // whose AA is narrowed to one combo still counts all six.
   const selectedHands = useMemo(() => normalizeRangeHands(Array.from(selected)), [selected])
-  // The combo overlay narrowed on the Combos tab counts toward the range's size,
-  // so the live figures here have to read it too, pruned to the hands still
-  // selected exactly as `handleSave` will persist it.
-  const draftCombos = useMemo(() => {
-    const pruned: Record<PokerHand, string[]> = {}
-    for (const hand of selectedHands) {
-      const combos = combosSnapshot[hand]
-      if (combos && combos.length > 0) pruned[hand] = combos
-    }
-    return pruned
-  }, [selectedHands, combosSnapshot])
-  const combos = useMemo(
-    () => countRangeCombos(selectedHands, draftCombos),
-    [selectedHands, draftCombos],
-  )
-  const percentage = useMemo(
-    () => rangeComboPercentage(selectedHands, draftCombos),
-    [selectedHands, draftCombos],
-  )
+  const combos = useMemo(() => countSelectedCombos(selectedHands), [selectedHands])
+  const percentage = useMemo(() => calculateRangePercentage(selectedHands), [selectedHands])
 
   function setHandSelected(hand: PokerHand, shouldSelect: boolean) {
     setSavedName(null)
@@ -232,18 +207,14 @@ export function RangeEditTab({ range, prefill, onSaved }: RangeEditTabProps) {
     else delete metadata.notes
     const hasMetadata = Object.keys(metadata).length > 0
 
-    const trimmedReference = sourceReference.trim()
-    const source: RangeSource | undefined = sourceKind
-      ? { kind: sourceKind, ...(trimmedReference ? { reference: trimmedReference } : {}) }
-      : undefined
-
+    // The spread keeps every stored field this editor no longer touches —
+    // source, tags, per-hand notes, actions, frequencies, combo selections —
+    // so archived-feature data survives an edit intact.
     let saved: SavedRange
     if (range) {
       saved = { ...range, name: trimmedName, hands: selectedHands, updatedAt: now }
       if (hasMetadata) saved.metadata = metadata
       else delete saved.metadata
-      if (source) saved.source = source
-      else delete saved.source
     } else {
       saved = {
         id: createRangeId(),
@@ -253,34 +224,27 @@ export function RangeEditTab({ range, prefill, onSaved }: RangeEditTabProps) {
         updatedAt: now,
       }
       if (hasMetadata) saved.metadata = metadata
-      if (source) saved.source = source
     }
-    // Keep only notes for hands still in the range so deselecting a hand does
-    // not leave an orphaned, unreachable note behind. Storage then drops blank
-    // per-hand notes and collapses an empty map.
-    const prunedNotes: Record<PokerHand, string> = {}
-    for (const hand of selectedHands) {
-      const note = notesDraft[hand]
-      if (note && note.trim().length > 0) prunedNotes[hand] = note
+    // Re-attach snapshot overlay entries for the hands being saved, so a hand
+    // deselected and re-selected in this session keeps its data (storage would
+    // otherwise have scoped it out at the earlier save).
+    function fromSnapshot<T>(snapshot: Record<PokerHand, T>): Record<PokerHand, T> | undefined {
+      const kept: Record<PokerHand, T> = {}
+      for (const hand of selectedHands) {
+        const value = snapshot[hand]
+        if (value !== undefined) kept[hand] = value
+      }
+      return Object.keys(kept).length > 0 ? kept : undefined
     }
-    saved.handNotes = prunedNotes
-    // Same for the other per-hand overlays: a mixed strategy or combo selection for
-    // a hand that left the range is unreachable in its editor (both list only the
-    // range's hands) yet would still drive the frequency quiz and the grids.
-    const prunedMixed: Record<PokerHand, HandMixedStrategy> = {}
-    for (const hand of selectedHands) {
-      const strategy = mixedSnapshot[hand]
-      if (strategy && strategy.length > 0) prunedMixed[hand] = strategy
-    }
-    if (Object.keys(prunedMixed).length > 0) saved.mixedStrategies = prunedMixed
+    const keptNotes = fromSnapshot(notesSnapshot)
+    if (keptNotes) saved.handNotes = keptNotes
+    else delete saved.handNotes
+    const keptMixed = fromSnapshot(mixedSnapshot)
+    if (keptMixed) saved.mixedStrategies = keptMixed
     else delete saved.mixedStrategies
-    // Already pruned to the selected hands for the live combo count above.
-    if (Object.keys(draftCombos).length > 0) saved.comboSelections = draftCombos
+    const keptCombos = fromSnapshot(combosSnapshot)
+    if (keptCombos) saved.comboSelections = keptCombos
     else delete saved.comboSelections
-    // Persist cleaned tags, or drop the field entirely when none remain.
-    const savedTags = normalizeTags(tagsDraft)
-    if (savedTags.length > 0) saved.tags = savedTags
-    else delete saved.tags
     try {
       saveSavedRange(saved)
     } catch (error) {
@@ -379,11 +343,6 @@ export function RangeEditTab({ range, prefill, onSaved }: RangeEditTabProps) {
         }}
       />
 
-      <RangeNotation
-        selectedHands={selectedHands}
-        onReplaceHands={replaceSelection}
-      />
-
       <RangeMetadataEditor
         gameType={gameType}
         tableSize={tableSize}
@@ -393,8 +352,6 @@ export function RangeEditTab({ range, prefill, onSaved }: RangeEditTabProps) {
         versusPosition={versusPosition}
         actionType={actionType}
         notes={notes}
-        sourceKind={sourceKind}
-        sourceReference={sourceReference}
         scenarioFromName={scenarioSuggestion ? describeScenario(scenarioSuggestion) : null}
         onUseScenarioFromName={useScenarioSuggestion}
         onGameTypeChange={(value) => {
@@ -425,34 +382,7 @@ export function RangeEditTab({ range, prefill, onSaved }: RangeEditTabProps) {
           setSavedName(null)
           setNotes(value)
         }}
-        onSourceKindChange={(value) => {
-          setSavedName(null)
-          setSourceKind(value)
-        }}
-        onSourceReferenceChange={(value) => {
-          setSavedName(null)
-          setSourceReference(value)
-        }}
       />
-
-      <RangeTagEditor
-        tags={tagsDraft}
-        onChange={(next) => {
-          setSavedName(null)
-          setTagsDraft(next)
-        }}
-      />
-
-      {selectedHands.length > 0 && (
-        <HandNotesEditor
-          hands={selectedHands}
-          notes={notesDraft}
-          onChange={(next) => {
-            setSavedName(null)
-            setNotesDraft(next)
-          }}
-        />
-      )}
     </div>
   )
 }

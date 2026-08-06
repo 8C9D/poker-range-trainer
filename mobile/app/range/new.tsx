@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Link, Stack, useLocalSearchParams, useRouter } from 'expo-router';
-
-import { parseScenarioParams } from '@core/domain/scenarioParams';
+import { Link, Stack, useRouter } from 'expo-router';
 
 import { RangeEditor } from '../../components/RangeEditor';
 import { Screen } from '../../components/Screen';
@@ -19,9 +17,6 @@ export default function NewRangeScreen() {
   const theme = useTheme();
   const router = useRouter();
   const [id] = useState(() => createRangeId());
-  // The spot coverage map links here with the missing spot's metadata attached.
-  const params = useLocalSearchParams();
-  const [prefill] = useState(() => parseScenarioParams(params) ?? undefined);
 
   return (
     <Screen>
@@ -42,7 +37,7 @@ export default function NewRangeScreen() {
         </Pressable>
       </View>
       <ScrollView keyboardShouldPersistTaps="handled">
-        <RangeEditor id={id} prefill={prefill} />
+        <RangeEditor id={id} />
       </ScrollView>
     </Screen>
   );

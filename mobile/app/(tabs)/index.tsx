@@ -2,11 +2,6 @@ import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Link, useFocusEffect } from 'expo-router';
 
-import {
-  buildDailyWorkout,
-  summarizeWorkout,
-  workoutCompletedToday,
-} from '@core/domain/dailyWorkout';
 import { practiceAccuracyPercentage } from '@core/domain/practiceStats';
 import {
   describeFreePractice,
@@ -14,8 +9,6 @@ import {
   suggestFreePractice,
 } from '@core/domain/freePractice';
 import { currentStreak, selectDueRanges } from '@core/domain/spacedRepetition';
-import { buildSpotCoverage, inferLibraryContext } from '@core/domain/spotCoverage';
-import { buildStarterRanges, STARTER_RANGE_TEMPLATES } from '@core/domain/starterRanges';
 import {
   GOAL_OPTIONS,
   evaluateDailyGoal,
@@ -25,16 +18,12 @@ import { sessionsForLibrary, summarizeWeek } from '@core/domain/weeklyStats';
 import { loadHandAccuracy } from '@core/storage/handAccuracyStorage';
 import { loadPracticeStats } from '@core/storage/practiceStatsStorage';
 import { loadReviewStates } from '@core/storage/reviewStateStorage';
-import { loadSavedRanges, saveSavedRanges } from '@core/storage/rangeStorage';
+import { loadSavedRanges } from '@core/storage/rangeStorage';
 import { loadSessionHistory } from '@core/storage/sessionHistoryStorage';
-import { loadSpotAccuracy } from '@core/storage/spotAccuracyStorage';
 import { loadTrainingGoal, saveTrainingGoal } from '@core/storage/trainingGoalStorage';
-import { loadWorkoutCompletion } from '@core/storage/workoutStorage';
 
 import { SaveErrorBanner } from '../../components/liveSave';
-import { RangeThumbnail } from '../../components/RangeThumbnail';
 import { Screen } from '../../components/Screen';
-import { createRangeId } from '../../platform/createRangeId';
 import { formatDateLine, formatDayDistance, greetingFor } from '../../lib/format';
 import { fonts } from '../../theme/fonts';
 import { useTheme } from '../../theme/colors';
@@ -66,21 +55,6 @@ function loadTodayState() {
     ? (ranges.find((range) => range.id === week.sharpestRangeId)?.name ?? null)
     : null;
   const goal = loadTrainingGoal();
-  // The spot drill only has something to deal once a range describes a situation.
-  const spotFormat = inferLibraryContext(ranges);
-  const spotCoverage = buildSpotCoverage(ranges, spotFormat.tableSize, spotFormat.stackDepthBb);
-  // A finished workout stays finished for the day; the card flips to its done
-  // state instead of re-offering the same plan.
-  const workoutDone = workoutCompletedToday(loadWorkoutCompletion(), nowIso);
-  const workout = workoutDone
-    ? null
-    : buildDailyWorkout({
-        ranges,
-        reviewStates,
-        spotAccuracy: loadSpotAccuracy(),
-        now: nowIso,
-        goalHands: goal,
-      });
   // Only worth computing when nothing is due, which is exactly when it is shown.
   const freePractice =
     due.length === 0
@@ -103,10 +77,6 @@ function loadTodayState() {
     sharpestName,
     history,
     goal,
-    spotFormat,
-    spotCoverage,
-    workout,
-    workoutDone,
   };
 }
 
@@ -119,7 +89,6 @@ export default function TodayScreen() {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const [state, setState] = useState(loadTodayState);
-  const [starterError, setStarterError] = useState<string | null>(null);
   const [goalError, setGoalError] = useState<string | null>(null);
   useFocusEffect(
     useCallback(() => {
@@ -139,10 +108,6 @@ export default function TodayScreen() {
     sharpestName,
     history,
     goal,
-    spotFormat,
-    spotCoverage,
-    workout,
-    workoutDone,
   } = state;
   const estimatedMinutes = Math.max(1, Math.ceil(due.length * MINUTES_PER_RANGE));
   const goalProgress = evaluateDailyGoal(history, nowIso, goal);
@@ -159,21 +124,6 @@ export default function TodayScreen() {
         ? { queue: freePractice.range.id, mode: 'recognize' }
         : undefined;
 
-  // The welcome card's shortcut past an empty library. Only reachable while there are
-  // no ranges, so the whole pack goes in without the Account tab's top-up check.
-  const addStarterRanges = () => {
-    try {
-      saveSavedRanges(buildStarterRanges(new Date().toISOString(), createRangeId));
-    } catch (error) {
-      setStarterError(
-        error instanceof Error ? error.message : 'Could not add the starter ranges.',
-      );
-      return;
-    }
-    setStarterError(null);
-    setState(loadTodayState());
-  };
-
   const pickGoal = (target: number) => {
     // A throw here (full or unavailable store) would leave the picker showing a
     // target nothing saved, so report it and keep the old one.
@@ -184,7 +134,6 @@ export default function TodayScreen() {
       return;
     }
     setGoalError(null);
-    // The workout is sized to the goal, so reload the whole card state.
     setState(loadTodayState());
   };
 
@@ -222,19 +171,18 @@ export default function TodayScreen() {
           <View testID="today-onboarding" style={styles.card}>
             <Text accessibilityRole="header" style={styles.cardTitle}>Welcome</Text>
             <Text style={styles.cardBody}>
-              You have no ranges yet. Start with {STARTER_RANGE_TEMPLATES.length} standard 6-max
-              100bb charts (ordinary ranges you can edit or delete), or build your own in the
-              Library.
+              You have no ranges yet. Create your first one — pick the hands on the grid, save
+              it, and it shows up here ready to train.
             </Text>
-            <SaveErrorBanner error={starterError} testID="starter-error" />
-            <Pressable
-              testID="add-starter-ranges"
-              accessibilityRole="button"
-              style={styles.primaryBtn}
-              onPress={addStarterRanges}
-            >
-              <Text style={styles.primaryBtnText}>Add starter ranges</Text>
-            </Pressable>
+            <Link href="/range/new" asChild>
+              <Pressable
+                testID="create-first-range"
+                accessibilityRole="button"
+                style={styles.primaryBtn}
+              >
+                <Text style={styles.primaryBtnText}>Create a range</Text>
+              </Pressable>
+            </Link>
             <Link href="/library" asChild>
               <Pressable accessibilityRole="button" style={styles.ghostBtn}>
                 <Text style={styles.ghostBtnText}>Open Library</Text>
@@ -243,25 +191,6 @@ export default function TodayScreen() {
           </View>
         ) : (
           <>
-            {workoutDone ? (
-              <View testID="today-workout-done" style={styles.card}>
-                <Text accessibilityRole="header" style={styles.cardTitle}>Daily workout</Text>
-                <Text style={styles.cardBody}>
-                  Done for today. {goal > 0 ? goalLine(goalProgress) : 'See you tomorrow.'}
-                </Text>
-              </View>
-            ) : workout ? (
-              <View testID="today-workout" style={styles.card}>
-                <Text accessibilityRole="header" style={styles.cardTitle}>Daily workout</Text>
-                <Text style={styles.cardBody}>{summarizeWorkout(workout)}</Text>
-                <Link href="/workout" asChild>
-                  <Pressable testID="start-workout" style={styles.primaryBtn}>
-                    <Text style={styles.primaryBtnText}>Start workout</Text>
-                  </Pressable>
-                </Link>
-              </View>
-            ) : null}
-
             {due.length > 0 ? (
               <View style={styles.card}>
                 <Text accessibilityRole="header" style={styles.cardTitle}>Today&rsquo;s review</Text>
@@ -275,13 +204,8 @@ export default function TodayScreen() {
                   }}
                   asChild
                 >
-                  <Pressable
-                    testID="start-review"
-                    style={workout ? styles.ghostBtn : styles.primaryBtn}
-                  >
-                    <Text style={workout ? styles.ghostBtnText : styles.primaryBtnText}>
-                      Start review
-                    </Text>
+                  <Pressable testID="start-review" style={styles.primaryBtn}>
+                    <Text style={styles.primaryBtnText}>Start review</Text>
                   </Pressable>
                 </Link>
               </View>
@@ -312,31 +236,6 @@ export default function TodayScreen() {
               </View>
             )}
 
-            {spotCoverage.covered > 0 ? (
-              <View testID="today-spots" style={styles.card}>
-                <Text accessibilityRole="header" style={styles.cardTitle}>Play the spot</Text>
-                <Text style={styles.cardBody}>
-                  The table deals the situation · {spotCoverage.covered} of {spotCoverage.total}{' '}
-                  spots covered
-                </Text>
-                <Link
-                  href={{
-                    pathname: '/practice',
-                    params: {
-                      mode: 'spots',
-                      table: spotFormat.tableSize,
-                      stack: String(spotFormat.stackDepthBb),
-                    },
-                  }}
-                  asChild
-                >
-                  <Pressable testID="play-spots" style={styles.ghostBtn}>
-                    <Text style={styles.ghostBtnText}>Play</Text>
-                  </Pressable>
-                </Link>
-              </View>
-            ) : null}
-
             {due.length > 0 ? (
               <View style={styles.card}>
                 <Text accessibilityRole="header" style={styles.sectionTitle}>Due now</Text>
@@ -345,7 +244,6 @@ export default function TodayScreen() {
                     const stats = practiceStats[range.id];
                     return (
                       <View key={range.id} testID={`due-row-${range.id}`} style={styles.dueRow}>
-                        <RangeThumbnail hands={range.hands} size={40} />
                         <View style={styles.dueInfo}>
                           <Text style={styles.dueName} numberOfLines={1}>
                             {range.name || 'Untitled'}

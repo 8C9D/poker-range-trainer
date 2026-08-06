@@ -1,8 +1,5 @@
 import { useEffect, useId, useMemo, useState } from 'react'
-import { RangeThumbnail } from '../components/RangeThumbnail'
-import { SpotCoverage } from '../components/SpotCoverage'
 import { formatDayDistance } from '../app/format'
-import { createRangeId } from '../app/ids'
 import {
   readLibraryView,
   rememberLibraryView,
@@ -10,7 +7,6 @@ import {
 } from '../app/libraryView'
 import { routeHash } from '../app/routes'
 import {
-  collectRangeTags,
   distinctStackDepths,
   filterArchivedRanges,
   filterFavoriteRanges,
@@ -19,18 +15,16 @@ import {
   filterRangesBySearch,
   filterRangesByPosition,
   filterRangesByStackDepth,
-  filterRangesByTag,
   sortRangesByAccuracy,
   sortRangesByLastPracticed,
   sortRangesByName,
   sortRangesByUpdatedAt,
 } from '../domain/rangeLibrary'
-import { rangeComboPercentage } from '../domain/comboSelection'
+import { calculateRangePercentage } from '../domain/rangeMath'
 import { practiceAccuracyPercentage } from '../domain/practiceStats'
 import { setRangeArchived } from '../domain/rangeArchive'
 import { setRangeFavorite } from '../domain/rangeFavorite'
 import { selectDueRanges } from '../domain/spacedRepetition'
-import { buildStarterRanges, STARTER_RANGE_TEMPLATES } from '../domain/starterRanges'
 import { loadPracticeStats } from '../storage/practiceStatsStorage'
 import { loadReviewStates } from '../storage/reviewStateStorage'
 import { loadSavedRanges, saveSavedRanges } from '../storage/rangeStorage'
@@ -53,7 +47,6 @@ import {
   type GameType,
   type Position,
   type SavedRange,
-  type TableSize,
 } from '../types/range'
 import './LibraryScreen.css'
 
@@ -61,8 +54,6 @@ import './LibraryScreen.css'
 type SortOrder = LibrarySortOrder
 
 interface LibraryScreenProps {
-  /** Start the v8.2 spot drill over the whole library at the given format. */
-  onPlaySpots: (format: { tableSize: TableSize; stackDepthBb: number }) => void
   /** Drill the selected ranges back to back, as one queued recognition run. */
   onPracticeSelected: (queue: SavedRange[]) => void
 }
@@ -72,7 +63,7 @@ interface LibraryScreenProps {
  * per-range page. Data is loaded once on mount; every mutation lives on the
  * Range page, which navigating back from remounts this screen.
  */
-export function LibraryScreen({ onPlaySpots, onPracticeSelected }: LibraryScreenProps) {
+export function LibraryScreen({ onPracticeSelected }: LibraryScreenProps) {
   // Prefix for the per-row ids the rows' descriptions are wired through; the
   // row index completes it, so it never depends on a range id being id-safe.
   const listId = useId()
@@ -91,7 +82,6 @@ export function LibraryScreen({ onPlaySpots, onPracticeSelected }: LibraryScreen
   const [actionType, setActionType] = useState<ActionType | ''>(lastView.actionType)
   const [stackDepth, setStackDepth] = useState<number | ''>(lastView.stackDepth)
   const [gameType, setGameType] = useState<GameType | ''>(lastView.gameType)
-  const [tag, setTag] = useState(lastView.tag)
   const [sort, setSort] = useState<SortOrder>(lastView.sort)
   const [showArchived, setShowArchived] = useState(lastView.showArchived)
   const [favoritesOnly, setFavoritesOnly] = useState(lastView.favoritesOnly)
@@ -115,7 +105,6 @@ export function LibraryScreen({ onPlaySpots, onPracticeSelected }: LibraryScreen
       actionType,
       stackDepth,
       gameType,
-      tag,
       sort,
       showArchived,
       favoritesOnly,
@@ -127,7 +116,6 @@ export function LibraryScreen({ onPlaySpots, onPracticeSelected }: LibraryScreen
     actionType,
     stackDepth,
     gameType,
-    tag,
     sort,
     showArchived,
     favoritesOnly,
@@ -136,7 +124,6 @@ export function LibraryScreen({ onPlaySpots, onPracticeSelected }: LibraryScreen
   // Both depend only on the mount-once library data, so memoize them instead of
   // recomputing due dates across the whole library on every search keystroke.
   const stackDepths = useMemo(() => distinctStackDepths(ranges), [ranges])
-  const tagOptions = useMemo(() => collectRangeTags(ranges), [ranges])
   const dueIds = useMemo(
     () =>
       new Set(
@@ -167,17 +154,16 @@ export function LibraryScreen({ onPlaySpots, onPracticeSelected }: LibraryScreen
     ),
     gameType,
   )
-  const tagged = filterRangesByTag(filtered, tag === '' ? null : tag)
   const visibleRanges =
     sort === 'name'
-      ? sortRangesByName(tagged)
+      ? sortRangesByName(filtered)
       : sort === 'recent'
-        ? sortRangesByUpdatedAt(tagged)
+        ? sortRangesByUpdatedAt(filtered)
         : sort === 'practiced'
-          ? sortRangesByLastPracticed(tagged, practiceStats)
+          ? sortRangesByLastPracticed(filtered, practiceStats)
           : sort === 'accuracy'
-            ? sortRangesByAccuracy(tagged, practiceStats)
-            : tagged
+            ? sortRangesByAccuracy(filtered, practiceStats)
+            : filtered
   const visibleIds = new Set(visibleRanges.map((range) => range.id))
   const visibleSelectedIds = new Set(Array.from(selectedIds).filter((id) => visibleIds.has(id)))
   const visibleSelectedRanges = visibleRanges.filter((range) => visibleSelectedIds.has(range.id))
@@ -193,7 +179,6 @@ export function LibraryScreen({ onPlaySpots, onPracticeSelected }: LibraryScreen
     (actionType ? 1 : 0) +
     (stackDepth !== '' ? 1 : 0) +
     (gameType ? 1 : 0) +
-    (tag ? 1 : 0) +
     (favoritesOnly ? 1 : 0) +
     (showArchived ? 1 : 0)
   const hasViewChanges = query.length > 0 || sort !== '' || activeFilterCount > 0
@@ -222,12 +207,6 @@ export function LibraryScreen({ onPlaySpots, onPracticeSelected }: LibraryScreen
     return persistResult(write) !== null
   }
 
-  function addStarterRanges() {
-    const starters = buildStarterRanges(new Date().toISOString(), createRangeId)
-    if (!persist(() => saveSavedRanges(starters))) return
-    setRanges(loadSavedRanges())
-  }
-
   function undoDelete() {
     if (!undoable) return
     if (!persist(() => restoreDeletedRanges(undoable))) return
@@ -245,7 +224,6 @@ export function LibraryScreen({ onPlaySpots, onPracticeSelected }: LibraryScreen
     setActionType('')
     setStackDepth('')
     setGameType('')
-    setTag('')
     setSort('')
     setFavoritesOnly(false)
     setShowArchived(false)
@@ -303,15 +281,13 @@ export function LibraryScreen({ onPlaySpots, onPracticeSelected }: LibraryScreen
       {ranges.length === 0 ? (
         <section className="coach-card library-empty" aria-label="Empty library">
           <h2>No ranges yet</h2>
-          <p>Create your first range and it will show up here, ready to train.</p>
           <p>
-            In a hurry? Add {STARTER_RANGE_TEMPLATES.length} standard 6-max 100bb charts (opens
-            for every seat, big-blind defences, and 3-bets) and start training now. They are
-            ordinary ranges: edit or delete any of them.
+            Create your first range and it will show up here, ready to train: pick the hands on
+            the grid, save it, then drill it until you know it cold.
           </p>
-          <button type="button" className="coach-btn primary" onClick={addStarterRanges}>
-            Add starter ranges
-          </button>
+          <a className="coach-btn primary" href={routeHash({ screen: 'newRange' })}>
+            Create a range
+          </a>
         </section>
       ) : (
         <>
@@ -322,7 +298,7 @@ export function LibraryScreen({ onPlaySpots, onPracticeSelected }: LibraryScreen
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search ranges or a hand (A5s)"
-              aria-label="Search ranges by name, tag, notes or a hand"
+              aria-label="Search ranges by name, notes or a hand"
             />
             <button
               type="button"
@@ -510,21 +486,6 @@ export function LibraryScreen({ onPlaySpots, onPracticeSelected }: LibraryScreen
                   </option>
                 ))}
               </select>
-              {tagOptions.length > 0 && (
-                <select
-                  className="coach-input"
-                  value={tag}
-                  onChange={(event) => setTag(event.target.value)}
-                  aria-label="Filter ranges by tag"
-                >
-                  <option value="">All tags</option>
-                  {tagOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              )}
               <button
                 type="button"
                 className="coach-btn"
@@ -554,11 +515,14 @@ export function LibraryScreen({ onPlaySpots, onPracticeSelected }: LibraryScreen
             <ul className="library-list" aria-label="Saved ranges">
               {visibleRanges.map((range, index) => {
                 const stats = practiceStats[range.id]
-                const percentage = rangeComboPercentage(range.hands, range.comboSelections)
+                // Hand-class model only: saved per-combo selections are ignored
+                // here, so a range whose AA is narrowed to one combo still
+                // counts all six.
+                const percentage = calculateRangePercentage(range.hands)
                 const meta = range.metadata
                 // The row's own label replaces everything inside it for a screen
                 // reader, so without pointing back at them the chips and the
-                // practice line — seat, action, size, due, tags, accuracy — are
+                // practice line — seat, action, size, due, accuracy — are
                 // announced to nobody. Ids rather than a hand-built sentence, so
                 // the spoken row cannot drift from the drawn one.
                 const rowId = `${listId}-${index}`
@@ -593,7 +557,6 @@ export function LibraryScreen({ onPlaySpots, onPracticeSelected }: LibraryScreen
                       aria-label={`Open range ${range.name}`}
                       aria-describedby={describedBy}
                     >
-                      <RangeThumbnail hands={range.hands} size={44} />
                       <div className="library-row-info">
                         <span className="library-row-name">
                           {range.favorite && (
@@ -630,11 +593,6 @@ export function LibraryScreen({ onPlaySpots, onPracticeSelected }: LibraryScreen
                             <span className="coach-chip library-chip-due">Due</span>
                           )}
                           {range.archived && <span className="coach-chip">Archived</span>}
-                          {range.tags?.map((rangeTag) => (
-                            <span key={rangeTag} className="coach-chip library-chip-tag">
-                              {rangeTag}
-                            </span>
-                          ))}
                         </span>
                       </div>
                       <div className="library-row-stats coach-tabular" id={`${rowId}-stats`}>
@@ -657,8 +615,6 @@ export function LibraryScreen({ onPlaySpots, onPracticeSelected }: LibraryScreen
               })}
             </ul>
           )}
-
-          <SpotCoverage ranges={ranges} onPlaySpots={onPlaySpots} />
         </>
       )}
     </div>

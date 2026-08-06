@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
 import {
-  collectRangeTags,
   distinctStackDepths,
   filterArchivedRanges,
   filterFavoriteRanges,
@@ -9,7 +8,6 @@ import {
   filterRangesBySearch,
   filterRangesByPosition,
   filterRangesByStackDepth,
-  filterRangesByTag,
   normalizeTags,
   sortRangesByAccuracy,
   sortRangesByLastPracticed,
@@ -179,20 +177,6 @@ describe('filterRangesBySearch', () => {
     expect(filterRangesBySearch(ranges, '')).not.toBe(ranges)
   })
 
-  /**
-   * The box sits beside a tag dropdown that already finds these ranges, so
-   * matching only the name made the two disagree about the same word.
-   */
-  it('matches a tag the range carries', () => {
-    const tagged = [
-      { name: 'Button open', tags: ['MTT', 'ICM'] },
-      { name: 'BB defend vs CO', tags: ['cash'] },
-      { name: 'SB 3-bet vs BTN' },
-    ]
-    expect(filterRangesBySearch(tagged, 'mtt')).toEqual([tagged[0]])
-    expect(filterRangesBySearch(tagged, 'cash')).toEqual([tagged[1]])
-  })
-
   it('matches the range’s scenario notes', () => {
     const noted = [
       { name: 'Button open', metadata: { notes: 'Widen versus a nitty big blind.' } },
@@ -201,17 +185,17 @@ describe('filterRangesBySearch', () => {
     expect(filterRangesBySearch(noted, 'nitty')).toEqual([noted[0]])
   })
 
-  it('lets the terms of one query fall across name, tag and notes', () => {
+  it('lets the terms of one query fall across name and notes', () => {
     const mixed = [
-      { name: 'Button open', tags: ['MTT'], metadata: { notes: 'Short stack.' } },
-      { name: 'Button open (cash)', tags: ['cash'] },
+      { name: 'Button open', metadata: { notes: 'Short stack.' } },
+      { name: 'Button open (cash)' },
     ]
-    expect(filterRangesBySearch(mixed, 'button mtt short')).toEqual([mixed[0]])
+    expect(filterRangesBySearch(mixed, 'button short')).toEqual([mixed[0]])
   })
 
-  it('ignores a tag or note that no term matches', () => {
-    const tagged = [{ name: 'Button open', tags: ['MTT'], metadata: { notes: 'Short stack.' } }]
-    expect(filterRangesBySearch(tagged, 'zzz')).toEqual([])
+  it('ignores a note that no term matches', () => {
+    const noted = [{ name: 'Button open', metadata: { notes: 'Short stack.' } }]
+    expect(filterRangesBySearch(noted, 'zzz')).toEqual([])
   })
 
   it('matches the charts that play a hand the query names', () => {
@@ -838,43 +822,5 @@ describe('normalizeTags', () => {
 
   it('keeps the first spelling of a case-insensitive duplicate', () => {
     expect(normalizeTags(['Cash', 'CASH', 'cash'])).toEqual(['Cash'])
-  })
-})
-
-describe('filterRangesByTag', () => {
-  const tagged = [
-    { name: 'a', tags: ['MTT', 'Cash'] },
-    { name: 'b', tags: ['cash'] },
-    { name: 'c' },
-    { name: 'd', tags: ['Heads-up'] },
-  ]
-
-  it('returns every range for a null or empty tag', () => {
-    expect(filterRangesByTag(tagged, null)).toHaveLength(4)
-    expect(filterRangesByTag(tagged, '')).toHaveLength(4)
-  })
-
-  it('matches the tag case-insensitively and excludes untagged ranges', () => {
-    expect(filterRangesByTag(tagged, 'cash').map((r) => r.name)).toEqual(['a', 'b'])
-    expect(filterRangesByTag(tagged, 'MTT').map((r) => r.name)).toEqual(['a'])
-  })
-
-  it('returns a fresh array rather than the original reference', () => {
-    expect(filterRangesByTag(tagged, null)).not.toBe(tagged)
-  })
-})
-
-describe('collectRangeTags', () => {
-  it('returns the distinct tags across ranges, sorted case-insensitively', () => {
-    const input = [
-      { name: 'a', tags: ['MTT', 'cash'] },
-      { name: 'b', tags: ['Cash', 'aggro'] },
-      { name: 'c' },
-    ]
-    expect(collectRangeTags(input)).toEqual(['aggro', 'cash', 'MTT'])
-  })
-
-  it('returns an empty array when no range carries a tag', () => {
-    expect(collectRangeTags([{ name: 'a' }, { name: 'b', tags: [] }])).toEqual([])
   })
 })

@@ -1,7 +1,6 @@
 import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 
-import { actionColors } from '../theme/actionColors';
 import { dark, light } from '../theme/colors';
 
 // Locks the mobile Coach palette to the web app's tokens (`src/theme.css`) — the
@@ -134,7 +133,7 @@ function blend(tint: string, surface: string): string {
  * and the review schedule. "Next" replaces both answers, so it keeps the fill.
  */
 describe('drill answers', () => {
-  const drills = ['RecognitionDrill', 'SpotDrill'].map((name) => ({
+  const drills = ['RecognitionDrill'].map((name) => ({
     name,
     source: readFileSync(join(__dirname, '..', 'components', 'practice', `${name}.tsx`), 'utf8'),
   }));
@@ -173,10 +172,12 @@ describe('the two golds', () => {
   });
 
   it('still uses accent for the borders it is sized for', () => {
+    // Most accent-bordered chips left with the archived editors; the swipe
+    // affordance in the recognition drill is the one that remains.
     const borders = sources.filter(({ source }) =>
       /borderColor:[^,;\n]*theme\.accent(?![A-Za-z])/.test(source),
     );
-    expect(borders.length).toBeGreaterThan(3);
+    expect(borders.length).toBeGreaterThan(0);
   });
 });
 
@@ -196,54 +197,6 @@ describe('text on the gold tint', () => {
       const ground = blend(theme.accentSoft, surface);
       const ratio = contrast(theme.accentStrong, ground);
       if (ratio < 4.5) failures.push(`accentStrong on ${ground}: ${ratio.toFixed(2)}`);
-    }
-    expect(failures).toEqual([]);
-  });
-});
-
-// The three primary actions map straight onto the Coach action tokens; the rest are
-// palette-derived. Both themes are checked so the mapping tracks light/dark.
-describe('action colors', () => {
-  it('maps raise/threeBet onto the Coach action tokens', () => {
-    for (const theme of [light, dark]) {
-      const map = actionColors(theme);
-      expect(map.raise).toBe(theme.raise);
-      expect(map.threeBet).toBe(theme.bet3);
-    }
-  });
-
-  it('covers every RangeAction with a distinct fill', () => {
-    const map = actionColors(light);
-    const keys = Object.keys(map);
-    expect(keys).toEqual(['fold', 'call', 'raise', 'threeBet', 'fourBet', 'jam', 'mixed']);
-    expect(new Set(Object.values(map)).size).toBe(keys.length);
-  });
-
-  // The web mirror of these two lives in `src/cssIntegrity.test.ts`. An action fill
-  // has two jobs and had been failing the second: the grid cell has to read as
-  // assigned (3:1 from an unassigned one), and the hand label printed on it has to
-  // stay readable. Every fill carried `onAccent`, which on the light palette's
-  // darker fills ran 2.3–4.0:1 — the label was the darkest thing on a dark tile.
-  it.each([
-    ['light', light],
-    ['dark', dark],
-  ])('keeps an assigned cell 3:1 from an unassigned one in %s', (_name, theme) => {
-    const failures: string[] = [];
-    for (const [action, fill] of Object.entries(actionColors(theme))) {
-      const ratio = contrast(fill, theme.cellbg);
-      if (ratio < 3) failures.push(`${action} (${fill}) on cellbg: ${ratio.toFixed(2)}`);
-    }
-    expect(failures).toEqual([]);
-  });
-
-  it.each([
-    ['light', light],
-    ['dark', dark],
-  ])('keeps the label readable on every action fill in %s', (_name, theme) => {
-    const failures: string[] = [];
-    for (const [action, fill] of Object.entries(actionColors(theme))) {
-      const ratio = contrast(theme.onAction, fill);
-      if (ratio < 4.5) failures.push(`onAction on ${action} (${fill}): ${ratio.toFixed(2)}`);
     }
     expect(failures).toEqual([]);
   });

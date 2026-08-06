@@ -24,7 +24,6 @@ export interface LibraryView {
   actionType: ActionType | ''
   stackDepth: number | ''
   gameType: GameType | ''
-  tag: string
   sort: LibrarySortOrder
   showArchived: boolean
   favoritesOnly: boolean
@@ -37,7 +36,6 @@ export const EMPTY_LIBRARY_VIEW: LibraryView = {
   actionType: '',
   stackDepth: '',
   gameType: '',
-  tag: '',
   sort: '',
   showArchived: false,
   favoritesOnly: false,
