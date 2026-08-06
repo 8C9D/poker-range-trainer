@@ -29,6 +29,10 @@ config.resolver.nodeModulesPaths = [
 // crawler so files under the extra watchFolder (../src) are reliably indexed.
 config.resolver.useWatchman = false;
 
+// archived/ holds features cut from v1; its code has dangling imports by design
+// and must never be crawled or bundled.
+config.resolver.blockList = [/\/archived\/.*/];
+
 // Resolve the `@core/*` alias to ../src/* for the bundler. Expo's Metro does not
 // read tsconfig `paths` for targets outside the project root, so map it to a
 // concrete source file here. (tsc reads the alias from tsconfig `paths` and Jest

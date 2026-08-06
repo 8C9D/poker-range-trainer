@@ -7,8 +7,9 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
   // mobile/ is a self-contained Expo (React Native) app with its own ESLint
-  // config; the web toolchain must never lint RN code.
-  globalIgnores(['dist', 'mobile']),
+  // config; the web toolchain must never lint RN code. archived/ holds features
+  // cut from v1 whose code is expected not to compile.
+  globalIgnores(['dist', 'mobile', 'archived']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

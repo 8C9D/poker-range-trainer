@@ -1,0 +1,38 @@
+# EAS build upload filter. When present this file replaces .gitignore for EAS
+# archive filtering, so it mirrors .gitignore and adds archived/ (features cut
+# from v1; their code has dangling imports by design and must never reach a
+# build).
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+coverage
+
+.env
+.env.*
+!.env.example
+
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+.playwright-mcp
+/*.png
+
+# Features cut from v1 — never part of a build input.
+archived/

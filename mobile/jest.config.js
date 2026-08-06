@@ -12,7 +12,9 @@ module.exports = {
   moduleNameMapper: {
     '^@core/(.*)$': '<rootDir>/../src/$1',
   },
-  modulePathIgnorePatterns: ['<rootDir>/coresrc/'],
+  // archived/ (repo root) holds features cut from v1 whose code is expected
+  // not to compile; keep Jest away from it alongside the Metro-only symlink.
+  modulePathIgnorePatterns: ['<rootDir>/coresrc/', '<rootDir>/../archived/'],
   // Installs the react-native-safe-area-context mock so Coach screens (which read the
   // top inset) render in isolation. jest-expo sets setupFiles, not setupFilesAfterEnv.
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
