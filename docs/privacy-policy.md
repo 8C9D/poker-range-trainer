@@ -1,60 +1,58 @@
-# Privacy Policy — Poker Range Trainer (draft)
+# Privacy Policy - Poker Range Trainer
 
-**Effective date:** TODO — set when published.
-**Contact:** TODO — your support email.
+**Effective date:** TODO - set when published.
+**Contact:** TODO - your support email.
 
-> This is a draft to publish before App Store submission. Apple requires a privacy
-> policy hosted at a **public URL**; host this page (e.g. GitHub Pages or any static
-> host) and enter its URL in App Store Connect and in `docs/ios-store-listing.md`.
-> It describes the current build and is consistent with the app's privacy manifest
-> (`mobile/app.json`, `NSPrivacyTracking: false`). Keep the three in sync if data
-> practices change. This template is not legal advice — review it for your
-> jurisdiction.
+> This page must be hosted at a public URL before App Store submission; enter that URL in App Store Connect and in `docs/ios-store-listing.md`.
+> It describes the shipped v1 build and is consistent with the app's privacy manifest (`mobile/app.json`: `NSPrivacyTracking: false`, collected data limited to crash and performance diagnostics).
+> Keep the policy, the manifest and the App Privacy answers in sync if data practices change.
+> This template is not legal advice - review it for your jurisdiction.
 
 ## Summary
 
-Poker Range Trainer is **local-first**. By default, everything you create — your
-ranges, practice statistics, and notes — is stored **only on your device**. The app
-shows no ads, includes no third-party analytics or tracking SDKs, and does not sell
-or share your data.
+Poker Range Trainer is **local-only**.
+Everything you create - your ranges, practice statistics, history and review schedules - is stored **only on your device**.
+There are no accounts, no sign-in, and no cloud sync.
+The app shows no ads, contains no advertising or analytics SDKs, and does not sell or share your data.
+The only data that ever leaves your device is anonymous crash and performance diagnostics, described below.
 
 ## What we store on your device
 
-- The ranges you build, their names and scenario metadata, your practice results,
-  per-hand accuracy, session history, spaced-repetition schedules, and notes.
+- The ranges you build, their names and scenario metadata.
+- Your practice results, per-hand accuracy, session history, spaced-repetition schedules, practice streak and daily goal.
 
-This stays in the app's on-device storage. Uninstalling the app removes it.
+This stays in the app's on-device storage.
+Uninstalling the app removes all of it.
 
-## Optional account and cloud sync
+## Backups you export
 
-The app works fully **offline with no account**. If you choose to sign in to sync
-across devices, we process:
+The app can export your whole library as a JSON file, and import one back.
+Backup files are created only when you ask for one, and go only where you choose to save or share them (for example the Files app or AirDrop).
+We never receive them.
 
-- **Your email address** — to create and authenticate your account.
-- **Your content** — the ranges, practice stats, and notes you choose to sync.
+## Crash and performance diagnostics
 
-This data is stored in our cloud backend ([Supabase](https://supabase.com)) solely
-to provide the account and cross-device sync features. It is **not** used for
-advertising, analytics, tracking, or profiling, and is **not** sold or shared with
-third parties except our hosting provider acting on our behalf to operate the
-service.
+To learn about crashes we could not otherwise see, the app sends crash reports and basic performance diagnostics to [Sentry](https://sentry.io), our crash-reporting processor, acting on our behalf.
+A report contains technical details of the failure - a stack trace, the app version, and device information such as model, OS version and free memory - plus, for a small sample of sessions, timing measurements of app start and navigation.
 
-## Sharing links
+- Diagnostics are **not linked to your identity**: the app has no account and sends no name, email address or user identifier.
+- Your ranges, notes and practice data are **never** included.
+- The app does **not** capture screenshots, view hierarchies or session replays.
+- Diagnostics are **not** used for tracking, advertising or profiling, and are not shared beyond Sentry acting as our processor.
+- Your IP address is technically visible to Sentry when a report is delivered, as with any network request.
 
-If you create a shareable link for a range or pack, the contents of that range or
-pack are stored so anyone with the link can view it. Don't put private information
-in shared ranges.
+Sentry's own privacy policy: <https://sentry.io/privacy/>.
 
 ## Data deletion
 
-- **Cloud data:** delete everything synced to your account in-app via
-  **Account → Delete cloud data**.
-- **Local data:** uninstalling the app removes all on-device data.
+All your content lives on your device: uninstalling the app deletes it.
+Backup files you exported are under your control; delete them wherever you saved them.
+Crash diagnostics are retained by Sentry for a limited period (90 days on the plan we use) and then deleted automatically.
 
 ## Children's privacy
 
-This app is a poker study tool intended for a general/adult audience and is not
-directed at children. It contains **no real-money gambling**.
+This app is a poker study tool intended for a general or adult audience and is not directed at children.
+It contains **no real-money gambling** and no wagering of any kind.
 
 ## Changes to this policy
 
@@ -63,4 +61,4 @@ Material changes will be reflected here.
 
 ## Contact
 
-Questions about this policy: TODO — your support email.
+Questions about this policy: TODO - your support email.

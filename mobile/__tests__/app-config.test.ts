@@ -6,6 +6,13 @@ interface PrivacyAccessedAPIType {
   NSPrivacyAccessedAPITypeReasons: string[];
 }
 
+interface PrivacyCollectedDataType {
+  NSPrivacyCollectedDataType: string;
+  NSPrivacyCollectedDataTypeLinked: boolean;
+  NSPrivacyCollectedDataTypeTracking: boolean;
+  NSPrivacyCollectedDataTypePurposes: string[];
+}
+
 interface AppConfig {
   expo: {
     ios: {
@@ -13,7 +20,7 @@ interface AppConfig {
       privacyManifests?: {
         NSPrivacyTracking: boolean;
         NSPrivacyTrackingDomains: string[];
-        NSPrivacyCollectedDataTypes: unknown[];
+        NSPrivacyCollectedDataTypes: PrivacyCollectedDataType[];
         NSPrivacyAccessedAPITypes: PrivacyAccessedAPIType[];
       };
     };
@@ -37,6 +44,25 @@ describe('app.json iOS privacy manifest', () => {
     expect(manifest).toBeDefined();
     expect(manifest?.NSPrivacyTracking).toBe(false);
     expect(manifest?.NSPrivacyTrackingDomains).toEqual([]);
+  });
+
+  it('declares exactly the diagnostics Sentry collects: crash + performance, unlinked, untracked', () => {
+    // The App Privacy answers and docs/privacy-policy.md describe an app that
+    // collects crash and performance diagnostics only, never linked to identity
+    // and never for tracking. This holds the manifest to that story; widening
+    // the collection means updating both documents alongside this list.
+    const collected = ios.privacyManifests?.NSPrivacyCollectedDataTypes ?? [];
+    expect(collected.map((entry) => entry.NSPrivacyCollectedDataType).sort()).toEqual([
+      'NSPrivacyCollectedDataTypeCrashData',
+      'NSPrivacyCollectedDataTypePerformanceData',
+    ]);
+    for (const entry of collected) {
+      expect(entry.NSPrivacyCollectedDataTypeLinked).toBe(false);
+      expect(entry.NSPrivacyCollectedDataTypeTracking).toBe(false);
+      expect(entry.NSPrivacyCollectedDataTypePurposes).toEqual([
+        'NSPrivacyCollectedDataTypePurposeAppFunctionality',
+      ]);
+    }
   });
 
   it('declares the required-reason APIs the native deps use, each with a reason', () => {
