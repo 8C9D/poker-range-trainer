@@ -144,6 +144,9 @@ Cross-cutting notes:
 
 ## Import/export and backup files (`import-export-backup`)
 
+PARTIALLY RESTORED for the v1 launch (2026-08-06): the whole-library JSON backup is live again - `mobile/components/BackupPanel.tsx` and `mobile/__tests__/backup-screen.test.tsx` moved back to their original paths (with `expo-document-picker`, `expo-file-system`, `expo-sharing` re-added and the `expo-sharing` plugin back in `mobile/app.json`), and the web Account screen's inline backup export/import was recovered from the `pre-trim-full-featureset` tag with a private copy of `downloadTextFile` (the rest of `src/app/rangeFiles.ts` stays archived).
+The notation, CSV, action-notation, mixed-notation and range-files panels remain archived as listed below.
+
 ### Moved files (original paths)
 
 - `mobile/__tests__/action-notation.test.tsx`

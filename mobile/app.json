@@ -58,6 +58,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-sharing",
       "expo-font",
       [
         "expo-splash-screen",

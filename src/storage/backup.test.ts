@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { allCombosForHand } from '../domain/comboSelection'
 import type { SavedRange } from '../types/range'
 import { saveSavedRange } from './rangeStorage'
 import { loadSavedRanges } from './rangeStorage'
@@ -366,6 +367,64 @@ describe('restoreBackup', () => {
 
     expect(() => restoreBackup(malformed)).toThrow(/invalid range/)
     expect(loadSavedRanges().map((range) => range.id)).toEqual(['keep'])
+  })
+})
+
+describe('a backup written before the v1 trim', () => {
+  /**
+   * Pre-trim backups carry fields whose owning features are archived (action
+   * overlays, mixed strategies, combo selections, per-hand notes, tags,
+   * source). The v1 launch's only migration path off an old install is this
+   * file, so it must restore without throwing AND without shedding those
+   * fields — the storage model still carries them for a future restore.
+   */
+  const comboKeys = [...allCombosForHand('AA')].slice(0, 2)
+  const preTrimRange = {
+    ...makeRange(),
+    handActions: { AA: 'raise', KK: 'call' },
+    // Actions in canonical RANGE_ACTIONS order (call before raise): the storage
+    // normalizer reorders on read, and the fixture should match what survives.
+    mixedStrategies: { AA: [{ action: 'call', frequency: 40 }, { action: 'raise', frequency: 60 }] },
+    comboSelections: { AA: comboKeys },
+    handNotes: { AA: 'Always open.' },
+    tags: ['starter', '3-bet pots'],
+    source: { kind: 'book', reference: 'https://example.com/charts' },
+  }
+  const preTrim = {
+    version: BACKUP_VERSION,
+    exportedAt: '2026-07-01T00:00:00.000Z',
+    ranges: [preTrimRange],
+    practiceStats: {},
+    handAccuracy: {},
+    actionAccuracy: { r1: { raise: { action: 'raise', attempts: 3, correct: 2 } } },
+    sessionHistory: {},
+    reviewStates: {},
+    spotAccuracy: { 'sixMax|btn|foldedToYou|-|100': { spotKey: 'sixMax|btn|foldedToYou|-|100', attempts: 4, correct: 3 } },
+    trainingGoal: 20,
+  }
+
+  it('still restores, keeping the archived-feature fields on the range', () => {
+    restoreBackup(parseBackup(JSON.stringify(preTrim)))
+
+    const [range] = loadSavedRanges()
+    expect(range.handActions).toEqual(preTrimRange.handActions)
+    expect(range.mixedStrategies).toEqual(preTrimRange.mixedStrategies)
+    expect(range.comboSelections).toEqual(preTrimRange.comboSelections)
+    expect(range.handNotes).toEqual(preTrimRange.handNotes)
+    expect(range.tags).toEqual(preTrimRange.tags)
+    expect(range.source).toEqual(preTrimRange.source)
+    expect(loadTrainingGoal()).toBe(20)
+  })
+
+  it('round-trips those fields through a fresh export', () => {
+    restoreBackup(parseBackup(JSON.stringify(preTrim)))
+
+    const reExported = parseBackup(serializeBackup(buildBackup('2026-07-02T00:00:00.000Z')))
+
+    expect(reExported.ranges[0].handActions).toEqual(preTrimRange.handActions)
+    expect(reExported.ranges[0].tags).toEqual(preTrimRange.tags)
+    expect(reExported.actionAccuracy).toEqual(preTrim.actionAccuracy)
+    expect(reExported.spotAccuracy).toEqual(preTrim.spotAccuracy)
   })
 })
 
