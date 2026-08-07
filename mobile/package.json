@@ -17,7 +17,6 @@
   "dependencies": {
     "@expo-google-fonts/bricolage-grotesque": "^0.4.1",
     "@expo-google-fonts/instrument-sans": "^0.4.2",
-    "@supabase/supabase-js": "^2.108.0",
     "expo": "~56.0.19",
     "expo-constants": "~56.0.18",
     "expo-crypto": "~56.0.4",
@@ -32,8 +31,7 @@
     "react-native-gesture-handler": "~2.31.1",
     "react-native-mmkv": "^4.3.1",
     "react-native-safe-area-context": "~5.7.0",
-    "react-native-screens": "~4.26.0",
-    "react-native-url-polyfill": "^3.0.0"
+    "react-native-screens": "~4.26.0"
   },
   "devDependencies": {
     "@testing-library/react-native": "^14.0.0",

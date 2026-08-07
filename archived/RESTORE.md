@@ -6,7 +6,7 @@ The authoritative pre-trim snapshot is the tag `pre-trim-full-featureset` (branc
 Cross-cutting notes:
 - Test files wholly owned by a feature moved with it; restoring the feature restores its tests.
 - Removed mobile dependencies (see TRIM-REPORT.md): `expo-clipboard`, `expo-document-picker`, `expo-file-system`, `expo-sharing`, and the `expo-sharing` entry in `mobile/app.json` plugins. Restore whichever a restored feature imports.
-- The cloud sync payload (`trimBackupForSync` in `src/cloud/backupRepo.ts`) strips `handActions`, `mixedStrategies`, `comboSelections`, `handNotes` and `tags` from pushed ranges; when restoring the owning feature, remove its field from that strip list so pushes carry it again.
+- The cloud sync payload (`trimBackupForSync` in `src/cloud/backupRepo.ts` - itself archived since, under `archived/cloud-sync/`) strips `handActions`, `mixedStrategies`, `comboSelections`, `handNotes` and `tags` from pushed ranges; when restoring the owning feature, remove its field from that strip list so pushes carry it again.
 
 ## Postflop tools (`postflop-tools`)
 
@@ -408,6 +408,58 @@ Cross-cutting notes:
 ### Storage left behind
 
 - `src/domain/spot.ts` and `src/storage/spotAccuracyStorage.ts` stay in place (backup and reset still touch them). The `poker-range-trainer.spot-accuracy.v1` store is orphaned on disk (still cleared by Reset, still in the backup payload).
+
+## Cloud accounts and sync (`cloud-sync`)
+
+Cut after the trim, for the v1 launch (2026-08-06): accounts, push/pull sync and delete-cloud-data are out of v1 entirely.
+Restoring also needs the dependencies back: `@supabase/supabase-js` in BOTH the root and `mobile/` `package.json` (the mobile copy plus the `mobile/tsconfig.json` path mapping keep the two installs' types from conflicting), and `react-native-url-polyfill` in `mobile/` with its `import 'react-native-url-polyfill/auto'` first in `mobile/app/_layout.tsx` (Supabase needs a WHATWG `URL` on Hermes).
+
+### Moved files (original paths)
+
+- `mobile/__tests__/auth-screen.test.tsx`
+- `mobile/__tests__/cloud-env.test.ts`
+- `mobile/__tests__/supabase-client.test.ts`
+- `mobile/components/AuthPanel.tsx`
+- `mobile/platform/cloudEnv.ts`
+- `mobile/platform/supabaseClient.ts`
+- `mobile/types/import-meta.d.ts` (existed only so `@core/cloud/cloudConfig`'s `import.meta.env` read type-checked under the mobile tsconfig)
+- `src/cloud/auth.test.ts`
+- `src/cloud/auth.ts`
+- `src/cloud/backupRepo.test.ts`
+- `src/cloud/backupRepo.ts`
+- `src/cloud/cloudConfig.test.ts`
+- `src/cloud/cloudConfig.ts`
+- `src/cloud/rangesRepo.test.ts`
+- `src/cloud/rangesRepo.ts`
+- `src/cloud/supabaseClient.test.ts`
+- `src/cloud/supabaseClient.ts`
+- `src/cloud/useAuthSession.test.ts`
+- `src/cloud/useAuthSession.ts`
+- `src/components/AuthPanel.css`
+- `src/components/AuthPanel.test.tsx`
+- `src/components/AuthPanel.tsx`
+- `src/screens/AccountScreen.cloud.test.tsx`
+
+### Call sites edited to unhook
+
+- `src/screens/AccountScreen.tsx` - the Cloud section (AuthPanel, push/pull/delete-cloud-data handlers, sync status) removed; the Data section with the practice-record reset stays.
+- `src/screens/AccountScreen.test.tsx` - the cloud-gating test ("local-only note when cloud is not configured") replaced with a no-cloud-actions assertion.
+- `mobile/app/(tabs)/account.tsx` - `AuthPanel` and its divider unmounted; `ResetStatsPanel` stays.
+- `mobile/app/_layout.tsx` - the `react-native-url-polyfill/auto` import removed (it existed only for Supabase on Hermes; nothing else in `mobile/` constructs a WHATWG `URL`).
+- `src/vite-env.d.ts` - the `VITE_SUPABASE_*` typings removed from `ImportMetaEnv`.
+- `mobile/tsconfig.json` - the `@supabase/supabase-js` path mapping removed.
+- `.env.example` - the Supabase variables removed (web read `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY`; mobile read `EXPO_PUBLIC_SUPABASE_URL`/`EXPO_PUBLIC_SUPABASE_ANON_KEY`).
+- Dependencies dropped: `@supabase/supabase-js` (root and `mobile/`), `react-native-url-polyfill` (`mobile/`).
+
+### Routes unregistered
+
+- None (all cloud UI lived inside the two Account screens).
+
+### Storage left behind
+
+- The Supabase auth session a signed-in device persisted (`sb-<project-ref>-auth-token` in web `localStorage` / the MMKV-backed shim on mobile) is orphaned; nothing reads or clears it.
+- Server-side rows (`backups`, and the pre-trim `shared_ranges`/`shared_packs`) are out of the app's reach entirely - see LAUNCH-CHECKLIST.md "Your steps" step 1 for retiring the live Supabase project.
+- `src/storage/backup.ts` (`buildBackup`/`restoreBackup`) stays in place: the restored JSON backup feature uses it.
 
 ## Range thumbnails and accuracy heatmap (`range-thumbnails-heatmap`)
 

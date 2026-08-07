@@ -4,8 +4,7 @@
     "strict": true,
     "types": ["jest", "node"],
     "paths": {
-      "@core/*": ["../src/*"],
-      "@supabase/supabase-js": ["./node_modules/@supabase/supabase-js"]
+      "@core/*": ["../src/*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx", "expo-env.d.ts"],

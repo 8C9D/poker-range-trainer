@@ -1,16 +1,13 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text } from 'react-native';
 
-import { AuthPanel } from '../../components/AuthPanel';
 import { ResetStatsPanel } from '../../components/ResetStatsPanel';
 import { Screen } from '../../components/Screen';
 import { fonts } from '../../theme/fonts';
 import { useTheme } from '../../theme/colors';
 
 /**
- * Account tab: sign-in + cloud sync (push/pull with confirm-before-overwrite, delete cloud data)
- * and the practice-record reset, plus the local-only note when Supabase env is unset. All logic
- * lives in the reused `@core/cloud` + `@core/storage` behind the AuthPanel / ResetStatsPanel
- * components.
+ * Account tab: the practice-record reset. Cloud sync was cut from v1
+ * (archived/cloud-sync/); the app is local-only.
  */
 export default function AccountScreen() {
   const theme = useTheme();
@@ -18,8 +15,6 @@ export default function AccountScreen() {
     <Screen>
       <ScrollView contentContainerStyle={styles.content}>
         <Text accessibilityRole="header" style={[styles.title, { color: theme.ink }]}>Account</Text>
-        <AuthPanel />
-        <View style={[styles.divider, { backgroundColor: theme.line }]} />
         <ResetStatsPanel />
       </ScrollView>
     </Screen>
@@ -29,5 +24,4 @@ export default function AccountScreen() {
 const styles = StyleSheet.create({
   content: { padding: 16, gap: 18, paddingBottom: 40 },
   title: { fontFamily: fonts.display, fontSize: 30, marginTop: 4 },
-  divider: { height: StyleSheet.hairlineWidth, marginVertical: 4 },
 });

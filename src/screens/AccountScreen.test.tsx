@@ -28,10 +28,10 @@ function makeRange(id: string, name: string): SavedRange {
 }
 
 describe('AccountScreen', () => {
-  it('shows the local-only note when cloud is not configured', () => {
+  it('is local-only: notes where the data lives and offers no cloud actions', () => {
     render(<AccountScreen />)
-    expect(screen.getByText(/Running local-only/)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Push to cloud' })).not.toBeInTheDocument()
+    expect(screen.getByText(/live in this browser/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /cloud/i })).not.toBeInTheDocument()
   })
 })
 
