@@ -119,16 +119,12 @@ const ICONS: { name: string; colors: string[]; carriesTheMark: boolean }[] = [
   { name: 'icon.png', colors: [GOLD, INK], carriesTheMark: true },
   { name: 'splash-icon.png', colors: [GOLD, INK], carriesTheMark: true },
   { name: 'favicon.png', colors: [GOLD, INK], carriesTheMark: true },
-  { name: 'android-icon-background.png', colors: [GOLD], carriesTheMark: false },
-  { name: 'android-icon-foreground.png', colors: [INK], carriesTheMark: true },
-  { name: 'android-icon-monochrome.png', colors: [INK], carriesTheMark: true },
 ];
 
 interface AppConfig {
   expo: {
     icon: string;
     backgroundColor: string;
-    android: { adaptiveIcon: Record<string, string> };
     web: { favicon: string };
     plugins: (string | [string, Record<string, unknown>])[];
   };
@@ -166,10 +162,11 @@ describe('app icons', () => {
 
   it('references every asset it ships, and ships every asset it references', () => {
     const shipped = readdirSync(ASSETS).filter((file) => file.endsWith('.png'));
+    // iOS-only since the v1 launch: the android block and its adaptive-icon
+    // assets were stripped (Android has never been built or tested).
     const referenced = [
       app.expo.icon,
       app.expo.web.favicon,
-      ...Object.values(app.expo.android.adaptiveIcon),
       String(splashOptions().image),
     ].filter((value) => value.endsWith('.png'));
 
