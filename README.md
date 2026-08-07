@@ -1,184 +1,131 @@
 # Poker Range Trainer
 
-A web app for creating, saving, editing, and practicing Texas Hold'em ranges on a
-standard 13×13 starting-hand grid. It is local-first — it runs entirely in the
-browser and persists to `localStorage`, with no account required — and adds
-OPTIONAL cloud accounts and sync (via Supabase) when configured. It also installs
-as an offline-capable PWA. The repo additionally contains a native iOS app
-(`mobile/`, Expo / React Native) that mirrors the web app and reuses the same
-domain core (see [`docs/ios-roadmap.md`](docs/ios-roadmap.md)).
+A local-only trainer for Texas Hold'em preflop starting-hand ranges: build a range
+on a standard 13×13 grid, then drill yourself on it until you know it cold.
 
-Built with React, TypeScript, and Vite. Poker-domain logic is kept separate from
-the UI (see [Project structure](#project-structure)).
+The repo holds two apps sharing one domain core:
 
-## Features
+- **`mobile/`** — the native iOS app (Expo / React Native), the product being
+  launched to the App Store. It reuses the web app's domain, storage, and type
+  modules via the `@core/*` alias.
+- **`src/`** — the React + TypeScript + Vite web app. Since the v1 launch decision
+  it is a development surface and the home of the shared `@core` code, not a
+  deployed product.
 
-The app implements the full roadmap (**v1–v9**). At a glance:
+Everything is stored on-device (browser `localStorage` on web, MMKV behind a
+`localStorage` shim on iOS). There are no accounts and no backend. The one network
+feature is optional crash reporting on iOS (Sentry), enabled only when
+`EXPO_PUBLIC_SENTRY_DSN` is set at build time and completely inert otherwise.
 
-- **Range editor** — 13×13 grid with click-to-toggle, drag-to-paint, and
-  arrow-key selection (the grid is one tab stop, not 169), range shortcut
-  buttons, live combo count and percentage, range
-  notation import/export (e.g. `22+, A2s+, ATo+`), optional scenario metadata
-  (game type, table size, stack depth, position, action type, notes) — which the
-  editor offers to read straight out of the range's name ("SB 3-bet vs BTN open
-  (6-max 100bb)"), since that metadata is what the spot drill, coverage map and
-  leak reports run on — an optional source/reference, organization tags, and
-  per-hand notes.
-- **Starter ranges** — an empty library fills itself with nine standard 6-max
-  100bb charts in one tap, so every drill, spot, and workout works on day one.
-  They are ordinary editable ranges, tagged `Starter`.
-- **Range library** — saved ranges as cards with search (by name, tag, notes, or by a
-  hand — type "a5s" to see every chart that plays it), filtering
-  (position / action / stack depth / game type / tag), sorting, favorite, archive, and
-  duplicate; each card summarizes combos, scenario, source, hand-notes, and
-  practice accuracy. Tick several (or a whole filtered group) and practice them back
-  to back as one queue, or bulk favorite / archive / delete them. A delete is
-  offered back as an **Undo**, which restores the charts along with the practice
-  record that went with them.
-- **Practice modes** — recognize-hands (in/out) with a missing-hands review,
-  build-from-memory, timed drill, weakness-focused drill, an edge drill (only the
-  hands on the range boundary), a "pick the correct action" quiz (for action
-  charts), and a primary-action quiz (for mixed-frequency charts);
-  swipe-to-answer on touch devices. A miss is explained — where the hand sits in
-  the chart, how much of its hand type the range plays, and whether it is on the
-  range edge — and holds on screen until you continue, so the explanation is
-  actually readable (correct answers advance on their own; the timed drill never
-  stops). If you wrote a note on the hand, the miss hands it straight back to
-  you.
-- **Play the spot** — train the preflop game rather than one range at a time: the
-  app deals a table situation (seat, action in front of you, stack depth), finds
-  the range in your library that covers it, and grades your decision — naming the
-  chart afterwards. A correctly played hand continues into the follow-up spot (you
-  open, someone 3-bets) when your library covers it. A spot-coverage map on the
-  Library shows which standard spots you have a range for, and turns a gap into a
-  new range with the situation pre-filled.
-- **Mistake tracking & analytics** — per-hand accuracy, an accuracy heatmap, a
-  weakest-hands performance view, a leak report grouping misses by hand type
-  (suited connectors, offsuit broadway, …) with a one-tap drill, an accuracy
-  breakdown by seat and by action ("you leak from the big blind"), a weakest-spots
-  list naming the exact situations you play worst (each drillable on its own), a
-  "which way you miss" read on whether your misses play too many hands or fold
-  too many (and the seats that lean hardest each way),
-  "practice mistakes only", session history, a library-wide practice summary, and
-  an accuracy-by-week trend answering whether you are actually improving.
-- **Spaced repetition & goals** — a "due for review" queue, a review streak, and an
-  optional daily hands goal with progress on Today. Caught up for the day, Today
-  still names a next step — the hands you play worst, or the chart due next. Each session advances the
-  range's review schedule by accuracy, pulled closer when its per-hand record
-  still has stubbornly-wrong hands.
-- **Daily workout** — one tap on Today runs a guided session composed from what
-  the data says you need: due reviews, then your weakest recorded spots, then
-  free spot play, sized to the daily goal, ending in one combined summary. A
-  finished workout stays "done" for the rest of the day.
-- **Multi-action ranges** — assign an action (fold/call/raise/3-bet/4-bet/jam/
-  mixed) per hand on a multi-color grid, see per-action percentages, and
-  import/export action-grouped notation.
-- **Combo-level precision** — expand hand classes to exact combos, select specific
-  combos per hand, see blocker-aware combo counts against a board, and drill
-  un-blocked combos. Narrowed combos count toward the range's reported size
-  everywhere it is summarized.
-- **Mixed-frequency strategies** — assign per-hand action frequencies with
-  sliders, view a primary-action grid, and import/export frequency notation.
-- **Postflop training** — flop texture tagging, a range-vs-board made-hand/draw
-  breakdown, and a self-graded postflop decision drill.
-- **Import / export & sharing** — per-range JSON / CSV / SVG export and JSON/CSV
-  import, a full backup file (export + import), a "reset practice stats" clean
-  slate that keeps your charts, range packs (export/import),
-  shareable range and pack links (public or private), and "save to my library"
-  forking of shared ranges and packs.
-- **Optional accounts & cloud sync** — sign in (Supabase email/OAuth) to push/pull
-  your whole library and delete cloud data; entirely env-gated, so the app stays
-  fully usable in local-only mode.
-- **Mobile & PWA** — responsive grid, large tap targets, an installable
-  offline-capable PWA, and a getting-started onboarding panel for new users.
+## Features (shipped v1)
 
-For a feature-by-feature description (and a manual test checklist) see the
-[manual testing guide](docs/manual-testing-guide.md).
+- **Range editor** — 13×13 grid with click/tap-to-toggle, drag-to-paint, and (web)
+  arrow-key navigation as a single tab stop; range shortcut buttons (pairs, 77+,
+  broadways); live hand count, combo count, and percentage; live save.
+- **Scenario metadata** — optional game type, table size, stack depth, position,
+  versus position, action type, and notes per range, offered straight out of a
+  recognizable range name ("SB 3-bet vs BTN open (6-max 100bb)").
+- **Range library** — saved ranges as rows with search (by name, hand — type "a5s"
+  to find every chart that plays it — or scenario notes), filters (position /
+  action / stack depth / game type), four sorts, favorite, archive, duplicate,
+  multi-select with a bulk practice queue and bulk actions, and an in-memory
+  **Undo** for deletes that restores the practice record too.
+- **Practice drills** — recognition (in/out with immediate feedback), build-from-
+  memory, timed, weakness-weighted, and a range-edge drill; swipe-to-answer with
+  haptics on iOS; every miss is explained and held on screen until you continue.
+- **Practice recording** — each finished session writes per-range stats, per-hand
+  accuracy, session history, and the spaced-repetition schedule.
+- **Spaced repetition & goals** — a due-for-review queue and streak on Today, a
+  caught-up next-step suggestion, and an optional daily hands goal with week tiles.
+- **Progress analytics** — weekly hands and accuracy, an accuracy-by-week trend,
+  leaks by hand type, a which-way-you-miss read (with per-seat leans), and a
+  weakest-hands table — each one tap from a targeted drill.
+- **JSON backup** — export the whole library (ranges, stats, history, schedules,
+  goal) as one file and restore it, on both apps; the only way data moves between
+  devices, and validated before it replaces anything.
+- **Reset practice stats** — a clean slate that keeps the charts.
+- **Crash reporting (iOS only, optional)** — Sentry, gated on
+  `EXPO_PUBLIC_SENTRY_DSN`; no session replay, screenshots, or view hierarchies.
 
-Deferred (future work): the heavy v5.1 community features — study groups, group
-leaderboards, coach-created assignments, comments on ranges, and shared version
-history — are intentionally not built (they need a multi-user backend beyond the
-current scope). See [`docs/roadmap.md`](docs/roadmap.md).
+Thirteen features from the pre-launch build (cloud sync and accounts among them)
+are archived, not deleted: see [`TRIM-REPORT.md`](TRIM-REPORT.md) for what and why,
+and [`archived/RESTORE.md`](archived/RESTORE.md) for how each one comes back. The
+`archived/` tree is fenced off from typecheck, lint, tests, Metro, and EAS.
 
 ## Getting started
 
 Requires Node.js and npm.
 
 ```bash
-npm install      # first time only
-npm run dev      # start the Vite dev server (default http://localhost:5173)
+npm install                # web deps (first time only)
+npm install --prefix mobile  # mobile deps (first time only)
+npm run dev                # start the Vite dev server (default http://localhost:5173)
 ```
 
-### Cloud sync (optional)
-
-Cloud accounts and sync are **off by default** — the app is fully usable in
-local-only mode. To enable them, copy `.env.example` to `.env.local` and set both
-Supabase values:
-
-```bash
-cp .env.example .env.local   # then fill in your Supabase URL + anon key
-```
-
-Only the **public anon key** goes here. Every `VITE_`-prefixed variable is inlined
-into the client bundle, so it must be safe to expose; your data is protected by
-Supabase Row-Level Security, not by hiding the key. Never put a `service_role` key
-(or any other secret) in a `VITE_` variable. The schema and RLS policies live in
-[`supabase/migrations/`](supabase/migrations/).
+For the iOS app, see [`docs/ios-roadmap.md`](docs/ios-roadmap.md) and run from
+`mobile/` with `npm run ios` (Expo). No environment variables are required for
+either app; `.env.example` documents the single optional one (the Sentry DSN).
 
 ## Scripts
+
+Run these from the repo root — the root scripts drive both apps, and running the
+same names from `mobile/` runs the mobile-only variants instead.
 
 | Command | What it does |
 |---------|--------------|
 | `npm run dev` | Start the Vite dev server with hot reload. |
-| `npm run build` | Type-check (`tsc -b`) and build the production bundle. |
-| `npm run preview` | Serve the production build locally. |
-| `npm run lint` | Run ESLint over the project. |
-| `npm run test` | Run Vitest in watch mode. |
-| `npm run test:run` | Run the Vitest suite once (CI-style). |
+| `npm run build` | Type-check + build the web bundle, then type-check the mobile app. |
+| `npm run preview` | Serve the production web build locally. |
+| `npm run lint` | ESLint over both apps. |
+| `npm run test` | Vitest (web) in watch mode. |
+| `npm run test:run` | The web (Vitest) and mobile (Jest) suites once, CI-style. |
 
-After code changes, the project convention is to run `npm run lint`,
-`npm run test:run`, and `npm run build` and fix any failures before committing.
+The same three commands (`lint`, `test:run`, `build`) run in CI on every push and
+pull request (`.github/workflows/ci.yml`), and are the local validation gate before
+any commit.
 
 ## Project structure
 
 ```text
 src/
-  App.tsx        Top-level: renders the shared-link viewers, then the routed app shell.
-  app/           App shell, hash routing, id minting, and file/share + session-recording helpers.
+  App.tsx        Top-level routed app shell.
+  app/           App shell, hash routing, id minting, session-recording helpers.
   screens/       The routed screens (Today, Library, the per-range page, Progress, Account).
   practice/      Full-screen practice overlay (mode picker, drills, session summary).
-  components/    Shared UI (hand grid, editors, notation, performance views, range thumbnail).
-  domain/        Pure poker logic (hand generation, range math, notation, practice scoring, spaced repetition, ...).
-  storage/       localStorage persistence (ranges, practice stats, hand/action accuracy, session history, review state, backup).
-  cloud/         Optional, env-gated Supabase integration (auth, client, and range/backup/shared-range/shared-pack repos).
+  components/    Shared UI (hand grid, editors, error boundary, performance views).
+  domain/        Pure poker logic (hand generation, range math, practice scoring, spaced repetition, ...).
+  storage/       localStorage persistence (ranges, practice stats, accuracy, history, review state, backup).
   types/         Shared TypeScript types (range.ts, practice.ts).
-  test/          Vitest setup.
-docs/            Roadmap, manual testing guide, acceptance reviews, and the docs-sync report.
-supabase/        SQL migrations documenting the optional cloud schema (ranges, backups, shared ranges, shared packs).
-mobile/          The Expo (React Native) iOS app — its own package, reusing src/ domain/storage/cloud logic via the @core alias.
+mobile/          The Expo (React Native) iOS app — its own package, reusing src/ via the @core alias.
+archived/        The 13+1 archived features, fenced from every toolchain; see archived/RESTORE.md.
+docs/            Roadmaps, the manual testing guide, store listing and privacy policy drafts.
+supabase/        SQL migrations for the retired cloud backend, kept as the reference for
+                 verifying/retiring the live project (LAUNCH-CHECKLIST.md, step 1).
 ```
 
 Tests live beside the code they cover (e.g. `domain/practice.ts` /
-`domain/practice.test.ts`).
+`domain/practice.test.ts`); mobile tests live in `mobile/__tests__/`.
 
 ## Data & persistence
 
-All data is stored in the browser's `localStorage` under keys prefixed with
-`poker-range-trainer.` (saved ranges, practice stats, per-hand and per-action
-accuracy, session history, and review state). You can export and re-import a full
-backup file at any time, and — when cloud sync is configured and you are signed
-in — push/pull your library across devices. Clearing site data without a backup
-or cloud copy loses local data. The keys and how to reset them are documented in
-the
+All data lives on-device under nine keys prefixed with `poker-range-trainer.`
+(ranges, practice stats, per-hand / per-action / per-spot accuracy, session
+history, review state, training goal, workout flag). There is no migration
+machinery — see the storage-versioning rule in [`CLAUDE.md`](CLAUDE.md) before
+changing any stored shape. The JSON backup carries every key except the day-scoped
+workout flag; clearing site data (web) or uninstalling (iOS) without a backup
+loses local data. Keys and reset instructions are in the
 [manual testing guide](docs/manual-testing-guide.md#2-managing-test-state-important).
 
 ## Testing
 
-Core domain and storage logic is covered by Vitest, with component tests via
-Testing Library. Run the suite with `npm run test:run`.
+Web: Vitest with Testing Library. Mobile: Jest (jest-expo) with RNTL, run
+`--runInBand`. `npm run test:run` from the repo root runs both.
 
 ## Documentation
 
-- [`docs/roadmap.md`](docs/roadmap.md) — product vision and the full version roadmap.
+- [`LAUNCH-CHECKLIST.md`](LAUNCH-CHECKLIST.md) — the iOS App Store launch checklist.
+- [`TRIM-REPORT.md`](TRIM-REPORT.md) / [`archived/RESTORE.md`](archived/RESTORE.md) — the v1 scope trim and how to restore archived features.
 - [`docs/manual-testing-guide.md`](docs/manual-testing-guide.md) — current feature list and a manual test checklist.
-- [`CLAUDE.md`](CLAUDE.md) — workflow rules and technical conventions for contributors (and AI agents).
+- [`docs/roadmap.md`](docs/roadmap.md) / [`docs/ios-roadmap.md`](docs/ios-roadmap.md) — the product roadmaps (forward-looking plans).
+- [`CLAUDE.md`](CLAUDE.md) — workflow rules, storage-versioning rule, and validation gate.
