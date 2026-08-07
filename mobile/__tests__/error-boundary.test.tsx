@@ -2,6 +2,11 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import { Text } from 'react-native';
 
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import { reportCaughtError } from '../platform/crashReporting';
+
+// The boundary must hand every caught error to the crash-reporting seam; the
+// seam's own DSN gating is covered in crash-reporting.test.ts.
+jest.mock('../platform/crashReporting', () => ({ reportCaughtError: jest.fn() }));
 
 // A child that throws on render, used to drive the boundary into its fallback.
 function Boom({ message = 'Kaboom' }: { message?: string }): never {
@@ -43,6 +48,18 @@ describe('ErrorBoundary', () => {
     expect(screen.getByTestId('error-retry')).toBeTruthy();
     // The throwing child must not have leaked into the rendered tree.
     expect(screen.queryByText('All good')).toBeNull();
+  });
+
+  it('reports the caught error to crash reporting', async () => {
+    await render(
+      <ErrorBoundary>
+        <Boom message="Reported" />
+      </ErrorBoundary>,
+    );
+
+    expect(reportCaughtError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Reported' }),
+    );
   });
 
   it('recovers when Try again is pressed and the child no longer throws', async () => {

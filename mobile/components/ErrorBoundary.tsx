@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { reportCaughtError } from '../platform/crashReporting';
 import { useTheme } from '../theme/colors';
 import type { ThemeColors } from '../theme/colors';
 
@@ -27,9 +28,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
-    // Record the failure (with its component stack) for debugging. No crash-reporting
-    // backend is wired up; this is the hook where one would attach later.
+    // Record the failure (with its component stack) for debugging, and report it
+    // to crash reporting (inert unless EXPO_PUBLIC_SENTRY_DSN is set): a caught
+    // render error never reaches the global handler, so without this the
+    // recoverable-fallback path would be invisible in production.
     console.error('Unhandled render error:', error, info.componentStack);
+    reportCaughtError(error);
   }
 
   reset = (): void => {

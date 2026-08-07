@@ -71,7 +71,8 @@
             "backgroundColor": "#101316"
           }
         }
-      ]
+      ],
+      "@sentry/react-native"
     ]
   }
 }

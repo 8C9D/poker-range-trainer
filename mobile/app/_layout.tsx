@@ -3,7 +3,7 @@
 import '../platform/installStorage';
 import '../platform/installCrypto';
 import { useEffect } from 'react';
-import { Stack, SplashScreen } from 'expo-router';
+import { Stack, SplashScreen, useNavigationContainerRef } from 'expo-router';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet } from 'react-native';
@@ -21,7 +21,16 @@ import {
 } from '@expo-google-fonts/instrument-sans';
 
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import {
+  initCrashReporting,
+  registerNavigationContainer,
+  wrapRootComponent,
+} from '../platform/crashReporting';
 import { useTheme } from '../theme/colors';
+
+// Crash reporting before the first render, so a crash during startup is still
+// caught. Inert (no init, no network) unless EXPO_PUBLIC_SENTRY_DSN is set.
+initCrashReporting();
 
 // Hold the native splash until the Coach fonts are ready, so the first painted frame
 // already uses Bricolage Grotesque / Instrument Sans (no flash of system font). Keys
@@ -32,7 +41,14 @@ void SplashScreen.preventAutoHideAsync();
 // wrapped in GestureHandlerRootView (required for the grid's drag-paint gestures)
 // and an ErrorBoundary (so a render error shows a recoverable fallback instead of
 // a blank screen).
-export default function RootLayout() {
+function RootLayout() {
+  // Hand the router's navigation container to Sentry for route-change tracing
+  // (a no-op while crash reporting is disabled).
+  const navigationContainerRef = useNavigationContainerRef();
+  useEffect(() => {
+    registerNavigationContainer(navigationContainerRef);
+  }, [navigationContainerRef]);
+
   const [fontsLoaded, fontError] = useFonts({
     BricolageGrotesque_500Medium,
     BricolageGrotesque_600SemiBold,
@@ -76,6 +92,10 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+// Sentry's wrapper adds touch tracking when reporting is enabled; with the DSN
+// unset this exports RootLayout itself, unchanged.
+export default wrapRootComponent(RootLayout);
 
 const styles = StyleSheet.create({
   root: {
