@@ -30,33 +30,34 @@ Re-opening any of them changes the work.
 
 ## Pass 1 - Cut cloud sync
 
-- [ ] **[A]** Archive `src/cloud/*`, both `AuthPanel` components, `mobile/platform/supabaseClient.ts` and `mobile/platform/cloudEnv.ts` to `archived/cloud-sync/`, preserving relative paths.
-- [ ] **[A]** Unhook the Account screens on both platforms; the Reset-practice-record panel stays.
-- [ ] **[A]** Drop `@supabase/supabase-js` from both `package.json` files, and `react-native-url-polyfill` from `mobile/` plus its `import 'react-native-url-polyfill/auto'` in `mobile/app/_layout.tsx` (it exists only for Supabase on Hermes).
-- [ ] **[A]** Add the `cloud-sync` section to `archived/RESTORE.md` in the established format.
+- [x] **[A]** Archive `src/cloud/*`, both `AuthPanel` components, `mobile/platform/supabaseClient.ts` and `mobile/platform/cloudEnv.ts` to `archived/cloud-sync/`, preserving relative paths.
+- [x] **[A]** Unhook the Account screens on both platforms; the Reset-practice-record panel stays.
+- [x] **[A]** Drop `@supabase/supabase-js` from both `package.json` files, and `react-native-url-polyfill` from `mobile/` plus its `import 'react-native-url-polyfill/auto'` in `mobile/app/_layout.tsx` (it exists only for Supabase on Hermes).
+- [x] **[A]** Add the `cloud-sync` section to `archived/RESTORE.md` in the established format.
 - [ ] **[Y]** Deal with the live Supabase project - see "Your steps" step 1.
 
 ## Pass 2 - Restore JSON backup
 
-- [ ] **[A]** Restore `BackupPanel.tsx` and `backup-screen.test.tsx` on mobile from `archived/import-export-backup/`, and the web Account screen's backup export/import for parity.
-- [ ] **[A]** Re-add `expo-document-picker`, `expo-file-system` and `expo-sharing` to `mobile/package.json` at SDK 56 versions, and the `expo-sharing` plugin entry to `mobile/app.json`.
-- [ ] **[A]** Leave the notation, CSV, action-notation and range-files panels archived.
-- [ ] **[A]** Confirm a backup written before the trim still restores, and that a restore of a payload carrying archived-feature fields does not throw.
+- [x] **[A]** Restore `BackupPanel.tsx` and `backup-screen.test.tsx` on mobile from `archived/import-export-backup/`, and the web Account screen's backup export/import for parity.
+- [x] **[A]** Re-add `expo-document-picker`, `expo-file-system` and `expo-sharing` to `mobile/package.json` at SDK 56 versions, and the `expo-sharing` plugin entry to `mobile/app.json`.
+- [x] **[A]** Leave the notation, CSV, action-notation and range-files panels archived.
+- [x] **[A]** Confirm a backup written before the trim still restores, and that a restore of a payload carrying archived-feature fields does not throw.
 
 ## Pass 3 - Crash reporting
 
 - [ ] **[Y]** Create the Sentry account and project - see "Your steps" step 2.
-- [ ] **[A]** Add `@sentry/react-native` and its Expo config plugin, gated on `EXPO_PUBLIC_SENTRY_DSN` and fully inert when unset, mirroring the `cloudEnv.ts` seam.
-- [ ] **[A]** Initialise in `mobile/app/_layout.tsx` with `Sentry.wrap` and `expoRouterIntegration`; wire `mobile/components/ErrorBoundary.tsx` to report caught errors.
-- [ ] **[A]** Disable session replay, screenshots and view hierarchy; a poker study tool has no reason to ship screen contents to a third party.
-- [ ] **[A]** Test that the app boots and behaves identically with the DSN unset.
+- [x] **[A]** Add `@sentry/react-native` and its Expo config plugin, gated on `EXPO_PUBLIC_SENTRY_DSN` and fully inert when unset, mirroring the `cloudEnv.ts` seam.
+- [x] **[A]** Initialise in `mobile/app/_layout.tsx` with `Sentry.wrap` and `expoRouterIntegration`; wire `mobile/components/ErrorBoundary.tsx` to report caught errors.
+  (Note: the SDK 56-pinned `@sentry/react-native` ~7.11.0 predates `expoRouterIntegration`; its documented equivalent for expo-router - `reactNavigationIntegration` registered with the router's navigation-container ref - is wired instead.)
+- [x] **[A]** Disable session replay, screenshots and view hierarchy; a poker study tool has no reason to ship screen contents to a third party.
+- [x] **[A]** Test that the app boots and behaves identically with the DSN unset.
 - [ ] **[Y]** Add `SENTRY_AUTH_TOKEN` to EAS secrets for source-map upload - see "Your steps" step 7.
 
 ## Pass 4 - Privacy and legal
 
-- [ ] **[A]** Update `NSPrivacyCollectedDataTypes` in `mobile/app.json` to declare crash and diagnostic data, linked to app functionality and not to tracking.
-- [ ] **[A]** Rewrite `docs/privacy-policy.md` for the shipped v1: local-first, no account, no cloud upload of ranges, crash diagnostics only.
-- [ ] **[A]** Update the App Privacy answers in `docs/ios-store-listing.md` to match, and remove the sign-in copy from the listing.
+- [x] **[A]** Update `NSPrivacyCollectedDataTypes` in `mobile/app.json` to declare crash and diagnostic data, linked to app functionality and not to tracking.
+- [x] **[A]** Rewrite `docs/privacy-policy.md` for the shipped v1: local-first, no account, no cloud upload of ranges, crash diagnostics only.
+- [x] **[A]** Update the App Privacy answers in `docs/ios-store-listing.md` to match, and remove the sign-in copy from the listing.
 - [ ] **[Y]** Host the privacy policy at a public URL - see "Your steps" step 3.
 - [ ] **[Y]** Provide a support URL and support email - see "Your steps" step 3.
 - [ ] **[Y]** Answer the age-rating questionnaire, including the simulated-gambling questions - see "Your steps" step 8.
@@ -64,22 +65,22 @@ Re-opening any of them changes the work.
 
 ## Pass 5 - Data safety
 
-- [ ] **[A]** Write the storage-versioning rule down in `CLAUDE.md` or a short doc: nine `localStorage` keys, no migration machinery, malformed records silently dropped on read. Decide and record whether a shape change bumps the key suffix or migrates in place.
-- [ ] **[A]** Add a guard test that fails when a storage key is added or renamed without the backup key list being updated, closing finding S2's class of bug.
+- [x] **[A]** Write the storage-versioning rule down in `CLAUDE.md` or a short doc: nine `localStorage` keys, no migration machinery, malformed records silently dropped on read. Decide and record whether a shape change bumps the key suffix or migrates in place.
+- [x] **[A]** Add a guard test that fails when a storage key is added or renamed without the backup key list being updated, closing finding S2's class of bug.
 - [ ] **[Y]** Test the upgrade path on a real device - see "Your steps" step 9.
 
 ## Pass 6 - Correctness under real conditions
 
-- [ ] **[A]** Run the full suite under several timezones (a half-hour offset such as `Asia/Kolkata`, a DST-observing zone such as `America/New_York`, and `UTC`). Streaks, daily goals, the review schedule and the "today" boundary are all local-day arithmetic that has only ever run in one zone. Fix what breaks, or report it precisely.
-- [ ] **[A]** Remove the orphaned `src/components/SpotCoverage.css` and the empty `mobile/app/p/` and `mobile/app/r/` directories.
-- [ ] **[A]** Strip the Android block from `mobile/app.json`; Android has never been built or tested and half-present config invites a bad build.
+- [x] **[A]** Run the full suite under several timezones (a half-hour offset such as `Asia/Kolkata`, a DST-observing zone such as `America/New_York`, and `UTC`). Streaks, daily goals, the review schedule and the "today" boundary are all local-day arithmetic that has only ever run in one zone. Fix what breaks, or report it precisely.
+- [x] **[A]** Remove the orphaned `src/components/SpotCoverage.css` and the empty `mobile/app/p/` and `mobile/app/r/` directories.
+- [x] **[A]** Strip the Android block from `mobile/app.json`; Android has never been built or tested and half-present config invites a bad build.
 - [ ] **[Y]** Real-device pass on TestFlight - see "Your steps" step 9. This is the one pass that cannot be simulated, and every test to date has run under jsdom or Jest.
 
 ## Pass 7 - Release engineering
 
-- [ ] **[A]** Add `.github/workflows/ci.yml` running `npm run lint`, `npm run test:run` and `npm run build` on push and pull request. Today these run only when someone remembers.
-- [ ] **[A]** Align versions: root `package.json` says `0.0.0` while `mobile/app.json` says `1.0.0`.
-- [ ] **[A]** Re-run full validation and commit in reviewable slices.
+- [x] **[A]** Add `.github/workflows/ci.yml` running `npm run lint`, `npm run test:run` and `npm run build` on push and pull request. Today these run only when someone remembers.
+- [x] **[A]** Align versions: root `package.json` says `0.0.0` while `mobile/app.json` says `1.0.0`.
+- [x] **[A]** Re-run full validation and commit in reviewable slices.
 - [ ] **[Y]** Set up the support inbox before the support URL goes public.
 
 ## Pass 8 - Apple pipeline
