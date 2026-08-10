@@ -9,6 +9,7 @@
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#efede6",
     "ios": {
+      "bundleIdentifier": "com.arthurzhang.pokerrangetrainer",
       "supportsTablet": true,
       "buildNumber": "1",
       "privacyManifests": {
