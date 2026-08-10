@@ -1,11 +1,19 @@
 import { loadSavedRanges, saveSavedRange, STORAGE_KEY } from '@core/storage/rangeStorage';
 import type { SavedRange } from '@core/types/range';
-
 import { installLocalStorage, localStorageShim } from '../platform/localStorageShim';
 
 // react-native-mmkv is a native module jest-expo can't load; use the in-memory
 // manual mock at mobile/__mocks__/react-native-mmkv.ts.
 jest.mock('react-native-mmkv');
+
+// Reached through `requireMock` rather than an import: the real package's types
+// have no `__lastConfiguration`, so a bare `import { __lastConfiguration } from
+// 'react-native-mmkv'` fails `tsc --noEmit`, and importing the mock by path makes
+// Jest hand back an auto-mocked copy instead of the instance the shim uses. This
+// returns the exact module registry entry the shim imported.
+const mmkvMock = jest.requireMock('react-native-mmkv') as {
+  __lastConfiguration(): { id?: string; recoveryStrategy?: string } | undefined;
+};
 
 // Hands listed in canonical 13x13 row-major order (AA, AKs, AQs) so the core's
 // normalization leaves them unchanged — keeps the round-trip assertion exact.
@@ -70,5 +78,22 @@ describe('MMKV-backed localStorage shim', () => {
     const existing = (globalThis as { localStorage?: unknown }).localStorage;
     installLocalStorage();
     expect((globalThis as { localStorage?: unknown }).localStorage).toBe(existing);
+  });
+
+  // Unset, `recoveryStrategy` reaches MMKV core as `std::nullopt` and falls
+  // through to the legacy handler callback, which returns `OnErrorDiscard` when
+  // no handler is registered — and react-native-mmkv registers none. One CRC or
+  // file-length error would discard every key in the instance, which is all nine
+  // storage slices at once. Nothing else in the suite can see this option: the
+  // mock stores into a Map that has no CRC to fail, so only the call site is
+  // observable, and this asserts it.
+  it('opens the store asking MMKV to recover from corruption, not discard it', () => {
+    // The instance is created lazily on first access, so touch the store first.
+    localStorageShim.setItem('any-key', 'any-value');
+
+    expect(mmkvMock.__lastConfiguration()).toEqual({
+      id: 'poker-range-trainer',
+      recoveryStrategy: 'recover-on-error',
+    });
   });
 });

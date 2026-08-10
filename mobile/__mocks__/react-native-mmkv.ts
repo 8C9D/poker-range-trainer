@@ -4,7 +4,29 @@
 // (set / getString / remove / clearAll / getAllKeys / length). Behavior mirrors
 // MMKV: `getString` returns `undefined` for a missing key. Like the real v4 API,
 // instances are produced by `createMMKV()`.
-export function createMMKV() {
+
+/** The `Configuration` fields the shim actually passes. */
+interface MockConfiguration {
+  id?: string;
+  recoveryStrategy?: string;
+}
+
+let lastConfiguration: MockConfiguration | undefined;
+
+/**
+ * The configuration of the most recent `createMMKV()` call.
+ *
+ * The mock ignores the configuration when storing values — an in-memory Map has
+ * no CRC to fail — so without this, options that only matter natively (notably
+ * `recoveryStrategy`, which decides whether corruption discards every key or is
+ * recovered) could be dropped from the shim and no test would notice.
+ */
+export function __lastConfiguration(): MockConfiguration | undefined {
+  return lastConfiguration;
+}
+
+export function createMMKV(configuration?: MockConfiguration) {
+  lastConfiguration = configuration;
   const store = new Map<string, string>();
   return {
     set(key: string, value: string): void {

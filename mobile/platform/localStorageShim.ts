@@ -28,10 +28,21 @@ interface WebStorageLike {
 // mocked) and means screens importing the installer don't pay native init until
 // the first actual read/write. react-native-mmkv v4 builds instances via
 // createMMKV(); the named id is this app's on-disk store identifier.
+//
+// `recoveryStrategy` is set deliberately, and leaving it unset is not a neutral
+// default. Unset, the option arrives at MMKV core as `std::nullopt`, which falls
+// through to the legacy handler callback; with no handler registered — and
+// react-native-mmkv registers none — that callback returns `OnErrorDiscard`.
+// A single CRC or file-length error would then throw away every key in this
+// instance, which is ALL NINE storage slices: the whole range library and the
+// entire practice record, silently, with the app reading back as a fresh
+// install. There is no account and no server to restore any of it from, only a
+// backup file the user had to have chosen to export. 'recover-on-error' asks
+// MMKV to salvage what it can instead.
 let store: MMKV | null = null;
 function getStore(): MMKV {
   if (store === null) {
-    store = createMMKV({ id: 'poker-range-trainer' });
+    store = createMMKV({ id: 'poker-range-trainer', recoveryStrategy: 'recover-on-error' });
   }
   return store;
 }
