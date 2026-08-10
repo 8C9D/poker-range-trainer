@@ -9,6 +9,18 @@ Every later "green" claim in this run is measured against this file.
 - node v24.15.0 / npm 11.12.1
 - Working tree: clean at capture time
 
+### Provenance of the baseline commit (added per finding R0-5; the raw output below is unchanged)
+
+`21f568b` is **not** a pre-existing commit. It was authored during this run, minutes before the capture, and the tree was clean at capture time *because* of it.
+
+The session began with three files already dirty in the working tree — `mobile/app.json`, `mobile/package.json`, `mobile/tsconfig.json` — which are exactly the three that commit contains. They were pre-existing user work (Expo prebuild output completing Step 5 of `LAUNCH-CHECKLIST.md`, the bundle identifier), not changes this sweep authored, and they were committed rather than discarded at the user's explicit direction before Stage 0 began. What it carries:
+
+- `mobile/app.json`: adds `ios.bundleIdentifier` — the launch-checklist step.
+- `mobile/package.json`: `expo start --ios` → `expo run:ios` (and the android equivalent) — a build-invocation change, required because `react-native-mmkv` is a native module that cannot load in Expo Go.
+- `mobile/tsconfig.json`: arrays re-expanded across lines (a pure tooling reformat), and `expo-env.d.ts` dropped from `include` (redundant with the surviving `**/*.ts` glob — see the R0-5 note in `PROD-READINESS.md`).
+
+Two consequences a reader must know. First, these changes sit **below** the stage diff and are therefore outside every review this sweep runs. Second, `21f568b` is on `main`, one commit ahead of `origin/main`, not on the work branch — a deviation from "all work stays local on the branch created below". Nothing was pushed, and git history was not rewritten to relocate it, since rewriting is prohibited.
+
 Commands are the ones defined in the root `package.json` and required by `CLAUDE.md`.
 
 ## Summary

@@ -39,14 +39,16 @@ This is load-bearing for severity: see ASSUMPTIONS.
 | Persistence | **yes** | nine `localStorage` keys, MMKV-backed on iOS (`mobile/platform/localStorageShim.ts`) |
 | Filesystem | **yes** | backup export/import via expo-file-system / document-picker / sharing |
 | Third-party API | **yes, one** | Sentry crash reporting, gated on `EXPO_PUBLIC_SENTRY_DSN` |
-| Network in | no | no server, no endpoints, no inbound surface |
+| Network in | no server, but **one inbound surface** | no endpoints or listeners, but the binary registers two URL schemes (`mobile/app.json:5`), so any app or web page on the device can drive expo-router to any route with chosen params — corrected per R0-2 |
 | Network out | none in-app | except Sentry when the DSN is set |
 | Auth | no | no accounts (`README.md:16-17`) |
 | Payments | no | none |
 | Background jobs | no | none |
 | Database / queue | no | `supabase/migrations/` is orphaned; cloud sync was archived out of v1 |
 
-Passes whose boundary does not exist here are skipped: authn/authz, injection, unsafe deserialization of untrusted input, retries/backoff/idempotency against remote dependencies, health endpoints.
+Passes whose boundary does not exist here are skipped: authn/authz, retries/backoff/idempotency against remote dependencies, health endpoints.
+
+**Corrected per R0-2.** This originally also listed "injection, unsafe deserialization of untrusted input" as skipped, justified by a boundary row that was wrong. That pass was subsequently run against both untrusted-input paths and found no exploitable defect: deep-link params are validated at `mobile/app/practice.tsx:75-80` and `:108` (`asMode`, `commaList`, `handList`, and `parsePools` filtering through `isValidHand`), unknown ids are dropped by `findSavedRangeById`, `mobile/app/range/[id].tsx:69` resolves against the live library, and nothing arriving from a link is written to storage. The conclusion the ledger originally assumed is correct; it is now inspected rather than assumed.
 
 ### What can be executed to verify a change
 
@@ -61,19 +63,32 @@ That shapes every severity call below: data durability on device outranks everyt
 ### Entry points, trust boundaries, config surface
 
 - Entry points: `mobile/app/_layout.tsx` (router root; installs the storage/crypto shims on lines 3-4 before any `@core` module loads), `src/main.tsx` (web root).
-- Trust boundary: exactly one — imported backup JSON. It is validated by `validateBackup` (`src/storage/backup.ts:136`) before it replaces the library, and every per-slice loader re-validates on read.
+- Trust boundaries: **two** (corrected per R0-2). (1) Imported backup JSON, validated by `validateBackup` (`src/storage/backup.ts:136`) before it replaces the library, with every per-slice loader re-validating on read — but see R0-7 in NEXT ROUND for the unbounded read that feeds it. (2) Deep-link params over the two registered URL schemes, validated as described above.
 - Config surface: one variable, `EXPO_PUBLIC_SENTRY_DSN` (`.env.example:7`), absence-tolerant by design. Build-time only: `SENTRY_AUTH_TOKEN`, plus the two undocumented ones in P1-1.
 
 ## Findings
 
 Severity: **P0** = data loss, security exposure, silent failure, or cannot deploy. **P1** = fails under realistic load or edge input, or undiagnosable in prod. **P2** = everything else.
 
-### Work list (P0/P1) — frozen after Review 0
+### Work list (P0/P1) — FROZEN after Review 0
 
-| id | area | sev | evidence (file:line) | fix | blast radius |
-| --- | --- | --- | --- | --- | --- |
-| P0-1 | persistence | P0 | `mobile/platform/localStorageShim.ts:34` | pass `recoveryStrategy: 'recover-on-error'` to `createMMKV` | one call site, one option; changes native recovery behavior for the single MMKV instance holding all nine keys |
-| P1-1 | observability | P1 | `mobile/app.json:84`, `LAUNCH-CHECKLIST.md:54`, `LAUNCH-CHECKLIST.md:185` | document `SENTRY_ORG` and `SENTRY_PROJECT` next to `SENTRY_AUTH_TOKEN` | documentation only; zero runtime effect |
+Four findings. Review 0 returned PASS-WITH-FINDINGS; both original work-list findings survived verification, and Review 0's own two P1s joined the list per the termination rules. Everything found after this point goes to NEXT ROUND, not here.
+
+| id | area | sev | evidence (file:line) | fix | blast radius | status |
+| --- | --- | --- | --- | --- | --- | --- |
+| P0-1 | persistence | P0 | `mobile/platform/localStorageShim.ts:34` | pass `recoveryStrategy: 'recover-on-error'` to `createMMKV`, plus a call-site assertion per R0-8 | one call site, one option; changes native recovery behavior for the single MMKV instance holding all nine keys | RESOLVED |
+| P1-1 | observability | P1 | `mobile/app.json:84`, `LAUNCH-CHECKLIST.md:54`, `LAUNCH-CHECKLIST.md:185` | document `SENTRY_ORG` and `SENTRY_PROJECT` next to `SENTRY_AUTH_TOKEN` | documentation only; zero runtime effect | RESOLVED |
+| R0-1 | ledger integrity | P1 | `PROD-READINESS.md` ASSUMPTION 3; `mobile/.gitignore:40` | re-anchor P0-1's trace to the tracked exact pin `NitroMmkv.podspec:27` | ledger text only | RESOLVED |
+| R0-5 | baseline provenance | P1 | `reviews/BASELINE.md:10`; `git log origin/main..main` | disclose that baseline `21f568b` was authored in this run and sits on `main` | ledger + baseline text only | RESOLVED |
+
+**R0-5 — one sub-claim struck on evidence.** Review 0 argued that dropping `"expo-env.d.ts"` from `mobile/tsconfig.json`'s `include` "silently narrows what `tsc --noEmit` covers on any machine where prebuild has generated it". That is **false**, and the reviewer's claim was treated as a lead rather than a fact. The surviving `include` glob is `["**/*.ts", "**/*.tsx"]`, and `expo-env.d.ts` matches `**/*.ts`. Verified by generating the file and asking the compiler which files are in its program:
+
+```
+$ cd mobile && npx tsc --noEmit --listFiles | grep expo-env
+/Users/<user>/dev/poker-range-trainer/mobile/expo-env.d.ts
+```
+
+The file is in the program; the removed entry was redundant with the glob. (A first attempt to test this by putting a deliberate error inside the `.d.ts` was inconclusive, because `expo/tsconfig.base` sets `skipLibCheck: true`; the `--listFiles` check is the one that settles it.) The generated file was deleted afterwards and the tree is clean. The rest of R0-5 — undisclosed provenance, and the commit sitting on `main` — stands and is fixed below.
 
 **P0-1 — MMKV silently discards every stored key on a CRC or file-length error.**
 `mobile/platform/localStorageShim.ts:34` calls `createMMKV({ id: 'poker-range-trainer' })` with no `recoveryStrategy`. Traced through the installed package and the vendored core, every step read from source:
@@ -121,12 +136,15 @@ P2-6 note: capping session history would silently delete user records. That is a
 
 1. **"Production" is the iOS App Store binary; the web app is not deployed.** Evidence: `README.md:11-13`, absence of any deploy config, CI with no deploy job. Consequence: every web-only defect is capped at P2. This is the single most load-bearing assumption in this ledger — if the web app were in fact served to users, P2-1 through P2-3, P2-9 and P2-10 would all need re-rating.
 2. **All nine keys share one MMKV instance**, so P0-1's blast radius is the whole library. Evidence: `mobile/platform/localStorageShim.ts:31-37` creates exactly one instance and every shim method routes through `getStore()`.
-3. **The MMKVCore under `mobile/ios/Pods/` is the code that will ship.** It is the pod resolved by the committed `mobile/ios/Podfile.lock` for the pinned `react-native-mmkv@4.3.2`. Chosen conservatively: if EAS resolves a different MMKVCore, P0-1's trace would need re-confirming, but the shipped default could only be the same or worse.
+3. **The MMKVCore under `mobile/ios/Pods/` is the code that will ship.** ~~It is the pod resolved by the committed `mobile/ios/Podfile.lock`.~~ **Struck and re-anchored per R0-1**: `mobile/ios/` is gitignored (`mobile/.gitignore:40`) and `git ls-files mobile/ios` returns zero, so nothing under it is committed and steps 3, 4 and 6 of P0-1's trace cannot be reproduced from a clean clone. The tracked, exact pin is `mobile/node_modules/react-native-mmkv/NitroMmkv.podspec:27` — `s.dependency 'MMKVCore', '2.4.0'` — reachable from the committed `mobile/package-lock.json`, which pins `react-native-mmkv@4.3.2`. That is a stronger anchor than the local lock: the podspec forbids EAS resolving a different MMKVCore version at all.
 4. **Severity ties break downward.** Where a finding could be argued either way it is recorded at the lower severity with the reason stated inline (P1-1 and P2-6 both).
 
 ## DEFERRED
 
-Nothing deferred at Stage 0. This section is filled in during the passes if a fix's blast radius exceeds its prediction.
+**D-1 — a one-tap restore silently destroys everything recorded since the backup was written.** Added per R0-6.
+`mobile/components/BackupPanel.tsx:52-66`: one tap on "Restore from a file", one file picked, and `restoreBackup(backup)` replaces all eight library keys. `src/screens/AccountScreen.tsx:78` is the same. There is no confirmation step, no "this will replace N ranges" preview, and no undo. `validateBackup` guards against a *malformed* file; nothing guards against a *valid but stale* one.
+
+By this ledger's own frame — data durability on device outranks everything, and the user's data exists in exactly one place — this is the largest remaining data-loss path after P0-1. It is deferred rather than fixed because every available fix (a confirmation dialog, a pre-restore auto-backup, an undo) is a new user-visible capability, which the scope constraint forbids. That is exactly what DEFERRED is for. It should be the first item considered in the next run, ahead of anything in NEXT ROUND.
 
 ## NOT DEFECTS
 
@@ -134,7 +152,11 @@ Nothing deferred at Stage 0. This section is filled in during the passes if a fi
 - **Bare `catch {}` blocks** at `src/storage/storageHelpers.ts:52`, `:58`, `src/storage/backup.ts:120`, `src/app/routes.ts:29`, `mobile/app/practice.tsx:53`. Each is a documented parse/IO guard that degrades to a defined value, not a swallowed failure. `storageHelpers.ts:41-46` explains the `SecurityError` case they exist for; writes still surface `SAVE_FAILED`.
 - **No secrets in source or git history.** `git log --all --diff-filter=A` over every added path matches only `.env.example` (a template). A pickaxe search for DSN-shaped strings returns nothing. `mobile/ios/sentry.properties` is untracked and contains no token.
 - **No PII reaches Sentry.** Every interpolated `throw` in `src/domain/` carries poker notation or card tokens only (`src/domain/cards.ts:42`, `src/domain/rangeNotation.ts:149`, and eleven siblings); `git grep` for range `notes`/`name` in a thrown message returns nothing. `attachScreenshot`, `attachViewHierarchy` and both replay sample rates are pinned off at `mobile/platform/crashReporting.ts:56-59`.
-- **The `image-size` and `uuid` advisories (P2-11).** Both reach the tree only through `@expo/prebuild-config`, `@expo/config-plugins` and `expo-splash-screen`'s plugin — build-time tooling that parses the developer's own icon assets. Neither executes in the shipped Hermes bundle, and the app has no inbound network surface to carry attacker-controlled input to them. `npm audit --omit=dev` on the web root reports 0 vulnerabilities. Recorded rather than upgraded: this run may not upgrade dependencies except to patch a CVE on the work list.
+- **The `image-size` and `uuid` advisories (P2-11).** Dependency paths corrected per R0-3; the original ones were reasoned about rather than resolved, and were wrong. Verified with `npm ls --omit=dev --all` in `mobile/`:
+  - `image-size@1.2.1` ← `metro@0.84.4` ← `@expo/metro@56.0.0` ← `expo@56.0.19`. Metro sizes image assets at bundle time.
+  - `uuid@7.0.3` ← `xcode@3.0.1` ← `@expo/config-plugins@56.0.14` ← `expo-sharing@56.0.24`. `xcode` mints project UUIDs.
+
+  Both are build-time tooling operating on the developer's own files. Neither executes in the shipped Hermes bundle, and no attacker-controlled input reaches them. Reconciling the headline count per R0-4: `npm audit --omit=dev` in `mobile/` prints **55 vulnerabilities (7 moderate, 48 high)**, of which exactly two carry a direct advisory — the two above; the other 53 are "depends on a vulnerable version of…" propagation up the Expo/Metro/React Native tree. Separately, `npm audit --omit=dev` at the **web** root reports 0 vulnerabilities. Recorded rather than upgraded: this run may not upgrade dependencies except to patch a CVE on the work list.
 - **Both error boundaries report rather than hide.** `mobile/components/ErrorBoundary.tsx:30-36` logs and calls `reportCaughtError`; `src/components/ErrorBoundary.tsx:34-37` logs.
 
 ## CANNOT ASSESS
@@ -146,4 +168,7 @@ Nothing deferred at Stage 0. This section is filled in during the passes if a fi
 
 ## NEXT ROUND
 
-Empty at Stage 0. Findings discovered after Review 0 — by the builder or any reviewer — are appended here and are **not** fixed in this run.
+Findings discovered after Review 0 — by the builder or any reviewer — are appended here and are **not** fixed in this run, regardless of severity. Recorded with full evidence so the next run starts from them.
+
+**N-1 (P2) — unbounded read at the backup trust boundary.** From R0-7.
+`mobile/components/BackupPanel.tsx:61` calls `parseBackup(await readAsStringAsync(uri))`, pulling a user-picked file wholly into a JS string and then `JSON.parse`-ing it, with no size check. `src/screens/AccountScreen.tsx:78` does the same via `file.text()`. `DocumentPicker.getDocumentAsync({ type: 'application/json' })` filters by declared type, not size, so a large file exhausts memory before `validateBackup` ever runs. Size is the one property `validateBackup` structurally cannot check, because the failure happens upstream of it. Low exploitability — the user picks the file themselves.
