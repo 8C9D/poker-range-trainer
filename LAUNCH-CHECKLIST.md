@@ -51,7 +51,9 @@ Re-opening any of them changes the work.
   (Note: the SDK 56-pinned `@sentry/react-native` ~7.11.0 predates `expoRouterIntegration`; its documented equivalent for expo-router - `reactNavigationIntegration` registered with the router's navigation-container ref - is wired instead.)
 - [x] **[A]** Disable session replay, screenshots and view hierarchy; a poker study tool has no reason to ship screen contents to a third party.
 - [x] **[A]** Test that the app boots and behaves identically with the DSN unset.
-- [ ] **[Y]** Add `SENTRY_AUTH_TOKEN` to EAS secrets for source-map upload - see "Your steps" step 7.
+- [ ] **[Y]** Add `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` and `SENTRY_PROJECT` to EAS secrets for source-map upload - see "Your steps" step 7.
+  All three are needed: the plugin entry in `mobile/app.json` carries no `organization` or `project`, so the generated `ios/sentry.properties` falls back to `SENTRY_ORG` and `SENTRY_PROJECT` from the environment.
+  Without them the upload is skipped and every production crash arrives as unsymbolicated minified frames.
 
 ## Pass 4 - Privacy and legal
 
@@ -179,11 +181,18 @@ If `eas login` needs an Expo account, create one at https://expo.dev - it is fre
 
 ## Step 7 - Production build
 
-1. Add the Sentry auth token from step 2 as an EAS secret so source maps upload during the build:
+1. Add the Sentry auth token from step 2 as an EAS secret so source maps upload during the build, together with the org and project the upload targets:
 
    ```sh
    eas secret:create --scope project --name SENTRY_AUTH_TOKEN --value <token>
+   eas secret:create --scope project --name SENTRY_ORG --value <your-sentry-org-slug>
+   eas secret:create --scope project --name SENTRY_PROJECT --value poker-range-trainer
    ```
+
+   All three are required, not just the token.
+   The Sentry plugin is registered in `mobile/app.json` as a bare `"@sentry/react-native"` with no `organization` or `project`, so the `ios/sentry.properties` written during prebuild says "no org found, falling back to SENTRY_ORG environment variable" and the same for the project.
+   With either unset the source-map upload has no destination and is skipped, and every crash in App Store Connect and Sentry shows minified Hermes frames instead of your source.
+   The project slug is `poker-range-trainer` if you named it as step 2 says; the org slug is the one in your Sentry URL (`https://<org>.sentry.io/`).
 
 2. Add the Sentry DSN as a build-visible env var. Either add it to the `production` profile's `env` block in `mobile/eas.json`, or run `eas secret:create --name EXPO_PUBLIC_SENTRY_DSN --value <dsn>`. The DSN is public, so either is fine.
 3. Build:

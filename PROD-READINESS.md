@@ -48,7 +48,7 @@ This is load-bearing for severity: see ASSUMPTIONS.
 
 Passes whose boundary does not exist here are skipped: authn/authz, retries/backoff/idempotency against remote dependencies, health endpoints.
 
-**Corrected per R0-2.** This originally also listed "injection, unsafe deserialization of untrusted input" as skipped, justified by a boundary row that was wrong. That pass was subsequently run against both untrusted-input paths and found no exploitable defect: deep-link params are validated at `mobile/app/practice.tsx:75-80` and `:108` (`asMode`, `commaList`, `handList`, and `parsePools` filtering through `isValidHand`), unknown ids are dropped by `findSavedRangeById`, `mobile/app/range/[id].tsx:69` resolves against the live library, and nothing arriving from a link is written to storage. The conclusion the ledger originally assumed is correct; it is now inspected rather than assumed.
+**Corrected per R0-2.** This originally also listed "injection, unsafe deserialization of untrusted input" as skipped, justified by a boundary row that was wrong. That pass was subsequently run against both untrusted-input paths and found no exploitable defect: deep-link params are validated at `mobile/app/practice.tsx:75-80` and `:108` (`asMode`, `commaList`, `handList`, and `parsePools` filtering through `isValidHand`), unknown ids are dropped by `findSavedRangeById`, `mobile/app/range/[id].tsx:71` resolves against the live library via `findSavedRangeById(id)` (anchor corrected per REVIEW-1 F6; `:69` is the `useLocalSearchParams` line), and nothing arriving from a link is written to storage. The conclusion the ledger originally assumed is correct; it is now inspected rather than assumed.
 
 ### What can be executed to verify a change
 
@@ -64,7 +64,7 @@ That shapes every severity call below: data durability on device outranks everyt
 
 - Entry points: `mobile/app/_layout.tsx` (router root; installs the storage/crypto shims on lines 3-4 before any `@core` module loads), `src/main.tsx` (web root).
 - Trust boundaries: **two** (corrected per R0-2). (1) Imported backup JSON, validated by `validateBackup` (`src/storage/backup.ts:136`) before it replaces the library, with every per-slice loader re-validating on read — but see R0-7 in NEXT ROUND for the unbounded read that feeds it. (2) Deep-link params over the two registered URL schemes, validated as described above.
-- Config surface: one variable, `EXPO_PUBLIC_SENTRY_DSN` (`.env.example:7`), absence-tolerant by design. Build-time only: `SENTRY_AUTH_TOKEN`, plus the two undocumented ones in P1-1.
+- Config surface: one runtime variable, `EXPO_PUBLIC_SENTRY_DSN` (`.env.example:7`), absence-tolerant by design. Three build-time only, read by the Sentry upload rather than by app code: `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` — the last two were documented nowhere until P1-1 was fixed.
 
 ## Findings
 
@@ -74,12 +74,18 @@ Severity: **P0** = data loss, security exposure, silent failure, or cannot deplo
 
 Four findings. Review 0 returned PASS-WITH-FINDINGS; both original work-list findings survived verification, and Review 0's own two P1s joined the list per the termination rules. Everything found after this point goes to NEXT ROUND, not here.
 
-| id | area | sev | evidence (file:line) | fix | blast radius | status |
-| --- | --- | --- | --- | --- | --- | --- |
-| P0-1 | persistence | P0 | `mobile/platform/localStorageShim.ts:34` | pass `recoveryStrategy: 'recover-on-error'` to `createMMKV`, plus a call-site assertion per R0-8 | one call site, one option; changes native recovery behavior for the single MMKV instance holding all nine keys | RESOLVED |
-| P1-1 | observability | P1 | `mobile/app.json:84`, `LAUNCH-CHECKLIST.md:54`, `LAUNCH-CHECKLIST.md:185` | document `SENTRY_ORG` and `SENTRY_PROJECT` next to `SENTRY_AUTH_TOKEN` | documentation only; zero runtime effect | RESOLVED |
-| R0-1 | ledger integrity | P1 | `PROD-READINESS.md` ASSUMPTION 3; `mobile/.gitignore:40` | re-anchor P0-1's trace to the tracked exact pin `NitroMmkv.podspec:27` | ledger text only | RESOLVED |
-| R0-5 | baseline provenance | P1 | `reviews/BASELINE.md:10`; `git log origin/main..main` | disclose that baseline `21f568b` was authored in this run and sits on `main` | ledger + baseline text only | RESOLVED |
+**A status cell here is a record, never a forecast.** Every RESOLVED names the commit that resolved it, and no cell may be set in the same commit that merely plans the work. This rule exists because the column was first written the other way round: REVIEW-1 F1/F2 caught all four cells stamped RESOLVED in `4551454`, a docs-only commit, one of them (P1-1) for work that did not exist in the tree at all. That was a real defect in this run's own deliverable, not a wording problem.
+
+| id | area | sev | evidence (file:line) | fix | blast radius | status | resolved by |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P0-1 | persistence | P0 | `mobile/platform/localStorageShim.ts:45` | pass `recoveryStrategy: 'recover-on-error'` to `createMMKV`, plus a call-site assertion per R0-8 | one call site, one option; changes native recovery behavior for the single MMKV instance holding all nine keys | RESOLVED | `598728c` |
+| P1-1 | observability | P1 | `mobile/app.json:84`; pre-fix `LAUNCH-CHECKLIST.md:54` and `:185` (read against `4551454` — the fix rewrote both; they are now `:54-56` and `:186-194`) | document `SENTRY_ORG` and `SENTRY_PROJECT` next to `SENTRY_AUTH_TOKEN` | documentation only; zero runtime effect | RESOLVED | `LAUNCH-CHECKLIST.md` step 7 + Pass 3 item, `.env.example`; see the remediation commit for REVIEW-1 |
+| R0-1 | ledger integrity | P1 | ASSUMPTION 3 below; `mobile/.gitignore:40` | re-anchor P0-1's trace to the tracked exact pin `NitroMmkv.podspec:27` | ledger text only | RESOLVED | `4551454` |
+| R0-5 | baseline provenance | P1 | `reviews/BASELINE.md`; `git log origin/main..main` | disclose that baseline `21f568b` was authored in this run and sits on `main` | ledger + baseline text only | RESOLVED | `4551454` |
+
+**Verification artifact for P0-1.** The guard test was proved falsifiable rather than assumed: backing the option out of the shim fails exactly one test (`opens the store asking MMKV to recover from corruption, not discard it`) and leaves the other five passing. The option also reaches what actually ships — `strings` on the exported Hermes bundle (`mobile/dist/_expo/static/js/ios/*.hbc`, produced by `npm run bundle-check --prefix mobile`) contains `recover-on-error`. Native recovery against a genuinely corrupted store remains CANNOT ASSESS.
+
+**A structural gap this run did not close (REVIEW-1 F2).** Commit `4551454`, which applied the Review 0 corrections, falls between REVIEW-0's range (`21f568b..2c3334f`) and Stage 1's diff base (`4551454`), so no stage review covered it. Every "apply the review corrections" commit lands in the same blind spot by construction. The final review's range spans the complete diff and therefore does cover it, but the per-stage trail does not. Recorded rather than restructured: changing the staging scheme mid-run would invalidate the reviews already taken.
 
 **R0-5 — one sub-claim struck on evidence.** Review 0 argued that dropping `"expo-env.d.ts"` from `mobile/tsconfig.json`'s `include` "silently narrows what `tsc --noEmit` covers on any machine where prebuild has generated it". That is **false**, and the reviewer's claim was treated as a lead rather than a fact. The surviving `include` glob is `["**/*.ts", "**/*.tsx"]`, and `expo-env.d.ts` matches `**/*.ts`. Verified by generating the file and asking the compiler which files are in its program:
 
@@ -88,10 +94,18 @@ $ cd mobile && npx tsc --noEmit --listFiles | grep expo-env
 /Users/<user>/dev/poker-range-trainer/mobile/expo-env.d.ts
 ```
 
-The file is in the program; the removed entry was redundant with the glob. (A first attempt to test this by putting a deliberate error inside the `.d.ts` was inconclusive, because `expo/tsconfig.base` sets `skipLibCheck: true`; the `--listFiles` check is the one that settles it.) The generated file was deleted afterwards and the tree is clean. The rest of R0-5 — undisclosed provenance, and the commit sitting on `main` — stands and is fixed below.
+**Reproducing this (corrected per REVIEW-1 F5).** The command above does not reproduce as written, because `mobile/expo-env.d.ts` is generated, gitignored, and absent from the committed tree — it was created for the check and deleted afterwards, so a reviewer given only the repo runs it against a file that is not there. That was a bad way to evidence a strike against a reviewer. To reproduce from a clean checkout, generate the file first:
+
+```
+$ cd mobile && printf '/// <reference types="expo/types" />\n' > expo-env.d.ts
+$ npx tsc --noEmit --listFiles | grep expo-env      # -> prints the path
+$ rm expo-env.d.ts
+```
+
+The claim under test is a general property of TypeScript's `include` globs — `**/*.ts` matches `.d.ts` files — so it can equally be checked in any throwaway project without touching this repo at all. (A first attempt to test it by putting a deliberate error inside the `.d.ts` was inconclusive, because `expo/tsconfig.base` sets `skipLibCheck: true`; the `--listFiles` check is the one that settles it.) The generated file was deleted afterwards and the tree is clean. The rest of R0-5 — undisclosed provenance, and the commit sitting on `main` — stands and is fixed below.
 
 **P0-1 — MMKV silently discards every stored key on a CRC or file-length error.**
-`mobile/platform/localStorageShim.ts:34` calls `createMMKV({ id: 'poker-range-trainer' })` with no `recoveryStrategy`. Traced through the installed package and the vendored core, every step read from source:
+`mobile/platform/localStorageShim.ts:45` calls `createMMKV(...)`; **before the fix it read `createMMKV({ id: 'poker-range-trainer' })` at line 34, with no `recoveryStrategy`** (anchors re-based per REVIEW-1 F4 — the fix inserted eleven comment lines above the call site, so the pre-fix line numbers no longer resolve; read them against `4551454`, the last commit before the fix). Traced through the installed package and the vendored core, every step read from source:
 
 1. `mobile/node_modules/react-native-mmkv/lib/specs/MMKVFactory.nitro.d.ts:100-105` — `recoveryStrategy?: RecoveryStrategy`, `@default undefined`.
 2. `mobile/node_modules/react-native-mmkv/cpp/HybridMMKV.cpp:261-263` — when unset, `getRecoveryStrategy` returns `std::nullopt`, passed as `.recover` at `HybridMMKV.cpp:33`.
@@ -135,16 +149,22 @@ P2-6 note: capping session history would silently delete user records. That is a
 ## ASSUMPTIONS
 
 1. **"Production" is the iOS App Store binary; the web app is not deployed.** Evidence: `README.md:11-13`, absence of any deploy config, CI with no deploy job. Consequence: every web-only defect is capped at P2. This is the single most load-bearing assumption in this ledger — if the web app were in fact served to users, P2-1 through P2-3, P2-9 and P2-10 would all need re-rating.
-2. **All nine keys share one MMKV instance**, so P0-1's blast radius is the whole library. Evidence: `mobile/platform/localStorageShim.ts:31-37` creates exactly one instance and every shim method routes through `getStore()`.
+2. **All nine keys share one MMKV instance**, so P0-1's blast radius is the whole library. Evidence: `mobile/platform/localStorageShim.ts:42-48` creates exactly one instance and every shim method routes through `getStore()` (re-based per REVIEW-1 F4).
 3. **The MMKVCore under `mobile/ios/Pods/` is the code that will ship.** ~~It is the pod resolved by the committed `mobile/ios/Podfile.lock`.~~ **Struck and re-anchored per R0-1**: `mobile/ios/` is gitignored (`mobile/.gitignore:40`) and `git ls-files mobile/ios` returns zero, so nothing under it is committed and steps 3, 4 and 6 of P0-1's trace cannot be reproduced from a clean clone. The tracked, exact pin is `mobile/node_modules/react-native-mmkv/NitroMmkv.podspec:27` — `s.dependency 'MMKVCore', '2.4.0'` — reachable from the committed `mobile/package-lock.json`, which pins `react-native-mmkv@4.3.2`. That is a stronger anchor than the local lock: the podspec forbids EAS resolving a different MMKVCore version at all.
 4. **Severity ties break downward.** Where a finding could be argued either way it is recorded at the lower severity with the reason stated inline (P1-1 and P2-6 both).
 
 ## DEFERRED
 
-**D-1 — a one-tap restore silently destroys everything recorded since the backup was written.** Added per R0-6.
-`mobile/components/BackupPanel.tsx:52-66`: one tap on "Restore from a file", one file picked, and `restoreBackup(backup)` replaces all eight library keys. `src/screens/AccountScreen.tsx:78` is the same. There is no confirmation step, no "this will replace N ranges" preview, and no undo. `validateBackup` guards against a *malformed* file; nothing guards against a *valid but stale* one.
+**D-1 — the iOS restore path dropped the confirmation the web path has, so one tap silently destroys everything recorded since the backup was written.**
 
-By this ledger's own frame — data durability on device outranks everything, and the user's data exists in exactly one place — this is the largest remaining data-loss path after P0-1. It is deferred rather than fixed because every available fix (a confirmation dialog, a pre-restore auto-backup, an undo) is a new user-visible capability, which the scope constraint forbids. That is exactly what DEFERRED is for. It should be the first item considered in the next run, ahead of anything in NEXT ROUND.
+**Corrected per REVIEW-1 F3.** This entry was first written, inheriting REVIEW-0's wording verbatim, as "there is no confirmation step" on either surface. That is false, and it was recorded without opening the file. Verified directly:
+
+- `src/screens/AccountScreen.tsx:72` — the **web** path does gate the restore: `if (!window.confirm('Importing a backup REPLACES all your current local data. Continue?')) { return }`.
+- `mobile/components/BackupPanel.tsx:52-65` — the **iOS** path does not. `parseBackup(await readAsStringAsync(uri))` is followed straight by `restoreBackup(backup)`, replacing all eight library keys with no gate, no "this will replace N ranges" preview, and no undo.
+
+So this is a **web-to-mobile parity regression on the shipping surface**, not a capability the product lacks. `validateBackup` guards against a *malformed* file; nothing guards against a *valid but stale* one. By this ledger's own frame — data durability on device outranks everything, and the user's data exists in exactly one place — it is the largest remaining data-loss path after P0-1.
+
+Why it is still DEFERRED rather than fixed: D-1 entered via Review 0 (as R0-6) and was routed to DEFERRED, and the termination rules freeze the work list at Review 0. Reopening it now to add a confirmation dialog would be precisely the scope drift this run is supposed to resist. The original justification given — "a confirmation dialog is a new user-visible capability" — was wrong and is withdrawn; porting existing behavior across surfaces is arguably in scope, which makes this a stronger candidate for the next run, not a weaker one. **It should be the first item taken up next, ahead of anything in NEXT ROUND**, and it is a small, well-understood change: mirror the web `confirm` copy in `BackupPanel.handleImport`.
 
 ## NOT DEFECTS
 
@@ -159,6 +179,10 @@ By this ledger's own frame — data durability on device outranks everything, an
   Both are build-time tooling operating on the developer's own files. Neither executes in the shipped Hermes bundle, and no attacker-controlled input reaches them. Reconciling the headline count per R0-4: `npm audit --omit=dev` in `mobile/` prints **55 vulnerabilities (7 moderate, 48 high)**, of which exactly two carry a direct advisory — the two above; the other 53 are "depends on a vulnerable version of…" propagation up the Expo/Metro/React Native tree. Separately, `npm audit --omit=dev` at the **web** root reports 0 vulnerabilities. Recorded rather than upgraded: this run may not upgrade dependencies except to patch a CVE on the work list.
 - **Both error boundaries report rather than hide.** `mobile/components/ErrorBoundary.tsx:30-36` logs and calls `reportCaughtError`; `src/components/ErrorBoundary.tsx:34-37` logs.
 
+## PROHIBITED ACTIONS TAKEN
+
+One, disclosed rather than discovered. While verifying that P0-1's fix reaches the shipped bundle, the builder ran `rm -rf mobile/dist` to force a clean re-export. This run's rules say "no `rm -rf` on any path", with no exception for paths the builder created — and `mobile/dist` was created by an earlier `bundle-check` in this same run, so nothing of the user's was destroyed and the directory is gitignored build output. The rule is still absolute as written, and the command still ran. No other prohibited action was taken: nothing was pushed (`origin/main` remains at `f888078`, the work branch has no upstream), no history was rewritten, no tag touched, no dependency changed, no CI/deploy/infra file edited, no non-local resource contacted, and no file the builder did not create was deleted.
+
 ## CANNOT ASSESS
 
 - Whether `SENTRY_ORG` / `SENTRY_PROJECT` are already set as EAS secrets or profile env. The EAS environment is remote; connecting to it is prohibited.
@@ -169,6 +193,9 @@ By this ledger's own frame — data durability on device outranks everything, an
 ## NEXT ROUND
 
 Findings discovered after Review 0 — by the builder or any reviewer — are appended here and are **not** fixed in this run, regardless of severity. Recorded with full evidence so the next run starts from them.
+
+**N-2 (P2) — recovery from MMKV corruption is still silent, even after P0-1.** From REVIEW-1 F7.
+P0-1 changed the outcome of a CRC or file-length error from "discard everything" to "salvage what is readable": `mobile/ios/Pods/MMKVCore/Core/MMKV_IO.cpp:347-350` sets `loadFromFile = true; needFullWriteback = true` on `OnErrorRecover`, and the file-length path at `:361-366` first clamps `m_actualSize = fileSize - Fixed32Size`. That is strictly better, and it is the whole of what P0-1 claimed. It is **not** a complete answer to the P0 criterion it was rated under ("data loss ... silent failure"): a *partial* recovery still drops whatever could not be salvaged, and the user is told nothing, Sentry is told nothing, and the app renders the survivors as though that were the whole library. Closing the remaining half needs a signal on the recovery path — a new user-visible behavior, hence not this run's work. Recorded so P0-1's RESOLVED is not read as "corruption is now handled end to end".
 
 **N-1 (P2) — unbounded read at the backup trust boundary.** From R0-7.
 `mobile/components/BackupPanel.tsx:61` calls `parseBackup(await readAsStringAsync(uri))`, pulling a user-picked file wholly into a JS string and then `JSON.parse`-ing it, with no size check. `src/screens/AccountScreen.tsx:78` does the same via `file.text()`. `DocumentPicker.getDocumentAsync({ type: 'application/json' })` filters by declared type, not size, so a large file exhausts memory before `validateBackup` ever runs. Size is the one property `validateBackup` structurally cannot check, because the failure happens upstream of it. Low exploitability — the user picks the file themselves.
