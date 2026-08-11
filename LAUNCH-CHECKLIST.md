@@ -18,9 +18,11 @@ Re-opening any of them changes the work.
 - **[A]** an agent can complete it in the repo; covered by the Fable prompt.
 - **[Y]** needs you - an account, a payment, a dashboard, a device, or a judgement call an agent must not fake.
 
-## Status baseline (verified 2026-08-11 at `6186581`)
+## Status baseline (verified 2026-08-11 at `98d698a`)
 
 Every line below was re-run at that commit, not carried forward.
+It read `6186581` until round 7, five commits behind, one of which changed a comment in `@core` - refreshed per REVIEW-R6 R6-6.
+The counts did not move; what moved is which tree the reader can take them for.
 
 - `npm run lint` clean on both apps.
 - `npm run test:run`: web 79 files / 1187 tests, mobile 37 suites / 241 tests, all passing.
