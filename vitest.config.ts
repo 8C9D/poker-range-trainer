@@ -12,6 +12,16 @@ export default defineConfig({
     // the web Vitest run so they are never picked up here. archived/ holds
     // features cut from v1 whose code is expected not to compile.
     exclude: [...configDefaults.exclude, 'mobile/**', 'archived/**'],
+    // Uninstall every `vi.spyOn` between tests, so a spy is never one test's
+    // problem to hand to the next. Without this a test that restores its spy
+    // inline restores it only on the path where nothing failed: a failing
+    // assertion skips the restore, and the spy leaks into every test after it in
+    // the file. That turns one red test into a cascade and makes the guard
+    // unreadable as evidence of what it covers, which is the whole reason the
+    // guards in PROD-READINESS.md were accepted. Restoring runs BEFORE each
+    // test's `beforeEach`, so a spy a hook installs still reaches the body
+    // (probed, not assumed).
+    restoreMocks: true,
     // The 13x13-grid screens render hundreds of cells per userEvent step, which can
     // exceed the 5s default when the full suite runs workers in parallel (they pass
     // in isolation). Give every test more headroom rather than sprinkling per-test
