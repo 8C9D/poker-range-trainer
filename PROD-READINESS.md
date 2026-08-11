@@ -573,7 +573,9 @@ All were re-based and re-opened; the two anchors dated to `4551454` in P1-1's ro
 **What each of this round's commits contains.** `c92352c` is `reviews/REVIEW-R6.md` and nothing else.
 `98d698a` carries R6-1's comment fix plus the R6-2/R6-3/R6-4/R6-5 ledger corrections; the `src/storage/backup.ts` half changes no executable line, and the full gate was run on it: lint clean, web 79 / 1187, mobile 37 / 241, build and mobile `tsc --noEmit` clean.
 `c5d78cc` is R6-6, `LAUNCH-CHECKLIST.md` and nothing else, with the same gate re-run on it and `npm audit --omit=dev` at the web root reporting 0 vulnerabilities.
-This section lands in a commit after all three, naming them, and a final commit completes this paragraph.
+This section lands in `f11d9f6`, after all three, naming them.
+A final commit completes this paragraph, and it is the only thing in it - the same two-commit shape round 6 arrived at the hard way, because a cell may only name a commit that already exists and a hash read back before an amend is a hash of something else.
+No cell in this round names its own commit: R6-3's re-measurement is recorded as a correction to the round 6 table it disproves, which is a commit earlier than this section rather than this section itself.
 
 ### P2 — documented, not fixed
 
