@@ -337,13 +337,23 @@ export function restoreBackup(backup: Backup): void {
   // `getAllKeys` bookkeeping (`mobile/platform/localStorageShim.ts:75-79`), and
   // only the first is known to leave the store untouched when it throws. So the
   // one slice the forward write failed on may have been replaced without being
-  // counted, and a refused rewind there would go unreported.
+  // counted, and a refused rewind there would go unreported. Only if that rewind
+  // refused WITHOUT landing, though, and only for a slice that held something
+  // before: where it held nothing the rewind is the `removeItem` branch below,
+  // whose one throw candidate is the same post-write bookkeeping, which by then
+  // has already taken the value away.
   //
-  // That is the right direction to be wrong in. Counting optimistically would
-  // instead report slices the forward write never reached - on a full device,
-  // most of them - and a report that fires when the library is intact is worth
-  // less than no report at all, because announcing a mixed library is the only
-  // thing this reporter does.
+  // That is the right direction to be wrong in, and the trade is one slice each
+  // way. Counting before the write rather than after would admit that same slice
+  // when the write did NOT land, naming one that is in fact intact; the loop
+  // breaks at the first throw, so neither count can reach the slices past it.
+  // (Reporting those would take dropping the `index < replaced` guard below,
+  // which on a full device names most of the library when none of it is damaged
+  // - a different alternative, and a far worse one.) Of the two one-slice errors
+  // under-reporting is the one to take: a false name would be the only entry in
+  // the report, and a report that fires when the library is intact is worth less
+  // than no report at all, because announcing a mixed library is the only thing
+  // this reporter does.
   let replaced = 0
   try {
     for (const [key, value] of entries) {
