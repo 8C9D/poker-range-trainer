@@ -411,6 +411,81 @@ Every line in that block was re-run at `6186581` rather than carried forward, in
 `6186581` is R3-5: `src/storage/backup.ts` and `mobile/platform/crashReporting.ts` with their two test files, and nothing else. The gate on it is lint clean, web 79 / 1187, mobile 37 / 241, build and mobile `tsc --noEmit` clean.
 This section lands in a commit after all three, naming them.
 
+### Round 6 - 2026-08-11, sixth run, on `main`
+
+Round 5 reviewed round 4 and was not itself reviewed, and it is the round that put the run's only behaviour change on the shipping binary, so this round reviewed it before anything else.
+`reviews/REVIEW-R5.md` (`d56ced7`, committed alone) returned PASS-WITH-FINDINGS on `f4addad..2d09b26`: `6186581` is correct, and it is better evidenced now than round 5 left it.
+Six findings, all P2, five against the record and one against a comment in shipped code.
+Same rule as every round above: **a status is a record of something done, never a forecast.**
+
+| id | what it was | sev | fix as landed | status | resolved by |
+| --- | --- | --- | --- | --- | --- |
+| R5-1 | `6186581` wrote "a `setItem` that throws is not credited with a replacement it did not make" into `@core` one commit after `5b272e3` recorded that exact step as unsettled | P2 | `src/storage/backup.ts:329-346` states `replaced` as a lower bound, names `getAllKeys` as the step that can make it one short, bounds the gap and gives the reason under-reporting is the chosen direction; `:308-310` narrows the doc comment; the R3-5 paragraph above says the same | RESOLVED | `8160e41` |
+| R5-2 | round 5's anchor sweep said it moved "every live `src/storage/backup.ts` anchor in this file" and missed the one in R3-5's own NEXT ROUND entry | P2 | that anchor is now dated to `f4addad` the way round 2's preserved P2-4 paragraph dates its own, and the sweep paragraph says five of seven rather than every | RESOLVED | `8160e41` |
+| R5-3 | the five falsifiability mutants were measured at file scope, which is the wrong bound for the three in `@core` | P2 | the table above is re-run at full-suite scope on both suites, and records that the mobile side guards the wiring only | RESOLVED | `8160e41` |
+| R5-4 | "the web app is deliberately left unwired" named a branch no test can fail, and nothing said what actually enforces it | P2 | the paragraph above now records the observed `npm run build` failure that enforces the import direction, and says the `reportDamage === null` branch is unfalsifiable by construction | RESOLVED | `8160e41` |
+| R5-5 | the new startup import edge was argued from ordering and never measured; `bundle-check` was not re-run | P2 | measured below: four `expo export` runs isolating one variable, plus a `strings` check of the shipped bytecode | RESOLVED | `0c600ff` (the measurement's record IS the deliverable, so it lands with this section rather than before it) |
+| R5-6 | a second live `backup.ts` anchor, `validateBackup` at `:136`, has pointed at the wrong line since round 2's `daf054d` | P2 | re-based to `:169` in the context section, with its history noted | RESOLVED | `8160e41` |
+
+**R5-1 is the one that mattered, and it is a comment fix, not a behaviour fix.**
+The code was right and stays exactly as `6186581` wrote it: `replaced` is incremented after the write, refusals at or above it are not reported, and the reporter never sees a slice the forward write did not reach.
+What changed is that the comment no longer asserts a premise the same round had already recorded as untracked, and now states the direction it errs in and why.
+Backing out the behaviour still fails exactly the tests the table above names, which is how it was checked.
+
+**The import edge was measured rather than argued - the R5-5 fix.**
+`npm run bundle-check --prefix mobile` was re-run, along with three further `expo export --platform ios` runs to isolate one variable at a time.
+
+| export | conditions | bundle |
+| --- | --- | --- |
+| baseline | `2d09b26`, no DSN, warm cache | 5,493,420 bytes |
+| DSN set | `2d09b26`, `EXPO_PUBLIC_SENTRY_DSN` set, `--clear` | 5,494,552 bytes |
+| edge removed | the `@core/storage/backup` import and its wiring call deleted, DSN set, `--clear` | 5,494,500 bytes |
+
+**The edge costs 52 bytes and pulls in no module that was not already shipping.**
+`mobile/components/BackupPanel.tsx:18` already imported `@core/storage/backup`, so that module and everything under it were in the bundle before `6186581`; the edge-removed bundle still contains every storage key.
+What the edge changes is WHEN those modules are evaluated, and that is bounded statically: the newly-reached set is `backup.ts` plus nine storage modules and six `src/domain` modules, none with a top-level statement other than declarations, none touching `localStorage` at import time, and the only eager work in the whole set is two 169-entry matrix builds (`src/domain/pokerHands.ts:26`, `src/domain/mixedStrategy.ts:26`).
+`mobile/platform/crashReporting.ts` already imported `@sentry/react-native` at module scope, so the startup path already carried the SDK.
+Nothing was added ahead of the `localStorage` shim: it imports `storeIntegrity` only, which imports `react-native-mmkv` only.
+
+**The reporter reaches the shipped Hermes bytecode, checked the way P0-1's option was.**
+`strings` on the DSN-set bundle finds `Backup restore left slices unrolled-back: ` and `Storage keys missing after open: `; `strings` on the no-DSN bundle finds neither, while both contain `attachScreenshot` from the same file.
+So the reporter ships in the configuration a production build uses, and in a build with no DSN its body is not in the binary at all - the "inert unless the DSN is set" design, verified at the bytecode level rather than at the call site.
+
+**A trap for whoever measures an `EXPO_PUBLIC_*` variable next.** The first DSN-set export was run without `--clear` and produced a bundle with the same size AND the same content hash as the no-DSN one, with the DSN absent: Metro reused its transform cache across the env change, so the value was never re-inlined. That export measured the previous run.
+
+**The module-level holder cannot leak between test files, and that was measured.**
+`setRestoreDamageReporter` has no unset path, so whether Vitest's per-file isolation makes that moot needed checking rather than assuming.
+Two temporary probe files using `rangeRemoval`'s `pendingUndo` (`src/storage/rangeRemoval.ts:127`, the same shape as `reportDamage`), each asserting the holder is empty before filling it: both pass under the shipped config, and under `--no-isolate --no-file-parallelism` the second fails at the empty assertion, which is what makes the probe evidence rather than decoration.
+Both files were deleted and neither is in the tree.
+`src/storage/backup.test.ts` is also the only web file that imports the setter at all, and the only other web caller of `restoreBackup` is `src/screens/AccountScreen.test.tsx` through the component, which installs no reporter.
+
+**The spy census was re-derived a third time and holds.**
+Six web sites and five mobile, opening all 41 `mockRestore`/`restoreAllMocks` hits rather than grepping, which is the same answer REVIEW-R4 R4-A reached.
+One anchor moved: `6186581` inserted three tests above `src/storage/backup.test.ts:385`, now `:392`; the census paragraph above reads at `f4addad` and says so, so it is dated rather than wrong.
+All three restores `6186581` added are inside a `finally`, so the round did not widen the class it inherited.
+
+**Both runner comments are true against the runners' installed sources.**
+Re-read rather than re-reasoned: `@vitest/runner/dist/chunk-artifact.js:2942` then `:2947`, `vitest/dist/chunks/test.DNmyFkvJ.js:4349` -> `:4421-4423`, `@vitest/spy/dist/index.js:467-471`, `:10-14`, `:223-225`, and `jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:44`, `:61-63`, `:65` with `jest-mock/build/index.js:737`, `:797`, `:958-961`.
+Every claim both comments make resolves, including the `beforeAll` case and the already-a-mock case.
+
+**No new data class reaches Sentry**, so the privacy manifest, the App Privacy answers and `docs/privacy-policy.md` all stay true: `reportRestoreDamage` is `reportStorageLoss` with a different message and the same key-names-only payload, and `mobile/app.json:15-22` already declares `NSPrivacyCollectedDataTypeCrashData`.
+
+**No storage key was added, renamed or reshaped**, and `mobile/platform/storeIntegrity.ts`'s second MMKV instance is untouched and still outside the nine, the backup and the three key guards.
+
+**What this round did not take.**
+P2-8 is unchanged and still gated on step 1 of `LAUNCH-CHECKLIST.md:136`, whose checkbox at `:47` is still unticked with no route recorded in the tree.
+FR-1 is unchanged and still open: no EAS build was run in this round either, so the CANNOT ASSESS entry stands as rounds 3, 4 and 5 left it. The four `expo export` runs above are local and were already in the ledger's list of available commands.
+`review/targets.md:136` and `:144` are still stale and still deliberately unedited, for the reason round 4 gave.
+
+**Anchors.** `reviews/REVIEW-R5.md` reads against `2d09b26` and says so in its header, so its `PROD-READINESS.md` and `src/storage/backup.ts` line numbers are dated rather than rewritten, exactly as REVIEW-R4's are dated to `f4addad` and REVIEW-R3's to `227e3e1`.
+Inside this file, R5-1's comment fix added 2 lines to `restoreBackup`'s doc comment and 13 to the comment above `replaced`, moving everything below by 15 and so moving the same set of anchors again: the rollback loop `:350-366` -> `:365-381`, the rethrow `:368` -> `:383`, the `removeItem` branch `:352` -> `:367`, R3-5's report call `:349-367` -> `:364-382` and `:367` -> `:382`, and the collection `:349-366` -> `:364-381`.
+The contract paragraph `:291-303`, R4-E's citation `:298-299` and the reporter seam `:245-284` are unmoved, both edits being below or outside them.
+All were re-grepped after the edit, including the two the round 5 sweep missed.
+
+**What each of this round's commits contains.** `d56ced7` is `reviews/REVIEW-R5.md` and nothing else.
+`8160e41` carries R5-1's comment fix plus the R5-2/R5-3/R5-4/R5-6 ledger corrections; the `src/storage/backup.ts` half changes no executable line (`git diff` on it is entirely `//` and `*` lines), and the full gate was run on it: lint clean, web 79 / 1187, mobile 37 / 241, build and mobile `tsc --noEmit` clean.
+This section lands in a commit after both, naming them.
+
 ### P2 — documented, not fixed
 
 | id | area | sev | evidence (file:line) | fix | blast radius |
