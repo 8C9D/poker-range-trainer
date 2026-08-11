@@ -424,7 +424,7 @@ Same rule as every round above: **a status is a record of something done, never 
 | R5-2 | round 5's anchor sweep said it moved "every live `src/storage/backup.ts` anchor in this file" and missed the one in R3-5's own NEXT ROUND entry | P2 | that anchor is now dated to `f4addad` the way round 2's preserved P2-4 paragraph dates its own, and the sweep paragraph says five of seven rather than every | RESOLVED | `8160e41` |
 | R5-3 | the five falsifiability mutants were measured at file scope, which is the wrong bound for the three in `@core` | P2 | the table above is re-run at full-suite scope on both suites, and records that the mobile side guards the wiring only | RESOLVED | `8160e41` |
 | R5-4 | "the web app is deliberately left unwired" named a branch no test can fail, and nothing said what actually enforces it | P2 | the paragraph above now records the observed `npm run build` failure that enforces the import direction, and says the `reportDamage === null` branch is unfalsifiable by construction | RESOLVED | `8160e41` |
-| R5-5 | the new startup import edge was argued from ordering and never measured; `bundle-check` was not re-run | P2 | measured below: four `expo export` runs isolating one variable, plus a `strings` check of the shipped bytecode | RESOLVED | `0c600ff` (the measurement's record IS the deliverable, so it lands with this section rather than before it) |
+| R5-5 | the new startup import edge was argued from ordering and never measured; `bundle-check` was not re-run | P2 | measured below: four `expo export` runs isolating one variable, plus a `strings` check of the shipped bytecode | RESOLVED | `e419866`, the commit carrying this section (the measurement's record IS the deliverable, so it lands with the section rather than before it) |
 | R5-6 | a second live `backup.ts` anchor, `validateBackup` at `:136`, has pointed at the wrong line since round 2's `daf054d` | P2 | re-based to `:169` in the context section, with its history noted | RESOLVED | `8160e41` |
 
 **R5-1 is the one that mattered, and it is a comment fix, not a behaviour fix.**
@@ -484,7 +484,9 @@ All were re-grepped after the edit, including the two the round 5 sweep missed.
 
 **What each of this round's commits contains.** `d56ced7` is `reviews/REVIEW-R5.md` and nothing else.
 `8160e41` carries R5-1's comment fix plus the R5-2/R5-3/R5-4/R5-6 ledger corrections; the `src/storage/backup.ts` half changes no executable line (`git diff` on it is entirely `//` and `*` lines), and the full gate was run on it: lint clean, web 79 / 1187, mobile 37 / 241, build and mobile `tsc --noEmit` clean.
-This section lands in a commit after both, naming them.
+This section lands in `e419866`, after both, naming them.
+R5-5's cell names `e419866` itself, because the measurement's record is the deliverable and there is no earlier commit that could carry it; that is the one cell in this file whose work and status land together, and the work is in the tree rather than planned.
+It took a correction commit to get right: the cell was first written by committing, reading back the hash and amending, which rewrote the commit and left the cell naming `0c600ff`, an object no longer on the branch. A hash captured before an amend is a hash of something else.
 
 ### P2 — documented, not fixed
 
