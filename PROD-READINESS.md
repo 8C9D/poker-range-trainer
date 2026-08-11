@@ -490,6 +490,9 @@ It is not an audit of every anchor in the ledger, and anchors into files no roun
 This section lands in `e419866`, after both, naming them.
 R5-5's cell names `e419866` itself, because the measurement's record is the deliverable and there is no earlier commit that could carry it; that is the one cell in this file whose work and status land together, and the work is in the tree rather than planned.
 It took a correction commit to get right: the cell was first written by committing, reading back the hash and amending, which rewrote the commit and left the cell naming `0c600ff`, an object no longer on the branch. A hash captured before an amend is a hash of something else.
+`dac008e` is that correction and nothing else.
+`ceee8cb` re-bases the third `daf054d`-era anchor (`backup.ts:120` -> `:153`) and bounds the sweep, and `a958b83` names `ceee8cb` in R5-6's cell - two commits rather than one for the same reason: a cell may only name a commit that already exists.
+A final commit completes this paragraph, and it is the only thing in it.
 
 ### P2 — documented, not fixed
 
