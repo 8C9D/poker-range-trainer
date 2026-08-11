@@ -103,6 +103,39 @@ export function serializeBackup(backup: Backup): string {
   return JSON.stringify(backup, null, 2)
 }
 
+/**
+ * Largest backup file an importer will read into memory.
+ *
+ * A backup arrives as one JSON string that has to be read whole before
+ * `validateBackup` can look at it, so size is the one property validation
+ * structurally cannot check: by the time it runs, the memory is already spent.
+ * Neither file picker helps — `DocumentPicker` and `<input type="file">` both
+ * filter by declared type, not size — so whoever opens the file has to bound
+ * the read itself.
+ *
+ * 64MB sits well above any real library and well below what would threaten an
+ * iPhone's per-app memory. A pretty-printed backup is dominated by per-hand
+ * accuracy (169 entries per practiced range): 100 ranges with a full accuracy
+ * map and 100 recorded sessions each serialize to ~4.6MB, and 500 ranges —
+ * past anything hand-built — to ~31MB. The bound is deliberately generous
+ * rather than tight, because on a product with no server and no account,
+ * refusing a legitimate backup is itself a way to lose the data.
+ */
+export const MAX_BACKUP_BYTES = 64 * 1024 * 1024
+
+/**
+ * Reject an over-large backup file BEFORE reading it, throwing the same kind of
+ * readable error `parseBackup` does. Past the read there is nothing left to
+ * protect, so callers must check the size they can see on the file handle.
+ */
+export function assertBackupFileSize(bytes: number): void {
+  if (bytes > MAX_BACKUP_BYTES) {
+    const size = (bytes / 1024 / 1024).toFixed(1)
+    const limit = MAX_BACKUP_BYTES / 1024 / 1024
+    throw new Error(`Backup file is too large to import: ${size}MB, and the limit is ${limit}MB.`)
+  }
+}
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }

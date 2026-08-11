@@ -6,7 +6,7 @@ import { loadSavedRanges, saveSavedRange } from '../storage/rangeStorage'
 import { loadPracticeStats, recordPracticeSession } from '../storage/practiceStatsStorage'
 import { loadSpotAccuracy, recordSpotAccuracy } from '../storage/spotAccuracyStorage'
 import { loadTrainingGoal, saveTrainingGoal } from '../storage/trainingGoalStorage'
-import { buildBackup, serializeBackup } from '../storage/backup'
+import { MAX_BACKUP_BYTES, buildBackup, serializeBackup } from '../storage/backup'
 import type { SavedRange } from '../types/range'
 
 beforeEach(() => {
@@ -68,6 +68,27 @@ describe('AccountScreen', () => {
     )
     expect(await screen.findByText(/Backup imported/)).toBeInTheDocument()
     expect(loadSavedRanges().map((range) => range.name)).toEqual(['Backup range'])
+  })
+
+  it('refuses an over-large file before reading it into memory', async () => {
+    const user = userEvent.setup()
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const alert = vi.spyOn(window, 'alert').mockImplementation(() => {})
+    saveSavedRange(makeRange('old', 'Old local range'))
+    const file = jsonFile('backup.json', serializeBackup(buildBackup()))
+    // Declared rather than materialized: a real 64MB fixture would spend
+    // exactly the memory this guard exists to refuse.
+    Object.defineProperty(file, 'size', { value: MAX_BACKUP_BYTES + 1 })
+    const text = vi.spyOn(file, 'text')
+
+    render(<AccountScreen />)
+    await user.upload(screen.getByLabelText('Import backup'), file)
+
+    expect(text).not.toHaveBeenCalled()
+    // Refused before the user is asked anything: there is nothing to decide.
+    expect(confirm).not.toHaveBeenCalled()
+    expect(alert).toHaveBeenCalledWith(expect.stringMatching(/too large/))
+    expect(loadSavedRanges().map((range) => range.name)).toEqual(['Old local range'])
   })
 
   it('keeps local data when the backup import is not confirmed', async () => {

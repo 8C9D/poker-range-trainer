@@ -9,7 +9,9 @@ import { loadSpotAccuracy, recordSpotAccuracy } from './spotAccuracyStorage'
 import { loadTrainingGoal, saveTrainingGoal } from './trainingGoalStorage'
 import {
   BACKUP_VERSION,
+  MAX_BACKUP_BYTES,
   type Backup,
+  assertBackupFileSize,
   buildBackup,
   parseBackup,
   restoreBackup,
@@ -133,6 +135,31 @@ describe('serializeBackup', () => {
     const json = serializeBackup(backup)
     expect(json).toContain('\n  ')
     expect(JSON.parse(json)).toEqual(backup)
+  })
+})
+
+/**
+ * The one check `validateBackup` structurally cannot make. Everything else about
+ * a backup is judged after `JSON.parse`, which means after the whole file is
+ * already a string in memory — so an oversized file does its damage upstream of
+ * every other guard in this module, and only the caller holding the file handle
+ * is in a position to refuse it.
+ */
+describe('assertBackupFileSize', () => {
+  it('accepts a file at the limit', () => {
+    expect(() => assertBackupFileSize(MAX_BACKUP_BYTES)).not.toThrow()
+  })
+
+  it('rejects a file over the limit, naming both sizes', () => {
+    expect(() => assertBackupFileSize(MAX_BACKUP_BYTES + 1)).toThrow(/too large/)
+    expect(() => assertBackupFileSize(256 * 1024 * 1024)).toThrow(/256\.0MB.*limit is 64MB/)
+  })
+
+  it('leaves room for a library far larger than anyone hand-builds', () => {
+    // 500 ranges with a full per-hand accuracy map and 200 sessions each
+    // serializes to ~31MB, measured. The bound has to clear that: refusing a
+    // real backup loses the data just as surely, and there is no server copy.
+    expect(MAX_BACKUP_BYTES).toBeGreaterThan(32 * 1024 * 1024)
   })
 })
 

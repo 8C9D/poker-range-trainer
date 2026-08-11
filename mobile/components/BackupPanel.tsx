@@ -1,16 +1,51 @@
 import { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
-import { documentDirectory, readAsStringAsync, writeAsStringAsync } from 'expo-file-system/legacy';
+import {
+  documentDirectory,
+  getInfoAsync,
+  readAsStringAsync,
+  writeAsStringAsync,
+} from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 
-import { buildBackup, parseBackup, restoreBackup, serializeBackup } from '@core/storage/backup';
+import {
+  assertBackupFileSize,
+  buildBackup,
+  parseBackup,
+  restoreBackup,
+  serializeBackup,
+} from '@core/storage/backup';
 
 import { fonts } from '../theme/fonts';
 import { useTheme } from '../theme/colors';
 import type { ThemeColors } from '../theme/colors';
 
 const BACKUP_FILE = 'poker-ranges-backup.json';
+
+/**
+ * Ask before a restore, resolving to what the user chose.
+ *
+ * A restore REPLACES the whole library, so a backup that is merely stale — not
+ * malformed, so nothing in `validateBackup` objects to it — silently takes every
+ * session recorded since it was written. There is no account and no server to
+ * get any of that back from. The web path gates the same operation
+ * (`src/screens/AccountScreen.tsx`); React Native has no `window.confirm`, and
+ * this is its equivalent, kept promise-shaped so the destructive work stays
+ * inside the caller's error handling.
+ */
+function confirmRestore(): Promise<boolean> {
+  return new Promise((resolve) => {
+    Alert.alert(
+      'Restore from a file',
+      'Importing a backup REPLACES all your current local data. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Restore', style: 'destructive', onPress: () => resolve(true) },
+      ],
+    );
+  });
+}
 
 /**
  * File-backup panel: export the whole local library to a JSON file (and share it out), or import
@@ -58,6 +93,11 @@ export function BackupPanel() {
       if (result.canceled) return;
       const uri = result.assets[0]?.uri;
       if (!uri) return;
+      // Bound the read before it happens: `readAsStringAsync` pulls the whole
+      // file into one JS string, and the picker filtered by declared type only.
+      const info = await getInfoAsync(uri);
+      if (info.exists) assertBackupFileSize(info.size);
+      if (!(await confirmRestore())) return;
       const backup = parseBackup(await readAsStringAsync(uri));
       restoreBackup(backup);
       const count = backup.ranges.length;

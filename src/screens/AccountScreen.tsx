@@ -1,5 +1,11 @@
 import { useState } from 'react'
-import { buildBackup, parseBackup, restoreBackup, serializeBackup } from '../storage/backup'
+import {
+  assertBackupFileSize,
+  buildBackup,
+  parseBackup,
+  restoreBackup,
+  serializeBackup,
+} from '../storage/backup'
 import { resetPracticeRecords } from '../storage/statsReset'
 import './AccountScreen.css'
 
@@ -69,12 +75,15 @@ export function AccountScreen() {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
-    if (
-      !window.confirm('Importing a backup REPLACES all your current local data. Continue?')
-    ) {
-      return
-    }
     try {
+      // Bound the read before it happens: `file.text()` pulls the whole file
+      // into one string, and the picker filtered by declared type only.
+      assertBackupFileSize(file.size)
+      if (
+        !window.confirm('Importing a backup REPLACES all your current local data. Continue?')
+      ) {
+        return
+      }
       restoreBackup(parseBackup(await file.text()))
     } catch (error) {
       window.alert(error instanceof Error ? error.message : 'Could not import backup file.')
