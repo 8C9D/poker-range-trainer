@@ -2,12 +2,15 @@ import type { ComponentType } from 'react';
 
 import * as Sentry from '@sentry/react-native';
 
+import { setStorageLossReporter } from '../platform/storeIntegrity';
+
 import {
   getSentryDsn,
   initCrashReporting,
   isCrashReportingEnabled,
   registerNavigationContainer,
   reportCaughtError,
+  reportStorageLoss,
   wrapRootComponent,
 } from '../platform/crashReporting';
 
@@ -21,10 +24,15 @@ import {
  * the binary matching those documents.
  */
 
+// The storage layer cannot import this module (it loads before Sentry), so the
+// wiring runs the other way and is mocked here to be observable.
+jest.mock('../platform/storeIntegrity', () => ({ setStorageLossReporter: jest.fn() }));
+
 jest.mock('@sentry/react-native', () => ({
   init: jest.fn(),
   wrap: jest.fn((component: unknown) => ({ sentryWrapped: component })),
   captureException: jest.fn(),
+  captureMessage: jest.fn(),
   reactNavigationIntegration: jest.fn(() => ({
     name: 'ReactNavigation',
     registerNavigationContainer: jest.fn(),
@@ -34,6 +42,8 @@ jest.mock('@sentry/react-native', () => ({
 const mockInit = Sentry.init as jest.Mock;
 const mockWrap = Sentry.wrap as jest.Mock;
 const mockCapture = Sentry.captureException as jest.Mock;
+const mockCaptureMessage = Sentry.captureMessage as jest.Mock;
+const mockSetStorageLossReporter = setStorageLossReporter as jest.Mock;
 const mockNavigationIntegration = Sentry.reactNavigationIntegration as jest.Mock;
 
 const originalDsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
@@ -87,6 +97,24 @@ describe('with the DSN unset', () => {
     expect(mockCapture).not.toHaveBeenCalled();
     expect(mockNavigationIntegration).not.toHaveBeenCalled();
   });
+
+  it('swallows storage-loss reports too', () => {
+    reportStorageLoss(['poker-range-trainer.saved-ranges.v1']);
+
+    expect(mockCaptureMessage).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The storage layer reports through an injected function because it loads
+   * before Sentry does, which leaves exactly one line joining the two. Unwired,
+   * detection still works and the user is still told — and Sentry silently
+   * hears nothing, forever, with every test above this one still passing.
+   */
+  it('wires the storage-loss reporter even with reporting disabled', () => {
+    initCrashReporting();
+
+    expect(mockSetStorageLossReporter).toHaveBeenCalledWith(reportStorageLoss);
+  });
 });
 
 describe('with the DSN set', () => {
@@ -136,5 +164,21 @@ describe('with the DSN set', () => {
     const ref = { current: null };
     registerNavigationContainer(ref);
     expect(options.integrations[0].registerNavigationContainer).toHaveBeenCalledWith(ref);
+  });
+
+  /**
+   * Storage loss raises no exception anywhere — MMKV drops the data natively and
+   * every read afterwards succeeds — so this message is the only way it ever
+   * reaches anyone but the user. It must carry the key names and nothing else:
+   * the privacy manifest and docs/privacy-policy.md describe an app that sends
+   * crash and performance diagnostics, never library contents.
+   */
+  it('reports missing storage keys as an error, carrying only the key names', () => {
+    reportStorageLoss(['poker-range-trainer.saved-ranges.v1']);
+
+    expect(mockCaptureMessage).toHaveBeenCalledWith('Storage keys missing after open: 1', {
+      level: 'error',
+      extra: { keys: ['poker-range-trainer.saved-ranges.v1'] },
+    });
   });
 });

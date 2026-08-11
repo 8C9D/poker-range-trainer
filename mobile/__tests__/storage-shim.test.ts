@@ -12,7 +12,7 @@ jest.mock('react-native-mmkv');
 // Jest hand back an auto-mocked copy instead of the instance the shim uses. This
 // returns the exact module registry entry the shim imported.
 const mmkvMock = jest.requireMock('react-native-mmkv') as {
-  __lastConfiguration(): { id?: string; recoveryStrategy?: string } | undefined;
+  __configurationFor(id: string): { id?: string; recoveryStrategy?: string } | undefined;
 };
 
 // Hands listed in canonical 13x13 row-major order (AA, AKs, AQs) so the core's
@@ -91,7 +91,10 @@ describe('MMKV-backed localStorage shim', () => {
     // The instance is created lazily on first access, so touch the store first.
     localStorageShim.setItem('any-key', 'any-value');
 
-    expect(mmkvMock.__lastConfiguration()).toEqual({
+    // Asked by id rather than "most recently created": the integrity sidecar is
+    // a second instance, and this assertion must be about the store holding the
+    // nine slices whichever of the two was opened last.
+    expect(mmkvMock.__configurationFor('poker-range-trainer')).toEqual({
       id: 'poker-range-trainer',
       recoveryStrategy: 'recover-on-error',
     });

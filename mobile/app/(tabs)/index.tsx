@@ -24,6 +24,7 @@ import { loadTrainingGoal, saveTrainingGoal } from '@core/storage/trainingGoalSt
 
 import { SaveErrorBanner } from '../../components/liveSave';
 import { Screen } from '../../components/Screen';
+import { StorageLossNotice } from '../../components/StorageLossNotice';
 import { formatDateLine, formatDayDistance, greetingFor } from '../../lib/format';
 import { fonts } from '../../theme/fonts';
 import { useTheme } from '../../theme/colors';
@@ -146,6 +147,9 @@ export default function TodayScreen() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.content}>
+        {/* Above everything: the library on screen below it may be a fraction of
+            what the user actually had, and nothing else would ever say so. */}
+        <StorageLossNotice />
         <Text style={styles.date}>{formatDateLine(now)}</Text>
         <View style={styles.headingRow}>
           <Text testID="today-greeting" style={styles.greeting}>

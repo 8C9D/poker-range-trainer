@@ -1,5 +1,7 @@
 import { createMMKV, type MMKV } from 'react-native-mmkv';
 
+import { checkForLostKeys, noteStoredKeys } from './storeIntegrity';
+
 /**
  * Synchronous `localStorage` polyfill backed by react-native-mmkv.
  *
@@ -39,12 +41,28 @@ interface WebStorageLike {
 // install. There is no account and no server to restore any of it from, only a
 // backup file the user had to have chosen to export. 'recover-on-error' asks
 // MMKV to salvage what it can instead.
+//
+// 'recover-on-error' salvages rather than discards, but a partial salvage still
+// drops whatever could not be read and says nothing about it — MMKV surfaces no
+// signal either way. So the store is opened once and immediately checked against
+// the key inventory `storeIntegrity` keeps in a separate file, which is the only
+// thing standing between a silent partial loss and the user hearing about it.
 let store: MMKV | null = null;
 function getStore(): MMKV {
   if (store === null) {
     store = createMMKV({ id: 'poker-range-trainer', recoveryStrategy: 'recover-on-error' });
+    checkForLostKeys(store.getAllKeys());
   }
   return store;
+}
+
+/**
+ * Re-record the inventory after a write that may have added or removed a key.
+ * Only the SET of keys matters, so an ordinary value update costs nothing beyond
+ * the comparison inside `noteStoredKeys`.
+ */
+function noteKeys(mmkv: MMKV): void {
+  noteStoredKeys(mmkv.getAllKeys());
 }
 
 /** Synchronous, MMKV-backed implementation of the `localStorage` surface. */
@@ -55,13 +73,19 @@ export const localStorageShim: WebStorageLike = {
     return getStore().getString(key) ?? null;
   },
   setItem(key: string, value: string): void {
-    getStore().set(key, value);
+    const mmkv = getStore();
+    mmkv.set(key, value);
+    noteKeys(mmkv);
   },
   removeItem(key: string): void {
-    getStore().remove(key);
+    const mmkv = getStore();
+    mmkv.remove(key);
+    noteKeys(mmkv);
   },
   clear(): void {
-    getStore().clearAll();
+    const mmkv = getStore();
+    mmkv.clearAll();
+    noteKeys(mmkv);
   },
   key(index: number): string | null {
     return getStore().getAllKeys()[index] ?? null;

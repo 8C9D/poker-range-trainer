@@ -11,6 +11,11 @@ import type { SavedRange } from '@core/types/range';
 
 import TodayScreen from '../app/(tabs)/index';
 import { installLocalStorage, localStorageShim } from '../platform/localStorageShim';
+import {
+  acknowledgeStorageLoss,
+  checkForLostKeys,
+  noteStoredKeys,
+} from '../platform/storeIntegrity';
 
 // In-memory MMKV + a minimal expo-router stub. Data is seeded before render and read
 // by the screen's initial useState (useFocusEffect is a no-op here). The Link stub
@@ -53,6 +58,7 @@ describe('TodayScreen', () => {
 
   beforeEach(() => {
     localStorageShim.clear();
+    acknowledgeStorageLoss();
     mockLinks.length = 0;
   });
 
@@ -61,6 +67,26 @@ describe('TodayScreen', () => {
 
     expect(getByTestId('today-onboarding')).toBeTruthy();
     expect(queryByTestId('start-review')).toBeNull();
+  });
+
+  /**
+   * The screen a user lands on is the only place a silent partial recovery can
+   * be caught in time to matter — an empty-looking library reads as onboarding,
+   * not as loss, and this is what tells them apart.
+   */
+  it('carries the storage-loss notice, so a dropped library is not read as a fresh start', async () => {
+    noteStoredKeys(['poker-range-trainer.saved-ranges.v1']);
+    checkForLostKeys([]);
+
+    const { getByTestId } = await render(<TodayScreen />);
+
+    expect(getByTestId('storage-loss-notice')).toBeTruthy();
+  });
+
+  it('shows no such notice in the ordinary case', async () => {
+    const { queryByTestId } = await render(<TodayScreen />);
+
+    expect(queryByTestId('storage-loss-notice')).toBeNull();
   });
 
   it('surfaces the due queue and start-review CTA for never-practiced ranges', async () => {

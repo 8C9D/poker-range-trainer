@@ -16,6 +16,8 @@
 import * as Sentry from '@sentry/react-native';
 import type { ComponentType } from 'react';
 
+import { setStorageLossReporter } from './storeIntegrity';
+
 /** The Sentry DSN, or `null` when crash reporting is disabled. */
 export function getSentryDsn(): string | null {
   const dsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
@@ -41,8 +43,17 @@ function getNavigationIntegration(): ReturnType<typeof Sentry.reactNavigationInt
   return navigationIntegration;
 }
 
-/** Initialise Sentry, or do nothing at all when the DSN is unset. */
+/**
+ * Initialise Sentry, or do nothing at all when the DSN is unset.
+ *
+ * The storage-loss reporter is wired here either way: the shim that detects the
+ * loss cannot import this module (it runs before Sentry exists — see
+ * `setStorageLossReporter`), so this is the seam that introduces them, and doing
+ * it unconditionally keeps the disabled path a no-op inside `reportStorageLoss`
+ * rather than a second thing to remember.
+ */
 export function initCrashReporting(): void {
+  setStorageLossReporter(reportStorageLoss);
   const dsn = getSentryDsn();
   if (!dsn) return;
   Sentry.init({
@@ -81,4 +92,23 @@ export function wrapRootComponent<P extends Record<string, unknown>>(
 export function reportCaughtError(error: unknown): void {
   if (!isCrashReportingEnabled()) return;
   Sentry.captureException(error);
+}
+
+/**
+ * Report storage keys that went missing between one launch and the next.
+ *
+ * There is no exception to capture here: MMKV drops the data down in native code
+ * and every read afterwards succeeds, just with less in it. Without this the
+ * event is invisible from both ends — the user is told by the notice on Today,
+ * and this is the only way anyone else ever hears about it.
+ *
+ * `keys` are the storage-key constants themselves, so no range name, note or
+ * practice record travels with them.
+ */
+export function reportStorageLoss(keys: string[]): void {
+  if (!isCrashReportingEnabled()) return;
+  Sentry.captureMessage(`Storage keys missing after open: ${keys.length}`, {
+    level: 'error',
+    extra: { keys },
+  });
 }
