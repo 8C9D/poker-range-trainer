@@ -79,7 +79,7 @@ Four findings. Review 0 returned PASS-WITH-FINDINGS; both original work-list fin
 | id | area | sev | evidence (file:line) | fix | blast radius | status | resolved by |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | P0-1 | persistence | P0 | `mobile/platform/localStorageShim.ts:53` (it read `:45` until round 2's `beedb9a` inserted the salvage comment and the `checkForLostKeys` call above it; re-based per REVIEW-R6 R6-5) | pass `recoveryStrategy: 'recover-on-error'` to `createMMKV`, plus a call-site assertion per R0-8 | one call site, one option; changes native recovery behavior for the single MMKV instance holding all nine keys | RESOLVED | `598728c` |
-| P1-1 | observability | P1 | `mobile/app.json:84`; pre-fix `LAUNCH-CHECKLIST.md:54` and `:185` (read against `4551454` — the fix rewrote both; re-based per round 3, which inserted lines above both, they are now `:64-67` and `:195-208`) | document `SENTRY_ORG` and `SENTRY_PROJECT` next to `SENTRY_AUTH_TOKEN` | documentation only; zero runtime effect | RESOLVED | `32d579f` (`LAUNCH-CHECKLIST.md:64-67`, `:195-208`, `.env.example:12-24`) + the REVIEW-FINAL remediation (`docs/ios-store-listing.md:92`, the third tracked place instructing the user, missed by the first fix per FR-2) |
+| P1-1 | observability | P1 | `mobile/app.json:84`; pre-fix `LAUNCH-CHECKLIST.md:54` and `:185` (read against `4551454` — the fix rewrote both; re-based per round 3, which inserted lines above both, they are now `:66-69` and `:197-210`) | document `SENTRY_ORG` and `SENTRY_PROJECT` next to `SENTRY_AUTH_TOKEN` | documentation only; zero runtime effect | RESOLVED | `32d579f` (`LAUNCH-CHECKLIST.md:66-69`, `:197-210`, `.env.example:12-24`) + the REVIEW-FINAL remediation (`docs/ios-store-listing.md:92`, the third tracked place instructing the user, missed by the first fix per FR-2) |
 | R0-1 | ledger integrity | P1 | ASSUMPTION 3 below; `mobile/.gitignore:40` | re-anchor P0-1's trace to the tracked exact pin `NitroMmkv.podspec:27` | ledger text only | RESOLVED | `4551454` |
 | R0-5 | baseline provenance | P1 | `reviews/BASELINE.md`; `git log origin/main..main` | disclose that baseline `21f568b` was authored in this run and sits on `main` | ledger + baseline text only | RESOLVED | `4551454` |
 
@@ -225,8 +225,8 @@ The block is now re-verified by running it, at `d13fd15`: lint clean on both app
 
 **One defect found while re-reading the checklist for FR-1, and fixed.**
 Round 2's Sentry correction (`2dede9a`) reached one of the two places the checklist states the failure mode and not the other.
-It rewrote step 7 (`LAUNCH-CHECKLIST.md:205-207`) to say the build fails, and left Pass 3's summary line still asserting the superseded claim — "Without them the upload is skipped and every production crash arrives as unsymbolicated minified frames" — so the document contradicted itself, with the wrong half being the one REVIEW-FINAL FR-1 had already struck.
-`LAUNCH-CHECKLIST.md:66-67` now carries the corrected reading, points at step 7 for the trace, and says outright that it is inferred rather than observed.
+It rewrote step 7 (`LAUNCH-CHECKLIST.md:207-209`) to say the build fails, and left Pass 3's summary line still asserting the superseded claim — "Without them the upload is skipped and every production crash arrives as unsymbolicated minified frames" — so the document contradicted itself, with the wrong half being the one REVIEW-FINAL FR-1 had already struck.
+`LAUNCH-CHECKLIST.md:68-69` now carries the corrected reading, points at step 7 for the trace, and says outright that it is inferred rather than observed.
 This is the same shape as FR-2, where P1-1's first fix reached two of the three tracked places instructing the user: a correction is not landed until every place that repeats the old claim is found, and `git grep` for the claim's wording is the cheap way to check.
 Run here as `git grep -niE "unsymbolicat|minified|upload is skipped|source-map upload"` over the tracked tree excluding this ledger and `reviews/`, it returns exactly two files and no third place: `LAUNCH-CHECKLIST.md` (now consistent across Pass 3 and step 7) and `.env.example:12-24`, which round 2 had already got right.
 
@@ -297,7 +297,7 @@ That makes it a worse defect to leave, not a lesser one: the blast radius moves 
 **P2-5 was put to the user with a trace, and left.** The decision is recorded in the P2 triage below along with the evidence it was made on.
 The evidence is new to this round: P2-5 was previously weighed on how bad the outcome would be, and it is now weighed on whether the failure it needs can happen at all.
 
-**P2-8 is unchanged and still gated.** `LAUNCH-CHECKLIST.md:136` (step 1) tells the user to check the live project's RLS against exactly those four SQL files, and step 1 is still open — its checkbox is unticked and nothing in the tree records a route taken.
+**P2-8 is unchanged and still gated.** `LAUNCH-CHECKLIST.md:138` (step 1) tells the user to check the live project's RLS against exactly those four SQL files, and step 1 is still open — its checkbox is unticked and nothing in the tree records a route taken.
 Deleting them now would remove the reference the open instruction depends on. The user confirmed step 1 is still open and chose to leave them.
 
 **FR-1 is unchanged and still open after this round too.** No EAS build was run; nothing new was observed. The CANNOT ASSESS entry stands as round 3 left it.
@@ -397,13 +397,13 @@ That is a reasonable division - the `@core` behaviour is tested once, on the sur
 **No storage key was added, renamed or reshaped**, so the three key guards are untouched: the reporter carries key names as an argument and persists nothing. `mobile/platform/storeIntegrity.ts`'s second MMKV instance is unchanged and still outside the nine, the backup and the guards.
 
 **What this round did not take.**
-P2-8 is unchanged and still gated on step 1 of `LAUNCH-CHECKLIST.md:136`, which is still unticked with no route recorded in the tree.
+P2-8 is unchanged and still gated on step 1 of `LAUNCH-CHECKLIST.md:138`, which is still unticked with no route recorded in the tree.
 FR-1 is unchanged and still open: no EAS build was run in this round either, so the CANNOT ASSESS entry stands as rounds 3 and 4 left it.
 `review/targets.md:136` and `:144` are still stale and still deliberately unedited, for the reason round 4 gave.
 
 **Anchors.** `reviews/REVIEW-R4.md` reads against `f4addad` and says so in its header, so its `PROD-READINESS.md` line numbers are dated rather than rewritten, exactly as REVIEW-R3's are dated to `227e3e1`.
 Inside this file, the R4-C fix lengthened both runner comments, so R4-1's evidence cell was re-based from `vitest.config.ts:15-24` / `mobile/jest.config.js:21-28` to `:15-28` / `:21-33`, with the old pair dated.
-`vitest.config.ts:14`, cited by `LAUNCH-CHECKLIST.md:34` and the round 3 paragraph above, is unmoved: both edits are below it.
+`vitest.config.ts:14`, cited by `LAUNCH-CHECKLIST.md:36` and the round 3 paragraph above, is unmoved: both edits are below it.
 R3-5's fix then inserted 46 lines above `restoreBackup`, which moved the live `src/storage/backup.ts` anchors in this file: the rollback loop from `:296-306` to `:350-366`, the rethrow from `:307` to `:368`, the `removeItem` branch from `:298` to `:352`, the contract paragraph from `:250-262` to `:291-303`, and R4-E's citation from `:257-258` to `:298-299`, each re-based with the `f4addad` values dated where a row carries its own history.
 **That was written as "every live anchor" and it was five of eight - corrected per REVIEW-R5 R5-2 and R5-6.**
 The sixth is `:300-305` in R3-5's own NEXT ROUND entry, which the same fix moved to the inner `catch` at `:369-380` (`:379-390` since round 7's comment fix) and which is now dated the way round 2's preserved P2-4 paragraph dates its anchors.
@@ -497,7 +497,7 @@ Every claim both comments make resolves, including the `beforeAll` case and the 
 **No storage key was added, renamed or reshaped**, and `mobile/platform/storeIntegrity.ts`'s second MMKV instance is untouched and still outside the nine, the backup and the three key guards.
 
 **What this round did not take.**
-P2-8 is unchanged and still gated on step 1 of `LAUNCH-CHECKLIST.md:136`, whose checkbox at `:47` is still unticked with no route recorded in the tree.
+P2-8 is unchanged and still gated on step 1 of `LAUNCH-CHECKLIST.md:138`, whose checkbox at `:49` is still unticked with no route recorded in the tree.
 FR-1 is unchanged and still open: no EAS build was run in this round either, so the CANNOT ASSESS entry stands as rounds 3, 4 and 5 left it. The four `expo export` runs above are local and were already in the ledger's list of available commands.
 `review/targets.md:136` and `:144` are still stale and still deliberately unedited, for the reason round 4 gave.
 
@@ -518,6 +518,62 @@ It took a correction commit to get right: the cell was first written by committi
 `dac008e` is that correction and nothing else.
 `ceee8cb` re-bases the third `daf054d`-era anchor (`backup.ts:120` -> `:153`) and bounds the sweep, and `a958b83` names `ceee8cb` in R5-6's cell - two commits rather than one for the same reason: a cell may only name a commit that already exists.
 A final commit completes this paragraph, and it is the only thing in it.
+
+### Round 7 - 2026-08-11, seventh run, on `main`
+
+Round 6 reviewed round 5 and was not itself reviewed, and its one change to shipped code is a COMMENT in `@core`, on the data path.
+A comment-only change is unguardable by construction - no test can fail on a sentence - so the only check available on it is someone reading it against the code, and until this round nobody had.
+`reviews/REVIEW-R6.md` (`c92352c`, committed alone) returned PASS-WITH-FINDINGS on `2d09b26..b3ed6d9`: `8160e41` is right where it matters, and two of its three load-bearing claims are stronger than it says.
+Six findings, all P2, one against the comment and five against the record.
+Same rule as every round above: **a status is a record of something done, never a forecast.**
+
+| id | what it was | sev | fix as landed | status | resolved by |
+| --- | --- | --- | --- | --- | --- |
+| R6-1 | the comment justified under-reporting with the cost of a DIFFERENT alternative - "counting optimistically ... on a full device, most of them" is what dropping the `index < replaced` guard costs, not what counting before the write costs | P2 | `src/storage/backup.ts:346-356` now names the alternative it actually beats, states the trade as one slice each way, and parenthesises the guard-less case as the different and worse thing it is; `:340-344` adds the `removeItem` half of the bound; the R3-5 paragraph above says the same | RESOLVED | `98d698a` |
+| R6-2 | "the bundler would have failed had the compiler not" was an inference inside the correction whose point was replacing an inference with an observation | P2 | run: `npx vite build` with the mutant import fails with seven Flow parse errors inside `mobile/node_modules/react-native/` and NO resolution error, so the missing web-root dependency is not what stops it; the paragraph above records the observation, the real mechanism and the condition it depends on | RESOLVED | `98d698a` |
+| R6-3 | the 52-byte bundle delta was one export per condition, against output nothing had shown to be reproducible | P2 | seven more exports, four with the edge and three without; the table above is replaced with the bound (51 to 55 bytes) and records that Hermes output is not byte-reproducible while Metro's JS is | RESOLVED | `98d698a` |
+| R6-4 | the isolation probe used `rangeRemoval`'s `pendingUndo` as a stand-in and called it "module state with no reset", which is the one property it does not share with `reportDamage` | P2 | redone on the real holder: two probes driving `restoreBackup` through `setRestoreDamageReporter`, passing under the shipped config and failing at `expected 'aa' to be 'a'` under `--no-isolate` | RESOLVED | `98d698a` |
+| R6-5 | round 6's sweep bound was holding four live, undated anchors that resolve to the wrong lines, two of them moved by round 5's own commit | P2 | every anchor in this file opened - 119 fully-qualified and 120 bare - and all four re-based: `localStorageShim.ts:45` -> `:53` (twice), `:42-48` -> `:50-57`, `crashReporting.ts:108` -> `:115`, `:56-59` -> `:74-77` | RESOLVED | `98d698a` |
+| R6-6 | the checklist status baseline named `6186581` while HEAD was five commits past it, in a block whose own second line promises it was re-run | P2 | `LAUNCH-CHECKLIST.md:21-25` re-runs every line at `98d698a` and stamps it, including `npm audit --omit=dev` and the five `review/findings.md` fix commits | RESOLVED | `c5d78cc` |
+
+**R6-1 is the one that mattered, and like R5-1 it is a comment fix rather than a behaviour fix.**
+The code is right and is untouched: `replaced` is still incremented after the write, refusals at or above it are still not reported.
+What changed is that the sentence justifying that choice no longer borrows the cost of an alternative nobody was choosing between.
+The two other claims in the same comment were walked rather than accepted, and both hold: the `try` wraps the whole forward `for` rather than its body, so exactly one slice can be replaced-without-being-counted and never two; and the double-failure bound is tighter than stated, because a rewind that refuses WITHOUT landing means `mmkv.set`, which a slice whose snapshot is `null` never reaches.
+
+**The anchor sweep round 6 bounded is now closed, and closing it was worth doing.**
+Every `file:line` anchor in this file was extracted and opened - 119 fully-qualified plus 120 bare `:NN` continuations resolved to the file named earlier in their sentence - along with the two in `LAUNCH-CHECKLIST.md`.
+Four resolved to the wrong thing, none of them dated, all in the two `mobile/platform/` files round 6 declared out of scope: `localStorageShim.ts:45` in P0-1's evidence cell and its paragraph and `:42-48` in ASSUMPTION 2, all three moved by round 2's `beedb9a`; `crashReporting.ts:108` in N-2's row and `:56-59` in NOT DEFECTS, moved by round 5's `6186581`.
+The second pair is the sharper one: `6186581` EDITED that file, and wrote three new anchors into it that are all correct, so what was skipped was the re-grep of anchors already pointing at it.
+That is the standing rule - after any edit, list every anchor into the file you touched and open each one - applied to one of the two files a commit changed.
+
+**The hash audit came back clean.**
+Every hash-shaped token in this file, `LAUNCH-CHECKLIST.md` and `reviews/` - 43 distinct ones - was run through `git cat-file -t` and `git merge-base --is-ancestor <hash> main`.
+All 43 are commits and 42 are ancestors of `main`; the exception is `0c600ff`, which this file names as the dangling object `dac008e` was written to document.
+So the failure mode round 6 found has not recurred anywhere else, and `review/` carries no hashes at all.
+
+**No guard was added, because nothing executable changed.**
+`git diff` on `src/storage/backup.ts` for `98d698a` is entirely `//` lines, which is checkable with the same filter round 6 used, so there is no behaviour to prove falsifiable and no mutant to run.
+The five R3-5 mutants and everything else in the falsifiability tables above are unaffected and were not re-run; what was re-run is the full gate, on every commit.
+
+**No storage key was added, renamed or reshaped**, and `mobile/platform/storeIntegrity.ts`'s second MMKV instance is untouched and still outside the nine, the backup and the three key guards.
+
+**What this round did not take.**
+P2-8 is unchanged and still gated on step 1 of `LAUNCH-CHECKLIST.md:138`, whose checkbox at `:49` is still unticked with no route recorded in the tree.
+FR-1 is unchanged and still open: no EAS build was run in this round either, so the CANNOT ASSESS entry stands as rounds 3 through 6 left it. The seven `expo export` runs above are local.
+`review/targets.md:136` and `:144` are still stale and still deliberately unedited, for the reason round 4 gave.
+
+**Anchors.** `reviews/REVIEW-R6.md` reads against `b3ed6d9` and says so in its header, so its `PROD-READINESS.md` and `src/storage/backup.ts` line numbers are dated rather than rewritten, exactly as REVIEW-R5's are dated to `2d09b26`.
+Inside this file, R6-1's comment fix added 10 lines to the comment above `replaced`, moving everything below by 10: the comment block itself `:329-346` -> `:329-356`, the rollback loop `:365-381` -> `:375-391`, the rethrow `:383` -> `:393`, the `removeItem` branch `:367` -> `:377`, R3-5's report call `:364-382` -> `:374-392` and `:382` -> `:392`, the collection `:364-381` -> `:374-391`, and the inner `catch` `:369-380` -> `:379-390`.
+The doc comment `:291-303`, R4-E's citation `:298-299`, the narrowing at `:308-310` and the reporter seam `:245-284` are unmoved, the edit being below them.
+Every one of those was opened after the edit, along with the four R6-5 re-based, and nothing in this file points into `PROD-READINESS.md` by line - `git grep 'PROD-READINESS.md:[0-9]'` outside `reviews/` returns nothing, so this section's own insertions move no anchor anywhere.
+**The R6-6 refresh moved anchors too, and that is the half a docs edit makes easy to miss.** `c5d78cc` added two lines at `LAUNCH-CHECKLIST.md:24`, which shifted every anchor into that file by two: `:34` -> `:36`, `:47` -> `:49`, `:66-67` -> `:68-69`, `:64-67` -> `:66-69`, `:136` -> `:138`, `:195-208` -> `:197-210`, `:205-207` -> `:207-209`, across nine sentences in this file including P1-1's row, both P2-8 paragraphs of rounds 5 and 6, round 3's step 7 correction and the CANNOT ASSESS entry.
+All were re-based and re-opened; the two anchors dated to `4551454` in P1-1's row are left as the pre-fix record they are, and the reviews' own checklist anchors are dated by their headers and untouched.
+
+**What each of this round's commits contains.** `c92352c` is `reviews/REVIEW-R6.md` and nothing else.
+`98d698a` carries R6-1's comment fix plus the R6-2/R6-3/R6-4/R6-5 ledger corrections; the `src/storage/backup.ts` half changes no executable line, and the full gate was run on it: lint clean, web 79 / 1187, mobile 37 / 241, build and mobile `tsc --noEmit` clean.
+`c5d78cc` is R6-6, `LAUNCH-CHECKLIST.md` and nothing else, with the same gate re-run on it and `npm audit --omit=dev` at the web root reporting 0 vulnerabilities.
+This section lands in a commit after all three, naming them, and a final commit completes this paragraph.
 
 ### P2 — documented, not fixed
 
@@ -599,7 +655,7 @@ REVIEW-1B records the correct caveat on that paragraph, and it is repeated here 
 ## CANNOT ASSESS
 
 - Whether `SENTRY_ORG` / `SENTRY_PROJECT` are already set as EAS secrets or profile env. The EAS environment is remote; connecting to it is prohibited.
-- **Which failure mode a missing org/project actually produces** (added per REVIEW-FINAL FR-1). **Still open after rounds 2 and 3: neither ran an EAS build, so nothing new was observed and the checklist's account of it (`LAUNCH-CHECKLIST.md:195-208`, and `:66-67` since round 3 corrected it) is still inference.** It stays inferred from `sentry-xcode.sh` and the vendored `sentry-cli`, and the first real production build should be used to settle it. The vendored script and CLI both point at a failed build rather than a silent unsymbolicated one, but settling it needs a real `sentry-cli` invocation against sentry.io or an EAS build log — both non-local, both prohibited. P1-1's severity therefore rests on a premise this run could not close: if the true behavior is a failed build, the ledger's own rubric would make it "cannot deploy", which is P0. It is left at P1 rather than raised, because the evidence for the harsher rating is exactly the evidence that cannot be confirmed here, and because a failed build announces itself where an unsymbolicated one does not. The fix is identical under either reading.
+- **Which failure mode a missing org/project actually produces** (added per REVIEW-FINAL FR-1). **Still open after rounds 2 and 3: neither ran an EAS build, so nothing new was observed and the checklist's account of it (`LAUNCH-CHECKLIST.md:197-210`, and `:68-69` since round 3 corrected it) is still inference.** It stays inferred from `sentry-xcode.sh` and the vendored `sentry-cli`, and the first real production build should be used to settle it. The vendored script and CLI both point at a failed build rather than a silent unsymbolicated one, but settling it needs a real `sentry-cli` invocation against sentry.io or an EAS build log — both non-local, both prohibited. P1-1's severity therefore rests on a premise this run could not close: if the true behavior is a failed build, the ledger's own rubric would make it "cannot deploy", which is P0. It is left at P1 rather than raised, because the evidence for the harsher rating is exactly the evidence that cannot be confirmed here, and because a failed build announces itself where an unsymbolicated one does not. The fix is identical under either reading.
 - Real MMKV native recovery behavior against a genuinely corrupted store. Requires a device or simulator with a damaged MMKV file; Jest mocks the module entirely (`mobile/__mocks__/react-native-mmkv.ts`), so P0-1's fix is verifiable at the call site only.
   **Unchanged by round 2's N-2 work.** The detector is tested by handing `checkForLostKeys` a key list with something missing, which is exactly the shape the shim passes on device — but the event that produces that list natively is still unreachable here. What is now covered is the half that decides whether anyone is ever told; what is still uncovered is whether MMKV's recovery behaves as its source says.
 - Whether an EAS-built binary resolves the same MMKVCore pod as the local `mobile/ios/Pods/` tree.
