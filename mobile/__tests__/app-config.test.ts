@@ -16,6 +16,7 @@ interface PrivacyCollectedDataType {
 interface AppConfig {
   expo: {
     ios: {
+      bundleIdentifier?: string;
       buildNumber?: string;
       privacyManifests?: {
         NSPrivacyTracking: boolean;
@@ -34,6 +35,19 @@ const config = JSON.parse(readFileSync(join(__dirname, '..', 'app.json'), 'utf8'
 
 describe('app.json iOS privacy manifest', () => {
   const ios = config.expo.ios;
+
+  /**
+   * The one value in this file that can never be corrected. Apple binds the
+   * bundle identifier to the App Store record at first submission; it cannot be
+   * changed afterwards, and it cannot be reused by another record even after the
+   * app is removed. Nothing else fails when it changes — the build still
+   * succeeds, and the mismatch only surfaces at upload, against a record that
+   * will not take it. `buildNumber` is pinned here for a far smaller reason, so
+   * this belongs here too.
+   */
+  it('pins the permanent iOS bundle identifier', () => {
+    expect(ios.bundleIdentifier).toBe('com.arthurzhang.pokerrangetrainer');
+  });
 
   it('sets an iOS build number to pair with the version', () => {
     expect(ios.buildNumber).toBe('1');
