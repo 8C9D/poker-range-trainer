@@ -247,11 +247,19 @@ export function validateBackup(parsed: unknown): Backup {
  * slice is written under its existing storage key; the per-slice loaders apply
  * their usual defensive validation when the app next reads them.
  *
- * The write is atomic: every slice is serialized up front, the current values
- * are snapshotted, and if any `setItem` throws mid-way (e.g. a
- * `QuotaExceededError`) the snapshot is restored so the library is never left
- * half-replaced. The error the caller sees is always the one that stopped the
- * restore, never one raised while putting the old values back.
+ * Every slice is serialized up front and the current values are snapshotted, so
+ * a `setItem` that throws mid-way (e.g. a `QuotaExceededError`) is followed by a
+ * rewind writing that snapshot back over every slice, not only the ones the
+ * failed write had already reached.
+ *
+ * The rewind is best-effort, NOT an atomic write, and the difference is the
+ * whole reason this loop looks the way it does. Putting a value back can itself
+ * be refused, and a slice whose rewind is refused keeps the new value. Only a
+ * slice the forward write had already replaced can end up that way: the slices
+ * past the failure were never written, so a refused rewind hands them back the
+ * value they still hold and leaves them correct either way. The error the caller
+ * sees is always the one that stopped the restore, never one raised while
+ * putting the old values back.
  */
 export function restoreBackup(backup: Backup): void {
   const validated = validateBackup(backup)
