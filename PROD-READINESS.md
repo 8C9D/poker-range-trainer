@@ -128,6 +128,46 @@ Severity is P0 because "data loss" is the named P0 criterion and the loss here i
 **At the baseline commit `21f568b`** — before this ledger itself began quoting the two names — `git grep` for `SENTRY_ORG` and `SENTRY_PROJECT` across the tracked tree returned nothing. (Corrected per REVIEW-FINAL FR-3: an earlier wording claimed this held "up to `32d579f`", which is false — the ledger's own prose matches from `2c3334f` onward, and the fix's docs match from `32d579f`. Re-derive it at `21f568b`, not at HEAD.) The substantive claim is the one that follows:  neither is set in `mobile/eas.json`, mentioned in `.env.example`, or listed in `LAUNCH-CHECKLIST.md`, which documents only `SENTRY_AUTH_TOKEN` (`:54`, `:185`). A build that follows the documented checklist exactly therefore has no org or project for the upload to resolve. **What happens next was asserted rather than verified, and is corrected here per REVIEW-FINAL FR-1.** This ledger originally said the upload is "skipped" and crashes arrive unsymbolicated. The artifacts argue the opposite: `mobile/node_modules/@sentry/react-native/scripts/sentry-xcode.sh:52-63,76` turns a failing `sentry-cli` into an Xcode `error:` and `exit 1` — the only skip path is `SENTRY_DISABLE_AUTO_UPLOAD=true`, and the only tolerated failure is `SENTRY_ALLOW_FAILURE=true`, neither of which is set anywhere in this repo — and `sentry-cli` treats a missing org or project as a hard configuration error ("An organization ID or slug is required (provide with --org)", present in the vendored `@sentry/cli-darwin` binary). That points at a **failed build**, not a silent one. Which of the two actually occurs cannot be settled here: finishing the proof needs a real `sentry-cli` run against sentry.io or an EAS build log, both non-local and both prohibited. See CANNOT ASSESS. The corrective action is identical either way, which is why the fix stands as landed.
 Severity is P1, not P0: crash reporting is optional and its absence does not lose data or break the app, but it is precisely "undiagnosable in prod". Whether the EAS environment happens to supply the two variables is CANNOT ASSESS (remote).
 
+### Round 2 — 2026-08-10, second run, on `main`
+
+A second run worked the backlog above rather than re-sweeping.
+Nothing here was found by a new pass; every item was already recorded with evidence, and the work is the closing of it.
+Same rule as the frozen list: **a status is a record of something done, never a forecast**, and every RESOLVED below names the commit whose tree contains the work.
+
+| id | was | sev | fix as landed | status | resolved by |
+| --- | --- | --- | --- | --- | --- |
+| D-1 | DEFERRED | P0 | `mobile/components/BackupPanel.tsx:37` adds `confirmRestore`, an `Alert.alert` gate carrying the web path's exact sentence (`:41`), awaited at `:100` before the read and the restore | RESOLVED | `daf054d` |
+| N-1 | NEXT ROUND | P2 | `src/storage/backup.ts:124` `MAX_BACKUP_BYTES` (64MB) and `:131` `assertBackupFileSize`, called at `mobile/components/BackupPanel.tsx:98-99` (via `getInfoAsync`) and `src/screens/AccountScreen.tsx:81` (via `file.size`), both BEFORE the read | RESOLVED | `daf054d` |
+| N-2 | NEXT ROUND | P2 | `mobile/platform/storeIntegrity.ts` keeps a key inventory in a second MMKV instance; `localStorageShim.ts:54` checks it as the store opens and `:65` re-records it after every mutation; `components/StorageLossNotice.tsx` tells the user on Today (`app/(tabs)/index.tsx:152`); `crashReporting.ts:108` tells Sentry | RESOLVED | `beedb9a` |
+| P2-7 | P2 | P2 | `mobile/__tests__/app-config.test.ts:48` pins `ios.bundleIdentifier` exactly, as `buildNumber` already was | RESOLVED | `34f8935` |
+
+**D-1 and N-1 share a commit.** Both harden the same code path — the restore trust boundary — and landed together with their tests. Recorded as one commit for two findings rather than split, and each is independently revertible by hunk.
+
+**Falsifiability, checked rather than assumed, for each guard added.** Backing the behavior out must fail a test, and a named one:
+
+| behavior removed | tests that fail |
+| --- | --- |
+| the `confirmRestore` gate in `handleImport` | 2 (`keeps the local library when the replacement is not confirmed`, `warns that a restore replaces everything…`) |
+| the `assertBackupFileSize` call in `handleImport` | 1 (`refuses an over-large file before reading it into memory`) |
+| the `assertBackupFileSize` call in `handleImportBackup` (web) | 1 (`refuses an over-large file before reading it into memory`) |
+| `checkForLostKeys` at the shim's store-open | 1 (`opening the store › checks what came back against the record…`) |
+| `<StorageLossNotice />` on the Today screen | 1 (`carries the storage-loss notice…`) |
+| `setStorageLossReporter(reportStorageLoss)` in `initCrashReporting` | 1 (`wires the storage-loss reporter even with reporting disabled`) |
+| the exact `ios.bundleIdentifier` string in `app.json` | 1 (`pins the permanent iOS bundle identifier`) |
+
+The last three exist because each is a single wiring line whose absence is invisible: detection with nothing calling it, detection with nothing showing it, and detection with nothing reporting it all leave every other test green.
+That is the failure this run was told not to repeat — verifying the producing half of a chain and not the consuming half.
+
+**N-2's design, and what it can and cannot see.** react-native-mmkv reports a recovery to nobody: `lib/specs/MMKVFactory.nitro.d.ts` `Configuration` takes no error callback, `lib/specs/MMKV.nitro.d.ts` exposes no recovery signal on the instance, and (per P0-1's trace) it registers no handler with MMKV core either.
+So the app cannot be told; it can only remember what it stored and notice when less comes back.
+The inventory lives in a **second MMKV instance** (`poker-range-trainer-integrity`) because a second id is a second file with its own CRC — in the main store, one corruption event would take both the data and the evidence that the data existed.
+Writes go to the main store first and the inventory second, so a crash between them leaves the record claiming *less* than exists, which self-heals on the next write and reports nothing; the other order would have the app accuse the store of losing data it never held.
+Deliberate deletion is not loss: a stats reset or a range delete removes keys through the same shim, which re-records the inventory in the same breath.
+
+It cannot see a loss that takes the sidecar too, and unreadable bookkeeping is treated as "nothing known" rather than as an accusation — this code exists to tell the user something true, so it fails toward silence in every ambiguous case.
+
+**One existing guard was modified, and re-proved at the same strength.** The P0-1 test read `__lastConfiguration()` from the MMKV mock, which is "the most recently created instance". A second instance makes that order-dependent, so it now asks `__configurationFor('poker-range-trainer')`, and the mock backs each id with its own Map the way MMKV backs each id with its own file. Re-checked afterwards, not assumed: replacing the shim's `createMMKV({ id: 'poker-range-trainer', recoveryStrategy: 'recover-on-error' })` with the bare `{ id }` still fails exactly one test, `opens the store asking MMKV to recover from corruption, not discard it`, with the other 237 passing.
+
 ### P2 — documented, not fixed
 
 | id | area | sev | evidence (file:line) | fix | blast radius |
@@ -138,11 +178,18 @@ Severity is P1, not P0: crash reporting is optional and its absence does not los
 | P2-4 | persistence | P2 | `src/storage/backup.ts:244-250` | wrap the rollback loop so a rollback failure cannot replace the original error | restore path only |
 | P2-5 | persistence | P2 | `src/storage/statsReset.ts:44-46` | make the reset atomic like `restoreBackup` | a mid-loop throw leaves some stores cleared and others not; user sees a readable error and can retry |
 | P2-6 | persistence | P2 | `src/storage/sessionHistoryStorage.ts:105-116` | none proposed — see note | history appends forever with no cap; whole map re-serialized per session |
-| P2-7 | build config | P2 | `mobile/__tests__/app-config.test.ts:38-39` | assert `ios.bundleIdentifier` as `buildNumber` already is | test-only |
+| P2-7 | build config | P2 | `mobile/__tests__/app-config.test.ts:38-39` | assert `ios.bundleIdentifier` as `buildNumber` already is | test-only — **RESOLVED in round 2, `34f8935`** |
 | P2-8 | dead code | P2 | `supabase/migrations/0001_ranges.sql` and three siblings | report only — deleting files this run did not create is prohibited | four orphaned SQL files implying a backend that no longer exists |
 | P2-9 | web observability | P2 | `src/main.tsx:21-23` | none proposed; failure is genuinely non-fatal | SW registration failure is swallowed with no signal |
 | P2-10 | web | P2 | `src/main.tsx:10` | none proposed; `index.html` provides `#root` | non-null assertion on `getElementById` |
 | P2-11 | dependencies | P2 | mobile prod tree: `image-size` (GHSA-w3rx-r6r6-pgpr, GHSA-5p2g-fcmc-qvqq, high), `uuid` (GHSA-w5hq-g745-h8pq, moderate) | none — see NOT DEFECTS | build-time tooling only |
+
+**Round 2 triage of the rest of this table.** P2-7 was fixed; the others were weighed and left, with reasons rather than silence:
+
+- **P2-1, P2-2, P2-3, P2-9, P2-10** are web-only, and no user loads the web app (ASSUMPTION 1). Fixing them buys nothing a user can feel, and each edit is a chance to break the surface the `@core` tests run against.
+- **P2-8** (four orphaned SQL files) and **P2-11** (two build-time advisories) are unchanged: still report-only, still not defects in the shipped binary.
+- **P2-4 is the one worth reopening, and it was deliberately NOT taken this round** — it was outside the scope handed to this run, and widening scope is the user's call, not the builder's. Recording the argument so the decision can be made on evidence: unlike the rest of this table it is in `@core`, so it ships in the iOS binary and sits on the data path. `src/storage/backup.ts:278-282`'s rollback loop can itself throw — on iOS `localStorage.setItem` is MMKV's `set`, which throws on a full device, and a restore that ran out of space is exactly the case that reaches the rollback. A rollback write that throws aborts the loop from inside the `catch`, so the slices it had already reached are back to their old values while the ones it had not are left holding the new — a library assembled from two different points in time, with ranges and their practice records no longer describing each other. It also rethrows the ROLLBACK's error in place of the original at `:282`, so the reason the user is shown is not the reason it failed. The fix is small and contained: wrap each rollback write so the loop always completes, and always raise the original error.
+- **P2-5** was weighed the same way and is genuinely minor: a reset is destructive by intent, so a mid-loop throw leaves less cleared than asked, surfaces a readable error, and is fixed by pressing the button again.
 
 P2-6 note: capping session history would silently delete user records. That is a product decision, not a hardening fix, so no fix is proposed here. On the shipping iOS app MMKV has no small quota, so this degrades (slower synchronous JSON work per session) rather than failing; on web it would eventually exhaust the ~5MB origin quota, but web is not deployed. Recorded at P2 for that reason.
 
@@ -155,7 +202,12 @@ P2-6 note: capping session history would silently delete user records. That is a
 
 ## DEFERRED
 
-**D-1 (P0, deferred) — the iOS restore path dropped the confirmation the web path has, so one tap silently destroys everything recorded since the backup was written.**
+**D-1 (P0) — RESOLVED in round 2 by `daf054d`. The iOS restore path had dropped the confirmation the web path has, so one tap silently destroyed everything recorded since the backup was written.**
+
+The paragraphs below are round 1's record of the finding, left as written.
+What closed it: `mobile/components/BackupPanel.tsx:37` now defines `confirmRestore`, an `Alert.alert` carrying the web path's sentence verbatim — "Importing a backup REPLACES all your current local data. Continue?" — with Cancel and a `destructive` Restore, awaited at `:100` before the file is read or `restoreBackup` is called.
+It is promise-shaped so the destructive work stays inside the panel's existing error handling.
+Two tests fail if the gate is removed; see the round 2 falsifiability table.
 
 **Corrected per REVIEW-1 F3.** This entry was first written, inheriting REVIEW-0's wording verbatim, as "there is no confirmation step" on either surface. That is false, and it was recorded without opening the file. Verified directly:
 
@@ -194,8 +246,9 @@ REVIEW-1B records the correct caveat on that paragraph, and it is repeated here 
 ## CANNOT ASSESS
 
 - Whether `SENTRY_ORG` / `SENTRY_PROJECT` are already set as EAS secrets or profile env. The EAS environment is remote; connecting to it is prohibited.
-- **Which failure mode a missing org/project actually produces** (added per REVIEW-FINAL FR-1). The vendored script and CLI both point at a failed build rather than a silent unsymbolicated one, but settling it needs a real `sentry-cli` invocation against sentry.io or an EAS build log — both non-local, both prohibited. P1-1's severity therefore rests on a premise this run could not close: if the true behavior is a failed build, the ledger's own rubric would make it "cannot deploy", which is P0. It is left at P1 rather than raised, because the evidence for the harsher rating is exactly the evidence that cannot be confirmed here, and because a failed build announces itself where an unsymbolicated one does not. The fix is identical under either reading.
+- **Which failure mode a missing org/project actually produces** (added per REVIEW-FINAL FR-1). **Still open after round 2: no EAS build was run, so nothing new was observed and `LAUNCH-CHECKLIST.md` is unchanged.** It stays inferred from `sentry-xcode.sh` and the vendored `sentry-cli`, and the first real production build should be used to settle it. The vendored script and CLI both point at a failed build rather than a silent unsymbolicated one, but settling it needs a real `sentry-cli` invocation against sentry.io or an EAS build log — both non-local, both prohibited. P1-1's severity therefore rests on a premise this run could not close: if the true behavior is a failed build, the ledger's own rubric would make it "cannot deploy", which is P0. It is left at P1 rather than raised, because the evidence for the harsher rating is exactly the evidence that cannot be confirmed here, and because a failed build announces itself where an unsymbolicated one does not. The fix is identical under either reading.
 - Real MMKV native recovery behavior against a genuinely corrupted store. Requires a device or simulator with a damaged MMKV file; Jest mocks the module entirely (`mobile/__mocks__/react-native-mmkv.ts`), so P0-1's fix is verifiable at the call site only.
+  **Unchanged by round 2's N-2 work.** The detector is tested by handing `checkForLostKeys` a key list with something missing, which is exactly the shape the shim passes on device — but the event that produces that list natively is still unreachable here. What is now covered is the half that decides whether anyone is ever told; what is still uncovered is whether MMKV's recovery behaves as its source says.
 - Whether an EAS-built binary resolves the same MMKVCore pod as the local `mobile/ios/Pods/` tree.
 - Runtime behavior of the service worker in a real browser against a real redeploy. Only its unit tests were run.
 
@@ -203,8 +256,14 @@ REVIEW-1B records the correct caveat on that paragraph, and it is repeated here 
 
 Findings discovered after Review 0 — by the builder or any reviewer — are appended here and are **not** fixed in this run, regardless of severity. Recorded with full evidence so the next run starts from them.
 
-**N-2 (P2) — recovery from MMKV corruption is still silent, even after P0-1.** From REVIEW-1 F7.
+**N-2 (P2) — RESOLVED in round 2 by `beedb9a`.** Recovery from MMKV corruption was still silent, even after P0-1. From REVIEW-1 F7.
+The design, and the limits of what it can see, are in the round 2 section above. The original finding follows as written.
 P0-1 changed the outcome of a CRC or file-length error from "discard everything" to "salvage what is readable": `mobile/ios/Pods/MMKVCore/Core/MMKV_IO.cpp:347-350` sets `loadFromFile = true; needFullWriteback = true` on `OnErrorRecover`, and the file-length path at `:361-366` first clamps `m_actualSize = fileSize - Fixed32Size`. That is strictly better, and it is the whole of what P0-1 claimed. It is **not** a complete answer to the P0 criterion it was rated under ("data loss ... silent failure"): a *partial* recovery still drops whatever could not be salvaged, and the user is told nothing, Sentry is told nothing, and the app renders the survivors as though that were the whole library. Closing the remaining half needs a signal on the recovery path — a new user-visible behavior, hence not this run's work. Recorded so P0-1's RESOLVED is not read as "corruption is now handled end to end".
 
-**N-1 (P2) — unbounded read at the backup trust boundary.** From R0-7.
+**N-1 (P2) — RESOLVED in round 2 by `daf054d`.** An unbounded read at the backup trust boundary. From R0-7.
+`src/storage/backup.ts:131` `assertBackupFileSize` throws above `MAX_BACKUP_BYTES` (64MB, `:124`), and both importers call it before the read: `mobile/components/BackupPanel.tsx:98-99` off `getInfoAsync`, `src/screens/AccountScreen.tsx:81` off `file.size`.
+The bound is deliberately generous rather than tight, and the number is measured rather than picked: a pretty-printed backup is dominated by per-hand accuracy (169 entries per practiced range), so 100 ranges with full accuracy maps and 100 sessions each serialize to ~4.6MB and 500 ranges to ~31MB.
+On a product with no server and no account, refusing a real backup loses the data just as surely as failing to bound the read.
+**Residual, and it is real:** `DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true })` copies the picked file to the cache directory before it ever returns, so an enormous file still costs that disk write. Only the read into memory — the part that ends the process — is bounded. Dropping the flag is not the fix: it is what makes the picked file readable at all on iOS.
+The original finding follows as written.
 `mobile/components/BackupPanel.tsx:61` calls `parseBackup(await readAsStringAsync(uri))`, pulling a user-picked file wholly into a JS string and then `JSON.parse`-ing it, with no size check. `src/screens/AccountScreen.tsx:78` does the same via `file.text()`. `DocumentPicker.getDocumentAsync({ type: 'application/json' })` filters by declared type, not size, so a large file exhausts memory before `validateBackup` ever runs. Size is the one property `validateBackup` structurally cannot check, because the failure happens upstream of it. Low exploitability — the user picks the file themselves.
