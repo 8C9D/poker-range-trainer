@@ -16,6 +16,8 @@
 import * as Sentry from '@sentry/react-native';
 import type { ComponentType } from 'react';
 
+import { setRestoreDamageReporter } from '@core/storage/backup';
+
 import { setStorageLossReporter } from './storeIntegrity';
 
 /** The Sentry DSN, or `null` when crash reporting is disabled. */
@@ -51,9 +53,14 @@ function getNavigationIntegration(): ReturnType<typeof Sentry.reactNavigationInt
  * `setStorageLossReporter`), so this is the seam that introduces them, and doing
  * it unconditionally keeps the disabled path a no-op inside `reportStorageLoss`
  * rather than a second thing to remember.
+ *
+ * The restore-damage reporter is wired the same way and for a related reason:
+ * `@core/storage/backup` is shared with the web app and cannot import anything
+ * under `mobile/platform/` at all.
  */
 export function initCrashReporting(): void {
   setStorageLossReporter(reportStorageLoss);
+  setRestoreDamageReporter(reportRestoreDamage);
   const dsn = getSentryDsn();
   if (!dsn) return;
   Sentry.init({
@@ -108,6 +115,26 @@ export function reportCaughtError(error: unknown): void {
 export function reportStorageLoss(keys: string[]): void {
   if (!isCrashReportingEnabled()) return;
   Sentry.captureMessage(`Storage keys missing after open: ${keys.length}`, {
+    level: 'error',
+    extra: { keys },
+  });
+}
+
+/**
+ * Report the slices a failed backup restore could not roll back.
+ *
+ * There is no exception to capture here either: the restore's own error is
+ * raised to the caller and shown to the user, and it says only that the restore
+ * failed. It cannot say that these slices now hold data from the restored file
+ * while the rest hold what was there before, and nothing later can work it out:
+ * a library assembled from two points in time reads back perfectly well.
+ *
+ * `keys` are the storage-key constants themselves, so no range name, note or
+ * practice record travels with them.
+ */
+export function reportRestoreDamage(keys: string[]): void {
+  if (!isCrashReportingEnabled()) return;
+  Sentry.captureMessage(`Backup restore left slices unrolled-back: ${keys.length}`, {
     level: 'error',
     extra: { keys },
   });

@@ -2,6 +2,8 @@ import type { ComponentType } from 'react';
 
 import * as Sentry from '@sentry/react-native';
 
+import { setRestoreDamageReporter } from '@core/storage/backup';
+
 import { setStorageLossReporter } from '../platform/storeIntegrity';
 
 import {
@@ -10,6 +12,7 @@ import {
   isCrashReportingEnabled,
   registerNavigationContainer,
   reportCaughtError,
+  reportRestoreDamage,
   reportStorageLoss,
   wrapRootComponent,
 } from '../platform/crashReporting';
@@ -28,6 +31,11 @@ import {
 // wiring runs the other way and is mocked here to be observable.
 jest.mock('../platform/storeIntegrity', () => ({ setStorageLossReporter: jest.fn() }));
 
+// Same for the restore-damage seam: `@core/storage/backup` is shared with the web
+// app, so the wiring runs from here and is mocked to be observable. Only the
+// setter is replaced; nothing else in that module is used by this file.
+jest.mock('@core/storage/backup', () => ({ setRestoreDamageReporter: jest.fn() }));
+
 jest.mock('@sentry/react-native', () => ({
   init: jest.fn(),
   wrap: jest.fn((component: unknown) => ({ sentryWrapped: component })),
@@ -44,6 +52,7 @@ const mockWrap = Sentry.wrap as jest.Mock;
 const mockCapture = Sentry.captureException as jest.Mock;
 const mockCaptureMessage = Sentry.captureMessage as jest.Mock;
 const mockSetStorageLossReporter = setStorageLossReporter as jest.Mock;
+const mockSetRestoreDamageReporter = setRestoreDamageReporter as jest.Mock;
 const mockNavigationIntegration = Sentry.reactNavigationIntegration as jest.Mock;
 
 const originalDsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
@@ -115,6 +124,25 @@ describe('with the DSN unset', () => {
 
     expect(mockSetStorageLossReporter).toHaveBeenCalledWith(reportStorageLoss);
   });
+
+  it('swallows restore-damage reports too', () => {
+    reportRestoreDamage(['poker-range-trainer.saved-ranges.v1']);
+
+    expect(mockCaptureMessage).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Same one-line join as the storage-loss reporter, for the same class of
+   * damage: `@core/storage/backup` is shared with the web app, so it cannot
+   * import this module and reports through an injected function instead.
+   * Unwired, the restore still fails safely and the user still sees the error,
+   * while the fact that the library is now mixed goes nowhere.
+   */
+  it('wires the restore-damage reporter even with reporting disabled', () => {
+    initCrashReporting();
+
+    expect(mockSetRestoreDamageReporter).toHaveBeenCalledWith(reportRestoreDamage);
+  });
 });
 
 describe('with the DSN set', () => {
@@ -180,5 +208,20 @@ describe('with the DSN set', () => {
       level: 'error',
       extra: { keys: ['poker-range-trainer.saved-ranges.v1'] },
     });
+  });
+
+  /**
+   * A refused rollback raises nothing either: `restoreBackup` swallows it on
+   * purpose so the error the user sees stays the reason the RESTORE failed. This
+   * message is the only record that the library now holds one slice from a
+   * different point in time, and it carries key names for the same reason.
+   */
+  it('reports slices a restore could not roll back, carrying only the key names', () => {
+    reportRestoreDamage(['poker-range-trainer.saved-ranges.v1']);
+
+    expect(mockCaptureMessage).toHaveBeenCalledWith(
+      'Backup restore left slices unrolled-back: 1',
+      { level: 'error', extra: { keys: ['poker-range-trainer.saved-ranges.v1'] } },
+    );
   });
 });

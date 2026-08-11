@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest'
 import { allCombosForHand } from '../domain/comboSelection'
 import type { SavedRange } from '../types/range'
 import { saveSavedRange } from './rangeStorage'
@@ -20,6 +20,7 @@ import {
   parseBackup,
   restoreBackup,
   serializeBackup,
+  setRestoreDamageReporter,
 } from './backup'
 
 /**
@@ -57,8 +58,14 @@ function makeRange(overrides: Partial<SavedRange> = {}): SavedRange {
 }
 
 // Isolate storage per test so cases never leak into one another or depend on order.
+// The damage reporter is a module-level holder with no unset path, so it gets a
+// fresh spy each time rather than whatever the previous test injected.
+let damageReporter: Mock<(keys: string[]) => void>
+
 beforeEach(() => {
   localStorage.clear()
+  damageReporter = vi.fn<(keys: string[]) => void>()
+  setRestoreDamageReporter(damageReporter)
 })
 
 /**
@@ -444,6 +451,136 @@ describe('restoreBackup', () => {
     expect(loadTrainingGoal()).toBe(20)
     // The honest residual: the one slice a failing write left holding new data.
     expect(loadSavedRanges()[0].id).toBe('replacement')
+  })
+
+  /**
+   * The residual above is invisible to everything else in the app: the caller is
+   * told why the RESTORE failed, which says nothing about one slice now holding
+   * data from a different point in time, and no later launch can tell because a
+   * mixed library reads back perfectly well. This report is the only record.
+   */
+  it('reports the slices a refused rollback left holding new data', () => {
+    const original: Backup = {
+      version: BACKUP_VERSION,
+      exportedAt: '2026-06-08T00:00:00.000Z',
+      ranges: [makeRange({ id: 'original' })],
+      practiceStats: {},
+      handAccuracy: {},
+      actionAccuracy: {},
+      sessionHistory: {},
+      reviewStates: {},
+      trainingGoal: 20,
+    }
+    restoreBackup(original)
+
+    const replacement: Backup = {
+      ...original,
+      ranges: [makeRange({ id: 'replacement' })],
+      trainingGoal: 50,
+    }
+
+    // The last forward write is refused, then the rewind of the FIRST slice is
+    // refused too: the same full device, so this is the likely pairing.
+    const realSetItem = Storage.prototype.setItem
+    let restoreFailed = false
+    const spy = vi
+      .spyOn(Storage.prototype, 'setItem')
+      .mockImplementation(function (this: Storage, key: string, value: string) {
+        if (key === TRAINING_GOAL_STORAGE_KEY && !restoreFailed) {
+          restoreFailed = true
+          throw new Error('QuotaExceededError')
+        }
+        if (key === STORAGE_KEY && restoreFailed) throw new Error('RollbackWriteFailed')
+        realSetItem.call(this, key, value)
+      })
+
+    try {
+      expect(() => restoreBackup(replacement)).toThrow(/QuotaExceededError/)
+    } finally {
+      spy.mockRestore()
+    }
+
+    expect(damageReporter).toHaveBeenCalledWith([STORAGE_KEY])
+  })
+
+  /**
+   * Reporting the wrong set would be worse than reporting nothing: a slice the
+   * forward write never reached is handed back the value it still holds, so a
+   * refusal there changed nothing and there is no damage to announce.
+   */
+  it('reports nothing when the refused rollback is of a slice the failed write never reached', () => {
+    saveSavedRange(makeRange({ id: 'original' }))
+    saveTrainingGoal(20)
+    const replacement: Backup = {
+      version: BACKUP_VERSION,
+      exportedAt: '2026-06-08T00:00:00.000Z',
+      ranges: [makeRange({ id: 'replacement' })],
+      practiceStats: {},
+      handAccuracy: {},
+      actionAccuracy: {},
+      sessionHistory: {},
+      reviewStates: {},
+      trainingGoal: 50,
+    }
+
+    // The FIRST forward write is refused, so nothing was replaced at all, and the
+    // rewind of a later slice is refused as well.
+    const realSetItem = Storage.prototype.setItem
+    const spy = vi
+      .spyOn(Storage.prototype, 'setItem')
+      .mockImplementation(function (this: Storage, key: string, value: string) {
+        if (key === STORAGE_KEY) throw new Error('QuotaExceededError')
+        if (key === TRAINING_GOAL_STORAGE_KEY) throw new Error('RollbackWriteFailed')
+        realSetItem.call(this, key, value)
+      })
+
+    try {
+      expect(() => restoreBackup(replacement)).toThrow(/QuotaExceededError/)
+    } finally {
+      spy.mockRestore()
+    }
+
+    expect(damageReporter).not.toHaveBeenCalled()
+    // Nothing was replaced, so the library is intact rather than mixed.
+    expect(loadSavedRanges()[0].id).toBe('original')
+    expect(loadTrainingGoal()).toBe(20)
+  })
+
+  it('still raises the restore error when the damage reporter itself throws', () => {
+    setRestoreDamageReporter(() => {
+      throw new Error('ReporterFailed')
+    })
+    saveSavedRange(makeRange({ id: 'original' }))
+    const replacement: Backup = {
+      version: BACKUP_VERSION,
+      exportedAt: '2026-06-08T00:00:00.000Z',
+      ranges: [makeRange({ id: 'replacement' })],
+      practiceStats: {},
+      handAccuracy: {},
+      actionAccuracy: {},
+      sessionHistory: {},
+      reviewStates: {},
+      trainingGoal: 50,
+    }
+
+    const realSetItem = Storage.prototype.setItem
+    let restoreFailed = false
+    const spy = vi
+      .spyOn(Storage.prototype, 'setItem')
+      .mockImplementation(function (this: Storage, key: string, value: string) {
+        if (key === TRAINING_GOAL_STORAGE_KEY && !restoreFailed) {
+          restoreFailed = true
+          throw new Error('QuotaExceededError')
+        }
+        if (key === STORAGE_KEY && restoreFailed) throw new Error('RollbackWriteFailed')
+        realSetItem.call(this, key, value)
+      })
+
+    try {
+      expect(() => restoreBackup(replacement)).toThrow(/QuotaExceededError/)
+    } finally {
+      spy.mockRestore()
+    }
   })
 
   it('validates a directly supplied backup before touching storage', () => {

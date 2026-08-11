@@ -242,6 +242,47 @@ export function validateBackup(parsed: unknown): Backup {
   } as unknown as Backup
 }
 
+/** Where a restore that could not be fully rewound is reported to, if anywhere. */
+type RestoreDamageReporter = (keys: string[]) => void
+
+let reportDamage: RestoreDamageReporter | null = null
+
+/**
+ * Hand this module somewhere to report to - in practice `reportRestoreDamage`,
+ * wired up once Sentry has been initialised.
+ *
+ * Injected rather than imported, and not for testability. This is shared `@core`
+ * code compiled into both apps and the only crash seam lives in
+ * `mobile/platform/`, so importing it from here would put a React Native module
+ * on the web app's import graph. That is the same reason `setStorageLossReporter`
+ * takes an injection (`mobile/platform/storeIntegrity.ts:34-44`), arrived at from
+ * a different direction: there the importer would have been too early, here it
+ * would be the wrong platform.
+ *
+ * Unlike the storage-loss reporter this one does NOT hold undelivered reports. A
+ * restore is user-initiated from a mounted screen, so `initCrashReporting` has
+ * always run long before one can fail; there is no wiring order to defend
+ * against, and holding a report that can never be early would be dead code.
+ */
+export function setRestoreDamageReporter(report: RestoreDamageReporter): void {
+  reportDamage = report
+}
+
+/**
+ * Announce the slices a failed restore left holding new data, to whoever is
+ * listening. Never throws: the caller is about to raise the error that stopped
+ * the restore, which is the actionable first cause, and replacing it with a
+ * reporting failure is the defect P2-4 removed.
+ */
+function reportRestoreDamage(keys: string[]): void {
+  if (keys.length === 0 || reportDamage === null) return
+  try {
+    reportDamage(keys)
+  } catch {
+    // See above: reporting must never become the error the caller sees.
+  }
+}
+
 /**
  * Restore a backup into localStorage, REPLACING all existing local data. Each
  * slice is written under its existing storage key; the per-slice loaders apply
@@ -260,6 +301,11 @@ export function validateBackup(parsed: unknown): Backup {
  * value they still hold and leaves them correct either way. The error the caller
  * sees is always the one that stopped the restore, never one raised while
  * putting the old values back.
+ *
+ * The slices left holding new data are handed to whatever
+ * {@link setRestoreDamageReporter} was given, because nothing else can ever
+ * notice them: the caller's error is about the restore, and a mixed library
+ * reads back perfectly well on every later launch.
  */
 export function restoreBackup(backup: Backup): void {
   const validated = validateBackup(backup)
@@ -278,9 +324,16 @@ export function restoreBackup(backup: Backup): void {
     [TRAINING_GOAL_STORAGE_KEY, JSON.stringify(validated.trainingGoal ?? 0)],
   ]
   const previous = entries.map(([key]) => [key, localStorage.getItem(key)] as const)
+  // How many slices the forward loop actually replaced, which is what decides
+  // whether a refused rewind did any damage: a slice the forward write never
+  // reached is handed back the value it still holds, so a refusal there leaves it
+  // correct. Counted after the write, so a `setItem` that throws is not credited
+  // with a replacement it did not make.
+  let replaced = 0
   try {
     for (const [key, value] of entries) {
       localStorage.setItem(key, value)
+      replaced += 1
     }
   } catch (error) {
     // Rewinding is best-effort per slice, and every slice is attempted even if an
@@ -293,7 +346,8 @@ export function restoreBackup(backup: Backup): void {
     // ranges and their practice records no longer describing each other. A slice
     // that cannot be rewound is still wrong, but finishing the loop can only
     // shrink that set, never grow it.
-    for (const [key, value] of previous) {
+    const damaged: string[] = []
+    for (const [index, [key, value]] of previous.entries()) {
       try {
         if (value === null) localStorage.removeItem(key)
         else localStorage.setItem(key, value)
@@ -302,8 +356,15 @@ export function restoreBackup(backup: Backup): void {
         // RESTORE failed, which is the actionable error and the first cause; a
         // rollback failure is a second symptom of that same cause, and raising it
         // instead would report the wrong reason.
+        //
+        // It is not left silent either. The user's error says the restore failed
+        // and cannot say that one slice now holds data from a different point in
+        // time, and nothing later can notice: a mixed library reads back perfectly
+        // well on every launch.
+        if (index < replaced) damaged.push(key)
       }
     }
+    reportRestoreDamage(damaged)
     throw error
   }
 }
