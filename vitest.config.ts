@@ -19,8 +19,12 @@ export default defineConfig({
     // the file. That turns one red test into a cascade and makes the guard
     // unreadable as evidence of what it covers, which is the whole reason the
     // guards in PROD-READINESS.md were accepted. Restoring runs BEFORE each
-    // test's `beforeEach`, so a spy a hook installs still reaches the body
-    // (probed, not assumed).
+    // test's `beforeEach` (`@vitest/runner` calls `onBeforeTryTask`, which does
+    // the restoring, and then the `beforeEach` hooks), so a spy THAT hook
+    // installs still reaches the body. A spy installed in `beforeAll` does not
+    // survive: the restore runs before every test including the first, and
+    // clears its registrations as it goes. Only `vi.spyOn` registers one, so
+    // `vi.fn()` and `vi.mock` factories are untouched by this.
     restoreMocks: true,
     // The 13x13-grid screens render hundreds of cells per userEvent step, which can
     // exceed the 5s default when the full suite runs workers in parallel (they pass

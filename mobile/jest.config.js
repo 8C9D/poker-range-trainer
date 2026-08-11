@@ -23,7 +23,12 @@ module.exports = {
   // failed: a failing assertion skips the restore and the spy leaks into every
   // test after it in the file, so one red test becomes a cascade and the guard
   // stops being readable as evidence of what it covers. Restoring runs BEFORE
-  // each test's `beforeEach`, so a spy a hook installs still reaches the body
-  // (probed, not assumed). `jest.mock` factories are untouched by this.
+  // each test's `beforeEach` (jest-circus registers it as a top-level
+  // `beforeEach` ahead of the test file), so a spy THAT hook installs still
+  // reaches the body. A spy installed in `beforeAll` does not survive: the
+  // restore runs before every test including the first. Only `jest.spyOn`
+  // registers a restore, and it registers none when the property is ALREADY a
+  // mock, so `jest.mock` factories and anything the RN preset mocks (such as
+  // `AccessibilityInfo`) are untouched by this.
   restoreMocks: true,
 };
