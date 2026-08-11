@@ -305,7 +305,9 @@ function reportRestoreDamage(keys: string[]): void {
  * The slices left holding new data are handed to whatever
  * {@link setRestoreDamageReporter} was given, because nothing else can ever
  * notice them: the caller's error is about the restore, and a mixed library
- * reads back perfectly well on every later launch.
+ * reads back perfectly well on every later launch. That set is derived from
+ * `replaced` below, which under-reports by at most one slice rather than risk
+ * naming a slice that is in fact intact - see the comment there.
  */
 export function restoreBackup(backup: Backup): void {
   const validated = validateBackup(backup)
@@ -324,11 +326,24 @@ export function restoreBackup(backup: Backup): void {
     [TRAINING_GOAL_STORAGE_KEY, JSON.stringify(validated.trainingGoal ?? 0)],
   ]
   const previous = entries.map(([key]) => [key, localStorage.getItem(key)] as const)
-  // How many slices the forward loop actually replaced, which is what decides
-  // whether a refused rewind did any damage: a slice the forward write never
-  // reached is handed back the value it still holds, so a refusal there leaves it
-  // correct. Counted after the write, so a `setItem` that throws is not credited
-  // with a replacement it did not make.
+  // A LOWER BOUND on how many slices the forward loop replaced, which is what
+  // decides whether a refused rewind did any damage: a slice the forward write
+  // never reached is handed back the value it still holds, so a refusal there
+  // leaves it correct.
+  //
+  // A lower bound rather than the count, and the difference is deliberate.
+  // Incrementing after the write never credits a `setItem` that threw, and on iOS
+  // that can be one short: the shim's `setItem` is `mmkv.set` followed by
+  // `getAllKeys` bookkeeping (`mobile/platform/localStorageShim.ts:75-79`), and
+  // only the first is known to leave the store untouched when it throws. So the
+  // one slice the forward write failed on may have been replaced without being
+  // counted, and a refused rewind there would go unreported.
+  //
+  // That is the right direction to be wrong in. Counting optimistically would
+  // instead report slices the forward write never reached - on a full device,
+  // most of them - and a report that fires when the library is intact is worth
+  // less than no report at all, because announcing a mixed library is the only
+  // thing this reporter does.
   let replaced = 0
   try {
     for (const [key, value] of entries) {
