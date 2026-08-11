@@ -89,4 +89,4 @@ They reflect the shipped v1 build with crash reporting enabled (`EXPO_PUBLIC_SEN
 - Screenshots on the required device sizes.
 - Choosing the bundle identifier, category, age rating, and all URLs above.
 - Hosting the privacy policy and entering its URL.
-- Setting `EXPO_PUBLIC_SENTRY_DSN` (and `SENTRY_AUTH_TOKEN` for source maps) in the EAS production profile, per LAUNCH-CHECKLIST.md steps 2 and 7.
+- Setting `EXPO_PUBLIC_SENTRY_DSN` (and `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` and `SENTRY_PROJECT` for source maps - all three, not just the token) in the EAS production profile, per LAUNCH-CHECKLIST.md steps 2 and 7.

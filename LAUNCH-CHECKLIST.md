@@ -191,7 +191,9 @@ If `eas login` needs an Expo account, create one at https://expo.dev - it is fre
 
    All three are required, not just the token.
    The Sentry plugin is registered in `mobile/app.json` as a bare `"@sentry/react-native"` with no `organization` or `project`, so the `ios/sentry.properties` written during prebuild says "no org found, falling back to SENTRY_ORG environment variable" and the same for the project.
-   With either unset the source-map upload has no destination and is skipped, and every crash in App Store Connect and Sentry shows minified Hermes frames instead of your source.
+   With either unset the source-map upload has no destination it can resolve, and `sentry-cli` treats that as a hard configuration error ("An organization ID or slug is required").
+   Expect the **build to fail** rather than to quietly produce an unsymbolicated one: the generated Xcode "Bundle React Native code and images" phase runs `@sentry/react-native/scripts/sentry-xcode.sh`, which turns a failing upload into an Xcode `error:` and `exit 1` unless `SENTRY_DISABLE_AUTO_UPLOAD=true` or `SENTRY_ALLOW_FAILURE=true` is set, and neither is set anywhere in this repo.
+   Whichever way it surfaces, the fix is the same: set all three.
    The project slug is `poker-range-trainer` if you named it as step 2 says; the org slug is the one in your Sentry URL (`https://<org>.sentry.io/`).
 
 2. Add the Sentry DSN as a build-visible env var. Either add it to the `production` profile's `env` block in `mobile/eas.json`, or run `eas secret:create --name EXPO_PUBLIC_SENTRY_DSN --value <dsn>`. The DSN is public, so either is fine.
