@@ -250,8 +250,8 @@ export function validateBackup(parsed: unknown): Backup {
  * The write is atomic: every slice is serialized up front, the current values
  * are snapshotted, and if any `setItem` throws mid-way (e.g. a
  * `QuotaExceededError`) the snapshot is restored so the library is never left
- * half-replaced. Restoring the snapshot always fits, since those values were
- * already present. The original error is rethrown for the caller to surface.
+ * half-replaced. The error the caller sees is always the one that stopped the
+ * restore, never one raised while putting the old values back.
  */
 export function restoreBackup(backup: Backup): void {
   const validated = validateBackup(backup)
@@ -275,9 +275,26 @@ export function restoreBackup(backup: Backup): void {
       localStorage.setItem(key, value)
     }
   } catch (error) {
+    // Rewinding is best-effort per slice, and every slice is attempted even if an
+    // earlier one refuses. Putting a value back is not guaranteed to succeed just
+    // because it was there a moment ago: on iOS `setItem` is MMKV's `set`, which
+    // throws when the device is full, and a restore that ran out of room is
+    // exactly what reaches this handler. A throw escaping this loop would abandon
+    // the rewind partway, leaving the slices it had reached holding old data and
+    // the rest holding new — one library assembled from two points in time, with
+    // ranges and their practice records no longer describing each other. A slice
+    // that cannot be rewound is still wrong, but finishing the loop can only
+    // shrink that set, never grow it.
     for (const [key, value] of previous) {
-      if (value === null) localStorage.removeItem(key)
-      else localStorage.setItem(key, value)
+      try {
+        if (value === null) localStorage.removeItem(key)
+        else localStorage.setItem(key, value)
+      } catch {
+        // Deliberately not propagated. The caller is about to be told why the
+        // RESTORE failed, which is the actionable error and the first cause; a
+        // rollback failure is a second symptom of that same cause, and raising it
+        // instead would report the wrong reason.
+      }
     }
     throw error
   }

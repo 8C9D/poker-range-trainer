@@ -2,11 +2,15 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { allCombosForHand } from '../domain/comboSelection'
 import type { SavedRange } from '../types/range'
 import { saveSavedRange } from './rangeStorage'
-import { loadSavedRanges } from './rangeStorage'
+import { STORAGE_KEY, loadSavedRanges } from './rangeStorage'
 import { ACTION_ACCURACY_STORAGE_KEY } from './actionAccuracyStorage'
 import { WORKOUT_STORAGE_KEY } from './workoutStorage'
 import { loadSpotAccuracy, recordSpotAccuracy } from './spotAccuracyStorage'
-import { loadTrainingGoal, saveTrainingGoal } from './trainingGoalStorage'
+import {
+  TRAINING_GOAL_STORAGE_KEY,
+  loadTrainingGoal,
+  saveTrainingGoal,
+} from './trainingGoalStorage'
 import {
   BACKUP_VERSION,
   MAX_BACKUP_BYTES,
@@ -383,6 +387,63 @@ describe('restoreBackup', () => {
     const restored = loadSavedRanges()
     expect(restored).toHaveLength(1)
     expect(restored[0].id).toBe('original')
+  })
+
+  it('finishes the rollback and reports the restore error when a rollback write fails', () => {
+    const spot = { spotKey: 'sixMax|btn|foldedToYou|-|100', attempts: 4, correct: 3 }
+    const original: Backup = {
+      version: BACKUP_VERSION,
+      exportedAt: '2026-06-08T00:00:00.000Z',
+      ranges: [makeRange({ id: 'original' })],
+      practiceStats: {},
+      handAccuracy: {},
+      actionAccuracy: {},
+      sessionHistory: {},
+      reviewStates: {},
+      spotAccuracy: { [spot.spotKey]: spot },
+      trainingGoal: 20,
+    }
+    restoreBackup(original)
+
+    const replacement: Backup = {
+      ...original,
+      ranges: [makeRange({ id: 'replacement' })],
+      spotAccuracy: { [spot.spotKey]: { ...spot, attempts: 99, correct: 99 } },
+      trainingGoal: 50,
+    }
+
+    // A full device refuses the last forward write, then refuses the first
+    // rollback write too — the same disk, so this is the likely case, not a
+    // contrived one. Everything before the training goal has already been
+    // replaced, and the ranges slice is the one the rewind cannot undo.
+    const realSetItem = Storage.prototype.setItem
+    let restoreFailed = false
+    const spy = vi
+      .spyOn(Storage.prototype, 'setItem')
+      .mockImplementation(function (this: Storage, key: string, value: string) {
+        if (key === TRAINING_GOAL_STORAGE_KEY && !restoreFailed) {
+          restoreFailed = true
+          throw new Error('QuotaExceededError')
+        }
+        if (key === STORAGE_KEY && restoreFailed) throw new Error('RollbackWriteFailed')
+        realSetItem.call(this, key, value)
+      })
+
+    // The reason shown is the reason the restore failed, not the rollback's.
+    // Restored in `finally` because a failing assertion here would otherwise
+    // leave the spy installed and take every later test in the file down with it.
+    try {
+      expect(() => restoreBackup(replacement)).toThrow(/QuotaExceededError/)
+    } finally {
+      spy.mockRestore()
+    }
+
+    // The rollback carried on past the slice it could not rewind: spot accuracy
+    // is written after ranges and is back to the pre-restore record.
+    expect(loadSpotAccuracy()).toEqual({ [spot.spotKey]: spot })
+    expect(loadTrainingGoal()).toBe(20)
+    // The honest residual: the one slice a failing write left holding new data.
+    expect(loadSavedRanges()[0].id).toBe('replacement')
   })
 
   it('validates a directly supplied backup before touching storage', () => {
