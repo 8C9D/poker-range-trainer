@@ -176,7 +176,7 @@ Same rule again: **a status is a record of something done, never a forecast.**
 
 | id | was | sev | fix as landed | status | resolved by |
 | --- | --- | --- | --- | --- | --- |
-| P2-4 | P2, documented not fixed | P2 | `src/storage/backup.ts:296-306` gives each rollback write its own `try`/`catch`, so the loop reaches every slice however many of them refuse, and `:307` still raises the error that stopped the restore rather than one raised while rewinding (anchors re-based per REVIEW-R3 R3-1, whose fix lengthened the doc comment above the function by eight lines; they read `:288-298` and `:299` at `227e3e1`) | RESOLVED | `d13fd15` |
+| P2-4 | P2, documented not fixed | P2 | `src/storage/backup.ts:350-366` gives each rollback write its own `try`/`catch`, so the loop reaches every slice however many of them refuse, and `:368` still raises the error that stopped the restore rather than one raised while rewinding (anchors re-based twice: they read `:288-298` and `:299` at `227e3e1`, `:296-306` and `:307` at `f4addad`, and round 5's R3-5 fix moved them again) | RESOLVED | `d13fd15` |
 
 **What changed, precisely.** Two defects sat in one four-line loop and each needed its own half of the fix.
 A rollback write that threw escaped the `catch` block, which both abandoned the rewind partway — leaving the slices already reached holding old data and the rest holding new — and replaced the original error with the rollback's on the way out, so the reason the user saw was not the reason the restore failed.
@@ -186,7 +186,7 @@ That is the only way a rewind fails, and it was checked rather than assumed — 
 One path is enough; the loop had no tolerance for any.
 
 **The other branch of that same loop, traced per REVIEW-R3 R3-4.** "That is the only way a rewind fails" is a claim about every path, and it was first written after reading one.
-The loop has a second operation: `src/storage/backup.ts:298` calls `removeItem` for any slice whose snapshot is `null`, which is every slice on a first-ever import.
+The loop has a second operation: `src/storage/backup.ts:352` calls `removeItem` for any slice whose snapshot is `null`, which is every slice on a first-ever import.
 Read rather than assumed, and it confirms the sentence above rather than contradicting it: `mobile/platform/localStorageShim.ts:80-84` sends `removeItem` to `mmkv.remove`, and `mobile/node_modules/react-native-mmkv/cpp/HybridMMKV.cpp:182-189` returns `instance->removeValueForKey(key)` straight through with no `throw` anywhere in the function.
 The contrast is in the same file: `HybridMMKV::set` throws at `:130-132` (`if (!successful) ... throw std::runtime_error("Failed to set value for key ...")`) when MMKV core reports the write did not land, which is where the full-device throw this fix is built around actually comes from — pinned to a throw statement here rather than asserted.
 The published contract agrees: `lib/specs/MMKV.nitro.d.ts:39-45` documents `@throws` twice on `set` and `:74-78` documents none on `remove`, which returns a boolean instead.
@@ -209,7 +209,7 @@ The qualifier was missing from the first wording of this paragraph, which said f
 That overstates the damage. Walk the two loops: if the forward write fails on slice *k*, slices 1..*k*-1 hold new values, the slices after *k* were never written, and *k* itself still holds its old value because the write that threw did not land, so when the rewind reaches a slice at or past *k* it is handing back the value that slice still holds, and a throw there leaves it correct.
 **The premise about *k* is stated rather than folded into an index range, per REVIEW-R4 R4-E**, because the first wording, "*k*..8 were never written", asserts something about the one slice that WAS attempted.
 It holds on both surfaces, with one step outside the tracked tree: `mmkv.set` throws only when MMKV core reported the write did not land (`HybridMMKV.cpp:130-132`), and a web `QuotaExceededError` leaves the item unstored, but on iOS `setItem` is two operations (`mobile/platform/localStorageShim.ts:75-79`) and the second reaches `mmkv.getAllKeys()` -> `instance->allKeys()`, which is MMKVCore under the gitignored `mobile/ios/Pods/` (ASSUMPTION 3).
-The doc comment in the code does not depend on this: it partitions by "a slice the forward write had already replaced" (`src/storage/backup.ts:257-258`) rather than by index, which is exact under either reading of *k*.
+The doc comment in the code does not depend on this: it partitions by "a slice the forward write had already replaced" (`src/storage/backup.ts:298-299`) rather than by index, which is exact under either reading of *k*.
 The residual set is exactly the slices written before the forward failure whose rewind also refused.
 What the fix changes is the size of that set (only the slices that actually refused, instead of every slice after the first one) and the error the user is shown.
 The test asserts the residual directly rather than pretending it away: after the failure it expects `ranges` to still read `replacement`, alongside the spot-accuracy and training-goal slices that were successfully rewound.
@@ -241,7 +241,7 @@ Same rule as every round above: **a status is a record of something done, never 
 
 | id | what it was | sev | fix as landed | status | resolved by |
 | --- | --- | --- | --- | --- | --- |
-| R3-1 | the `restoreBackup` doc comment still promised "the library is never left half-replaced", which the fix's own test disproves | P2 | `src/storage/backup.ts:250-262` states the real contract: a rewind attempt, best-effort per slice, and a slice whose rewind is refused keeps the new value | RESOLVED | `16d1336` |
+| R3-1 | the `restoreBackup` doc comment still promised "the library is never left half-replaced", which the fix's own test disproves | P2 | `src/storage/backup.ts:291-303` states the real contract (read `:250-262` at `f4addad`; round 5 added lines above): a rewind attempt, best-effort per slice, and a slice whose rewind is refused keeps the new value | RESOLVED | `16d1336` |
 | R3-2 | three anchors into `backup.ts` went stale when `d13fd15` rewrote the function, and `227e3e1` re-based P1-1's while leaving these | P2 | the P2-4 rows in both tables and round 2's preserved paragraph now date their anchors, the way P1-1's row does | RESOLVED | `16d1336` |
 | R3-3 | the residual was stated more broadly than the loop supports | P2 | the paragraph above now carries the qualifier and walks both loops to derive the exact residual set | RESOLVED | `16d1336` |
 | R3-4 | "that is the only way a rewind fails" was written after reading one of the loop's two operations | P2 | the `removeItem` branch is traced above, through `HybridMMKV.cpp` and the published `.d.ts`; it confirms the claim rather than contradicting it | RESOLVED | `16d1336` |
@@ -341,7 +341,38 @@ Both are reachable from the committed lockfiles, which the probe was not.
 A temporary `beforeAll` spy in a real file of each suite, with the test body asserting it survived: the assertion fails in both runners (`expected false to be true` under Vitest; `jest.isMockFunction(console.warn)` prints `false` under Jest, through the real `console.warn`, which is itself the proof).
 Both probe files were restored with `git checkout` and neither is in the tree.
 
-**What this round did not take.** R3-5 is unchanged and still OPEN in NEXT ROUND: giving `@core` a reporting seam is new behaviour on the shipping binary and the user's call, and it was not given.
+**R3-5 was put to the user and taken, 2026-08-11.**
+
+| id | what it was | sev | fix as landed | status | resolved by |
+| --- | --- | --- | --- | --- | --- |
+| R3-5 | a rollback write that refuses is caught and discarded, and nothing anywhere records that the library now holds one slice from a different point in time | P2 | `src/storage/backup.ts:245-284` adds an injected reporter seam and `:349-367` reports the damaged slices before raising the restore error; `mobile/platform/crashReporting.ts:63` wires it, `:135` sends it to Sentry as a message carrying key names only | RESOLVED | `6186581` |
+
+**The injected-reporter shape is the precedent, and the reason differs from round 2's.**
+`setStorageLossReporter` (`mobile/platform/storeIntegrity.ts:34-44`) is injected because the shim runs on the entry file's first line, ahead of `Sentry.init`, so an import would be too early.
+`setRestoreDamageReporter` is injected because `src/storage/backup.ts` is `@core`, compiled into the web app as well, so an import would be the wrong platform.
+Same shape, different reason, and the difference is why this one does NOT hold undelivered reports the way `storeIntegrity` does: a restore is user-initiated from a mounted screen, long after `initCrashReporting`, so there is no ordering to defend against and a holding buffer would be dead code.
+The web app is deliberately left unwired: it has no crash seam at all, the reporter stays `null`, and `reportRestoreDamage` returns before touching it.
+
+**What is reported is the derived residual, not every refusal.**
+A slice the forward write never reached is handed back the value it still holds, so a refused rewind there changed nothing and there is nothing to announce.
+`restoreBackup` therefore counts how many slices the forward loop actually replaced and reports only refusals below that count, which is exactly the residual set R3-3 derived and R4-E restated.
+The keys are the storage-key constants, so no range name, note or practice record travels with them, matching `reportStorageLoss`.
+
+**Falsifiability, proved one mutant at a time. Each fails exactly one named test, with the rest of its file passing.**
+
+| behaviour removed | tests that fail |
+| --- | --- |
+| the `reportRestoreDamage(damaged)` call in the rollback handler | 1 (`reports the slices a refused rollback left holding new data`), 39 passing |
+| the `index < replaced` guard, so every refusal is reported | 1 (`reports nothing when the refused rollback is of a slice the failed write never reached`), 39 passing |
+| the `try`/`catch` around the reporter call | 1 (`still raises the restore error when the damage reporter itself throws`), 39 passing |
+| `setRestoreDamageReporter(reportRestoreDamage)` in `initCrashReporting` | 1 (`wires the restore-damage reporter even with reporting disabled`), 12 passing |
+| the `captureMessage` inside `reportRestoreDamage` | 1 (`reports slices a restore could not roll back, carrying only the key names`), 12 passing |
+
+The last two exist for the reason round 2 gave for its own wiring guards: a reporter with nothing calling it, and a call that reports nothing, both leave every other test green.
+
+**No storage key was added, renamed or reshaped**, so the three key guards are untouched: the reporter carries key names as an argument and persists nothing. `mobile/platform/storeIntegrity.ts`'s second MMKV instance is unchanged and still outside the nine, the backup and the guards.
+
+**What this round did not take.**
 P2-8 is unchanged and still gated on step 1 of `LAUNCH-CHECKLIST.md:136`, which is still unticked with no route recorded in the tree.
 FR-1 is unchanged and still open: no EAS build was run in this round either, so the CANNOT ASSESS entry stands as rounds 3 and 4 left it.
 `review/targets.md:136` and `:144` are still stale and still deliberately unedited, for the reason round 4 gave.
@@ -349,10 +380,15 @@ FR-1 is unchanged and still open: no EAS build was run in this round either, so 
 **Anchors.** `reviews/REVIEW-R4.md` reads against `f4addad` and says so in its header, so its `PROD-READINESS.md` line numbers are dated rather than rewritten, exactly as REVIEW-R3's are dated to `227e3e1`.
 Inside this file, the R4-C fix lengthened both runner comments, so R4-1's evidence cell was re-based from `vitest.config.ts:15-24` / `mobile/jest.config.js:21-28` to `:15-28` / `:21-33`, with the old pair dated.
 `vitest.config.ts:14`, cited by `LAUNCH-CHECKLIST.md:34` and the round 3 paragraph above, is unmoved: both edits are below it.
+R3-5's fix then inserted 46 lines above `restoreBackup`, which moved every live `src/storage/backup.ts` anchor in this file: the rollback loop from `:296-306` to `:350-366`, the rethrow from `:307` to `:368`, the `removeItem` branch from `:298` to `:352`, the contract paragraph from `:250-262` to `:291-303`, and R4-E's citation from `:257-258` to `:298-299`. All five were re-grepped and re-based, with the `f4addad` values dated where a row carries its own history.
+
+**The `LAUNCH-CHECKLIST.md` status baseline was refreshed to `6186581`** because R3-5 changed the test counts (web 1184 -> 1187, mobile 238 -> 241) and a baseline nobody refreshes is the docs defect round 3 fixed.
+Every line in that block was re-run at `6186581` rather than carried forward, including `npm audit --omit=dev` (web 0 vulnerabilities) and the five `review/findings.md` fix commits.
 
 **What each of this round's commits contains.** `cdb061f` is `reviews/REVIEW-R4.md` and nothing else.
 `5b272e3` carries the two runner comments and the four ledger corrections; it changes no executable line, and the full gate was run on it (lint clean, web 79 / 1184, mobile 37 / 238, build and mobile `tsc --noEmit` clean).
-This section lands in a commit after both, naming them.
+`6186581` is R3-5: `src/storage/backup.ts` and `mobile/platform/crashReporting.ts` with their two test files, and nothing else. The gate on it is lint clean, web 79 / 1187, mobile 37 / 241, build and mobile `tsc --noEmit` clean.
+This section lands in a commit after all three, naming them.
 
 ### P2 — documented, not fixed
 
@@ -361,7 +397,7 @@ This section lands in a commit after both, naming them.
 | P2-1 | web SW | P2 | `public/service-worker.js:51` | `.catch()` the floating `cache.put` | web only, not deployed |
 | P2-2 | web SW | P2 | `public/service-worker.js:12`, `:33` | version `CACHE_NAME` per release | web only; cache grows across deploys, never pruned |
 | P2-3 | web SW | P2 | `public/service-worker.js:1`, `:8`, `:12` | header says "v3.1" while `CACHE_NAME` is `prt-shell-v2`; line 8 cites Supabase, archived out of v1 | comments only |
-| P2-4 | persistence | P2 | `src/storage/backup.ts:244-250` (read against `21f568b`, where those lines were the `catch` block; `d13fd15` rewrote it and the loop is now `:296-306` — re-based per REVIEW-R3 R3-2) | wrap the rollback loop so a rollback failure cannot replace the original error | restore path only — **RESOLVED in round 3, `d13fd15`** |
+| P2-4 | persistence | P2 | `src/storage/backup.ts:244-250` (read against `21f568b`, where those lines were the `catch` block; `d13fd15` rewrote it and the loop is now `:350-366` — re-based per REVIEW-R3 R3-2 and again in round 5) | wrap the rollback loop so a rollback failure cannot replace the original error | restore path only — **RESOLVED in round 3, `d13fd15`** |
 | P2-5 | persistence | P2 | `src/storage/statsReset.ts:44-46` | make the reset atomic like `restoreBackup` | a mid-loop throw leaves some stores cleared and others not; user sees a readable error and can retry |
 | P2-6 | persistence | P2 | `src/storage/sessionHistoryStorage.ts:105-116` | none proposed — see note | history appends forever with no cap; whole map re-serialized per session |
 | P2-7 | build config | P2 | `mobile/__tests__/app-config.test.ts:38-39` | assert `ios.bundleIdentifier` as `buildNumber` already is | test-only — **RESOLVED in round 2, `34f8935`** |
@@ -374,7 +410,7 @@ This section lands in a commit after both, naming them.
 
 - **P2-1, P2-2, P2-3, P2-9, P2-10** are web-only, and no user loads the web app (ASSUMPTION 1). Fixing them buys nothing a user can feel, and each edit is a chance to break the surface the `@core` tests run against.
 - **P2-8** (four orphaned SQL files) and **P2-11** (two build-time advisories) are unchanged: still report-only, still not defects in the shipped binary.
-- **P2-4 is the one worth reopening, and it was deliberately NOT taken this round** — it was outside the scope handed to this run, and widening scope is the user's call, not the builder's. **The user made that call afterwards and round 3 took it; it is RESOLVED by `d13fd15`, and the round 3 section above records what landed.** Round 2's argument follows as written, so the decision stays readable against the evidence it was made on. Its `backup.ts` anchors are left as round 2 wrote them and read against `d13fd15^`, the last commit before the fix; at HEAD the rollback loop is `:296-306` and the rethrow `:307` (dated rather than rewritten, per REVIEW-R3 R3-2). Unlike the rest of this table it is in `@core`, so it ships in the iOS binary and sits on the data path. `src/storage/backup.ts:278-282`'s rollback loop can itself throw — on iOS `localStorage.setItem` is MMKV's `set`, which throws on a full device, and a restore that ran out of space is exactly the case that reaches the rollback. A rollback write that throws aborts the loop from inside the `catch`, so the slices it had already reached are back to their old values while the ones it had not are left holding the new — a library assembled from two different points in time, with ranges and their practice records no longer describing each other. It also rethrows the ROLLBACK's error in place of the original at `:282`, so the reason the user is shown is not the reason it failed. The fix is small and contained: wrap each rollback write so the loop always completes, and always raise the original error.
+- **P2-4 is the one worth reopening, and it was deliberately NOT taken this round** — it was outside the scope handed to this run, and widening scope is the user's call, not the builder's. **The user made that call afterwards and round 3 took it; it is RESOLVED by `d13fd15`, and the round 3 section above records what landed.** Round 2's argument follows as written, so the decision stays readable against the evidence it was made on. Its `backup.ts` anchors are left as round 2 wrote them and read against `d13fd15^`, the last commit before the fix; at HEAD the rollback loop is `:350-366` and the rethrow `:368` (dated rather than rewritten, per REVIEW-R3 R3-2). Unlike the rest of this table it is in `@core`, so it ships in the iOS binary and sits on the data path. `src/storage/backup.ts:278-282`'s rollback loop can itself throw — on iOS `localStorage.setItem` is MMKV's `set`, which throws on a full device, and a restore that ran out of space is exactly the case that reaches the rollback. A rollback write that throws aborts the loop from inside the `catch`, so the slices it had already reached are back to their old values while the ones it had not are left holding the new — a library assembled from two different points in time, with ranges and their practice records no longer describing each other. It also rethrows the ROLLBACK's error in place of the original at `:282`, so the reason the user is shown is not the reason it failed. The fix is small and contained: wrap each rollback write so the loop always completes, and always raise the original error.
 - **P2-5** was weighed the same way and is genuinely minor: a reset is destructive by intent, so a mid-loop throw leaves less cleared than asked, surfaces a readable error, and is fixed by pressing the button again.
   **Round 4 re-weighed it on a different question and the user left it, 2026-08-11.** Round 2 asked how bad the outcome would be; round 4 asked whether the failure it needs can happen at all, because P2-4's trace covers `setItem` and says nothing about `remove`. Traced rather than transferred, and the answer is no on the surface that ships: `src/storage/statsReset.ts:44-46` calls `removeJson`, whose `catch` (`src/storage/storageHelpers.ts:90-96`) can only fire if `localStorage.removeItem` throws, and on iOS that is `mmkv.remove` (`mobile/platform/localStorageShim.ts:80-84`) reaching `HybridMMKV::remove` (`mobile/node_modules/react-native-mmkv/cpp/HybridMMKV.cpp:182-189`), which returns `removeValueForKey`'s boolean and contains no `throw` — against `HybridMMKV::set`, which throws at `:130-132` when the write does not land. `lib/specs/MMKV.nitro.d.ts` agrees, documenting `@throws` twice on `set` (`:39-45`) and none on `remove` (`:74-78`). On web `removeItem` throws only `SecurityError`, which is all-or-nothing for the origin, so there is no partial state to strand: where it fires, nothing was ever stored. A guard test would therefore assert a state neither surface can reach. Recorded rather than fixed, and reopen it if `removeJson` ever routes through something that can refuse a delete.
   **The trace above is narrowed to what the tracked tree proves, per REVIEW-R4 R4-D, and the decision to leave P2-5 is unaffected: it needs "no evidence this can happen", not "proof it cannot".** Two corrections. (1) `HybridMMKV::remove` is not the pass-through it was described as: after `instance->removeValueForKey` it calls `MMKVValueChangedListenerRegistry::notifyOnValueChanged` (`HybridMMKV.cpp:186`), which invokes arbitrary registered JS callbacks. That step is tracked and it closes: the registry returns immediately when the id has no listeners (`MMKVValueChangedListenerRegistry.cpp:44-50`) and this app registers none, with `git grep -n "addListener\|useMMKV\|onValueChanged"` over `mobile/` and `src/` returning nothing and the shim using only `set`, `remove`, `clearAll`, `getString`, `getAllKeys` and `length`. The same call sits on the `set` path at `:135`, after a successful write. (2) `instance->removeValueForKey` itself is MMKVCore, under the gitignored `mobile/ios/Pods/` (ASSUMPTION 3), so "`remove` cannot throw" is partly a claim about code no clean clone contains, which is the exact untracked-anchor problem R0-1 forced P0-1 to re-anchor away from. What the tracked tree supports is narrower and still sufficient: the react-native-mmkv layer raises nothing on the remove path, and its published contract documents `@throws` twice on `set` and none on `remove`, which returns a boolean instead.
@@ -444,7 +480,9 @@ REVIEW-1B records the correct caveat on that paragraph, and it is repeated here 
 
 Findings discovered after Review 0 — by the builder or any reviewer — are appended here and are **not** fixed in this run, regardless of severity. Recorded with full evidence so the next run starts from them.
 
-**R3-5 (P2) — OPEN. A failed rollback is invisible to everything above the loop that swallows it. From REVIEW-R3, round 4.**
+**R3-5 (P2) - RESOLVED in round 5 by `6186581`, on the user's decision of 2026-08-11.** A failed rollback was invisible to everything above the loop that swallows it. From REVIEW-R3, round 4.
+What closed it: `src/storage/backup.ts:267` `setRestoreDamageReporter` takes an injected reporter, `:349-366` collects the keys whose rewind refused AND whose forward write had already landed, and `:367` hands that set over before the original error is raised; `mobile/platform/crashReporting.ts:63` wires it to `reportRestoreDamage` inside `initCrashReporting`, next to the storage-loss wiring and equally ungated.
+The round 5 section above records the shape, the five guards and how each was proved falsifiable. The original finding follows as written.
 `src/storage/backup.ts:300-305` catches and discards a rewind that refuses, and not raising is correct — raising is the defect P2-4 removed, and the caller is about to be told the actionable first cause.
 But nothing else records it either. The user sees the restore error, which is true and says nothing about the library now holding one slice from a different point in time; Sentry hears nothing; no later launch can tell, because a mixed library reads back perfectly well.
 Two seams exist that would carry it — `reportCaughtError` (`mobile/platform/crashReporting.ts`) and the injected storage-loss reporter round 2 built for exactly this class of silent damage (`mobile/platform/storeIntegrity.ts:45`) — and `src/storage/backup.ts` is `@core` with neither, which is the point: giving shared core a reporting seam is a new behaviour on the shipping binary and the user's call, not a reviewer's or a builder's.

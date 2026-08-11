@@ -18,12 +18,12 @@ Re-opening any of them changes the work.
 - **[A]** an agent can complete it in the repo; covered by the Fable prompt.
 - **[Y]** needs you - an account, a payment, a dashboard, a device, or a judgement call an agent must not fake.
 
-## Status baseline (verified 2026-08-10 at `d13fd15`)
+## Status baseline (verified 2026-08-11 at `6186581`)
 
 Every line below was re-run at that commit, not carried forward.
 
 - `npm run lint` clean on both apps.
-- `npm run test:run`: web 79 files / 1184 tests, mobile 37 suites / 238 tests, all passing.
+- `npm run test:run`: web 79 files / 1187 tests, mobile 37 suites / 241 tests, all passing.
 - `npm run build` clean, mobile `tsc --noEmit` clean.
 - `npm audit --omit=dev`: web 0 vulnerabilities.
 - All five confirmed findings in `review/findings.md` have matching fix commits (`3c709bf`, `7ccefad`, `5fe714b`, `3078e7b`, `cc0a5d7`).
