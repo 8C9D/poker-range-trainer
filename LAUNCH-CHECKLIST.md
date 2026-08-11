@@ -18,13 +18,23 @@ Re-opening any of them changes the work.
 - **[A]** an agent can complete it in the repo; covered by the Fable prompt.
 - **[Y]** needs you - an account, a payment, a dashboard, a device, or a judgement call an agent must not fake.
 
-## Status baseline (verified 2026-08-06 at `1f59e2e`)
+## Status baseline (verified 2026-08-10 at `d13fd15`)
+
+Every line below was re-run at that commit, not carried forward.
 
 - `npm run lint` clean on both apps.
-- `npm run test:run`: web 87 files / 1229 tests, mobile 35 suites / 217 tests, all passing.
+- `npm run test:run`: web 79 files / 1184 tests, mobile 37 suites / 238 tests, all passing.
 - `npm run build` clean, mobile `tsc --noEmit` clean.
 - `npm audit --omit=dev`: web 0 vulnerabilities.
-- All five confirmed findings in `review/findings.md` have matching fix commits.
+- All five confirmed findings in `review/findings.md` have matching fix commits (`3c709bf`, `7ccefad`, `5fe714b`, `3078e7b`, `cc0a5d7`).
+
+**Why the web count fell, and why it is not a loss of coverage.**
+The previous baseline read 87 files / 1229 tests, verified 2026-08-06 at `1f59e2e`.
+No test was deleted to get from there to here.
+Pass 1 archived cloud sync in `1a325c3`, which moved eight web test files byte-identical into `archived/cloud-sync/` (`git diff -M` scores every one R100), and `vitest.config.ts:14` excludes `archived/**` deliberately, because archived features were cut from v1 and their code is expected not to compile.
+Those eight files hold 56 tests, and six tests were added afterwards (five in `8f487c4`, one in `ef93dee`): 1229 − 56 + 6 = 1179, exactly the count `reviews/BASELINE.md:62-63` recorded on 2026-08-10 before the production-readiness work began.
+The five web tests above that, and all of mobile's growth from 35/217, are that work; `PROD-READINESS.md` names the commit for each.
+Restoring cloud sync would restore those 56 tests along with it - see `archived/RESTORE.md`.
 
 ---
 
@@ -53,7 +63,8 @@ Re-opening any of them changes the work.
 - [x] **[A]** Test that the app boots and behaves identically with the DSN unset.
 - [ ] **[Y]** Add `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` and `SENTRY_PROJECT` to EAS secrets for source-map upload - see "Your steps" step 7.
   All three are needed: the plugin entry in `mobile/app.json` carries no `organization` or `project`, so the generated `ios/sentry.properties` falls back to `SENTRY_ORG` and `SENTRY_PROJECT` from the environment.
-  Without them the upload is skipped and every production crash arrives as unsymbolicated minified frames.
+  Without them the upload has no destination `sentry-cli` can resolve, and it treats that as a hard configuration error rather than a skip, which the build script turns into a failed build - see step 7 for the trace through `sentry-xcode.sh`.
+  That is inferred from the vendored script and CLI, never observed; only a real production build settles it, and `PROD-READINESS.md`'s CANNOT ASSESS section says so.
 
 ## Pass 4 - Privacy and legal
 

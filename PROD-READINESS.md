@@ -79,7 +79,7 @@ Four findings. Review 0 returned PASS-WITH-FINDINGS; both original work-list fin
 | id | area | sev | evidence (file:line) | fix | blast radius | status | resolved by |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | P0-1 | persistence | P0 | `mobile/platform/localStorageShim.ts:45` | pass `recoveryStrategy: 'recover-on-error'` to `createMMKV`, plus a call-site assertion per R0-8 | one call site, one option; changes native recovery behavior for the single MMKV instance holding all nine keys | RESOLVED | `598728c` |
-| P1-1 | observability | P1 | `mobile/app.json:84`; pre-fix `LAUNCH-CHECKLIST.md:54` and `:185` (read against `4551454` — the fix rewrote both; they are now `:54-56` and `:184-195`) | document `SENTRY_ORG` and `SENTRY_PROJECT` next to `SENTRY_AUTH_TOKEN` | documentation only; zero runtime effect | RESOLVED | `32d579f` (`LAUNCH-CHECKLIST.md:54-56`, `:184-196`, `.env.example:12-24`) + the REVIEW-FINAL remediation (`docs/ios-store-listing.md:92`, the third tracked place instructing the user, missed by the first fix per FR-2) |
+| P1-1 | observability | P1 | `mobile/app.json:84`; pre-fix `LAUNCH-CHECKLIST.md:54` and `:185` (read against `4551454` — the fix rewrote both; re-based per round 3, which inserted lines above both, they are now `:64-67` and `:195-208`) | document `SENTRY_ORG` and `SENTRY_PROJECT` next to `SENTRY_AUTH_TOKEN` | documentation only; zero runtime effect | RESOLVED | `32d579f` (`LAUNCH-CHECKLIST.md:64-67`, `:195-208`, `.env.example:12-24`) + the REVIEW-FINAL remediation (`docs/ios-store-listing.md:92`, the third tracked place instructing the user, missed by the first fix per FR-2) |
 | R0-1 | ledger integrity | P1 | ASSUMPTION 3 below; `mobile/.gitignore:40` | re-anchor P0-1's trace to the tracked exact pin `NitroMmkv.podspec:27` | ledger text only | RESOLVED | `4551454` |
 | R0-5 | baseline provenance | P1 | `reviews/BASELINE.md`; `git log origin/main..main` | disclose that baseline `21f568b` was authored in this run and sits on `main` | ledger + baseline text only | RESOLVED | `4551454` |
 
@@ -168,6 +168,57 @@ It cannot see a loss that takes the sidecar too, and unreadable bookkeeping is t
 
 **One existing guard was modified, and re-proved at the same strength.** The P0-1 test read `__lastConfiguration()` from the MMKV mock, which is "the most recently created instance". A second instance makes that order-dependent, so it now asks `__configurationFor('poker-range-trainer')`, and the mock backs each id with its own Map the way MMKV backs each id with its own file. Re-checked afterwards, not assumed: replacing the shim's `createMMKV({ id: 'poker-range-trainer', recoveryStrategy: 'recover-on-error' })` with the bare `{ id }` still fails exactly one test, `opens the store asking MMKV to recover from corruption, not discard it`, with the other 237 passing.
 
+### Round 3 — 2026-08-10, third run, on `main`
+
+Scope handed to this run by the user: P2-4, the one P2 round 2 argued for and deliberately left for approval; the stale status baseline in `LAUNCH-CHECKLIST.md`; and FR-1 if a real build log arrived.
+No new sweep was run, and round 2's P2 triage was not re-litigated.
+Same rule again: **a status is a record of something done, never a forecast.**
+
+| id | was | sev | fix as landed | status | resolved by |
+| --- | --- | --- | --- | --- | --- |
+| P2-4 | P2, documented not fixed | P2 | `src/storage/backup.ts:288-298` gives each rollback write its own `try`/`catch`, so the loop reaches every slice however many of them refuse, and `:299` still raises the error that stopped the restore rather than one raised while rewinding | RESOLVED | `d13fd15` |
+
+**What changed, precisely.** Two defects sat in one four-line loop and each needed its own half of the fix.
+A rollback write that threw escaped the `catch` block, which both abandoned the rewind partway — leaving the slices already reached holding old data and the rest holding new — and replaced the original error with the rollback's on the way out, so the reason the user saw was not the reason the restore failed.
+Wrapping each write fixes the first; leaving `throw error` as the only exit fixes the second.
+The doc comment above `restoreBackup` lost the sentence "Restoring the snapshot always fits, since those values were already present", because that was the false premise the loop was written on: on iOS `localStorage.setItem` is MMKV's `set` (`mobile/platform/localStorageShim.ts:75-79`), which throws on a full device however recently the value it writes was there.
+That is the only way a rewind fails, and it was checked rather than assumed — `setItem`'s other half, the `storeIntegrity` inventory write on the following line, cannot throw at all, because `writeKeyList` (`mobile/platform/storeIntegrity.ts:89-98`) swallows its own failures on purpose so bookkeeping is never the reason a real save reports an error.
+One path is enough; the loop had no tolerance for any.
+
+**Falsifiability, checked rather than assumed.**
+
+| behaviour removed | tests that fail |
+| --- | --- |
+| the per-write `try`/`catch` inside the rollback loop | 1 (`restoreBackup › finishes the rollback and reports the restore error when a rollback write fails`), with the other 36 in the file passing |
+
+Backing the wrap out was run twice, and the first run is worth recording because it misreported the guard's reach.
+It failed 8 tests, not 1: the new test installs a `Storage.prototype.setItem` spy and restored it on the line after the assertion, so once the assertion failed the spy was never uninstalled and leaked into the next seven tests in the file.
+The restore is now in a `finally` (`src/storage/backup.test.ts:432-439`), and the same back-out then fails exactly the one named test above.
+A guard whose failure takes unrelated tests with it cannot be read as evidence of what it covers.
+
+**The residual, stated rather than implied.** A slice whose rewind throws still holds the new value, and this fix does not change that — nothing can, once the only way to put a value back is refused.
+What it changes is the size of that set (only the slices that actually refused, instead of every slice after the first one) and the error the user is shown.
+The test asserts the residual directly rather than pretending it away: after the failure it expects `ranges` to still read `replacement`, alongside the spot-accuracy and training-goal slices that were successfully rewound.
+
+**`LAUNCH-CHECKLIST.md`'s stale baseline was a docs defect, not a loss of coverage.**
+It claimed 87 web test files / 1229 tests, verified 2026-08-06 at `1f59e2e`, against a current 79 / 1184 — and the eight missing files predate both prod-readiness runs, so the drop needed explaining before the numbers could be refreshed.
+Explained: Pass 1 of the checklist itself archived cloud sync in `1a325c3`, moving eight web test files byte-identical (`git diff -M` scores each R100) into `archived/cloud-sync/`, which `vitest.config.ts:14` excludes by design.
+The arithmetic closes exactly: those files hold 56 tests (no `it.each`, so the count is the declaration count), six were added afterwards — five in `8f487c4`, one in `ef93dee` — and 1229 − 56 + 6 = 1179, the number `reviews/BASELINE.md:62-63` recorded on 2026-08-10.
+Nothing was deleted, and `archived/RESTORE.md:415-444` lists every one of those files for restoration along with the dependencies they need.
+The block is now re-verified by running it, at `d13fd15`: lint clean on both apps, web 79 / 1184 and mobile 37 / 238 passing, build and mobile `tsc --noEmit` clean, `npm audit --omit=dev` 0 vulnerabilities at the web root, and the five confirmed findings in `review/findings.md` traced to `3c709bf`, `7ccefad`, `5fe714b`, `3078e7b` and `cc0a5d7`.
+
+**FR-1 is unchanged and still open.** No EAS build was run in this round either — it is remote and costs a build slot, and starting one was not this run's call. The CANNOT ASSESS entry below is edited only to say that round 3 did not close it either; its substance is untouched.
+
+**One defect found while re-reading the checklist for FR-1, and fixed.**
+Round 2's Sentry correction (`2dede9a`) reached one of the two places the checklist states the failure mode and not the other.
+It rewrote step 7 (`LAUNCH-CHECKLIST.md:205-207`) to say the build fails, and left Pass 3's summary line still asserting the superseded claim — "Without them the upload is skipped and every production crash arrives as unsymbolicated minified frames" — so the document contradicted itself, with the wrong half being the one REVIEW-FINAL FR-1 had already struck.
+`LAUNCH-CHECKLIST.md:66-67` now carries the corrected reading, points at step 7 for the trace, and says outright that it is inferred rather than observed.
+This is the same shape as FR-2, where P1-1's first fix reached two of the three tracked places instructing the user: a correction is not landed until every place that repeats the old claim is found, and `git grep` for the claim's wording is the cheap way to check.
+Run here as `git grep -niE "unsymbolicat|minified|upload is skipped|source-map upload"` over the tracked tree excluding this ledger and `reviews/`, it returns exactly two files and no third place: `LAUNCH-CHECKLIST.md` (now consistent across Pass 3 and step 7) and `.env.example:12-24`, which round 2 had already got right.
+
+**What this section's own commit contains, so the record is not read as broader than it is.** P2-4's code and test are in `d13fd15` and nothing else moved with them.
+The `LAUNCH-CHECKLIST.md` baseline refresh, the Pass 3 correction, and this section land together in the commit that adds this text — a docs-only change, asserting nothing that was not already in the tree or re-run above.
+
 ### P2 — documented, not fixed
 
 | id | area | sev | evidence (file:line) | fix | blast radius |
@@ -175,7 +226,7 @@ It cannot see a loss that takes the sidecar too, and unreadable bookkeeping is t
 | P2-1 | web SW | P2 | `public/service-worker.js:51` | `.catch()` the floating `cache.put` | web only, not deployed |
 | P2-2 | web SW | P2 | `public/service-worker.js:12`, `:33` | version `CACHE_NAME` per release | web only; cache grows across deploys, never pruned |
 | P2-3 | web SW | P2 | `public/service-worker.js:1`, `:8`, `:12` | header says "v3.1" while `CACHE_NAME` is `prt-shell-v2`; line 8 cites Supabase, archived out of v1 | comments only |
-| P2-4 | persistence | P2 | `src/storage/backup.ts:244-250` | wrap the rollback loop so a rollback failure cannot replace the original error | restore path only |
+| P2-4 | persistence | P2 | `src/storage/backup.ts:244-250` | wrap the rollback loop so a rollback failure cannot replace the original error | restore path only — **RESOLVED in round 3, `d13fd15`** |
 | P2-5 | persistence | P2 | `src/storage/statsReset.ts:44-46` | make the reset atomic like `restoreBackup` | a mid-loop throw leaves some stores cleared and others not; user sees a readable error and can retry |
 | P2-6 | persistence | P2 | `src/storage/sessionHistoryStorage.ts:105-116` | none proposed — see note | history appends forever with no cap; whole map re-serialized per session |
 | P2-7 | build config | P2 | `mobile/__tests__/app-config.test.ts:38-39` | assert `ios.bundleIdentifier` as `buildNumber` already is | test-only — **RESOLVED in round 2, `34f8935`** |
@@ -188,7 +239,7 @@ It cannot see a loss that takes the sidecar too, and unreadable bookkeeping is t
 
 - **P2-1, P2-2, P2-3, P2-9, P2-10** are web-only, and no user loads the web app (ASSUMPTION 1). Fixing them buys nothing a user can feel, and each edit is a chance to break the surface the `@core` tests run against.
 - **P2-8** (four orphaned SQL files) and **P2-11** (two build-time advisories) are unchanged: still report-only, still not defects in the shipped binary.
-- **P2-4 is the one worth reopening, and it was deliberately NOT taken this round** — it was outside the scope handed to this run, and widening scope is the user's call, not the builder's. Recording the argument so the decision can be made on evidence: unlike the rest of this table it is in `@core`, so it ships in the iOS binary and sits on the data path. `src/storage/backup.ts:278-282`'s rollback loop can itself throw — on iOS `localStorage.setItem` is MMKV's `set`, which throws on a full device, and a restore that ran out of space is exactly the case that reaches the rollback. A rollback write that throws aborts the loop from inside the `catch`, so the slices it had already reached are back to their old values while the ones it had not are left holding the new — a library assembled from two different points in time, with ranges and their practice records no longer describing each other. It also rethrows the ROLLBACK's error in place of the original at `:282`, so the reason the user is shown is not the reason it failed. The fix is small and contained: wrap each rollback write so the loop always completes, and always raise the original error.
+- **P2-4 is the one worth reopening, and it was deliberately NOT taken this round** — it was outside the scope handed to this run, and widening scope is the user's call, not the builder's. **The user made that call afterwards and round 3 took it; it is RESOLVED by `d13fd15`, and the round 3 section above records what landed.** Round 2's argument follows as written, so the decision stays readable against the evidence it was made on: unlike the rest of this table it is in `@core`, so it ships in the iOS binary and sits on the data path. `src/storage/backup.ts:278-282`'s rollback loop can itself throw — on iOS `localStorage.setItem` is MMKV's `set`, which throws on a full device, and a restore that ran out of space is exactly the case that reaches the rollback. A rollback write that throws aborts the loop from inside the `catch`, so the slices it had already reached are back to their old values while the ones it had not are left holding the new — a library assembled from two different points in time, with ranges and their practice records no longer describing each other. It also rethrows the ROLLBACK's error in place of the original at `:282`, so the reason the user is shown is not the reason it failed. The fix is small and contained: wrap each rollback write so the loop always completes, and always raise the original error.
 - **P2-5** was weighed the same way and is genuinely minor: a reset is destructive by intent, so a mid-loop throw leaves less cleared than asked, surfaces a readable error, and is fixed by pressing the button again.
 
 P2-6 note: capping session history would silently delete user records. That is a product decision, not a hardening fix, so no fix is proposed here. On the shipping iOS app MMKV has no small quota, so this degrades (slower synchronous JSON work per session) rather than failing; on web it would eventually exhaust the ~5MB origin quota, but web is not deployed. Recorded at P2 for that reason.
@@ -246,7 +297,7 @@ REVIEW-1B records the correct caveat on that paragraph, and it is repeated here 
 ## CANNOT ASSESS
 
 - Whether `SENTRY_ORG` / `SENTRY_PROJECT` are already set as EAS secrets or profile env. The EAS environment is remote; connecting to it is prohibited.
-- **Which failure mode a missing org/project actually produces** (added per REVIEW-FINAL FR-1). **Still open after round 2: no EAS build was run, so nothing new was observed and `LAUNCH-CHECKLIST.md` is unchanged.** It stays inferred from `sentry-xcode.sh` and the vendored `sentry-cli`, and the first real production build should be used to settle it. The vendored script and CLI both point at a failed build rather than a silent unsymbolicated one, but settling it needs a real `sentry-cli` invocation against sentry.io or an EAS build log — both non-local, both prohibited. P1-1's severity therefore rests on a premise this run could not close: if the true behavior is a failed build, the ledger's own rubric would make it "cannot deploy", which is P0. It is left at P1 rather than raised, because the evidence for the harsher rating is exactly the evidence that cannot be confirmed here, and because a failed build announces itself where an unsymbolicated one does not. The fix is identical under either reading.
+- **Which failure mode a missing org/project actually produces** (added per REVIEW-FINAL FR-1). **Still open after rounds 2 and 3: neither ran an EAS build, so nothing new was observed and the checklist's account of it (`LAUNCH-CHECKLIST.md:195-208`, and `:66-67` since round 3 corrected it) is still inference.** It stays inferred from `sentry-xcode.sh` and the vendored `sentry-cli`, and the first real production build should be used to settle it. The vendored script and CLI both point at a failed build rather than a silent unsymbolicated one, but settling it needs a real `sentry-cli` invocation against sentry.io or an EAS build log — both non-local, both prohibited. P1-1's severity therefore rests on a premise this run could not close: if the true behavior is a failed build, the ledger's own rubric would make it "cannot deploy", which is P0. It is left at P1 rather than raised, because the evidence for the harsher rating is exactly the evidence that cannot be confirmed here, and because a failed build announces itself where an unsymbolicated one does not. The fix is identical under either reading.
 - Real MMKV native recovery behavior against a genuinely corrupted store. Requires a device or simulator with a damaged MMKV file; Jest mocks the module entirely (`mobile/__mocks__/react-native-mmkv.ts`), so P0-1's fix is verifiable at the call site only.
   **Unchanged by round 2's N-2 work.** The detector is tested by handing `checkForLostKeys` a key list with something missing, which is exactly the shape the shim passes on device — but the event that produces that list natively is still unreachable here. What is now covered is the half that decides whether anyone is ever told; what is still uncovered is whether MMKV's recovery behaves as its source says.
 - Whether an EAS-built binary resolves the same MMKVCore pod as the local `mobile/ios/Pods/` tree.
