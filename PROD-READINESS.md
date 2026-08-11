@@ -313,6 +313,47 @@ The anchors inside THIS file were re-grepped after every edit: `R3-1`'s fix leng
 `6fb393e` is the two config lines and their comments, with no test file touched.
 This section lands in a commit after all three, naming them.
 
+### Round 5 - 2026-08-11, fifth run, on `main`
+
+Round 4 reviewed round 3 and was not itself reviewed by anything, so this round reviewed it before extending it.
+`reviews/REVIEW-R4.md` (`cdb061f`, committed alone) returned PASS-WITH-FINDINGS on `227e3e1..f4addad`: `6fb393e` is correct and safe, and it is better evidenced now than round 4 left it.
+Five findings, all P2, all against the record rather than the code.
+Same rule as every round above: **a status is a record of something done, never a forecast.**
+
+| id | what it was | sev | fix as landed | status | resolved by |
+| --- | --- | --- | --- | --- | --- |
+| R4-A | R4-1's census of vulnerable inline-restore sites counted five `finally`-protected sites and missed two that have the shape | P2 | the R4-1 paragraph above now carries the corrected census, six web and five mobile, with the `finally` sites named as already fixed | RESOLVED | `5b272e3` |
+| R4-B | one of the two "spies put at risk" is not a spy: `AccessibilityInfo.isReduceMotionEnabled` is already a preset mock, and `spyOn` registers no restore for one | P2 | the verification paragraph above now records the mechanism with its `jest-mock` anchors and the real-file demonstration that replaces the deleted synthetic probe | RESOLVED | `5b272e3` |
+| R4-C | both runner comments claimed "a spy a hook installs still reaches the body", which is false for `beforeAll` | P2 | `vitest.config.ts:15-28` and `mobile/jest.config.js:21-33` now say `beforeEach` where the claim holds and state what happens to a `beforeAll` spy | RESOLVED | `5b272e3` |
+| R4-D | P2-5's "`remove` cannot throw" needs a step that lives in the gitignored Pods tree, and describes a tracked step as a pass-through it is not | P2 | the P2-5 note now bounds the claim to the react-native-mmkv layer and its published contract, names the MMKVCore step as untracked under ASSUMPTION 3, and closes the listener step | RESOLVED | `5b272e3` |
+| R4-E | the residual derivation said "*k*..8 were never written", which asserts something about the slice that was attempted | P2 | the R3-3 paragraph now states the premise instead of folding it into the range, and notes that the code's own comment partitions by state rather than index | RESOLVED | `5b272e3` |
+
+**Round 4's two falsifiability demonstrations were re-run rather than read, and reproduce exactly.**
+Web: breaking `src/storage/backup.test.ts` `rolls back every slice when a write fails partway through` above its inline restore gives 1 failed / 36 passed with `restoreMocks`, and 2 failed / 35 passed without it, the second failure being the neighbour round 4 names.
+Mobile: the same treatment of `mobile/__tests__/range-screen.test.tsx` `reports a menu action the device store refused` gives 1 failed / 8 passed and 2 failed / 7 passed, again with the named neighbour.
+All four files were restored with `git checkout`.
+
+**The ordering claim is no longer inferred from a probe that was deleted.**
+`jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:44` and `:61-63` register the restore as a top-level `beforeEach` before the test file is loaded (`:65`), and `@vitest/runner/dist/chunk-artifact.js:2942` calls `onBeforeTryTask` one line before the `beforeEach` dispatch at `:2947`.
+Both are reachable from the committed lockfiles, which the probe was not.
+
+**The `beforeAll` half of R4-C was proved, not reasoned.**
+A temporary `beforeAll` spy in a real file of each suite, with the test body asserting it survived: the assertion fails in both runners (`expected false to be true` under Vitest; `jest.isMockFunction(console.warn)` prints `false` under Jest, through the real `console.warn`, which is itself the proof).
+Both probe files were restored with `git checkout` and neither is in the tree.
+
+**What this round did not take.** R3-5 is unchanged and still OPEN in NEXT ROUND: giving `@core` a reporting seam is new behaviour on the shipping binary and the user's call, and it was not given.
+P2-8 is unchanged and still gated on step 1 of `LAUNCH-CHECKLIST.md:136`, which is still unticked with no route recorded in the tree.
+FR-1 is unchanged and still open: no EAS build was run in this round either, so the CANNOT ASSESS entry stands as rounds 3 and 4 left it.
+`review/targets.md:136` and `:144` are still stale and still deliberately unedited, for the reason round 4 gave.
+
+**Anchors.** `reviews/REVIEW-R4.md` reads against `f4addad` and says so in its header, so its `PROD-READINESS.md` line numbers are dated rather than rewritten, exactly as REVIEW-R3's are dated to `227e3e1`.
+Inside this file, the R4-C fix lengthened both runner comments, so R4-1's evidence cell was re-based from `vitest.config.ts:15-24` / `mobile/jest.config.js:21-28` to `:15-28` / `:21-33`, with the old pair dated.
+`vitest.config.ts:14`, cited by `LAUNCH-CHECKLIST.md:34` and the round 3 paragraph above, is unmoved: both edits are below it.
+
+**What each of this round's commits contains.** `cdb061f` is `reviews/REVIEW-R4.md` and nothing else.
+`5b272e3` carries the two runner comments and the four ledger corrections; it changes no executable line, and the full gate was run on it (lint clean, web 79 / 1184, mobile 37 / 238, build and mobile `tsc --noEmit` clean).
+This section lands in a commit after both, naming them.
+
 ### P2 — documented, not fixed
 
 | id | area | sev | evidence (file:line) | fix | blast radius |
