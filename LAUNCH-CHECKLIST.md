@@ -18,10 +18,10 @@ Re-opening any of them changes the work.
 - **[A]** an agent can complete it in the repo; covered by the Fable prompt.
 - **[Y]** needs you - an account, a payment, a dashboard, a device, or a judgement call an agent must not fake.
 
-## Status baseline (verified 2026-08-11 at `98d698a`)
+## Status baseline (verified 2026-08-12 at `8fb764d`)
 
-Every line below was re-run at that commit, not carried forward.
-It read `6186581` until round 7, five commits behind, one of which changed a comment in `@core` - refreshed per REVIEW-R6 R6-6.
+Every line below was re-run at that commit, not carried forward - and one commit behind is the floor here rather than a lapse, stated per REVIEW-R7 R7-6: a stamp cannot name the tree it lives in, for the same reason a status cell may only name a commit that already exists, so this line always names the parent of the commit that writes it, and what separates the two trees is this block's own text.
+It read `6186581` until round 7, five commits behind, one of which changed a comment in `@core` - refreshed per REVIEW-R6 R6-6, and again here for the same reason one round on.
 The counts did not move; what moved is which tree the reader can take them for.
 
 - `npm run lint` clean on both apps.
