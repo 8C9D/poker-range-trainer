@@ -598,6 +598,67 @@ This section lands in `f11d9f6`, after all three, naming them.
 A final commit completes this paragraph, and it is the only thing in it - the same two-commit shape round 6 arrived at the hard way, because a cell may only name a commit that already exists and a hash read back before an amend is a hash of something else.
 No cell in this round names its own commit: R6-3's re-measurement is recorded as a correction to the round 6 table it disproves, which is a commit earlier than this section rather than this section itself.
 
+### Round 8 - 2026-08-12, eighth run, on `main`
+
+Round 7 reviewed round 6 and was not itself reviewed, and its one change to shipped code is again a COMMENT in `@core`, on the data path - the second such round in a row, and with this one's fix the third.
+Round 7 existed because a comment-only change is unguardable by construction; that is just as true of round 7's own, and the sentence it rewrote to remove one unproven absolute leaned on another.
+`reviews/REVIEW-R7.md` (`1e919b0`, committed alone) returned PASS-WITH-FINDINGS on `b3ed6d9..3b6beb4`: `98d698a` is right about the code, the code is unchanged and correct, and R6-1's central correction holds.
+Seven findings, all P2, two against the comment and five against the record.
+Same rule as every round above: **a status is a record of something done, never a forecast.**
+
+| id | what it was | sev | fix as landed | status | resolved by |
+| --- | --- | --- | --- | --- | --- |
+| R7-1 | "a false name would be the only entry in the report" is an absolute that holds only where no EARLIER rewind refused, written into `@core` to replace a different unproven absolute | P2 | `src/storage/backup.ts:350-363` states the condition and says why the conditioned case is still what the choice turns on; the R3-5 paragraph above records the measurement that disproved the absolute | RESOLVED | `8fb764d` |
+| R7-2 | the `removeItem` half of the bound claims "one throw candidate" with no ASSUMPTION 3 caveat, written by the same commit that put the caveated form into the ledger | P2 | `src/storage/backup.ts:340-348` carries the caveat, names the react-native-mmkv layer and its published contract as what the tracked tree supports, and says what sits below them | RESOLVED | `8fb764d` |
+| R7-3 | the holder-isolation probe's PASS was measured under `--no-file-parallelism`, which the shipped config does not set | P2 | re-run under the shipped config with an observable that survives it, plus the runner's own source showing the flag sets `maxWorkers` and nothing else; recorded above | RESOLVED | `8fb764d` |
+| R7-4 | "bounded at 51 to 55 bytes" is an observed min-max, and the two bytecode claims either side of that table were inherited without re-running | P2 | the wording is corrected above, four exports re-run at `3b6beb4`, the storage-key claim confirmed, and the `strings` claim narrowed to the case it holds in - the variable ABSENT rather than merely empty | RESOLVED | `8fb764d` |
+| R7-5 | the sweep's one dismissed anomaly is a real defect in a sentence here, and the sweep never said what the rest of the repo holds | P2 | `HybridMMKV.cpp:135` is named where a bare `:135` continued from the wrong file and landed past its end; the rest of the repo is measured and recorded above; `beedb9a` is named as the first mover of `crashReporting.ts:56-59` | RESOLVED | `8fb764d` |
+| R7-6 | the refreshed status baseline names its own parent, and the block reads as though that were an accident rather than the floor | P2 | `LAUNCH-CHECKLIST.md:21-25` states the floor and what the one-commit gap contains, and re-runs every line at `8fb764d` | RESOLVED | `7528f39` |
+| R7-7 | the P2 table's evidence column was declared baseline-consistent from one row of ten | P2 | checked row by row against `21f568b`; the column is dated once at the table and P2-7's difference named, rather than re-based | RESOLVED | `8fb764d`, corrected by `48725ba` |
+
+**R7-1 is the one that mattered, and for the third round running it is a comment fix rather than a behaviour fix.**
+The code is right and untouched: `replaced` is still incremented after the write, the guard is still `<`, and the reported set is still a subset of the slices genuinely replaced.
+What changed is that the sentence justifying that choice no longer states as unconditional something that needs a condition - and this time the claim was measured rather than walked, with the alternative counter actually in the tree.
+The pattern is worth naming, because three rounds have now found the same paragraph wrong in three different ways: R5-1 removed an unproven premise, R6-1 removed a wrong magnitude, and R7-1 removed an unstated condition.
+A comment that carries a design decision attracts this, because it is the only place the decision is written down and nothing can fail on it.
+
+**Two claims about the shipped bundle were re-run rather than inherited, and one needed narrowing.**
+Round 7 re-measured the byte table sitting between them and left both standing.
+Re-running them at `3b6beb4` confirms the storage-key claim exactly and confirms the `strings` claim for an ABSENT `EXPO_PUBLIC_SENTRY_DSN` - but not for one set to an empty string, which the app still treats as disabled and which still ships both reporter message literals, 1,040 bytes of them. The table and the condition are above.
+
+**The isolation probe was re-run under the config the suite ships.**
+Round 7's flag was needed for its negative control and not for its claim, and the runner's own source says why: `fileParallelism: false` sets `maxWorkers = 1` and nothing else, while sharing a process between test files is gated on `isolate === false` alone.
+Under the shipped config the two probes ran in different processes and neither saw the other's reporter; under `--no-isolate` alone they passed only because the scheduler happened to separate them, which is what makes that run no control at all. Recorded above.
+
+**No guard was added, because nothing executable changed.**
+`git diff` on `src/storage/backup.ts` for `8fb764d` is entirely `//` lines, checkable with the same filter rounds 6 and 7 used, so there is no behaviour to prove falsifiable and no mutant to keep.
+The five R3-5 mutants and the falsifiability tables above are unaffected and were not re-run; the full gate was, on every commit - see the note on `48725ba` below for the one whose gate ran after it landed rather than before.
+One mutant WAS run and thrown away: moving `replaced += 1` above the write is the alternative the comment argues against, and it exists only to show what the report contains under it. `src/storage/backup.ts` was copied aside first and restored from the copy rather than with `git checkout`, and the probe test was deleted.
+
+**No storage key was added, renamed or reshaped**, and `mobile/platform/storeIntegrity.ts`'s second MMKV instance is untouched and still outside the nine, the backup and the three key guards.
+
+**What this round did not take.**
+P2-8 is unchanged and still gated on step 1 of `LAUNCH-CHECKLIST.md:138`, whose checkbox at `:49` is still unticked with no route recorded in the tree.
+FR-1 is unchanged and still open: no EAS build was run in this round either, so the CANNOT ASSESS entry stands as rounds 3 through 7 left it. The four `expo export` runs above are local.
+`review/targets.md:136` and `:144` are still stale and still deliberately unedited - now with the whole of both files measured rather than the two lines, which is what R7-5 adds to round 4's reason.
+
+**Anchors.** `reviews/REVIEW-R7.md` reads against `3b6beb4` and says so in its header, so its `PROD-READINESS.md`, `LAUNCH-CHECKLIST.md` and `src/storage/backup.ts` line numbers are dated rather than rewritten, exactly as REVIEW-R6's are dated to `b3ed6d9`.
+Inside this file, the R7-1 and R7-2 comment fix added 7 lines to the comment above `replaced`, moving everything below by 7: the comment block itself `:329-356` -> `:329-363`, the `removeItem` half `:340-344` -> `:340-348`, the trade paragraph `:346-356` -> `:350-363`, the rollback loop `:375-391` -> `:382-398`, the rethrow `:393` -> `:400`, the `removeItem` branch `:377` -> `:384`, R3-5's report call `:374-392` -> `:381-399` and `:392` -> `:399`, the collection `:374-391` -> `:381-398`, and the inner `catch` `:379-390` -> `:386-397`.
+The doc comment `:291-303`, R4-E's citation `:298-299`, the narrowing at `:308-310` and the reporter seam `:245-284` are unmoved, the edit being below them.
+The `LAUNCH-CHECKLIST.md` refresh was written to keep that block at its existing line count, so unlike round 7's it moves no anchor at all - which is the cheaper way to refresh a stamp than re-basing nine sentences afterwards.
+Every anchor in both files was re-extracted and re-opened after the edits, by a second script written for this round rather than round 7's, and all resolve.
+
+**The hash audit was re-run and came back clean.** Every hash-shaped token in this file, `LAUNCH-CHECKLIST.md` and `reviews/` was resolved with `git cat-file -t` and `git merge-base --is-ancestor <hash> main`: all are commits and all are ancestors of `main` except `0c600ff`, which this file names as the dangling object `dac008e` documents. `review/` still carries none.
+
+**What each of this round's commits contains.** `1e919b0` is `reviews/REVIEW-R7.md` and nothing else.
+`8fb764d` carries the R7-1 and R7-2 comment fix plus the R7-3/R7-4/R7-5/R7-7 ledger corrections; the `src/storage/backup.ts` half changes no executable line, and the full gate was run on it: lint clean, web 79 / 1187, mobile 37 / 241, build and mobile `tsc --noEmit` clean, with `npm audit --omit=dev` at the web root reporting 0 vulnerabilities.
+`7528f39` is R7-6, `LAUNCH-CHECKLIST.md` and nothing else, with the same gate re-run on it.
+`48725ba` corrects R7-7's own paragraph, which counted the P2 evidence anchors by file when they belong to rows, and is `PROD-READINESS.md` alone.
+**One departure from this run's order of operations, disclosed rather than smoothed over:** the gate for `48725ba` was run after it landed rather than before it. The tree it ran on is the committed tree and it is green (lint clean, web 79 / 1187, mobile 37 / 241, build and mobile `tsc --noEmit` clean), so the record is true; the sequence was not.
+This section lands in a commit after all four, naming them.
+A final commit completes this paragraph, and it is the only thing in it, for the reason rounds 6 and 7 arrived at: a cell may only name a commit that already exists.
+No cell in this round names its own commit.
+
 ### P2 — documented, not fixed
 
 **The evidence column reads at the baseline `21f568b` throughout, and it is not re-based - stated here per REVIEW-R7 R7-7, which found that declared from one row of ten.**
