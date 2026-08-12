@@ -601,8 +601,9 @@ No cell in this round names its own commit: R6-3's re-measurement is recorded as
 ### P2 — documented, not fixed
 
 **The evidence column reads at the baseline `21f568b` throughout, and it is not re-based - stated here per REVIEW-R7 R7-7, which found that declared from one row of ten.**
-Eight of the ten anchors sit in four files (`public/service-worker.js`, `src/storage/statsReset.ts`, `src/storage/sessionHistoryStorage.ts`, `src/main.tsx`) that `git diff 21f568b HEAD` reports unchanged, so they read the same at both trees and cannot be stale either way.
-P2-4 carries its own date inline. P2-7 is the one that differs: `mobile/__tests__/app-config.test.ts:38-39` is the `buildNumber` assertion at `21f568b` and a doc comment at HEAD, and its fix cell above names the live `:48`.
+Seven of the ten rows anchor into four files (`public/service-worker.js`, `src/storage/statsReset.ts`, `src/storage/sessionHistoryStorage.ts`, `src/main.tsx`) that `git diff 21f568b HEAD` reports unchanged, so those ten anchors read the same at both trees and cannot be stale either way; each was opened rather than counted.
+P2-8 and P2-11 carry no line anchor at all, and P2-4 carries its own date inline.
+P2-7 is the one row that differs: `mobile/__tests__/app-config.test.ts:38-39` is the `buildNumber` assertion at `21f568b` and a doc comment at HEAD, and the round 2 table above names the live `:48`.
 Re-basing the column would destroy what it is - the record of what was found at the baseline - so it is dated instead.
 
 | id | area | sev | evidence (file:line) | fix | blast radius |
