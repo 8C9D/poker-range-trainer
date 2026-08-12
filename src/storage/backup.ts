@@ -340,8 +340,12 @@ export function restoreBackup(backup: Backup): void {
   // counted, and a refused rewind there would go unreported. Only if that rewind
   // refused WITHOUT landing, though, and only for a slice that held something
   // before: where it held nothing the rewind is the `removeItem` branch below,
-  // whose one throw candidate is the same post-write bookkeeping, which by then
-  // has already taken the value away.
+  // whose only throw candidate ON THE TRACKED TREE is that same bookkeeping,
+  // which by then has already taken the value away. Tracked is the whole of that
+  // claim: `mmkv.remove` raises nothing at the react-native-mmkv layer, and its
+  // published contract documents `@throws` on `set` and none on `remove` - but
+  // what that calls below is MMKVCore, which no clean clone contains, the same
+  // hedge this paragraph already puts on `getAllKeys`.
   //
   // That is the right direction to be wrong in, and the trade is one slice each
   // way. Counting before the write rather than after would admit that same slice
@@ -350,10 +354,13 @@ export function restoreBackup(backup: Backup): void {
   // (Reporting those would take dropping the `index < replaced` guard below,
   // which on a full device names most of the library when none of it is damaged
   // - a different alternative, and a far worse one.) Of the two one-slice errors
-  // under-reporting is the one to take: a false name would be the only entry in
-  // the report, and a report that fires when the library is intact is worth less
-  // than no report at all, because announcing a mixed library is the only thing
-  // this reporter does.
+  // under-reporting is the one to take, on the case that decides it: where no
+  // EARLIER rewind refused, the false name is the whole of the report, and a
+  // report that fires when the library is intact is worth less than no report at
+  // all, because announcing a mixed library is the only thing this reporter does.
+  // Where an earlier rewind did refuse, the guard admits it too, so the false
+  // name adds a key to a report that is already true rather than being one - the
+  // empty-otherwise case is what the choice turns on.
   let replaced = 0
   try {
     for (const [key, value] of entries) {
