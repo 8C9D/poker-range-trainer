@@ -655,9 +655,9 @@ Every anchor in both files was re-extracted and re-opened after the edits, by a 
 `7528f39` is R7-6, `LAUNCH-CHECKLIST.md` and nothing else, with the same gate re-run on it.
 `48725ba` corrects R7-7's own paragraph, which counted the P2 evidence anchors by file when they belong to rows, and is `PROD-READINESS.md` alone.
 **One departure from this run's order of operations, disclosed rather than smoothed over:** the gate for `48725ba` was run after it landed rather than before it. The tree it ran on is the committed tree and it is green (lint clean, web 79 / 1187, mobile 37 / 241, build and mobile `tsc --noEmit` clean), so the record is true; the sequence was not.
-This section lands in a commit after all four, naming them.
+This section lands in `f6716b1`, after all four, naming them.
 A final commit completes this paragraph, and it is the only thing in it, for the reason rounds 6 and 7 arrived at: a cell may only name a commit that already exists.
-No cell in this round names its own commit.
+No cell in this round names its own commit, and the same rule is what makes `LAUNCH-CHECKLIST.md:21`'s one-commit gap a floor rather than a lapse - which is R7-6, and which this paragraph is another instance of.
 
 ### P2 — documented, not fixed
 
