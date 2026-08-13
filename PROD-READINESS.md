@@ -494,7 +494,7 @@ It does NOT hold when the variable is present and empty: `getSentryDsn` (`mobile
 One more thing the repeat settles: the `entry-<hash>.hbc` name is a fingerprint of the TREE, not of the condition. None of the four above matches either name recorded at `b3ed6d9`, whose only source difference from `3b6beb4` is R6-1's comment, while the byte sizes did not move (5,494,545 sits inside the edge-present range and 5,494,493 equals the lowest edge-removed sample). A comment reaches the JS Metro fingerprints but not the bytecode, so a content hash carried across rounds will differ for reasons that have nothing to do with the edge.
 
 **That last sentence was an inference sitting inside a correction whose point was replacing one - measured per REVIEW-R8 R8-1, and it holds.**
-The name is `basename` plus the md5 of one string (`mobile/node_modules/@expo/metro-config/build/serializer/exportPath.js:15-24` calls `fileNameFromContents`, `serializer/getCssDeps.js:106-111` is `getFileName(decoded) + '-' + hashString(src)`, `utils/hash.js:8-10` is `createHash('md5')`), so the only question was which string, and the md5 can be recomputed by hand.
+The name is `basename` plus the md5 of one string (`mobile/node_modules/@expo/metro-config/build/serializer/exportPath.js:15-24` calls `fileNameFromContents`, `@expo/metro-config/build/serializer/getCssDeps.js:106-111` is `getFileName(decoded) + '-' + hashString(src)`, `@expo/metro-config/build/utils/hash.js:8-10` is `createHash('md5')`), so the only question was which string, and the md5 can be recomputed by hand.
 Eight exports at `464f556` answer it. `expo export --platform ios --clear --no-bytecode --no-minify` emits a 9,332,719-byte `entry-1a3dfb01517b41cac067079896bc6451.js` whose own md5 is that name - and is also the name the ordinary bytecode export of the same tree gives its `.hbc`. Appending a marker comment to `src/storage/backup.ts` makes that JS 67 bytes longer, puts the marker inside it, and moves both names to `entry-a6ccc3eaa1388c15598427b4a4d3a569`.
 The same comment changes nothing in the minified emit (`--no-bytecode`: the same `entry-3cca1405f3a33680c3c4e9dd257da084.js`, the same 3,846,795 bytes, no marker) and nothing in the bytecode (`strings` finds the marker in neither `.hbc`, at 5,494,545 against 5,494,544 bytes - one byte, inside the noise recorded above).
 So a `//` comment survives into the unminified pre-Hermes emit the name is hashed over, and reaches neither the shipped JS nor the bytecode.
@@ -708,6 +708,67 @@ And "re-opened" is the wrong word for reading a resolver's report. What is opene
 This section lands in `f6716b1`, after all four, naming them.
 A final commit completes this paragraph, and it is the only thing in it, for the reason rounds 6 and 7 arrived at: a cell may only name a commit that already exists.
 No cell in this round names its own commit, and the same rule is what makes `LAUNCH-CHECKLIST.md:21`'s one-commit gap a floor rather than a lapse - which is R7-6, and which this paragraph is another instance of.
+
+### Round 9 - 2026-08-12, ninth run, on `main`
+
+Round 8 reviewed round 7 and was not itself reviewed, and its one change to shipped code is again a COMMENT in `@core`, on the data path - the third such round in a row, and with this one's fix the fourth.
+`reviews/REVIEW-R8.md` (`0e68fb0`, committed alone) returned PASS-WITH-FINDINGS on `3b6beb4..464f556`: the code is unchanged and correct, and round 8's two central conclusions both survive being measured rather than argued.
+Nine findings, all P2, one against the comment and eight against the record.
+Same rule as every round above: **a status is a record of something done, never a forecast.**
+
+| id | what it was | sev | fix as landed | status | resolved by |
+| --- | --- | --- | --- | --- | --- |
+| R8-1 | "a comment reaches the JS Metro fingerprints but not the bytecode" was inferred from four `.hbc` files, inside a correction whose point was replacing an inference | P2 | eight exports at `464f556`, the hashing code read and the md5 reproduced by hand; the claim holds, the emit it is over is the UNMINIFIED one, and the name fingerprints tree AND condition - recorded above | RESOLVED | `e57cd32` |
+| R8-2 | the `mmkv.remove` bound was verified at both ends of the chain and skipped the middle - nitro's generated bridge and react-native-mmkv's own JS | P2 | both opened; `src/storage/backup.ts:340-351` and the P2-5 trace now name the bridge, what it can raise (call shape only, and debug-only `this` checks) and that it re-raises rather than absorbing | RESOLVED | `e57cd32` |
+| R8-3 | the comment priced the optimistic counter and never priced under-reporting, whose own empty-otherwise case is an EMPTY report and therefore silence | P2 | measured both ways with two temporary tests; `src/storage/backup.ts:353-377` states both costs and the asymmetry that decides between them | RESOLVED | `e57cd32` |
+| R8-4 | 1,040 bytes sat one clause from the reporters' claim and belongs to neither; the 84-byte row hid a 51-byte residue | P2 | three unminified exports attribute the JS deltas exactly; the paragraph above says what each number is a delta of and marks the residue unattributed | RESOLVED | `e57cd32` |
+| R8-5 | "an EAS env var set to an empty value is the ordinary way to produce the other case" was asserted with nothing consulted | P2 | `mobile/eas.json` read - no `env` block at all - and the claim narrowed to what the local exports show, with what settling the EAS half would take | RESOLVED | `e57cd32` |
+| R8-6 | the isolation rows were single runs, and pids were framed as proving less than they do while the sink assertion was framed as proving more | P2 | 22 runs across four configurations, recorded above: the pids are the load-bearing half under the shipped config, and the negative control is order-dependent | RESOLVED | `e57cd32` |
+| R8-7 | the `sequential` branch was concluded from its converse, and `tinypool` was faulted as ungrepped | P2 | the branch read forwards (`cli-api.BfdDOPPI.js:3801` pushes `[spec]`, `:3624-3675` makes each element one task); `tinypool` is not installed in this tree at all | RESOLVED | `e57cd32` |
+| R8-8 | the bare-`:NN` convention is load-bearing, differs between rounds, and was written down nowhere | P2 | the rule is now stated in this file next to the sweep, with both extractions' counts and what "re-opened" actually covered | RESOLVED | `e57cd32` |
+| R8-9 | the status baseline explained its own gap with a sentence the round's next three commits falsified | P2 | `LAUNCH-CHECKLIST.md:21-25` states that the gap grows as a round lands and gives the check that replaces the claim, re-stamped at `e57cd32` | RESOLVED | `2c858b7` |
+
+**R8-3 is the one that mattered, and for the fourth round running it is a comment fix rather than a behaviour fix.**
+The code is right and untouched: `replaced` is still incremented after the write, the guard is still `<`, and the reported set is still a subset of the slices genuinely replaced.
+What changed is that the paragraph no longer argues a choice with only one side's costs on the page. The shipped counter's own worst case was measured rather than described: where the uncounted slice is the only damaged one, `damaged` is empty, `reportRestoreDamage` returns at `src/storage/backup.ts:278`, and a genuinely mixed library is announced to nobody.
+The decision does not move, and now it rests on the asymmetry that actually decides it rather than on the half that was written down.
+
+**Two claims were measured rather than argued, and both came back for round 8 rather than against it.**
+The bundle-fingerprint conclusion is true and is now proved from the hashing code outwards, with three exact md5 matches; the `mmkv.remove` bound holds at the link that had been skipped, and the bridge's transparency makes the ASSUMPTION 3 hedge sharper rather than weaker.
+That is worth stating plainly: an adversarial review that only ever overturns things is not reading, and two of this round's nine findings were about how a true claim was established rather than about whether it is true.
+
+**No guard was added, because nothing executable changed.**
+`git diff` on `src/storage/backup.ts` for `e57cd32` is entirely `//` lines, checkable with the same filter rounds 6, 7 and 8 used, so there is no behaviour to prove falsifiable and no mutant to keep.
+The five R3-5 mutants and the falsifiability tables above are unaffected and were not re-run; the full gate was, before each of this round's commits and on the tree that was committed.
+Four temporary test files were written, run and deleted: two for R8-3's measurement and two for R8-6's, plus `mobile/dist` removed after eight local exports. `git status` is clean.
+
+**No storage key was added, renamed or reshaped**, and `mobile/platform/storeIntegrity.ts`'s second MMKV instance is untouched and still outside the nine, the backup and the three key guards.
+
+**The gate-order disclosure round 8 made checks out, as far as the record can show it.**
+Round 8's commits are 322, 185, 7, 222 and 79 seconds apart, with author and committer dates identical throughout, so nothing was amended.
+The full gate was timed twice at `464f556` from the repo root: 107 seconds on a cold-ish cache (lint 14s, `test:run` 86s, build 7s) and 50 seconds warm.
+Only the 7-second window is shorter than the fastest measured gate, and it is exactly the one `48725ba`'s note discloses; the 79-second window sits inside the range and rules nothing out.
+The bound is worth stating: commit timestamps can rule a window out, they cannot show that a gate ran, and nothing in the tree records which tree any gate ran on. That half of the disclosure is testimony, not evidence.
+
+**What this round did not take.**
+P2-8 is unchanged and still gated on step 1 of `LAUNCH-CHECKLIST.md:138`, whose checkbox at `:49` is still unticked with no route recorded in the tree.
+FR-1 is unchanged and still open: no EAS build was run in this round either, so the CANNOT ASSESS entry stands as rounds 3 through 8 left it. The eight `expo export` runs above are local, and `mobile/dist` was removed after them.
+`review/targets.md:136` and `:144` are still stale and still deliberately unedited, for the reason round 4 gave and with the whole of both files measured in round 7.
+
+**Anchors.** `reviews/REVIEW-R8.md` reads against `464f556` and says so in its header, so its `PROD-READINESS.md`, `LAUNCH-CHECKLIST.md` and `src/storage/backup.ts` line numbers are dated rather than rewritten, exactly as REVIEW-R7's are dated to `3b6beb4`.
+One thing in it is wrong rather than dated and is corrected where it is used: R8-5 calls `mobile/eas.json` 20 lines, and it is 24.
+Inside this file, the R8-2 and R8-3 comment fix added 14 lines to the comment above `replaced`, moving everything below by 14, all of them in `src/storage/backup.ts`: the comment block itself `:329-363` -> `:329-377`, the `removeItem` half `:340-348` -> `:340-351`, the trade paragraph `:350-363` -> `:353-377`, the rollback loop `:382-398` -> `:396-412`, the rethrow `:400` -> `:414`, the `removeItem` branch `:384` -> `:398`, R3-5's report call `:381-399` -> `:395-413` and `:399` -> `:413`, the collection `:381-398` -> `:395-412`, and the inner `catch` `:386-397` -> `:400-411`.
+The doc comment `:291-303`, R4-E's citation `:298-299`, the narrowing at `:308-310`, the reporter seam `:245-284` and the `reportDamage === null` check at `:278` are unmoved, the edit being below or outside them.
+Every one of those was opened by hand after the edit rather than resolved by script, along with the three basename-ambiguous ones the sweep flags; the `LAUNCH-CHECKLIST.md` refresh was again written to hold its line count, so it moves no anchor at all.
+
+**The hash audit was re-run and came back clean, with one new false positive worth knowing about.** 61 distinct hash-shaped tokens across this file, `LAUNCH-CHECKLIST.md` and `reviews/`, each through `git cat-file -t` and `git merge-base --is-ancestor <hash> main`: 58 are commits, 57 of those are ancestors of `main`, and the exception is `0c600ff`, which this file names as the dangling object `dac008e` documents.
+The other three are not objects at all: they are the md5 bundle names from R8-1's measurement, backticked bare in `reviews/REVIEW-R8.md`'s table, and a `[0-9a-f]{7,40}` pattern cannot tell them from a hash. They carry an `entry-` prefix everywhere in this file for that reason, and the next round's audit should expect three `Not a valid object name` lines from that table rather than treat them as a defect. `review/` still carries no hashes at all.
+
+**What each of this round's commits contains.** `0e68fb0` is `reviews/REVIEW-R8.md` and nothing else.
+`e57cd32` carries the R8-2 and R8-3 comment fix plus the R8-1/R8-4/R8-5/R8-6/R8-7/R8-8 ledger corrections; the `src/storage/backup.ts` half changes no executable line, and the full gate was run on that tree BEFORE it landed: lint clean, web 79 / 1187, mobile 37 / 241, build and mobile `tsc --noEmit` clean.
+`2c858b7` is R8-9, `LAUNCH-CHECKLIST.md` and nothing else, with the same gate re-run before it and `npm audit --omit=dev` at the web root reporting 0 vulnerabilities.
+This section lands after both, naming them, and a final commit completes this paragraph and is the only thing in it - a cell may only name a commit that already exists.
+No cell in this round names its own commit.
 
 ### P2 — documented, not fixed
 
