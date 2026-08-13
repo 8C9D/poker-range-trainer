@@ -342,9 +342,12 @@ export function restoreBackup(backup: Backup): void {
   // before: where it held nothing the rewind is the `removeItem` branch below,
   // whose only throw candidate ON THE TRACKED TREE is that same bookkeeping,
   // which by then has already taken the value away. Tracked is the whole of that
-  // claim: `mmkv.remove` raises nothing at the react-native-mmkv layer, and its
-  // published contract documents `@throws` on `set` and none on `remove` - but
-  // what that calls below is MMKVCore, which no clean clone contains, the same
+  // claim, and it is the whole chain rather than its ends: `mmkv.remove` reaches
+  // native through react-native-mmkv's own JS, which wraps nothing, and nitro's
+  // generated bridge, whose throws are all about the shape of the call (argument
+  // count and type) and which otherwise re-raises what it is handed rather than
+  // absorbing it. Its published contract documents `@throws` on `set` and none
+  // on `remove`. Below that is MMKVCore, which no clean clone contains, the same
   // hedge this paragraph already puts on `getAllKeys`.
   //
   // That is the right direction to be wrong in, and the trade is one slice each
@@ -353,14 +356,25 @@ export function restoreBackup(backup: Backup): void {
   // breaks at the first throw, so neither count can reach the slices past it.
   // (Reporting those would take dropping the `index < replaced` guard below,
   // which on a full device names most of the library when none of it is damaged
-  // - a different alternative, and a far worse one.) Of the two one-slice errors
-  // under-reporting is the one to take, on the case that decides it: where no
-  // EARLIER rewind refused, the false name is the whole of the report, and a
-  // report that fires when the library is intact is worth less than no report at
-  // all, because announcing a mixed library is the only thing this reporter does.
-  // Where an earlier rewind did refuse, the guard admits it too, so the false
-  // name adds a key to a report that is already true rather than being one - the
-  // empty-otherwise case is what the choice turns on.
+  // - a different alternative, and a far worse one.) Both one-slice errors have
+  // an empty-otherwise case, and that case is the whole of what each one costs.
+  // Counting optimistically, where no EARLIER rewind refused, the false name is
+  // the whole of the report, and a report that fires when the library is intact
+  // is worth less than no report at all, because announcing a mixed library is
+  // the only thing this reporter does. Counting as this does, where no earlier
+  // rewind refused, `damaged` comes back EMPTY and `reportRestoreDamage` above
+  // returns without reporting: the library is mixed and nothing is said, which
+  // is the outcome this reporter exists to prevent. Where an earlier rewind did
+  // refuse, the report fires and is true either way, and each error is worth one
+  // key: the optimistic count adds a false one, this count leaves a real one out.
+  //
+  // So the choice is between a report that lies and a report that never comes,
+  // and it goes on which needs the rarer failure. The false name needs a forward
+  // write that simply refused - the ordinary full-device failure - and a refused
+  // rewind after it. The missing name needs one that LANDED and then threw, which
+  // on the tracked tree means only the bookkeeping above, plus a rewind that
+  // refused WITHOUT landing. The second path is the narrower one, so this takes
+  // the rarer failure and leaves the ordinary one reportable.
   let replaced = 0
   try {
     for (const [key, value] of entries) {
