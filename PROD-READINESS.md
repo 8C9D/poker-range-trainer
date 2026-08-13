@@ -767,8 +767,9 @@ The other three are not objects at all: they are the md5 bundle names from R8-1'
 **What each of this round's commits contains.** `0e68fb0` is `reviews/REVIEW-R8.md` and nothing else.
 `e57cd32` carries the R8-2 and R8-3 comment fix plus the R8-1/R8-4/R8-5/R8-6/R8-7/R8-8 ledger corrections; the `src/storage/backup.ts` half changes no executable line, and the full gate was run on that tree BEFORE it landed: lint clean, web 79 / 1187, mobile 37 / 241, build and mobile `tsc --noEmit` clean.
 `2c858b7` is R8-9, `LAUNCH-CHECKLIST.md` and nothing else, with the same gate re-run before it and `npm audit --omit=dev` at the web root reporting 0 vulnerabilities.
-This section lands after both, naming them, and a final commit completes this paragraph and is the only thing in it - a cell may only name a commit that already exists.
-No cell in this round names its own commit.
+This section lands in `5d06bee`, after both, naming them.
+A final commit completes this paragraph and is the only thing in it, for the reason rounds 6, 7 and 8 arrived at: a cell may only name a commit that already exists.
+No cell in this round names its own commit, and `LAUNCH-CHECKLIST.md:21` names `e57cd32`, its own parent - the floor R7-6 states and R8-9 sharpened, met here rather than described.
 
 ### P2 — documented, not fixed
 
