@@ -99,6 +99,15 @@ Restoring cloud sync would restore those 56 tests along with it - see `archived/
 - [x] **[A]** Re-run full validation and commit in reviewable slices.
 - [ ] **[Y]** Set up the support inbox before the support URL goes public.
 
+## Pass 8a - Paid app (decision of 2026-08-15: v1.0 ships as a PAID app, price not yet chosen)
+
+- [x] **[Y]** Legal entity confirmed (postal code needed the "<postal code>" spacing; user kept the entered address over Apple's standardized one) and the Paid Apps Agreement signed 2026-08-15; status Pending User Info.
+- [x] **[Y]** Bank account added 2026-08-15: Wealthsimple, found via the bank-NAME search (routing 070300001 = institution 703 + transit 00001; the transit-number lookup alone matches nothing). Awaiting Apple verification.
+- [x] **[Y]** U.S. W-8BEN submitted 2026-08-15 (details omitted).
+- [ ] **[Y]** Canadian GST/HST Form 506 - **DEFERRED by user 2026-08-15.** Blocked on registering a CRA Business Number (GST/HST RT0001 account): Apple requires GST/HST registration to sell paid apps in Canada, and the form will not submit without BN + RT. Until this is filed the Paid Apps Agreement cannot go Active and no price can be set.
+- [ ] **[Y]** Choose the price (standard tiers cap at US$999.99). Agent sets Pricing and Availability once the agreement is Active.
+- [ ] **[Y]** Decide EU distribution: DSA trader declaration (publishes contact info on the EU store) vs excluding EU countries from availability.
+
 ## Pass 8 - Apple pipeline
 
 Strictly sequential; each step gates the next.
