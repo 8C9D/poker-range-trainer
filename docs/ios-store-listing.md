@@ -18,9 +18,9 @@ Character limits are App Store Connect's; counts are approximate, re-check after
 - **Keywords** (≤100 chars, comma-separated, no spaces between items for density):
   `poker,range,preflop,holdem,trainer,ranges,grid,drill,study,strategy,practice,flashcards`
 - **Primary category**: TODO - suggested **Education** primary, **Reference** secondary (a study tool, not a game).
-- **Support URL**: TODO - required by Apple (a page where users can get help).
+- **Support URL**: <https://8c9d.github.io/poker-range-trainer/support.html> (`docs/support.html`, live once GitHub Pages is enabled on `main` `/docs`).
 - **Marketing URL** (optional): TODO.
-- **Copyright**: TODO - e.g. `2026 <your name>`.
+- **Copyright**: `2026 8C9D`.
 - **Age rating**: TODO - answer the questionnaire.
   Note: the app has **no real-money gambling** and no simulated play (it is a study tool with no wagering, no chips and no dealt gameplay), which usually keeps the rating low, but read the "Simulated Gambling" questions and answer them honestly.
 
@@ -81,7 +81,7 @@ They reflect the shipped v1 build with crash reporting enabled (`EXPO_PUBLIC_SEN
 - **Collection is optional for the user?** No (crash reporting has no in-app toggle in v1), so answer the questionnaire as always-collected.
 - **Data deletion:** all user content is on-device; uninstalling removes it.
   Diagnostics at Sentry age out automatically (90-day retention).
-- **Privacy policy URL:** TODO - host `docs/privacy-policy.md` publicly and put the URL here (required).
+- **Privacy policy URL:** <https://8c9d.github.io/poker-range-trainer/privacy.html> (`docs/privacy.html`, live once GitHub Pages is enabled on `main` `/docs`).
 
 ## Still your job (not in this draft)
 

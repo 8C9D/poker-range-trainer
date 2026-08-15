@@ -1,9 +1,10 @@
 # Privacy Policy - Poker Range Trainer
 
-**Effective date:** TODO - set when published.
-**Contact:** TODO - your support email.
+**Effective date:** August 15, 2026.
+**Contact:** pokerrangetrainer.support@gmail.com.
 
-> This page must be hosted at a public URL before App Store submission; enter that URL in App Store Connect and in `docs/ios-store-listing.md`.
+> Hosted copy: `docs/privacy.html`, served by GitHub Pages at <https://8c9d.github.io/poker-range-trainer/privacy.html> once Pages is enabled (Settings - Pages - Deploy from a branch - `main` `/docs`); that URL goes in App Store Connect and in `docs/ios-store-listing.md`.
+> Keep this file and `docs/privacy.html` in sync - this file is the source, the HTML is what users see.
 > It describes the shipped v1 build and is consistent with the app's privacy manifest (`mobile/app.json`: `NSPrivacyTracking: false`, collected data limited to crash and performance diagnostics).
 > Keep the policy, the manifest and the App Privacy answers in sync if data practices change.
 > This template is not legal advice - review it for your jurisdiction.
@@ -61,4 +62,4 @@ Material changes will be reflected here.
 
 ## Contact
 
-Questions about this policy: TODO - your support email.
+Questions about this policy: pokerrangetrainer.support@gmail.com.

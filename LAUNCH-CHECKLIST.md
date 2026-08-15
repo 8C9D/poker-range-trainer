@@ -18,14 +18,14 @@ Re-opening any of them changes the work.
 - **[A]** an agent can complete it in the repo; covered by the Fable prompt.
 - **[Y]** needs you - an account, a payment, a dashboard, a device, or a judgement call an agent must not fake.
 
-## Status baseline (verified 2026-08-12 at `e57cd32`)
+## Status baseline (verified 2026-08-15 at `66835ab`)
 
 Every line below was re-run at that commit, not carried forward - and being behind the tree this block lives in is the floor here rather than a lapse, stated per REVIEW-R7 R7-6: a stamp cannot name the tree it lives in, for the same reason a status cell may only name a commit that already exists, so this line always names the parent of the commit that writes it.
-The gap then grows as the round's remaining documentation lands, which round 8 wrote this block as though it would not - corrected per REVIEW-R8 R8-9. The check that replaces the claim is one a reader can run: `git diff --stat <stamp>..HEAD` must be Markdown only, because the gate covers executable state and nothing else.
-It read `6186581` until round 7, five commits behind, one of which changed a comment in `@core`; refreshed per REVIEW-R6 R6-6 and at every round since. The counts have not moved; what moves is which tree the reader can take them for.
+The gap then grows as the round's remaining documentation lands, which round 8 wrote this block as though it would not - corrected per REVIEW-R8 R8-9. The check that replaces the claim is one a reader can run: `git diff --stat <stamp>..HEAD` must be Markdown or static `docs/` pages only, because the gate covers executable state and nothing else.
+It read `6186581` until round 7, five commits behind, one of which changed a comment in `@core`; refreshed per REVIEW-R6 R6-6 and at every round since. The mobile counts moved at `66835ab`: the send-test-crash-report hook added one suite and two tests (previously 37 / 241).
 
 - `npm run lint` clean on both apps.
-- `npm run test:run`: web 79 files / 1187 tests, mobile 37 suites / 241 tests, all passing.
+- `npm run test:run`: web 79 files / 1187 tests, mobile 38 suites / 243 tests, all passing.
 - `npm run build` clean, mobile `tsc --noEmit` clean.
 - `npm audit --omit=dev`: web 0 vulnerabilities.
 - All five confirmed findings in `review/findings.md` have matching fix commits (`3c709bf`, `7ccefad`, `5fe714b`, `3078e7b`, `cc0a5d7`).
@@ -160,10 +160,11 @@ Without the DSN the app runs completely normally with reporting inert, so this n
 
 Apple requires a **support URL** and a **privacy policy URL**, both live before submission.
 
-1. Cheapest route that is not embarrassing: a free GitHub Pages site, or a single Notion page published to the web.
-2. Publish the contents of `docs/privacy-policy.md` (the agent will have rewritten it for the shipped v1 - use the updated version, not the current one).
-3. Publish a support page with a working email address and a one-line "email me and I'll reply" promise.
-4. Note both URLs; they go into App Store Connect in step 8 and into `docs/ios-store-listing.md`.
+The pages are pre-staged in the repo (2026-08-15): `docs/privacy.html`, `docs/support.html`, `docs/index.html` and `docs/.nojekyll`, with the contact email prefilled as pokerrangetrainer.support@gmail.com - change it in both HTML files and `docs/privacy-policy.md` first if you want a different public address.
+
+1. On GitHub: **Settings - Pages - Deploy from a branch - `main` - `/docs` - Save**.
+2. Wait a minute, then confirm both URLs load: <https://8c9d.github.io/poker-range-trainer/privacy.html> and <https://8c9d.github.io/poker-range-trainer/support.html>.
+3. Both URLs are already entered in `docs/ios-store-listing.md`; they go into App Store Connect in step 8.
 
 ## Step 4 - Apple Developer Program
 
@@ -249,7 +250,7 @@ This is the first time it runs on a phone, and it is the pass most likely to fin
    - Airplane mode: the app is local-first and must be fully functional offline.
    - Dark mode and light mode.
    - Backgrounding mid-drill, then returning after several minutes.
-6. Confirm a crash actually reaches Sentry. Trigger one deliberately if the agent left a debug hook, then check the Sentry dashboard. Untested crash reporting is not crash reporting.
+6. Confirm a crash actually reaches Sentry. The hook exists (added 2026-08-15): **Account - Diagnostics - Send test crash report**, a section that renders only when the DSN is set. Press it, then check the Sentry dashboard for "Sentry pipeline test" - and check the stack trace is symbolicated, which is what proves the step 7 source-map upload worked. Untested crash reporting is not crash reporting.
 
 ## Step 10 - Screenshots
 
