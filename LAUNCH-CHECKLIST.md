@@ -106,7 +106,7 @@ Strictly sequential; each step gates the next.
 - [x] **[Y]** Enrol in the Apple Developer Program - step 4. Done 2026-08-15 (user-confirmed).
 - [x] **[Y]** Choose the bundle identifier - step 5. Done: `com.arthurzhang.pokerrangetrainer`, registered with Apple 2026-08-15 during credential setup.
 - [x] **[Y]** Install and configure EAS - step 6. Done 2026-08-15: Expo account `pokerrangetrainer` (org `poker-range-trainer`), project linked as `@poker-range-trainer/poker-range-trainer` (ID `00db7769-3ca5-4290-93a6-52fc8d3690ae`).
-- [ ] **[Y]** Create the App Store Connect record - step 8.
+- [x] **[Y]** Create the App Store Connect record - step 8. Record created 2026-08-15 (ASC App ID 6801882118) and build 1.0.0 (3) uploaded to it via `eas submit` the same day, with an APP_MANAGER-scoped ASC API key generated onto EAS servers for future submissions. Listing fields, App Privacy and age rating still being filled from `docs/ios-store-listing.md`.
 - [x] **[Y]** Production build - step 7. Done 2026-08-15: EAS build `bd69c773` (buildNumber 3) FINISHED with the source-map upload verified in its Xcode log; the first attempt `2355aaeb` failed because the archiver uploaded the machine-local `mobile/ios/` tree - fixed by the root `.easignore`, which also cut the upload from 311MB to 2.2MB.
 - [ ] **[Y]** TestFlight and the real-device pass - step 9.
 - [ ] **[Y]** Screenshots - step 10.
