@@ -105,6 +105,11 @@ export function HandGrid({ selected, onSetSelected, disabled = false }: HandGrid
   const panGesture = useMemo(
     () =>
       Gesture.Pan()
+        // With Worklets installed, gesture callbacks default to running on the UI
+        // runtime, where calling a plain JS function (the refs below) throws and
+        // aborts a release build. Painting cells needs no UI-thread work, so run
+        // the callbacks on the JS thread.
+        .runOnJS(true)
         .enabled(!disabled)
         // A stationary tap stays a Pressable press; only real movement activates
         // the pan, so taps are never applied twice.

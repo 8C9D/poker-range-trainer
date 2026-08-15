@@ -167,6 +167,9 @@ export function RecognitionDrill({
   const swipeGesture = useMemo(
     () =>
       Gesture.Pan()
+        // Same constraint as HandGrid's gesture: the callback calls plain JS (the
+        // answer ref, Haptics), which a UI-runtime worklet rejects fatally.
+        .runOnJS(true)
         .activeOffsetX([-20, 20])
         .onEnd((event) => {
           const choice = resolveSwipeAnswer(event.translationX);
