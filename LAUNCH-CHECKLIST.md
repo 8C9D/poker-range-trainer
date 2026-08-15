@@ -46,7 +46,7 @@ Restoring cloud sync would restore those 56 tests along with it - see `archived/
 - [x] **[A]** Unhook the Account screens on both platforms; the Reset-practice-record panel stays.
 - [x] **[A]** Drop `@supabase/supabase-js` from both `package.json` files, and `react-native-url-polyfill` from `mobile/` plus its `import 'react-native-url-polyfill/auto'` in `mobile/app/_layout.tsx` (it exists only for Supabase on Hermes).
 - [x] **[A]** Add the `cloud-sync` section to `archived/RESTORE.md` in the established format.
-- [ ] **[Y]** Deal with the live Supabase project - see "Your steps" step 1.
+- [x] **[Y]** Deal with the live Supabase project - see "Your steps" step 1. Closed 2026-08-15: **no live project was ever provisioned.** Verified three ways - signing in with GitHub landed on a brand-new create-your-first-organization screen (no account existed, nothing was created), the user's inbox has no Supabase mail at all, and the full git history contains no real project ref (only `example.supabase.co` test placeholders). Step 1's premise that "the live project still holds real rows" was an assumption, and it was wrong; cloud sync was built and tested env-gated with no real backend. Nothing to retire, no public read surface, no user data.
 
 ## Pass 2 - Restore JSON backup
 
@@ -120,6 +120,8 @@ Do steps 1-3 whenever; they are independent.
 Steps 4-11 are a chain.
 
 ## Step 1 - Retire the Supabase project
+
+**Closed 2026-08-15 with a corrected premise: no live project ever existed.** The paragraph below asserted live rows and an anonymous read surface; the verification recorded at the Pass 1 checkbox found no Supabase account under either login method, no Supabase email in the user's inbox, and no real project ref in the git history. The instructions below are kept for the record and would apply only if a project were provisioned for the 1.1 sync revival.
 
 Cloud sync is cut, but the live project still holds real rows and the deployed schema was never verified against the checked-in SQL.
 Two tables, `shared_ranges` and `shared_packs`, are readable by anonymous visitors through `SECURITY DEFINER` functions, and with publishing archived there is no in-app way to revoke a link that was already sent.
