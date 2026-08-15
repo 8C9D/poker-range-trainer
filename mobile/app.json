@@ -2,6 +2,7 @@
   "expo": {
     "name": "Poker Range Trainer",
     "slug": "poker-range-trainer",
+    "owner": "poker-range-trainer",
     "scheme": "pokerrangetrainer",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -82,6 +83,12 @@
         }
       ],
       "@sentry/react-native"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "00db7769-3ca5-4290-93a6-52fc8d3690ae"
+      }
+    }
   }
 }
