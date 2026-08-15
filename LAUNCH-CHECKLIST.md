@@ -108,6 +108,17 @@ Restoring cloud sync would restore those 56 tests along with it - see `archived/
 - [ ] **[Y]** Choose the price (standard tiers cap at US$999.99). Agent sets Pricing and Availability once the agreement is Active.
 - [ ] **[Y]** Decide EU distribution: DSA trader declaration (publishes contact info on the EU store) vs excluding EU countries from availability.
 
+## Pass 8b - Anonymity (decision of 2026-08-15: HARD REQUIREMENT, blocks submission)
+
+The user requires that their personal name never appear publicly on the App Store, and plans future apps under the same brand.
+An Individual membership always shows the member's legal name as the public seller - no alias exists - so:
+
+- [ ] **[Y]** Create a legal entity (Ontario or federal incorporation) named for the intended public brand.
+- [ ] **[Y]** Obtain a D-U-N-S number for the entity (free, ~1-2 weeks).
+- [ ] **[Y]** Convert the Apple Developer membership from Individual to Organization via Apple Developer Support; seller name becomes the corporation's.
+- **DO NOT SUBMIT FOR REVIEW before the conversion completes** - a submission under the Individual account publishes "Test User" as the seller. TestFlight internal testing is private and unaffected.
+- Note: incorporation also yields a CRA Business Number, which resolves the Pass 8a GST/HST blocker under the corporation instead of the individual.
+
 ## Pass 8 - Apple pipeline
 
 Strictly sequential; each step gates the next.
