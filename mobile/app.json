@@ -12,7 +12,7 @@
     "ios": {
       "bundleIdentifier": "com.arthurzhang.pokerrangetrainer",
       "supportsTablet": true,
-      "buildNumber": "1",
+      "buildNumber": "2",
       "privacyManifests": {
         "NSPrivacyTracking": false,
         "NSPrivacyTrackingDomains": [],

@@ -50,7 +50,9 @@ describe('app.json iOS privacy manifest', () => {
   });
 
   it('sets an iOS build number to pair with the version', () => {
-    expect(ios.buildNumber).toBe('1');
+    // The exact value is owned by EAS: the production profile's autoIncrement
+    // bumps it in app.json on every build, so only the shape is pinned here.
+    expect(ios.buildNumber).toMatch(/^\d+$/);
   });
 
   it('declares tracking disabled with no tracking domains', () => {
