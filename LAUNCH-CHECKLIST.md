@@ -73,8 +73,8 @@ Restoring cloud sync would restore those 56 tests along with it - see `archived/
 - [x] **[A]** Update `NSPrivacyCollectedDataTypes` in `mobile/app.json` to declare crash and diagnostic data, linked to app functionality and not to tracking.
 - [x] **[A]** Rewrite `docs/privacy-policy.md` for the shipped v1: local-first, no account, no cloud upload of ranges, crash diagnostics only.
 - [x] **[A]** Update the App Privacy answers in `docs/ios-store-listing.md` to match, and remove the sign-in copy from the listing.
-- [ ] **[Y]** Host the privacy policy at a public URL - see "Your steps" step 3.
-- [ ] **[Y]** Provide a support URL and support email - see "Your steps" step 3.
+- [x] **[Y]** Host the privacy policy at a public URL - see "Your steps" step 3. Done 2026-08-15: GitHub Pages enabled on `main` `/docs`; <https://8c9d.github.io/poker-range-trainer/privacy.html> confirmed loading by user and agent.
+- [x] **[Y]** Provide a support URL and support email - see "Your steps" step 3. Done 2026-08-15: <https://8c9d.github.io/poker-range-trainer/support.html> live with pokerrangetrainer.support@gmail.com.
 - [ ] **[Y]** Answer the age-rating questionnaire, including the simulated-gambling questions - see "Your steps" step 8.
 - [ ] **[Y]** Decide whether the repo needs a LICENSE (only matters if it is or will be public).
 
