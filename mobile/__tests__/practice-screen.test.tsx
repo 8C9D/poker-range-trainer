@@ -100,7 +100,7 @@ describe('PracticeScreen (overlay host)', () => {
 
     fireEvent.press(getByTestId('answer-no'));
 
-    expect(await findByTestId('drill-why')).toHaveTextContent(/this range plays \d+ of \d+/);
+    expect(await findByTestId('drill-why')).toHaveTextContent(/Plays \d+\/\d+/);
   });
 
   it('says nothing about a missed hand the user never noted', async () => {
