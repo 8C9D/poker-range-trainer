@@ -57,7 +57,7 @@ Restoring cloud sync would restore those 56 tests along with it - see `archived/
 
 ## Pass 3 - Crash reporting
 
-- [ ] **[Y]** Create the Sentry account and project - see "Your steps" step 2.
+- [x] **[Y]** Create the Sentry account and project - see "Your steps" step 2. Done 2026-08-15: org `<sentry-org>`, project `poker-range-trainer` (renamed from the auto-assigned `react-native`; project ID <sentry-project-id>), US data storage; DSN in `mobile/.env.local` (untracked).
 - [x] **[A]** Add `@sentry/react-native` and its Expo config plugin, gated on `EXPO_PUBLIC_SENTRY_DSN` and fully inert when unset, mirroring the `cloudEnv.ts` seam.
 - [x] **[A]** Initialise in `mobile/app/_layout.tsx` with `Sentry.wrap` and `expoRouterIntegration`; wire `mobile/components/ErrorBoundary.tsx` to report caught errors.
   (Note: the SDK 56-pinned `@sentry/react-native` ~7.11.0 predates `expoRouterIntegration`; its documented equivalent for expo-router - `reactNavigationIntegration` registered with the router's navigation-container ref - is wired instead.)
