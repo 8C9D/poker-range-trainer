@@ -63,10 +63,11 @@ Restoring cloud sync would restore those 56 tests along with it - see `archived/
   (Note: the SDK 56-pinned `@sentry/react-native` ~7.11.0 predates `expoRouterIntegration`; its documented equivalent for expo-router - `reactNavigationIntegration` registered with the router's navigation-container ref - is wired instead.)
 - [x] **[A]** Disable session replay, screenshots and view hierarchy; a poker study tool has no reason to ship screen contents to a third party.
 - [x] **[A]** Test that the app boots and behaves identically with the DSN unset.
-- [ ] **[Y]** Add `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` and `SENTRY_PROJECT` to EAS secrets for source-map upload - see "Your steps" step 7.
+- [x] **[Y]** Add `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` and `SENTRY_PROJECT` to EAS secrets for source-map upload - see "Your steps" step 7. Done 2026-08-15, plus `EXPO_PUBLIC_SENTRY_DSN`, all four as secret-visibility production env vars on `@poker-range-trainer/poker-range-trainer` (the auth token was rotated once after an exposure in a chat transcript; the live one exists only in the user's password manager and EAS).
   All three are needed: the plugin entry in `mobile/app.json` carries no `organization` or `project`, so the generated `ios/sentry.properties` falls back to `SENTRY_ORG` and `SENTRY_PROJECT` from the environment.
   Without them the upload has no destination `sentry-cli` can resolve, and it treats that as a hard configuration error rather than a skip, which the build script turns into a failed build - see step 7 for the trace through `sentry-xcode.sh`.
-  That is inferred from the vendored script and CLI, never observed; only a real production build settles it, and `PROD-READINESS.md`'s CANNOT ASSESS section says so.
+  That was inferred from the vendored script and CLI until 2026-08-15; the first real production build (EAS build `bd69c773`, buildNumber 3) then ran the upload with all three set and it succeeded - "Uploaded files to Sentry", release `com.arthurzhang.pokerrangetrainer@1.0.0+3`, org `<sentry-org>`, project `poker-range-trainer`.
+  The missing-variable failure mode itself remains unobserved (no build has run with one unset), but the same build day produced direct evidence for the loud-failure half of the claim: the first build attempt (`2355aaeb`) failed in the bundle phase and `sentry-xcode.sh` surfaced it as an Xcode `error:` and a failed build rather than a silent skip.
 
 ## Pass 4 - Privacy and legal
 
@@ -103,10 +104,10 @@ Restoring cloud sync would restore those 56 tests along with it - see `archived/
 Strictly sequential; each step gates the next.
 
 - [x] **[Y]** Enrol in the Apple Developer Program - step 4. Done 2026-08-15 (user-confirmed).
-- [ ] **[Y]** Choose the bundle identifier - step 5. **[A]** sets it in `mobile/app.json` once you decide.
-- [ ] **[Y]** Install and configure EAS - step 6.
+- [x] **[Y]** Choose the bundle identifier - step 5. Done: `com.arthurzhang.pokerrangetrainer`, registered with Apple 2026-08-15 during credential setup.
+- [x] **[Y]** Install and configure EAS - step 6. Done 2026-08-15: Expo account `pokerrangetrainer` (org `poker-range-trainer`), project linked as `@poker-range-trainer/poker-range-trainer` (ID `00db7769-3ca5-4290-93a6-52fc8d3690ae`).
 - [ ] **[Y]** Create the App Store Connect record - step 8.
-- [ ] **[Y]** Production build - step 7.
+- [x] **[Y]** Production build - step 7. Done 2026-08-15: EAS build `bd69c773` (buildNumber 3) FINISHED with the source-map upload verified in its Xcode log; the first attempt `2355aaeb` failed because the archiver uploaded the machine-local `mobile/ios/` tree - fixed by the root `.easignore`, which also cut the upload from 311MB to 2.2MB.
 - [ ] **[Y]** TestFlight and the real-device pass - step 9.
 - [ ] **[Y]** Screenshots - step 10.
 - [ ] **[Y]** Submit - step 11.
