@@ -13,6 +13,9 @@
       "bundleIdentifier": "com.arthurzhang.pokerrangetrainer",
       "supportsTablet": true,
       "buildNumber": "3",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
       "privacyManifests": {
         "NSPrivacyTracking": false,
         "NSPrivacyTrackingDomains": [],

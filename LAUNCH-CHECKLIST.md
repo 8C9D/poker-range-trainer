@@ -76,7 +76,7 @@ Restoring cloud sync would restore those 56 tests along with it - see `archived/
 - [x] **[A]** Update the App Privacy answers in `docs/ios-store-listing.md` to match, and remove the sign-in copy from the listing.
 - [x] **[Y]** Host the privacy policy at a public URL - see "Your steps" step 3. Done 2026-08-15: GitHub Pages enabled on `main` `/docs`; <https://8c9d.github.io/poker-range-trainer/privacy.html> confirmed loading by user and agent.
 - [x] **[Y]** Provide a support URL and support email - see "Your steps" step 3. Done 2026-08-15: <https://8c9d.github.io/poker-range-trainer/support.html> live with pokerrangetrainer.support@gmail.com.
-- [ ] **[Y]** Answer the age-rating questionnaire, including the simulated-gambling questions - see "Your steps" step 8.
+- [x] **[Y]** Answer the age-rating questionnaire, including the simulated-gambling questions - see "Your steps" step 8. Done 2026-08-15 (agent-driven in the user's browser on the user's instruction): every content and capability question answered None/No - including Simulated Gambling: None (no wagering, no chips, no dealt gameplay) - calculated rating **4+** in 172 countries with automatic regional variants, no override, App Privacy responses published the same day (Data Not Linked to You, Diagnostics only), and the build-3 export-compliance question answered "None of the algorithms mentioned above" (the app implements no encryption of its own; it only uses the OS's TLS). Build 1.0.0 (3) is now Ready to Submit in TestFlight. `ITSAppUsesNonExemptEncryption: false` added to `mobile/app.json` so future builds skip the compliance dialog.
 - [ ] **[Y]** Decide whether the repo needs a LICENSE (only matters if it is or will be public).
 
 ## Pass 5 - Data safety
