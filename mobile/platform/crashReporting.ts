@@ -102,6 +102,18 @@ export function reportCaughtError(error: unknown): void {
 }
 
 /**
+ * Send a deliberate test event so a human can confirm the pipeline end to end
+ * on a real device (LAUNCH-CHECKLIST.md step 9: untested crash reporting is
+ * not crash reporting). A real Error is captured rather than a message so the
+ * dashboard shows a stack trace, which is also what verifies the uploaded
+ * source maps symbolicate.
+ */
+export function sendTestCrashReport(): void {
+  if (!isCrashReportingEnabled()) return;
+  Sentry.captureException(new Error('Sentry pipeline test - sent deliberately from the Account tab'));
+}
+
+/**
  * Report storage keys that went missing between one launch and the next.
  *
  * There is no exception to capture here: MMKV drops the data down in native code
