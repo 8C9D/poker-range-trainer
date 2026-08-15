@@ -118,7 +118,7 @@ describe('RecognitionDrill', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Fold' }))
     expect(
-      screen.getByText(/AA is in: this range plays 2 of 4 premium pairs/),
+      screen.getByText(/AA is in\. Plays 2\/4 premium pairs/),
     ).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))

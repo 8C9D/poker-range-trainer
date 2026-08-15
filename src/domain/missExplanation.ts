@@ -74,13 +74,14 @@ export function explainHand(hand: PokerHand, rangeHands: PokerHand[]): HandExpla
   const inRange = inSet.has(hand)
   const borderline = neighbours.some((neighbour) => inSet.has(neighbour) !== inRange)
 
+  // Terse on purpose: the drill flashes this between hands, so every fact is a
+  // short clause and the separators carry the structure (device-pass feedback,
+  // 2026-08-15 — the prose version read too long mid-drill).
   const noun = HAND_CLASS_NOUNS[handClass]
-  const classPart = `this range plays ${classInRange} of ${members.length} ${noun}`
-  const neighbourPart = `${neighboursInRange} of its ${neighbours.length} neighbours ${
-    neighboursInRange === 1 ? 'is' : 'are'
-  } in`
-  const edgePart = borderline ? ' It sits right on the range edge.' : ''
-  const opening = `${hand} is ${inRange ? 'in' : 'out'}`
+  const classPart = `Plays ${classInRange}/${members.length} ${noun}`
+  const neighbourPart = `${neighboursInRange}/${neighbours.length} neighbours in`
+  const edgePart = borderline ? ' · edge hand' : ''
+  const opening = `${hand} is ${inRange ? 'in' : 'out'}.`
 
   return {
     hand,
@@ -91,6 +92,6 @@ export function explainHand(hand: PokerHand, rangeHands: PokerHand[]): HandExpla
     neighbours,
     neighboursInRange,
     borderline,
-    line: `${opening}: ${classPart}, and ${neighbourPart}.${edgePart}`,
+    line: `${opening} ${classPart} · ${neighbourPart}${edgePart}.`,
   }
 }

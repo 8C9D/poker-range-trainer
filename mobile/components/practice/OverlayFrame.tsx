@@ -59,11 +59,15 @@ export function OverlayFrame({
         ) : (
           <View style={styles.progressSpacer} />
         )}
-        <Text style={[styles.title, { color: theme.ink2 }]} numberOfLines={1}>
-          {title}
-          {position ? ` · ${position}` : ''}
-        </Text>
+        {position ? (
+          <Text style={[styles.position, { color: theme.ink2 }]}>{position}</Text>
+        ) : null}
       </View>
+      {/* Own row rather than sharing the bar: real range names ("Heads up cash 100
+          BB small blind open") truncated to a stub beside the progress track. */}
+      <Text style={[styles.title, { color: theme.ink2 }]} numberOfLines={2}>
+        {title}
+      </Text>
       <View style={styles.content}>{children}</View>
     </View>
   );
@@ -83,6 +87,7 @@ const styles = StyleSheet.create({
   progressTrack: { flex: 1, height: 6, borderRadius: 3, overflow: 'hidden' },
   progressFill: { height: 6, borderRadius: 3 },
   progressSpacer: { flex: 1 },
-  title: { fontFamily: fonts.bodyMedium, fontSize: 13, maxWidth: 120, fontVariant: ['tabular-nums'] },
+  position: { fontFamily: fonts.bodyMedium, fontSize: 13, fontVariant: ['tabular-nums'] },
+  title: { fontFamily: fonts.bodyMedium, fontSize: 13, paddingHorizontal: 16, paddingBottom: 6 },
   content: { flex: 1 },
 });

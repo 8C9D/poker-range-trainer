@@ -45,10 +45,14 @@ describe('BuildScreen', () => {
     await user.press(getByTestId('build-check'));
 
     await waitFor(() => {
-      // AA is correct; KK was missed; nothing extra.
-      expect(getByTestId('build-correct')).toHaveTextContent('AA');
-      expect(getByTestId('build-missed')).toHaveTextContent('KK');
+      // AA is correct; KK was missed; nothing extra. The legend carries counts and
+      // the results grid marks each hand's outcome in its accessibility label.
+      expect(getByTestId('build-correct')).toHaveTextContent('Correct 1');
+      expect(getByTestId('build-missed')).toHaveTextContent('Missed 1');
       expect(queryByTestId('build-extra')).toBeNull();
+      expect(getByTestId('build-cell-AA')).toHaveProp('accessibilityLabel', 'AA, correct');
+      expect(getByTestId('build-cell-KK')).toHaveProp('accessibilityLabel', 'KK, missed');
+      expect(getByTestId('build-cell-QQ')).toHaveProp('accessibilityLabel', 'QQ');
     });
   });
 
@@ -63,8 +67,9 @@ describe('BuildScreen', () => {
     await user.press(getByTestId('build-check'));
 
     await waitFor(() => {
-      expect(getByTestId('build-correct')).toHaveTextContent('AA');
-      expect(getByTestId('build-extra')).toHaveTextContent('QQ');
+      expect(getByTestId('build-correct')).toHaveTextContent('Correct 1');
+      expect(getByTestId('build-extra')).toHaveTextContent('Extra 1');
+      expect(getByTestId('build-cell-QQ')).toHaveProp('accessibilityLabel', 'QQ, extra');
     });
 
     // Resetting clears the guess and the result.

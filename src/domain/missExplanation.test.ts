@@ -28,9 +28,7 @@ describe('explainHand', () => {
     expect(explanation.classTotal).toBe(8)
     expect(explanation.neighbours.sort()).toEqual(['T8s', '88', '99', '97s'].sort())
     expect(explanation.neighboursInRange).toBe(2)
-    expect(explanation.line).toBe(
-      '98s is in: this range plays 2 of 8 suited connectors, and 2 of its 4 neighbours are in. It sits right on the range edge.',
-    )
+    expect(explanation.line).toBe('98s is in. Plays 2/8 suited connectors · 2/4 neighbours in · edge hand.')
   })
 
   it('explains a hand that is out of the range', () => {
@@ -38,8 +36,8 @@ describe('explainHand', () => {
 
     expect(explanation.inRange).toBe(false)
     expect(explanation.classInRange).toBe(0)
-    expect(explanation.line).toMatch(/^K8s is out: this range plays 0 of \d+ other suited hands/)
-    expect(explanation.line).toContain('0 of its 4 neighbours are in')
+    expect(explanation.line).toMatch(/^K8s is out\. Plays 0\/\d+ other suited hands/)
+    expect(explanation.line).toContain('0/4 neighbours in')
   })
 
   it('flags a hand as borderline only when a neighbour is treated differently', () => {
@@ -48,7 +46,7 @@ describe('explainHand', () => {
 
     const solid = explainHand('AA', ['AA', 'AKs', 'AKo'])
     expect(solid.borderline).toBe(false)
-    expect(solid.line).not.toContain('range edge')
+    expect(solid.line).not.toContain('edge hand')
 
     const outside = explainHand('22', [])
     expect(outside.borderline).toBe(false)
