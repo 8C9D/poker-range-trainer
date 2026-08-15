@@ -102,7 +102,7 @@ Restoring cloud sync would restore those 56 tests along with it - see `archived/
 
 Strictly sequential; each step gates the next.
 
-- [ ] **[Y]** Enrol in the Apple Developer Program - step 4.
+- [x] **[Y]** Enrol in the Apple Developer Program - step 4. Done 2026-08-15 (user-confirmed).
 - [ ] **[Y]** Choose the bundle identifier - step 5. **[A]** sets it in `mobile/app.json` once you decide.
 - [ ] **[Y]** Install and configure EAS - step 6.
 - [ ] **[Y]** Create the App Store Connect record - step 8.
