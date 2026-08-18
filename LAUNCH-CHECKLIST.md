@@ -76,7 +76,7 @@ Restoring cloud sync would restore those 56 tests along with it - see `archived/
 - [x] **[A]** Update the App Privacy answers in `docs/ios-store-listing.md` to match, and remove the sign-in copy from the listing.
 - [x] **[Y]** Host the privacy policy at a public URL - see "Your steps" step 3. Done 2026-08-15: GitHub Pages enabled on `main` `/docs`; <https://8c9d.github.io/poker-range-trainer/privacy.html> confirmed loading by user and agent.
 - [x] **[Y]** Provide a support URL and support email - see "Your steps" step 3. Done 2026-08-15: <https://8c9d.github.io/poker-range-trainer/support.html> live with pokerrangetrainer.support@gmail.com.
-- [x] **[Y]** Answer the age-rating questionnaire, including the simulated-gambling questions - see "Your steps" step 8. Done 2026-08-15 (agent-driven in the user's browser on the user's instruction): every content and capability question answered None/No - including Simulated Gambling: None (no wagering, no chips, no dealt gameplay) - calculated rating **4+** in 172 countries with automatic regional variants, no override, App Privacy responses published the same day (Data Not Linked to You, Diagnostics only), and the build-3 export-compliance question answered "None of the algorithms mentioned above" (the app implements no encryption of its own; it only uses the OS's TLS). Build 1.0.0 (3) is now Ready to Submit in TestFlight. `ITSAppUsesNonExemptEncryption: false` added to `mobile/app.json` so future builds skip the compliance dialog.
+- [x] **[Y]** Answer the age-rating questionnaire, including the simulated-gambling questions - see "Your steps" step 8. Done 2026-08-15 (agent-driven in the user's browser on the user's instruction): every content and capability question answered None/No - including Simulated Gambling: None (no wagering, no chips, no dealt gameplay) - calculated rating **4+** in 172 countries with automatic regional variants, no override, App Privacy responses published the same day (Data Not Linked to You, Diagnostics only), and the build-3 export-compliance question answered "None of the algorithms mentioned above" (the app implements no encryption of its own; it only uses the OS's TLS). Build 1.0.0 (3) reached Ready to Submit in TestFlight that day; it has since been superseded twice - see the build ledger under Pass 8. `ITSAppUsesNonExemptEncryption: false` added to `mobile/app.json` so future builds skip the compliance dialog.
 - [ ] **[Y]** Decide whether the repo needs a LICENSE (only matters if it is or will be public).
 
 ## Pass 5 - Data safety
@@ -90,7 +90,7 @@ Restoring cloud sync would restore those 56 tests along with it - see `archived/
 - [x] **[A]** Run the full suite under several timezones (a half-hour offset such as `Asia/Kolkata`, a DST-observing zone such as `America/New_York`, and `UTC`). Streaks, daily goals, the review schedule and the "today" boundary are all local-day arithmetic that has only ever run in one zone. Fix what breaks, or report it precisely.
 - [x] **[A]** Remove the orphaned `src/components/SpotCoverage.css` and the empty `mobile/app/p/` and `mobile/app/r/` directories.
 - [x] **[A]** Strip the Android block from `mobile/app.json`; Android has never been built or tested and half-present config invites a bad build.
-- [ ] **[Y]** Real-device pass on TestFlight - see "Your steps" step 9. This is the one pass that cannot be simulated, and every test to date has run under jsdom or Jest.
+- [ ] **[Y]** Real-device pass on TestFlight - see "Your steps" step 9. This is the one pass that cannot be simulated, and every test to date has run under jsdom or Jest. Run it on **1.0.0 (5)**, the latest build uploaded to App Store Connect - see the build ledger under Pass 8.
 
 ## Pass 7 - Release engineering
 
@@ -126,11 +126,27 @@ Strictly sequential; each step gates the next.
 - [x] **[Y]** Enrol in the Apple Developer Program - step 4. Done 2026-08-15 (user-confirmed).
 - [x] **[Y]** Choose the bundle identifier - step 5. Done: `com.arthurzhang.pokerrangetrainer`, registered with Apple 2026-08-15 during credential setup.
 - [x] **[Y]** Install and configure EAS - step 6. Done 2026-08-15: Expo account `pokerrangetrainer` (org `poker-range-trainer`), project linked as `@poker-range-trainer/poker-range-trainer` (ID `00db7769-3ca5-4290-93a6-52fc8d3690ae`).
-- [x] **[Y]** Create the App Store Connect record - step 8. Record created 2026-08-15 (ASC App ID 6801882118) and build 1.0.0 (3) uploaded to it via `eas submit` the same day, with an APP_MANAGER-scoped ASC API key generated onto EAS servers for future submissions. Listing fields, App Privacy and age rating still being filled from `docs/ios-store-listing.md`.
-- [x] **[Y]** Production build - step 7. Done 2026-08-15: EAS build `bd69c773` (buildNumber 3) FINISHED with the source-map upload verified in its Xcode log; the first attempt `2355aaeb` failed because the archiver uploaded the machine-local `mobile/ios/` tree - fixed by the root `.easignore`, which also cut the upload from 311MB to 2.2MB.
-- [ ] **[Y]** TestFlight and the real-device pass - step 9.
+- [x] **[Y]** Create the App Store Connect record - step 8. Record created 2026-08-15 (ASC App ID 6801882118), with an APP_MANAGER-scoped ASC API key generated onto EAS servers for future submissions. Three builds were uploaded to it via `eas submit` the same day - 1.0.0 (3), (4) and (5) - so the current binary on the record is **1.0.0 (5)**; see the build ledger below. Listing fields, App Privacy and age rating still being filled from `docs/ios-store-listing.md`.
+- [x] **[Y]** Production build - step 7. Done 2026-08-15 and superseded twice the same day; the shipping candidate is EAS build `5b3a1430` (buildNumber 5). The first production build `bd69c773` (buildNumber 3) FINISHED with the source-map upload verified in its Xcode log; the first attempt of all, `2355aaeb`, failed because the archiver uploaded the machine-local `mobile/ios/` tree - fixed by the root `.easignore`, which also cut the upload from 311MB to 2.2MB.
+- [ ] **[Y]** TestFlight and the real-device pass - step 9, on **1.0.0 (5)**.
 - [ ] **[Y]** Screenshots - step 10.
-- [ ] **[Y]** Submit - step 11.
+- [ ] **[Y]** Submit - step 11, with **1.0.0 (5)** attached, and only after the Pass 8b conversion completes.
+
+### Build ledger (verified 2026-08-18 at `c752778` against `eas build:list` and `eas submit:list`)
+
+All three finished builds were uploaded to App Store Connect; every `eas submit` job reports `FINISHED` with no error, against ASC App ID 6801882118.
+This corrects the earlier ledger, which named 1.0.0 (3) as the uploaded build everywhere and had not been updated for the two builds that followed it.
+
+| Build | EAS build id | Build status | Commit | Contains | Upload to ASC |
+| --- | --- | --- | --- | --- | --- |
+| 1.0.0 (2) | `2355aaeb` | ERRORED | `8ec4727` | - | never uploaded (build failed) |
+| 1.0.0 (3) | `bd69c773` | FINISHED 2026-08-15 17:26 UTC | `8642d53` | first production build; Sentry source-map upload proven | uploaded, submission `f335e427` FINISHED 17:35 UTC |
+| 1.0.0 (4) | `07e7fc9e` | FINISHED 2026-08-15 22:24 UTC | `8a9f474` | release-build gesture/worklet crash fix (gesture callbacks moved to the JS thread) | uploaded, submission `91d34374` FINISHED 22:26 UTC |
+| 1.0.0 (5) | `5b3a1430` | FINISHED 2026-08-15 23:14 UTC | `1f281e3` | drill feedback polish - terser feedback line and unstacked drill header (`4c65e0a`), test assertion updated to match (`1f281e3`) | uploaded, submission `1a4b9f25` FINISHED 23:48 UTC |
+
+**Use 1.0.0 (5)** for the step 9 real-device pass, for the step 10 screenshots, and as the binary attached at step 11. It is the newest build, it is the only one carrying both the crash fix and the feedback polish, and EAS confirms it was uploaded. `mobile/app.json` carries buildNumber 5, so the tree and the uploaded binary agree; nothing needs rebuilding or re-uploading to start step 9.
+
+What EAS confirms is the upload: the `eas submit` job completed and Apple accepted the binary. What EAS cannot report is the App Store Connect side of it - **to confirm in App Store Connect**: that 1.0.0 (5) finished TestFlight processing, that its export-compliance answer is satisfied (`ITSAppUsesNonExemptEncryption: false` has been in `mobile/app.json` since build 4, so it should not prompt), and that it shows Ready to Submit. Build 3 was confirmed Ready to Submit on 2026-08-15; builds 4 and 5 have not been checked in the ASC UI since upload.
 
 ---
 
@@ -258,7 +274,7 @@ If `eas login` needs an Expo account, create one at https://expo.dev - it is fre
 Everything in this project has been tested under jsdom or Jest.
 This is the first time it runs on a phone, and it is the pass most likely to find something real.
 
-1. In App Store Connect, go to **TestFlight** and wait for the build from step 7 to finish processing (10-30 minutes).
+1. In App Store Connect, go to **TestFlight** and pick **1.0.0 (5)** - the latest build uploaded from step 7, per the build ledger under Pass 8. It was uploaded 2026-08-15; if it is still processing, that takes 10-30 minutes from upload. Do not test build 3 or 4: 4 added the release-build gesture crash fix and 5 added the drill feedback polish, so only 5 is the shipping candidate.
 2. Add yourself as an internal tester; install via the TestFlight app.
 3. Work through `docs/manual-testing-guide.md` on the device. At minimum:
    - Create a range by hand on the 13x13 grid, including drag-paint.
@@ -284,7 +300,7 @@ This is the first time it runs on a phone, and it is the pass most likely to fin
 
 ## Step 11 - Submit
 
-1. In App Store Connect, attach the build to the version.
+1. In App Store Connect, attach the build to the version - **1.0.0 (5)** unless a newer one has been built and uploaded since; check the build ledger under Pass 8 before you pick.
 2. Complete anything still flagged incomplete.
 3. **Submit for Review**.
 4. Review typically takes 24-48 hours.
