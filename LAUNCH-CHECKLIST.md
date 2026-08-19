@@ -276,12 +276,12 @@ This is the first time it runs on a phone, and it is the pass most likely to fin
 
 1. In App Store Connect, go to **TestFlight** and pick **1.0.0 (5)** - the latest build uploaded from step 7, per the build ledger under Pass 8. It was uploaded 2026-08-15; if it is still processing, that takes 10-30 minutes from upload. Do not test build 3 or 4: 4 added the release-build gesture crash fix and 5 added the drill feedback polish, so only 5 is the shipping candidate.
 2. Add yourself as an internal tester; install via the TestFlight app.
-3. Work through `docs/manual-testing-guide.md` on the device. At minimum:
+3. Work through `docs/device-pass-script.md` on the device - it is the step-by-step script for this pass, checked against `mobile/` source, and it names the strings actually on screen. (`docs/manual-testing-guide.md` is the fuller reference and covers both apps.) At minimum:
    - Create a range by hand on the 13x13 grid, including drag-paint.
-   - Run a recognition drill end to end and press **End session**.
-   - Confirm Progress and the streak updated.
+   - Run a recognition drill end to end. There is no "End session" button: a session records when the 20-question set completes, and also when you end one early with the overlay's **×** (VoiceOver reads it as *Close practice*), which keeps the answers already given.
+   - Confirm the **Today** tab's streak chip and the **Progress** tab updated.
    - Force-quit the app, reopen it, confirm nothing was lost.
-   - Export a JSON backup, delete a range, re-import the backup, confirm it came back.
+   - **Account → Back up to a file**, delete a range, then **Restore from a file** with that backup, and confirm it came back.
 4. **Upgrade path**: install the current build, create data, then install the next build over the top and confirm the data survived. Do this before every release, forever.
 5. Device-specific checks that jsdom cannot reach:
    - iPhone SE or the smallest device you can find - the 13x13 grid is exactly the layout that breaks on narrow screens.
@@ -289,7 +289,7 @@ This is the first time it runs on a phone, and it is the pass most likely to fin
    - Airplane mode: the app is local-first and must be fully functional offline.
    - Dark mode and light mode.
    - Backgrounding mid-drill, then returning after several minutes.
-6. Confirm a crash actually reaches Sentry. The hook exists (added 2026-08-15): **Account - Diagnostics - Send test crash report**, a section that renders only when the DSN is set. Press it, then check the Sentry dashboard for "Sentry pipeline test" - and check the stack trace is symbolicated, which is what proves the step 7 source-map upload worked. Untested crash reporting is not crash reporting.
+6. Confirm a crash actually reaches Sentry. The hook exists (added 2026-08-15): the **Account** tab's **Diagnostics** section - a section at the bottom of the Account screen, not a submenu - carries a **Send test crash report** button, and the whole section renders only when the DSN is set. Press it, then check the Sentry dashboard for "Sentry pipeline test" - and check the stack trace is symbolicated, which is what proves the step 7 source-map upload worked. Untested crash reporting is not crash reporting.
 
 ## Step 10 - Screenshots
 

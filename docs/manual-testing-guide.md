@@ -54,9 +54,16 @@ web (bottom tabs under 640px, and native bottom tabs on iOS):
   week, library analytics, which way you miss, leaks by hand type, and weakest
   hands.
 - **Account** — the file backup (export / import) and the practice-stats reset.
+  The button names differ per platform: web shows **Export backup** / **Import
+  backup** / **Reset practice stats**; iOS shows a **File backup** section
+  (**Back up to a file** / **Restore from a file**) and a **Practice record**
+  section (**Reset practice stats**), plus a **Diagnostics** section when the
+  Sentry DSN is set.
 
 Practice runs as a full-screen overlay: a mode picker, then the drill, then a
-session summary.
+session summary. The overlay's close control (**×**, labelled *Close practice*;
+Escape on web) ends the drill **and records it** — there is no separate "end
+session" button on either platform.
 
 ### Automated checks (run these first)
 
@@ -176,8 +183,9 @@ review" and the weak-hand drills skip it and go straight into recognition):
 5. **Edge drill** — prompts only from the range boundary (in-range hands with an
    out-of-range neighbour, and vice versa); hidden for a range with no boundary.
 
-Plus **Practice mistakes only** — the range page's **Stats** tab has a
-"Practice mistakes" button restricted to hands you've gotten wrong.
+Plus **Practice mistakes only** — the range page's **Stats** tab has a button
+restricted to hands you've gotten wrong: "Practice mistakes" on web, "Practice
+weak hands" on iOS.
 
 Every **miss is explained** — the hand's class, how much of that class the range
 plays, and whether it sits on the range edge — and the miss holds on screen
@@ -188,10 +196,12 @@ swipe left = out, with a haptic tap; the buttons remain the primary control.
 
 Open via the range page's **Stats** tab:
 
-- **Per-hand accuracy table** — weakest-first: hand, accuracy %, attempts,
-  missed, wrongly included.
+- **Per-hand accuracy** — weakest-first. Web draws it as a table (hand,
+  accuracy %, attempts, missed, wrongly included); iOS draws a **Weakest hands**
+  card of hand chips with their accuracy percentages.
 - **Session history** — newest-first list of finished sessions.
-- **Practice mistakes** button (when there are recorded mistakes).
+- A drill-the-mistakes button when there are recorded mistakes: **Practice
+  mistakes** on web, **Practice weak hands** on iOS.
 
 ### Spaced repetition, goals & Today
 
@@ -217,6 +227,9 @@ Open via the range page's **Stats** tab:
 
 ### JSON backup (Account)
 
+Named **Export backup** / **Import backup** on web, and **Back up to a file** /
+**Restore from a file** (under **File backup**) on iOS.
+
 - **Export backup** — one file holding every persisted slice: ranges (dormant
   overlay fields included), practice stats, per-hand / per-action / per-spot
   accuracy, session history, review state, and the daily-goal target. Only the
@@ -235,6 +248,8 @@ Open via the range page's **Stats** tab:
 - Gated entirely on `EXPO_PUBLIC_SENTRY_DSN`. Unset (the default in dev and
   test), the app behaves exactly as if Sentry did not exist: no init, no
   network, no console output.
+- Set, the Account screen also renders a **Diagnostics** section (a section on
+  Account, not a submenu) with a **Send test crash report** button.
 - Set, it reports crashes and caught ErrorBoundary errors plus sampled (10%)
   performance traces. Session replay, screenshots, and view hierarchies are
   disabled — see `mobile/platform/crashReporting.ts` and
@@ -410,14 +425,16 @@ area from a known state (see §2).
 
 ### 5.14 Practice mistakes only
 
-- [ ] After misses, the **Stats** tab's "Practice mistakes" launches a session
-      restricted to missed hands; the button is absent with no recorded mistakes.
+- [ ] After misses, the **Stats** tab's "Practice mistakes" (web) / "Practice
+      weak hands" (iOS) launches a session restricted to missed hands; the
+      button is absent with no recorded mistakes.
 
 ### 5.15 Performance view (Stats tab)
 
 - [ ] Unpracticed: the "No practice data yet" message.
-- [ ] After sessions: the weakest-first per-hand table (accuracy %, attempts,
-      missed, wrongly included) and the newest-first session history.
+- [ ] After sessions: the weakest-first per-hand record (a table with accuracy
+      %, attempts, missed and wrongly included on web; a **Weakest hands** card
+      of accuracy chips on iOS) and the newest-first session history.
 
 ### 5.16 Spaced repetition: due today + streak
 
@@ -449,12 +466,17 @@ area from a known state (see §2).
 
 ### 5.19 JSON backup (Account)
 
-- [ ] The **Account** screen shows exactly: Export backup, Import backup, and
-      Reset practice stats (no cloud, sign-in, pack, CSV, or notation controls).
+- [ ] The **Account** screen shows exactly the backup export, the backup import
+      and the practice-stats reset — Export backup / Import backup / Reset
+      practice stats on web, **Back up to a file** / **Restore from a file**
+      (under **File backup**) and **Reset practice stats** (under **Practice
+      record**) on iOS — plus the DSN-gated **Diagnostics** section on iOS. No
+      cloud, sign-in, pack, CSV, or notation controls.
 - [ ] **Reset practice stats** confirms first, clears every recorded store, and
       keeps the ranges and the daily goal; Progress falls back to empty states.
-- [ ] "Export backup" downloads a dated JSON (web) / opens the share sheet (iOS).
-- [ ] "Import backup" confirms, then **replaces** all local data with the file.
+- [ ] The export downloads a dated JSON (web) / opens the share sheet on
+      `poker-ranges-backup.json` (iOS).
+- [ ] The import confirms, then **replaces** all local data with the file.
 - [ ] Round trip: set a daily goal and practice, export, clear site data, then
       import — the goal and every stat come back with the same numbers.
 - [ ] A pre-trim backup (with action overlays, tags, notes on its ranges)
@@ -467,8 +489,10 @@ area from a known state (see §2).
       works under the gesture handler.
 - [ ] In recognition, swipe right = in range, swipe left = out, with a haptic
       tap; buttons still work.
-- [ ] An explicit **End session** ends practice and records it (leaving the
-      screen does not).
+- [ ] Completing the set records the session; so does ending one early with the
+      overlay's **×** (VoiceOver reads it as *Close practice*), which records
+      the answers given rather than discarding them. Closing without answering
+      anything records nothing.
 - [ ] With `EXPO_PUBLIC_SENTRY_DSN` unset, the app boots and behaves exactly as
       before Sentry existed (no warnings, no network).
 - [ ] Dark mode and light mode both render correctly.
