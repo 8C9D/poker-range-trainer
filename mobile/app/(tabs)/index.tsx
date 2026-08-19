@@ -164,13 +164,8 @@ export default function TodayScreen() {
               accessibilityHint="One rest day is forgiven before your streak resets."
               style={styles.streakChip}
             >
-              {/* The emoji is a sibling, not nested: a nested Text inherits the
-                  chip's Instrument Sans, which carries no emoji glyph, and a
-                  Release build draws the missing-glyph box instead of falling
-                  back. Left family-less, it renders in the system font. */}
-              <Text style={styles.streakEmoji}>🔥</Text>
               <Text style={styles.streakText}>
-                {streak} day{streak === 1 ? '' : 's'}
+                🔥 {streak} day{streak === 1 ? '' : 's'}
               </Text>
             </Pressable>
           ) : null}
@@ -358,13 +353,9 @@ function makeStyles(theme: ThemeColors) {
     streakChip: {
       backgroundColor: theme.accentSoft,
       borderRadius: 999,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
       paddingHorizontal: 12,
       paddingVertical: 6,
     },
-    streakEmoji: { fontSize: 13 },
     streakText: {
       fontFamily: fonts.bodySemibold,
       fontSize: 13,
