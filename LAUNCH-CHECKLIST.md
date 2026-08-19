@@ -13,6 +13,13 @@ Re-opening any of them changes the work.
 3. **Crash reporting ships (Sentry).** Without it, a crash on a stranger's phone is invisible. It collects diagnostic data, so the privacy manifest, the App Privacy answers and the privacy policy must all declare it.
 4. **JSON backup export/import is restored.** Only the whole-library backup, not the four overlapping export paths (notation, CSV, action notation, range files) that were trimmed for good reason. With sync cut this is the user's only way to move ranges to a new phone, and the only honest answer to "where did my work go".
 
+## Decisions taken (2026-08-18)
+
+1. **iPhone only for 1.0.** `mobile/app.json` now sets `"supportsTablet": false`. iPad has never been run, let alone tested, and shipping a layout designed for one screen size onto another sight-unseen is how a 1.0 earns its first one-star review. Three consequences:
+   - **The submitted binary must be build 6 or later.** Build 5 - the binary currently on the App Store Connect record - still declares tablet support, so it cannot be the one that ships under this decision. The next production build after the step 9 real-device pass carries the change and becomes the build attached at step 11.
+   - **iPad screenshots are no longer required** for the step 10 upload; iPhone 6.7" and 6.5" only.
+   - **Tablet support may return in 1.1**, after the layout has actually been exercised on an iPad.
+
 ## Owner legend
 
 - **[A]** an agent can complete it in the repo; covered by the Fable prompt.
@@ -130,7 +137,7 @@ Strictly sequential; each step gates the next.
 - [x] **[Y]** Production build - step 7. Done 2026-08-15 and superseded twice the same day; the shipping candidate is EAS build `5b3a1430` (buildNumber 5). The first production build `bd69c773` (buildNumber 3) FINISHED with the source-map upload verified in its Xcode log; the first attempt of all, `2355aaeb`, failed because the archiver uploaded the machine-local `mobile/ios/` tree - fixed by the root `.easignore`, which also cut the upload from 311MB to 2.2MB.
 - [ ] **[Y]** TestFlight and the real-device pass - step 9, on **1.0.0 (5)**.
 - [ ] **[Y]** Screenshots - step 10.
-- [ ] **[Y]** Submit - step 11, with **1.0.0 (5)** attached, and only after the Pass 8b conversion completes.
+- [ ] **[Y]** Submit - step 11, with **build 6 or later** attached (the 2026-08-18 iPhone-only decision landed after build 5, so build 5 cannot be the shipping binary), and only after the Pass 8b conversion completes.
 
 ### Build ledger (verified 2026-08-18 at `c752778` against `eas build:list` and `eas submit:list`)
 
@@ -144,7 +151,9 @@ This corrects the earlier ledger, which named 1.0.0 (3) as the uploaded build ev
 | 1.0.0 (4) | `07e7fc9e` | FINISHED 2026-08-15 22:24 UTC | `8a9f474` | release-build gesture/worklet crash fix (gesture callbacks moved to the JS thread) | uploaded, submission `91d34374` FINISHED 22:26 UTC |
 | 1.0.0 (5) | `5b3a1430` | FINISHED 2026-08-15 23:14 UTC | `1f281e3` | drill feedback polish - terser feedback line and unstacked drill header (`4c65e0a`), test assertion updated to match (`1f281e3`) | uploaded, submission `1a4b9f25` FINISHED 23:48 UTC |
 
-**Use 1.0.0 (5)** for the step 9 real-device pass, for the step 10 screenshots, and as the binary attached at step 11. It is the newest build, it is the only one carrying both the crash fix and the feedback polish, and EAS confirms it was uploaded. `mobile/app.json` carries buildNumber 5, so the tree and the uploaded binary agree; nothing needs rebuilding or re-uploading to start step 9.
+**Use 1.0.0 (5)** for the step 9 real-device pass and for the step 10 screenshots. It is the newest build, it is the only one carrying both the crash fix and the feedback polish, and EAS confirms it was uploaded; nothing needs rebuilding or re-uploading to start step 9.
+
+**But 5 is no longer the submission candidate.** The 2026-08-18 iPhone-only decision set `"supportsTablet": false` in `mobile/app.json` after build 5 was cut, so build 5 still declares iPad support and the tree and the uploaded binary no longer agree on that field. The binary attached at step 11 must be **build 6 or later**, built after the device pass so it also carries anything the pass turns up. Testing and screenshotting on 5 is still correct: the change is a supported-device declaration, not a behaviour change on iPhone.
 
 What EAS confirms is the upload: the `eas submit` job completed and Apple accepted the binary. What EAS cannot report is the App Store Connect side of it - **to confirm in App Store Connect**: that 1.0.0 (5) finished TestFlight processing, that its export-compliance answer is satisfied (`ITSAppUsesNonExemptEncryption: false` has been in `mobile/app.json` since build 4, so it should not prompt), and that it shows Ready to Submit. Build 3 was confirmed Ready to Submit on 2026-08-15; builds 4 and 5 have not been checked in the ASC UI since upload.
 
@@ -293,14 +302,14 @@ This is the first time it runs on a phone, and it is the pass most likely to fin
 
 ## Step 10 - Screenshots
 
-1. App Store Connect lists the required sizes. As of now that is 6.7" and 6.5" iPhone at minimum; iPad too if you keep `supportsTablet: true`.
+1. App Store Connect lists the required sizes. As of now that is 6.7" and 6.5" iPhone at minimum. **No iPad screenshots**: the 2026-08-18 decision set `supportsTablet: false`, so the app is not offered on iPad and Apple does not ask for them.
 2. Capture on the TestFlight build, on a real device or the simulator.
 3. Best five: the grid mid-edit, a drill question, a miss with its explanation, the Progress tab with real data, the Today dashboard with a streak.
 4. Populate the library with plausible ranges first. Screenshots of an empty app sell nothing.
 
 ## Step 11 - Submit
 
-1. In App Store Connect, attach the build to the version - **1.0.0 (5)** unless a newer one has been built and uploaded since; check the build ledger under Pass 8 before you pick.
+1. In App Store Connect, attach the build to the version - **build 6 or later**, per the 2026-08-18 iPhone-only decision: build 5 still declares `supportsTablet: true` and cannot be the shipping binary. Check the build ledger under Pass 8 before you pick.
 2. Complete anything still flagged incomplete.
 3. **Submit for Review**.
 4. Review typically takes 24-48 hours.

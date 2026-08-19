@@ -11,7 +11,7 @@
     "backgroundColor": "#efede6",
     "ios": {
       "bundleIdentifier": "com.arthurzhang.pokerrangetrainer",
-      "supportsTablet": true,
+      "supportsTablet": false,
       "buildNumber": "5",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
