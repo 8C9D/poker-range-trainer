@@ -19,6 +19,8 @@ Re-opening any of them changes the work.
    - **The submitted binary must be build 6 or later.** Build 5 - the binary currently on the App Store Connect record - still declares tablet support, so it cannot be the one that ships under this decision. The next production build after the step 9 real-device pass carries the change and becomes the build attached at step 11.
    - **iPad screenshots are no longer required** for the step 10 upload; iPhone 6.7" and 6.5" only.
    - **Tablet support may return in 1.1**, after the layout has actually been exercised on an iPad.
+2. **EU storefronts are EXCLUDED at 1.0 launch.** Selling into the EU requires a DSA trader declaration, and Apple publishes the declared trader's contact details - name, address, phone, email - on the EU storefront listing. Filed today that would be the user's personal details, which is exactly what Pass 8b exists to prevent. Excluding the EU costs some reach; filing the declaration pre-incorporation costs the anonymity requirement, and that one is not negotiable. **Revisit after incorporation**, when the declaration can carry the corporation's registered details instead - at which point the EU storefronts can be switched back on in a normal availability update, with no new build. Configured by the user in App Store Connect (Pricing and Availability), not in the repo; see the pre-submit steps under step 11.
+3. **The support inbox is not yet monitored.** pokerrangetrainer.support@gmail.com exists and is already public on the support page, but nothing forwards or notifies from it. That is an open task, not a decision - see Pass 7.
 
 ## Owner legend
 
@@ -104,7 +106,7 @@ Restoring cloud sync would restore those 56 tests along with it - see `archived/
 - [x] **[A]** Add `.github/workflows/ci.yml` running `npm run lint`, `npm run test:run` and `npm run build` on push and pull request. Today these run only when someone remembers.
 - [x] **[A]** Align versions: root `package.json` says `0.0.0` while `mobile/app.json` says `1.0.0`.
 - [x] **[A]** Re-run full validation and commit in reviewable slices.
-- [ ] **[Y]** Set up the support inbox before the support URL goes public.
+- [ ] **[Y]** Set up the support inbox before the support URL goes public. **Still open 2026-08-18:** pokerrangetrainer.support@gmail.com exists and is already published on <https://8c9d.github.io/poker-range-trainer/support.html>, but it is not routinely monitored. Before submitting, put it somewhere you actually read - forward it to your daily inbox, or add the account to your phone's mail app with notifications on. Apple's review team writes to the developer contact rather than this address, but a customer with a data-loss question writes here, and during the review period an unread inbox is the difference between fixing a rejection today and finding out next week.
 
 ## Pass 8a - Paid app (decision of 2026-08-15: v1.0 ships as a PAID app, price not yet chosen)
 
@@ -113,7 +115,7 @@ Restoring cloud sync would restore those 56 tests along with it - see `archived/
 - [x] **[Y]** U.S. W-8BEN submitted 2026-08-15 (details omitted).
 - [ ] **[Y]** Canadian GST/HST Form 506 - **DEFERRED by user 2026-08-15.** Blocked on registering a CRA Business Number (GST/HST RT0001 account): Apple requires GST/HST registration to sell paid apps in Canada, and the form will not submit without BN + RT. Until this is filed the Paid Apps Agreement cannot go Active and no price can be set.
 - [ ] **[Y]** Choose the price (standard tiers cap at US$999.99). Agent sets Pricing and Availability once the agreement is Active.
-- [ ] **[Y]** Decide EU distribution: DSA trader declaration (publishes contact info on the EU store) vs excluding EU countries from availability.
+- [x] **[Y]** Decide EU distribution: DSA trader declaration (publishes contact info on the EU store) vs excluding EU countries from availability. **Decided 2026-08-18: exclude every EU storefront at 1.0**, rather than publish the user's personal contact details under the DSA while the membership is still Individual. Revisit after incorporation - see the 2026-08-18 decisions at the top of this file. Still to do by the user, in App Store Connect: deselect the EU storefronts in Pricing and Availability before submitting (step 11).
 
 ## Pass 8b - Anonymity (decision of 2026-08-15: HARD REQUIREMENT, blocks submission)
 
@@ -310,11 +312,13 @@ This is the first time it runs on a phone, and it is the pass most likely to fin
 ## Step 11 - Submit
 
 1. In App Store Connect, attach the build to the version - **build 6 or later**, per the 2026-08-18 iPhone-only decision: build 5 still declares `supportsTablet: true` and cannot be the shipping binary. Check the build ledger under Pass 8 before you pick.
-2. Complete anything still flagged incomplete.
-3. **Submit for Review**.
-4. Review typically takes 24-48 hours.
-5. **Expect a rejection round.** First submissions very often get one. It is a normal part of the process, not a verdict on the app. Read the reason, fix it, resubmit.
-6. There is no rollback on iOS. A bad build means a new build and another review cycle, which is exactly why step 9 matters more than it feels like it should.
+2. **Pricing and Availability - remove the EU storefronts.** Per the 2026-08-18 decision, 1.0 does not sell into the EU: with the EU selected, App Store Connect requires the DSA trader declaration and publishes the trader's name, address, phone and email on the EU listing, which under the current Individual membership means the user's own details. In **Pricing and Availability - Availability**, edit the country/region list and deselect every EU member state, then save and confirm the declaration is no longer being demanded. This is availability, not the binary: after incorporation the EU can be switched back on without a new build or a new review.
+3. Confirm the support inbox is monitored (Pass 7) - a review question or a customer email arriving into an inbox nobody opens is the failure mode this guards against.
+4. Complete anything still flagged incomplete.
+5. **Submit for Review**.
+6. Review typically takes 24-48 hours.
+7. **Expect a rejection round.** First submissions very often get one. It is a normal part of the process, not a verdict on the app. Read the reason, fix it, resubmit.
+8. There is no rollback on iOS. A bad build means a new build and another review cycle, which is exactly why step 9 matters more than it feels like it should.
 
 ---
 
