@@ -113,8 +113,8 @@ Restoring cloud sync would restore those 56 tests along with it - see `archived/
 - [x] **[Y]** Legal entity confirmed (postal code needed the "<postal code>" spacing; user kept the entered address over Apple's standardized one) and the Paid Apps Agreement signed 2026-08-15; status Pending User Info.
 - [x] **[Y]** Bank account added 2026-08-15: Wealthsimple, found via the bank-NAME search (routing 070300001 = institution 703 + transit 00001; the transit-number lookup alone matches nothing). Awaiting Apple verification.
 - [x] **[Y]** U.S. W-8BEN submitted 2026-08-15 (details omitted).
-- [ ] **[Y]** Canadian GST/HST Form 506 - **DEFERRED by user 2026-08-15.** Blocked on registering a CRA Business Number (GST/HST RT0001 account): Apple requires GST/HST registration to sell paid apps in Canada, and the form will not submit without BN + RT. Until this is filed the Paid Apps Agreement cannot go Active and no price can be set.
-- [ ] **[Y]** Choose the price (standard tiers cap at US$999.99). Agent sets Pricing and Availability once the agreement is Active.
+- [ ] **[Y]** Canadian GST/HST Form 506 - **DEFERRED by user 2026-08-15.** Step-by-step in [`docs/business-chain-guide.md`](docs/business-chain-guide.md) step 4. Blocked on registering a CRA Business Number (GST/HST RT0001 account): Apple requires GST/HST registration to sell paid apps in Canada, and the form will not submit without BN + RT. Until this is filed the Paid Apps Agreement cannot go Active and no price can be set.
+- [ ] **[Y]** Choose the price (standard tiers cap at US$999.99). Agent sets Pricing and Availability once the agreement is Active. See [`docs/business-chain-guide.md`](docs/business-chain-guide.md) step 5.
 - [x] **[Y]** Decide EU distribution: DSA trader declaration (publishes contact info on the EU store) vs excluding EU countries from availability. **Decided 2026-08-18: exclude every EU storefront at 1.0**, rather than publish the user's personal contact details under the DSA while the membership is still Individual. Revisit after incorporation - see the 2026-08-18 decisions at the top of this file. Still to do by the user, in App Store Connect: deselect the EU storefronts in Pricing and Availability before submitting (step 11).
 
 ## Pass 8b - Anonymity (decision of 2026-08-15: HARD REQUIREMENT, blocks submission)
@@ -122,9 +122,11 @@ Restoring cloud sync would restore those 56 tests along with it - see `archived/
 The user requires that their personal name never appear publicly on the App Store, and plans future apps under the same brand.
 An Individual membership always shows the member's legal name as the public seller - no alias exists - so:
 
-- [ ] **[Y]** Create a legal entity (Ontario or federal incorporation) named for the intended public brand.
-- [ ] **[Y]** Obtain a D-U-N-S number for the entity (free, ~1-2 weeks).
-- [ ] **[Y]** Convert the Apple Developer membership from Individual to Organization via Apple Developer Support; seller name becomes the corporation's.
+All three steps below, plus the Pass 8a tax items they unblock, are written out end to end in [`docs/business-chain-guide.md`](docs/business-chain-guide.md) - where to file, what each step needs from the one before it, and what each one costs in waiting.
+
+- [ ] **[Y]** Create a legal entity (Ontario or federal incorporation) named for the intended public brand. **The longest lead item in the chain - start it first**; guide step 1 compares the two jurisdictions and recommends one.
+- [ ] **[Y]** Obtain a D-U-N-S number for the entity (free, ~1-2 weeks) - guide step 2.
+- [ ] **[Y]** Convert the Apple Developer membership from Individual to Organization; seller name becomes the corporation's. The conversion happens **in place** - the App Store Connect record, the uploaded builds and the TestFlight history all carry over - and is started from the Account Holder's membership details, with Apple Developer Support as the fallback path; guide step 3.
 - **DO NOT SUBMIT FOR REVIEW before the conversion completes** - a submission under the Individual account publishes "Test User" as the seller. TestFlight internal testing is private and unaffected.
 - Note: incorporation also yields a CRA Business Number, which resolves the Pass 8a GST/HST blocker under the corporation instead of the individual.
 
@@ -326,6 +328,8 @@ This is the first time it runs on a phone, and it is the pass most likely to fin
 
 The Apple chain (steps 4-11) is mostly waiting.
 Start **step 4 today** - enrolment approval is the longest blocking item and nothing else in the chain can begin without it.
+
+**As of 2026-08-18 the critical path is no longer the Apple chain but the business chain**: incorporate -> D-U-N-S -> Individual-to-Organization conversion -> CRA Business Number and GST/HST -> price. It is weeks of queuing, it gates submission through both Pass 8a and Pass 8b, and only incorporation can start today. [`docs/business-chain-guide.md`](docs/business-chain-guide.md) is the step-by-step. The device pass (step 9) and the screenshots (step 10) are not blocked by any of it - run them in parallel.
 
 While that is pending:
 
