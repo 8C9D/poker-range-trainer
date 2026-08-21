@@ -18,6 +18,10 @@ interface AppConfig {
     ios: {
       bundleIdentifier?: string;
       buildNumber?: string;
+      supportsTablet?: boolean;
+      infoPlist?: {
+        ITSAppUsesNonExemptEncryption?: boolean;
+      };
       privacyManifests?: {
         NSPrivacyTracking: boolean;
         NSPrivacyTrackingDomains: string[];
@@ -53,6 +57,22 @@ describe('app.json iOS privacy manifest', () => {
     // The exact value is owned by EAS: the production profile's autoIncrement
     // bumps it in app.json on every build, so only the shape is pinned here.
     expect(ios.buildNumber).toMatch(/^\d+$/);
+  });
+
+  it('ships iPhone-only: tablet support stays off until an iPad layout has been exercised', () => {
+    // 1.0 launches without iPad (decision of 2026-08-18, LAUNCH-CHECKLIST.md):
+    // the layout has never run on a tablet, and offering it there sight-unseen
+    // ships an untested surface. Flipping this back on is a product decision
+    // that also changes which screenshots Apple requires.
+    expect(ios.supportsTablet).toBe(false);
+  });
+
+  it('declares exempt encryption so uploads skip the compliance dialog', () => {
+    // The app implements no encryption of its own; it only uses the OS's TLS.
+    // This answer was given once in App Store Connect for build 3 and is pinned
+    // here so every later build carries it in the binary instead of re-raising
+    // the export-compliance question at upload.
+    expect(ios.infoPlist?.ITSAppUsesNonExemptEncryption).toBe(false);
   });
 
   it('declares tracking disabled with no tracking domains', () => {
