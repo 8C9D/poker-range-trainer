@@ -37,3 +37,8 @@ coverage
 # Screenshots dropped at the repo root by browser tooling given a bare filename.
 # Root-level only: real image assets live in public/ and mobile/assets/.
 /*.png
+
+# App Store screenshot candidates (LAUNCH-CHECKLIST.md Pass 8 step 10): the PNGs
+# are regenerable upload assets, not source. The seed backup that reproduces the
+# on-screen data IS tracked, so a re-shoot starts from the same library.
+/screenshots/*.png

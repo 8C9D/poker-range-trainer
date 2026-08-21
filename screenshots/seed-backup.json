@@ -1,0 +1,961 @@
+{
+  "version": 1,
+  "exportedAt": "2026-08-18T09:15:00.000Z",
+  "ranges": [
+    {
+      "id": "rng-btn-open",
+      "name": "BTN open 100bb",
+      "hands": [
+        "AA",
+        "KK",
+        "QQ",
+        "JJ",
+        "TT",
+        "99",
+        "88",
+        "77",
+        "66",
+        "55",
+        "44",
+        "33",
+        "22",
+        "AKs",
+        "AQs",
+        "AJs",
+        "ATs",
+        "A9s",
+        "A8s",
+        "A7s",
+        "A6s",
+        "A5s",
+        "A4s",
+        "A3s",
+        "A2s",
+        "KQs",
+        "KJs",
+        "KTs",
+        "K9s",
+        "K8s",
+        "K7s",
+        "K6s",
+        "K5s",
+        "QJs",
+        "QTs",
+        "Q9s",
+        "Q8s",
+        "Q7s",
+        "JTs",
+        "J9s",
+        "J8s",
+        "T9s",
+        "T8s",
+        "98s",
+        "97s",
+        "87s",
+        "86s",
+        "76s",
+        "65s",
+        "54s",
+        "AKo",
+        "AQo",
+        "AJo",
+        "ATo",
+        "A9o",
+        "A8o",
+        "A7o",
+        "A6o",
+        "A5o",
+        "A4o",
+        "A3o",
+        "A2o",
+        "KQo",
+        "KJo",
+        "KTo",
+        "K9o",
+        "QJo",
+        "QTo",
+        "Q9o",
+        "JTo",
+        "J9o",
+        "T9o"
+      ],
+      "createdAt": "2026-07-02T18:20:00.000Z",
+      "updatedAt": "2026-08-17T20:41:00.000Z",
+      "metadata": {
+        "gameType": "cash",
+        "tableSize": "sixMax",
+        "stackDepthBb": 100,
+        "position": "btn",
+        "actionType": "open",
+        "notes": "Standard 6-max button opening range."
+      },
+      "source": {
+        "kind": "coach",
+        "reference": "Preflop lab, module 4"
+      },
+      "tags": [
+        "6-max",
+        "RFI"
+      ],
+      "favorite": true
+    },
+    {
+      "id": "rng-utg-open",
+      "name": "UTG open 100bb",
+      "hands": [
+        "AA",
+        "KK",
+        "QQ",
+        "JJ",
+        "TT",
+        "99",
+        "88",
+        "77",
+        "AKs",
+        "AQs",
+        "AJs",
+        "ATs",
+        "A5s",
+        "A4s",
+        "KQs",
+        "KJs",
+        "KTs",
+        "QJs",
+        "QTs",
+        "JTs",
+        "T9s",
+        "AKo",
+        "AQo",
+        "KQo"
+      ],
+      "createdAt": "2026-07-02T18:34:00.000Z",
+      "updatedAt": "2026-08-15T19:02:00.000Z",
+      "metadata": {
+        "gameType": "cash",
+        "tableSize": "sixMax",
+        "stackDepthBb": 100,
+        "position": "utg",
+        "actionType": "open"
+      },
+      "source": {
+        "kind": "coach",
+        "reference": "Preflop lab, module 2"
+      },
+      "tags": [
+        "6-max",
+        "RFI"
+      ]
+    },
+    {
+      "id": "rng-co-open",
+      "name": "CO open 100bb",
+      "hands": [
+        "AA",
+        "KK",
+        "QQ",
+        "JJ",
+        "TT",
+        "99",
+        "88",
+        "77",
+        "66",
+        "55",
+        "44",
+        "33",
+        "22",
+        "AKs",
+        "AQs",
+        "AJs",
+        "ATs",
+        "A9s",
+        "A8s",
+        "A7s",
+        "A6s",
+        "A5s",
+        "A4s",
+        "A3s",
+        "A2s",
+        "KQs",
+        "KJs",
+        "KTs",
+        "K9s",
+        "K8s",
+        "K7s",
+        "QJs",
+        "QTs",
+        "Q9s",
+        "JTs",
+        "J9s",
+        "T9s",
+        "98s",
+        "87s",
+        "76s",
+        "65s",
+        "AKo",
+        "AQo",
+        "AJo",
+        "ATo",
+        "A9o",
+        "KQo",
+        "KJo",
+        "KTo",
+        "QJo",
+        "QTo",
+        "JTo"
+      ],
+      "createdAt": "2026-07-05T11:12:00.000Z",
+      "updatedAt": "2026-08-16T21:15:00.000Z",
+      "metadata": {
+        "gameType": "cash",
+        "tableSize": "sixMax",
+        "stackDepthBb": 100,
+        "position": "co",
+        "actionType": "open"
+      },
+      "tags": [
+        "6-max",
+        "RFI"
+      ]
+    },
+    {
+      "id": "rng-sb-3bet",
+      "name": "SB 3-bet vs BTN",
+      "hands": [
+        "AA",
+        "KK",
+        "QQ",
+        "JJ",
+        "TT",
+        "99",
+        "AKs",
+        "AQs",
+        "AJs",
+        "A5s",
+        "A4s",
+        "KQs",
+        "KJs",
+        "T9s",
+        "76s",
+        "AKo",
+        "AQo"
+      ],
+      "createdAt": "2026-07-19T09:40:00.000Z",
+      "updatedAt": "2026-08-14T18:55:00.000Z",
+      "metadata": {
+        "gameType": "cash",
+        "tableSize": "sixMax",
+        "stackDepthBb": 100,
+        "position": "sb",
+        "actionType": "threeBet",
+        "versusPosition": "btn"
+      },
+      "source": {
+        "kind": "solver"
+      },
+      "tags": [
+        "6-max",
+        "3-bet"
+      ]
+    }
+  ],
+  "practiceStats": {
+    "rng-btn-open": {
+      "rangeId": "rng-btn-open",
+      "totalAttempts": 145,
+      "correctAttempts": 121,
+      "lastPracticedAt": "2026-08-18T09:02:00.000Z"
+    },
+    "rng-utg-open": {
+      "rangeId": "rng-utg-open",
+      "totalAttempts": 70,
+      "correctAttempts": 59,
+      "lastPracticedAt": "2026-08-17T20:47:00.000Z"
+    },
+    "rng-co-open": {
+      "rangeId": "rng-co-open",
+      "totalAttempts": 90,
+      "correctAttempts": 72,
+      "lastPracticedAt": "2026-08-18T08:35:00.000Z"
+    },
+    "rng-sb-3bet": {
+      "rangeId": "rng-sb-3bet",
+      "totalAttempts": 35,
+      "correctAttempts": 26,
+      "lastPracticedAt": "2026-08-15T18:30:00.000Z"
+    }
+  },
+  "handAccuracy": {
+    "rng-btn-open": {
+      "22": {
+        "hand": "22",
+        "attempts": 6,
+        "correct": 5,
+        "falsePositives": 1,
+        "falseNegatives": 0
+      },
+      "77": {
+        "hand": "77",
+        "attempts": 7,
+        "correct": 7,
+        "falsePositives": 0,
+        "falseNegatives": 0
+      },
+      "AA": {
+        "hand": "AA",
+        "attempts": 9,
+        "correct": 9,
+        "falsePositives": 0,
+        "falseNegatives": 0
+      },
+      "KK": {
+        "hand": "KK",
+        "attempts": 8,
+        "correct": 8,
+        "falsePositives": 0,
+        "falseNegatives": 0
+      },
+      "QQ": {
+        "hand": "QQ",
+        "attempts": 7,
+        "correct": 7,
+        "falsePositives": 0,
+        "falseNegatives": 0
+      },
+      "AKs": {
+        "hand": "AKs",
+        "attempts": 8,
+        "correct": 8,
+        "falsePositives": 0,
+        "falseNegatives": 0
+      },
+      "AKo": {
+        "hand": "AKo",
+        "attempts": 7,
+        "correct": 6,
+        "falsePositives": 1,
+        "falseNegatives": 0
+      },
+      "A5s": {
+        "hand": "A5s",
+        "attempts": 6,
+        "correct": 4,
+        "falsePositives": 0,
+        "falseNegatives": 2
+      },
+      "A4s": {
+        "hand": "A4s",
+        "attempts": 5,
+        "correct": 3,
+        "falsePositives": 0,
+        "falseNegatives": 2
+      },
+      "K5s": {
+        "hand": "K5s",
+        "attempts": 6,
+        "correct": 3,
+        "falsePositives": 0,
+        "falseNegatives": 3
+      },
+      "Q7s": {
+        "hand": "Q7s",
+        "attempts": 5,
+        "correct": 2,
+        "falsePositives": 0,
+        "falseNegatives": 3
+      },
+      "J8s": {
+        "hand": "J8s",
+        "attempts": 5,
+        "correct": 3,
+        "falsePositives": 0,
+        "falseNegatives": 2
+      },
+      "T8s": {
+        "hand": "T8s",
+        "attempts": 6,
+        "correct": 4,
+        "falsePositives": 1,
+        "falseNegatives": 1
+      },
+      "86s": {
+        "hand": "86s",
+        "attempts": 5,
+        "correct": 2,
+        "falsePositives": 0,
+        "falseNegatives": 3
+      },
+      "54s": {
+        "hand": "54s",
+        "attempts": 6,
+        "correct": 3,
+        "falsePositives": 0,
+        "falseNegatives": 3
+      },
+      "K9o": {
+        "hand": "K9o",
+        "attempts": 7,
+        "correct": 5,
+        "falsePositives": 2,
+        "falseNegatives": 0
+      },
+      "Q9o": {
+        "hand": "Q9o",
+        "attempts": 6,
+        "correct": 3,
+        "falsePositives": 2,
+        "falseNegatives": 1
+      },
+      "J9o": {
+        "hand": "J9o",
+        "attempts": 5,
+        "correct": 3,
+        "falsePositives": 1,
+        "falseNegatives": 1
+      },
+      "T9o": {
+        "hand": "T9o",
+        "attempts": 6,
+        "correct": 4,
+        "falsePositives": 2,
+        "falseNegatives": 0
+      },
+      "76s": {
+        "hand": "76s",
+        "attempts": 6,
+        "correct": 5,
+        "falsePositives": 0,
+        "falseNegatives": 1
+      },
+      "65s": {
+        "hand": "65s",
+        "attempts": 5,
+        "correct": 4,
+        "falsePositives": 0,
+        "falseNegatives": 1
+      },
+      "A2o": {
+        "hand": "A2o",
+        "attempts": 6,
+        "correct": 3,
+        "falsePositives": 1,
+        "falseNegatives": 2
+      },
+      "32s": {
+        "hand": "32s",
+        "attempts": 5,
+        "correct": 2,
+        "falsePositives": 3,
+        "falseNegatives": 0
+      }
+    },
+    "rng-utg-open": {
+      "66": {
+        "hand": "66",
+        "attempts": 6,
+        "correct": 3,
+        "falsePositives": 3,
+        "falseNegatives": 0
+      },
+      "77": {
+        "hand": "77",
+        "attempts": 6,
+        "correct": 4,
+        "falsePositives": 0,
+        "falseNegatives": 2
+      },
+      "88": {
+        "hand": "88",
+        "attempts": 5,
+        "correct": 4,
+        "falsePositives": 0,
+        "falseNegatives": 1
+      },
+      "AA": {
+        "hand": "AA",
+        "attempts": 6,
+        "correct": 6,
+        "falsePositives": 0,
+        "falseNegatives": 0
+      },
+      "KK": {
+        "hand": "KK",
+        "attempts": 5,
+        "correct": 5,
+        "falsePositives": 0,
+        "falseNegatives": 0
+      },
+      "A5s": {
+        "hand": "A5s",
+        "attempts": 5,
+        "correct": 3,
+        "falsePositives": 0,
+        "falseNegatives": 2
+      },
+      "A4s": {
+        "hand": "A4s",
+        "attempts": 5,
+        "correct": 2,
+        "falsePositives": 0,
+        "falseNegatives": 3
+      },
+      "ATs": {
+        "hand": "ATs",
+        "attempts": 6,
+        "correct": 5,
+        "falsePositives": 0,
+        "falseNegatives": 1
+      },
+      "KTs": {
+        "hand": "KTs",
+        "attempts": 5,
+        "correct": 3,
+        "falsePositives": 1,
+        "falseNegatives": 1
+      },
+      "QTs": {
+        "hand": "QTs",
+        "attempts": 5,
+        "correct": 3,
+        "falsePositives": 1,
+        "falseNegatives": 1
+      },
+      "JTs": {
+        "hand": "JTs",
+        "attempts": 6,
+        "correct": 5,
+        "falsePositives": 0,
+        "falseNegatives": 1
+      },
+      "T9s": {
+        "hand": "T9s",
+        "attempts": 6,
+        "correct": 4,
+        "falsePositives": 2,
+        "falseNegatives": 0
+      },
+      "KQo": {
+        "hand": "KQo",
+        "attempts": 6,
+        "correct": 5,
+        "falsePositives": 0,
+        "falseNegatives": 1
+      },
+      "AJo": {
+        "hand": "AJo",
+        "attempts": 5,
+        "correct": 2,
+        "falsePositives": 3,
+        "falseNegatives": 0
+      },
+      "KJs": {
+        "hand": "KJs",
+        "attempts": 5,
+        "correct": 3,
+        "falsePositives": 2,
+        "falseNegatives": 0
+      }
+    },
+    "rng-co-open": {
+      "99": {
+        "hand": "99",
+        "attempts": 6,
+        "correct": 5,
+        "falsePositives": 0,
+        "falseNegatives": 1
+      },
+      "AA": {
+        "hand": "AA",
+        "attempts": 7,
+        "correct": 7,
+        "falsePositives": 0,
+        "falseNegatives": 0
+      },
+      "QQ": {
+        "hand": "QQ",
+        "attempts": 6,
+        "correct": 6,
+        "falsePositives": 0,
+        "falseNegatives": 0
+      },
+      "A2s": {
+        "hand": "A2s",
+        "attempts": 6,
+        "correct": 4,
+        "falsePositives": 0,
+        "falseNegatives": 2
+      },
+      "K7s": {
+        "hand": "K7s",
+        "attempts": 6,
+        "correct": 3,
+        "falsePositives": 0,
+        "falseNegatives": 3
+      },
+      "Q9s": {
+        "hand": "Q9s",
+        "attempts": 5,
+        "correct": 3,
+        "falsePositives": 0,
+        "falseNegatives": 2
+      },
+      "J9s": {
+        "hand": "J9s",
+        "attempts": 5,
+        "correct": 4,
+        "falsePositives": 0,
+        "falseNegatives": 1
+      },
+      "98s": {
+        "hand": "98s",
+        "attempts": 6,
+        "correct": 5,
+        "falsePositives": 0,
+        "falseNegatives": 1
+      },
+      "65s": {
+        "hand": "65s",
+        "attempts": 5,
+        "correct": 3,
+        "falsePositives": 0,
+        "falseNegatives": 2
+      },
+      "54s": {
+        "hand": "54s",
+        "attempts": 5,
+        "correct": 2,
+        "falsePositives": 3,
+        "falseNegatives": 0
+      },
+      "A9o": {
+        "hand": "A9o",
+        "attempts": 6,
+        "correct": 4,
+        "falsePositives": 1,
+        "falseNegatives": 1
+      },
+      "KTo": {
+        "hand": "KTo",
+        "attempts": 6,
+        "correct": 4,
+        "falsePositives": 2,
+        "falseNegatives": 0
+      },
+      "QTo": {
+        "hand": "QTo",
+        "attempts": 5,
+        "correct": 3,
+        "falsePositives": 1,
+        "falseNegatives": 1
+      },
+      "JTo": {
+        "hand": "JTo",
+        "attempts": 5,
+        "correct": 4,
+        "falsePositives": 1,
+        "falseNegatives": 0
+      },
+      "T9o": {
+        "hand": "T9o",
+        "attempts": 5,
+        "correct": 2,
+        "falsePositives": 3,
+        "falseNegatives": 0
+      }
+    },
+    "rng-sb-3bet": {
+      "99": {
+        "hand": "99",
+        "attempts": 5,
+        "correct": 2,
+        "falsePositives": 3,
+        "falseNegatives": 0
+      },
+      "AA": {
+        "hand": "AA",
+        "attempts": 5,
+        "correct": 5,
+        "falsePositives": 0,
+        "falseNegatives": 0
+      },
+      "KK": {
+        "hand": "KK",
+        "attempts": 5,
+        "correct": 5,
+        "falsePositives": 0,
+        "falseNegatives": 0
+      },
+      "JJ": {
+        "hand": "JJ",
+        "attempts": 5,
+        "correct": 4,
+        "falsePositives": 0,
+        "falseNegatives": 1
+      },
+      "TT": {
+        "hand": "TT",
+        "attempts": 5,
+        "correct": 3,
+        "falsePositives": 0,
+        "falseNegatives": 2
+      },
+      "A5s": {
+        "hand": "A5s",
+        "attempts": 5,
+        "correct": 3,
+        "falsePositives": 0,
+        "falseNegatives": 2
+      },
+      "A4s": {
+        "hand": "A4s",
+        "attempts": 4,
+        "correct": 2,
+        "falsePositives": 0,
+        "falseNegatives": 2
+      },
+      "KJs": {
+        "hand": "KJs",
+        "attempts": 5,
+        "correct": 3,
+        "falsePositives": 1,
+        "falseNegatives": 1
+      },
+      "T9s": {
+        "hand": "T9s",
+        "attempts": 5,
+        "correct": 2,
+        "falsePositives": 2,
+        "falseNegatives": 1
+      },
+      "76s": {
+        "hand": "76s",
+        "attempts": 5,
+        "correct": 2,
+        "falsePositives": 3,
+        "falseNegatives": 0
+      },
+      "AQo": {
+        "hand": "AQo",
+        "attempts": 5,
+        "correct": 4,
+        "falsePositives": 0,
+        "falseNegatives": 1
+      },
+      "AJo": {
+        "hand": "AJo",
+        "attempts": 4,
+        "correct": 2,
+        "falsePositives": 2,
+        "falseNegatives": 0
+      }
+    }
+  },
+  "actionAccuracy": {
+    "rng-btn-open": {
+      "raise": {
+        "action": "raise",
+        "attempts": 96,
+        "correct": 82
+      },
+      "fold": {
+        "action": "fold",
+        "attempts": 74,
+        "correct": 62
+      }
+    },
+    "rng-utg-open": {
+      "raise": {
+        "action": "raise",
+        "attempts": 41,
+        "correct": 35
+      },
+      "fold": {
+        "action": "fold",
+        "attempts": 49,
+        "correct": 44
+      }
+    },
+    "rng-co-open": {
+      "raise": {
+        "action": "raise",
+        "attempts": 52,
+        "correct": 43
+      },
+      "fold": {
+        "action": "fold",
+        "attempts": 38,
+        "correct": 32
+      }
+    },
+    "rng-sb-3bet": {
+      "threeBet": {
+        "action": "threeBet",
+        "attempts": 18,
+        "correct": 14
+      },
+      "fold": {
+        "action": "fold",
+        "attempts": 17,
+        "correct": 12
+      }
+    }
+  },
+  "sessionHistory": {
+    "rng-btn-open": [
+      {
+        "rangeId": "rng-btn-open",
+        "playedAt": "2026-08-10T19:12:00.000Z",
+        "totalQuestions": 20,
+        "correctAnswers": 15
+      },
+      {
+        "rangeId": "rng-btn-open",
+        "playedAt": "2026-08-12T20:05:00.000Z",
+        "totalQuestions": 30,
+        "correctAnswers": 24
+      },
+      {
+        "rangeId": "rng-btn-open",
+        "playedAt": "2026-08-14T21:15:00.000Z",
+        "totalQuestions": 25,
+        "correctAnswers": 21
+      },
+      {
+        "rangeId": "rng-btn-open",
+        "playedAt": "2026-08-16T19:44:00.000Z",
+        "totalQuestions": 30,
+        "correctAnswers": 26
+      },
+      {
+        "rangeId": "rng-btn-open",
+        "playedAt": "2026-08-17T20:22:00.000Z",
+        "totalQuestions": 25,
+        "correctAnswers": 22
+      },
+      {
+        "rangeId": "rng-btn-open",
+        "playedAt": "2026-08-18T09:02:00.000Z",
+        "totalQuestions": 15,
+        "correctAnswers": 13
+      }
+    ],
+    "rng-utg-open": [
+      {
+        "rangeId": "rng-utg-open",
+        "playedAt": "2026-08-10T19:34:00.000Z",
+        "totalQuestions": 15,
+        "correctAnswers": 12
+      },
+      {
+        "rangeId": "rng-utg-open",
+        "playedAt": "2026-08-13T07:48:00.000Z",
+        "totalQuestions": 20,
+        "correctAnswers": 17
+      },
+      {
+        "rangeId": "rng-utg-open",
+        "playedAt": "2026-08-15T18:52:00.000Z",
+        "totalQuestions": 15,
+        "correctAnswers": 13
+      },
+      {
+        "rangeId": "rng-utg-open",
+        "playedAt": "2026-08-17T20:47:00.000Z",
+        "totalQuestions": 20,
+        "correctAnswers": 17
+      }
+    ],
+    "rng-co-open": [
+      {
+        "rangeId": "rng-co-open",
+        "playedAt": "2026-08-11T08:22:00.000Z",
+        "totalQuestions": 25,
+        "correctAnswers": 19
+      },
+      {
+        "rangeId": "rng-co-open",
+        "playedAt": "2026-08-14T21:40:00.000Z",
+        "totalQuestions": 20,
+        "correctAnswers": 16
+      },
+      {
+        "rangeId": "rng-co-open",
+        "playedAt": "2026-08-16T20:10:00.000Z",
+        "totalQuestions": 25,
+        "correctAnswers": 20
+      },
+      {
+        "rangeId": "rng-co-open",
+        "playedAt": "2026-08-18T08:35:00.000Z",
+        "totalQuestions": 20,
+        "correctAnswers": 17
+      }
+    ],
+    "rng-sb-3bet": [
+      {
+        "rangeId": "rng-sb-3bet",
+        "playedAt": "2026-08-12T20:31:00.000Z",
+        "totalQuestions": 15,
+        "correctAnswers": 11
+      },
+      {
+        "rangeId": "rng-sb-3bet",
+        "playedAt": "2026-08-15T18:30:00.000Z",
+        "totalQuestions": 20,
+        "correctAnswers": 15
+      }
+    ]
+  },
+  "reviewStates": {
+    "rng-sb-3bet": {
+      "rangeId": "rng-sb-3bet",
+      "ease": 2.1,
+      "intervalDays": 3,
+      "dueAt": "2026-08-18T06:00:00.000Z",
+      "lastReviewedAt": "2026-08-15T18:52:00.000Z"
+    },
+    "rng-utg-open": {
+      "rangeId": "rng-utg-open",
+      "ease": 2.35,
+      "intervalDays": 2,
+      "dueAt": "2026-08-18T07:30:00.000Z",
+      "lastReviewedAt": "2026-08-17T20:47:00.000Z"
+    },
+    "rng-co-open": {
+      "rangeId": "rng-co-open",
+      "ease": 2.5,
+      "intervalDays": 4,
+      "dueAt": "2026-08-22T08:35:00.000Z",
+      "lastReviewedAt": "2026-08-18T08:35:00.000Z"
+    },
+    "rng-btn-open": {
+      "rangeId": "rng-btn-open",
+      "ease": 2.6,
+      "intervalDays": 5,
+      "dueAt": "2026-08-23T09:02:00.000Z",
+      "lastReviewedAt": "2026-08-18T09:02:00.000Z"
+    }
+  },
+  "spotAccuracy": {
+    "sixMax|btn|foldedToYou|-|100": {
+      "spotKey": "sixMax|btn|foldedToYou|-|100",
+      "attempts": 170,
+      "correct": 144
+    },
+    "sixMax|utg|foldedToYou|-|100": {
+      "spotKey": "sixMax|utg|foldedToYou|-|100",
+      "attempts": 90,
+      "correct": 79
+    },
+    "sixMax|co|foldedToYou|-|100": {
+      "spotKey": "sixMax|co|foldedToYou|-|100",
+      "attempts": 90,
+      "correct": 75
+    },
+    "sixMax|sb|facingOpen|btn|100": {
+      "spotKey": "sixMax|sb|facingOpen|btn|100",
+      "attempts": 35,
+      "correct": 26
+    }
+  },
+  "trainingGoal": 50
+}
