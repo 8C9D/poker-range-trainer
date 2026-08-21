@@ -22,21 +22,40 @@ Re-opening any of them changes the work.
 2. **EU storefronts are EXCLUDED at 1.0 launch.** Selling into the EU requires a DSA trader declaration, and Apple publishes the declared trader's contact details - name, address, phone, email - on the EU storefront listing. Filed today that would be the user's personal details, which is exactly what Pass 8b exists to prevent. Excluding the EU costs some reach; filing the declaration pre-incorporation costs the anonymity requirement, and that one is not negotiable. **Revisit after incorporation**, when the declaration can carry the corporation's registered details instead - at which point the EU storefronts can be switched back on in a normal availability update, with no new build. Configured by the user in App Store Connect (Pricing and Availability), not in the repo; see the pre-submit steps under step 11.
 3. **The support inbox is not yet monitored.** pokerrangetrainer.support@gmail.com exists and is already public on the support page, but nothing forwards or notifies from it. That is an open task, not a decision - see Pass 7.
 
+## Remaining work, in one place (2026-08-20)
+
+Every open checkbox in this file is **[Y]** - there is no agent-doable repo work left. The items sort into two independent tracks plus a tail that waits on both.
+
+**Track A - not blocked by anything, start today:**
+
+1. **Monitor the support inbox** (Pass 7): forward pokerrangetrainer.support@gmail.com to your daily inbox, or add the account to your phone's mail app with notifications on.
+2. **Real-device TestFlight pass** (Pass 6 / step 9) on **1.0.0 (5)**: first confirm in App Store Connect that build 5 shows Ready to Submit (builds 4 and 5 were never checked in the ASC UI after upload), then install via TestFlight and work through `docs/device-pass-script.md`, including the upgrade-path install-over-the-top check (Pass 5) and the Sentry test-crash check with a symbolicated stack trace.
+3. **Screenshots** (step 10): approve the captured candidate set in `screenshots/` (or re-shoot on device during the step 9 pass) and upload the 6.7" and 6.5" sets to App Store Connect.
+
+**Track B - the business chain (gates submission; weeks of queuing, so start step 1 now):** incorporate -> D-U-N-S -> convert the Apple membership to Organization -> CRA Business Number + GST/HST Form 506 -> choose the price. Step-by-step in [`docs/business-chain-guide.md`](docs/business-chain-guide.md). Do not submit before the conversion completes (Pass 8b).
+
+**Tail - after Track A's device pass and Track B's conversion:**
+
+4. **Build 6** (agent-doable once step 9 is done): the shipping binary must be build 6 or later, cut after the device pass so it carries the iPhone-only flag and anything the pass turns up. The non-interactive rebuild and submit commands are recorded in the launch pipeline notes; ask the agent.
+5. **Pricing and Availability**: set the price (agent can, once the Paid Apps agreement is Active) and **deselect every EU storefront** before submitting.
+6. **Submit for review** (step 11).
+
 ## Owner legend
 
 - **[A]** an agent can complete it in the repo; covered by the Fable prompt.
 - **[Y]** needs you - an account, a payment, a dashboard, a device, or a judgement call an agent must not fake.
 
-## Status baseline (verified 2026-08-15 at `66835ab`)
+## Status baseline (verified 2026-08-20 at `7844793`)
 
 Every line below was re-run at that commit, not carried forward - and being behind the tree this block lives in is the floor here rather than a lapse, stated per REVIEW-R7 R7-6: a stamp cannot name the tree it lives in, for the same reason a status cell may only name a commit that already exists, so this line always names the parent of the commit that writes it.
 The gap then grows as the round's remaining documentation lands, which round 8 wrote this block as though it would not - corrected per REVIEW-R8 R8-9. The check that replaces the claim is one a reader can run: `git diff --stat <stamp>..HEAD` must be Markdown or static `docs/` pages only, because the gate covers executable state and nothing else.
-It read `6186581` until round 7, five commits behind, one of which changed a comment in `@core`; refreshed per REVIEW-R6 R6-6 and at every round since. The mobile counts moved at `66835ab`: the send-test-crash-report hook added one suite and two tests (previously 37 / 241).
+It read `66835ab` (2026-08-15) until this refresh. The mobile counts moved twice in between: the release-build gesture fix added one suite and one test (`8a9f474`, 38 / 243 -> 39 / 244), and the launch-decision config pins added two tests (`a925683`, -> 39 / 246). Earlier history of the stamp: it read `6186581` until round 7, refreshed per REVIEW-R6 R6-6 and at every round since; the send-test-crash-report hook moved it from 37 / 241 to 38 / 243 at `66835ab`.
 
 - `npm run lint` clean on both apps.
-- `npm run test:run`: web 79 files / 1187 tests, mobile 38 suites / 243 tests, all passing.
+- `npm run test:run`: web 79 files / 1187 tests, mobile 39 suites / 246 tests, all passing.
 - `npm run build` clean, mobile `tsc --noEmit` clean.
 - `npm audit --omit=dev`: web 0 vulnerabilities.
+- Both public URLs re-confirmed loading 2026-08-20: privacy.html and support.html each serve the expected title and pokerrangetrainer.support@gmail.com.
 - All five confirmed findings in `review/findings.md` have matching fix commits (`3c709bf`, `7ccefad`, `5fe714b`, `3078e7b`, `cc0a5d7`).
 
 **Why the web count fell, and why it is not a loss of coverage.**

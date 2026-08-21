@@ -59,6 +59,6 @@ After code changes, run these commands from the repo root:
 
 Run them from the repo root, never from `mobile/`: the root scripts drive both apps, and the same-named scripts inside `mobile/` run the mobile-only variants instead.
 The same three commands run in CI on every push and pull request (`.github/workflows/ci.yml`).
-Last verified green 2026-08-18 at `3b0599c`: web 79 files / 1187 tests, mobile 39 suites / 244 tests.
+Last verified green 2026-08-20 at `7844793`: web 79 files / 1187 tests, mobile 39 suites / 246 tests.
 
 If any command fails, diagnose and fix the root cause before committing.
