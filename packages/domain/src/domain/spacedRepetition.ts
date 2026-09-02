@@ -1,8 +1,8 @@
-import type { RangeReviewState } from '../types/practice'
-import type { SavedRange } from '../types/range'
-import { DAY_MS, localCalendarDay } from './calendarDay'
+import type { RangeReviewState } from '../types/practice.js'
+import type { SavedRange } from '../types/range.js'
+import { DAY_MS, localCalendarDay } from './calendarDay.js'
 
-export { DAY_MS } from './calendarDay'
+export { DAY_MS } from './calendarDay.js'
 
 /**
  * Pure spaced-repetition scheduling for range review (v2.2).

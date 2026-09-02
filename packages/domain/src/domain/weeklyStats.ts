@@ -1,7 +1,7 @@
-import type { PracticeSessionRecord } from '../types/practice'
-import type { SavedRange } from '../types/range'
-import { accuracyPercentage } from './accuracy'
-import { localCalendarDay, localDayStart } from './calendarDay'
+import type { PracticeSessionRecord } from '../types/practice.js'
+import type { SavedRange } from '../types/range.js'
+import { accuracyPercentage } from './accuracy.js'
+import { localCalendarDay, localDayStart } from './calendarDay.js'
 
 /**
  * The recorded sessions belonging to ranges the library still holds.

@@ -6,16 +6,23 @@
   "description": "PostgreSQL schema, migrations, and persistence utilities for Poker Range Trainer.",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "import": "./src/index.ts"
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     },
     "./schema": {
-      "types": "./src/schema.ts",
-      "import": "./src/schema.ts"
+      "development": "./src/schema.ts",
+      "types": "./dist/schema.d.ts",
+      "import": "./dist/schema.js"
     }
   },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -b --clean && tsc -b && node scripts/copy-migrations.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit --tsBuildInfoFile ../../node_modules/.tmp/database.typecheck.tsbuildinfo",
     "lint": "eslint src",
     "format:check": "prettier --check --ignore-unknown .",
     "migrate": "tsx src/migrate.ts",

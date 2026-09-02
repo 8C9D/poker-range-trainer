@@ -1,5 +1,5 @@
-import { ALL_HANDS, type PokerHand } from './pokerHands'
-import type { PracticeAttempt } from '../types/practice'
+import { ALL_HANDS, type PokerHand } from './pokerHands.js'
+import type { PracticeAttempt } from '../types/practice.js'
 
 /**
  * Pure domain logic for the weakness-focused drill (mode 6): drawing the next

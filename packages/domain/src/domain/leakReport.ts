@@ -1,7 +1,7 @@
-import { accuracyPercentage } from './accuracy'
-import { HAND_CLASSES, classifyHandClass, type HandClass } from './handClass'
-import type { PokerHand } from './pokerHands'
-import type { RangeHandAccuracy } from '../types/practice'
+import { accuracyPercentage } from './accuracy.js'
+import { HAND_CLASSES, classifyHandClass, type HandClass } from './handClass.js'
+import type { PokerHand } from './pokerHands.js'
+import type { RangeHandAccuracy } from '../types/practice.js'
 
 /**
  * Library-wide leaks grouped by hand class (v7.0).

@@ -1,5 +1,5 @@
-import type { PokerHand } from './pokerHands'
-import { RANKS, SUITS, formatCard, rankValue, type Card, type Rank } from './cards'
+import type { PokerHand } from './pokerHands.js'
+import { RANKS, SUITS, formatCard, rankValue, type Card, type Rank } from './cards.js'
 
 /**
  * Combo-level enumeration (v4.1 "combo-level precision").

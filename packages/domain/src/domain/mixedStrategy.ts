@@ -1,5 +1,5 @@
-import { RANGE_ACTIONS, type RangeAction } from '../types/range'
-import { generateHandMatrix, type PokerHand } from './pokerHands'
+import { RANGE_ACTIONS, type RangeAction } from '../types/range.js'
+import { generateHandMatrix, type PokerHand } from './pokerHands.js'
 
 /**
  * Mixed-frequency strategy model (v4.2 "mixed-frequency strategies").

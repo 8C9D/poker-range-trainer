@@ -1,12 +1,12 @@
-import { accuracyPercentage } from './accuracy'
-import { ALL_HANDS, isValidHand, type PokerHand } from './pokerHands'
-import { normalizeRangeHands } from './rangeMath'
+import { accuracyPercentage } from './accuracy.js'
+import { ALL_HANDS, isValidHand, type PokerHand } from './pokerHands.js'
+import { normalizeRangeHands } from './rangeMath.js'
 import type {
   HandAccuracyStat,
   PracticeAttempt,
   PracticeSessionSummary,
   RangeHandAccuracy,
-} from '../types/practice'
+} from '../types/practice.js'
 
 /**
  * Pure domain logic for practicing a saved preflop range: deciding whether a

@@ -1,6 +1,6 @@
-import { accuracyPercentage } from './accuracy'
-import type { PokerHand } from './pokerHands'
-import type { RangeHandAccuracy } from '../types/practice'
+import { accuracyPercentage } from './accuracy.js'
+import type { PokerHand } from './pokerHands.js'
+import type { RangeHandAccuracy } from '../types/practice.js'
 
 /** One (range, hand) pair with recorded mistakes, ranked by accuracy. */
 export interface WeakHandEntry {

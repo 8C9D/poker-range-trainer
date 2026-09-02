@@ -1,4 +1,4 @@
-import type { SavedRange } from '../types/range'
+import type { SavedRange } from '../types/range.js'
 
 /**
  * Build an independent copy of a saved range.

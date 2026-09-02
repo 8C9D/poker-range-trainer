@@ -1,5 +1,5 @@
-import { ALL_HANDS, type PokerHand } from './pokerHands'
-import type { PracticeAttempt } from '../types/practice'
+import { ALL_HANDS, type PokerHand } from './pokerHands.js'
+import type { PracticeAttempt } from '../types/practice.js'
 
 /**
  * The end-of-session miss recap.

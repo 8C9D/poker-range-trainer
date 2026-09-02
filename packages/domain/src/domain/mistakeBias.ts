@@ -1,6 +1,6 @@
-import type { PokerHand } from './pokerHands'
-import { POSITIONS, type Position, type SavedRange } from '../types/range'
-import type { HandAccuracyStat, RangeHandAccuracy } from '../types/practice'
+import type { PokerHand } from './pokerHands.js'
+import { POSITIONS, type Position, type SavedRange } from '../types/range.js'
+import type { HandAccuracyStat, RangeHandAccuracy } from '../types/practice.js'
 
 /**
  * Which way the user's mistakes lean.

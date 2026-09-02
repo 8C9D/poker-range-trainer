@@ -10,6 +10,9 @@
 module.exports = {
   preset: 'jest-expo',
   moduleNameMapper: {
+    // NodeNext source imports use emitted `.js` specifiers; Jest must resolve
+    // those back to the sibling TypeScript source files under the @core mirror.
+    '^(\\.{1,2}/.*)\\.js$': '$1',
     '^@core/(.*)$': '<rootDir>/../src/$1',
   },
   // archived/ (repo root) holds features cut from v1 whose code is expected

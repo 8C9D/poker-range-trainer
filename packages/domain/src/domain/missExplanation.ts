@@ -1,5 +1,5 @@
-import { HAND_CLASS_NOUNS, classifyHandClass, type HandClass } from './handClass'
-import { RANKS, generateHandMatrix, isValidHand, type PokerHand } from './pokerHands'
+import { HAND_CLASS_NOUNS, classifyHandClass, type HandClass } from './handClass.js'
+import { RANKS, generateHandMatrix, isValidHand, type PokerHand } from './pokerHands.js'
 
 /**
  * Why a hand is (or is not) in a range (v7.1 "explain every miss").

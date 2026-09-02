@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json --pretty false",
+    "build": "tsc -b --clean && tsc -b",
+    "typecheck": "tsc -p tsconfig.json --noEmit --pretty false --tsBuildInfoFile ../../node_modules/.tmp/domain.typecheck.tsbuildinfo",
     "test": "vitest run --config vitest.config.ts"
   },
   "devDependencies": {
@@ -12,7 +13,18 @@
     "vitest": "^4.1.8"
   },
   "exports": {
-    "./domain/*": "./src/domain/*.ts",
-    "./types/*": "./src/types/*.ts"
-  }
+    "./domain/*": {
+      "development": "./src/domain/*.ts",
+      "types": "./dist/domain/*.d.ts",
+      "import": "./dist/domain/*.js"
+    },
+    "./types/*": {
+      "development": "./src/types/*.ts",
+      "types": "./dist/types/*.d.ts",
+      "import": "./dist/types/*.js"
+    }
+  },
+  "files": [
+    "dist"
+  ]
 }

@@ -1,4 +1,4 @@
-import { parseHandInput, type PokerHand } from './pokerHands'
+import { parseHandInput, type PokerHand } from './pokerHands.js'
 
 /**
  * Pure helpers for managing a library of saved ranges.

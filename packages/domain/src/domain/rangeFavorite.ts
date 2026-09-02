@@ -1,4 +1,4 @@
-import type { SavedRange } from '../types/range'
+import type { SavedRange } from '../types/range.js'
 
 /**
  * Return a copy of `range` with its library favorite state set.

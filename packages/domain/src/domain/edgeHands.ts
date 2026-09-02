@@ -1,5 +1,5 @@
-import { gridNeighbours } from './missExplanation'
-import { ALL_HANDS, type PokerHand } from './pokerHands'
+import { gridNeighbours } from './missExplanation.js'
+import { ALL_HANDS, type PokerHand } from './pokerHands.js'
 
 /**
  * The edge of a range (v7.2 "borderline-biased prompts").

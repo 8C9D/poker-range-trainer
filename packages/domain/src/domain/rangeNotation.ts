@@ -1,5 +1,5 @@
-import { RANKS, classifyHand, isValidHand, type PokerHand } from './pokerHands'
-import { normalizeRangeHands } from './rangeMath'
+import { RANKS, classifyHand, isValidHand, type PokerHand } from './pokerHands.js'
+import { normalizeRangeHands } from './rangeMath.js'
 
 /**
  * Pure helpers for converting between poker range notation and PokerHand[].

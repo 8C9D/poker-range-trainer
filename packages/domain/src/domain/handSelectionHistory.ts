@@ -1,5 +1,5 @@
-import type { PokerHand } from './pokerHands'
-import { normalizeRangeHands } from './rangeMath'
+import type { PokerHand } from './pokerHands.js'
+import { normalizeRangeHands } from './rangeMath.js'
 
 export const HAND_SELECTION_HISTORY_LIMIT = 50
 

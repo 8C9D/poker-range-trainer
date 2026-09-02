@@ -1,4 +1,4 @@
-import { ALL_HANDS, comboCount, isValidHand, type PokerHand } from './pokerHands'
+import { ALL_HANDS, comboCount, isValidHand, type PokerHand } from './pokerHands.js'
 
 /** Total number of distinct two-card starting combinations in Texas Hold'em (52 choose 2). */
 export const TOTAL_HOLDEM_COMBOS = 1326

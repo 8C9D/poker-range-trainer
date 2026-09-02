@@ -6,6 +6,7 @@
   "description": "Framework-neutral request and response contracts for Poker Range Trainer APIs.",
   "exports": {
     ".": {
+      "development": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
@@ -15,8 +16,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -b --clean && tsc -b",
+    "typecheck": "tsc -p tsconfig.json --noEmit --tsBuildInfoFile ../../node_modules/.tmp/contracts.typecheck.tsbuildinfo",
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {

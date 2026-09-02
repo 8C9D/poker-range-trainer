@@ -7,7 +7,7 @@ import {
   type RangeMetadata,
   type SavedRange,
   type TableSize,
-} from '../types/range'
+} from '../types/range.js'
 
 /**
  * Preflop spots, and matching them against the saved library (v8.0).

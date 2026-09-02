@@ -1,7 +1,7 @@
-import type { PokerHand } from './pokerHands'
-import { comboKey, handClassCombos, rangeCombos } from './combos'
-import { TOTAL_HOLDEM_COMBOS } from './rangeMath'
-import type { Card } from './cards'
+import type { PokerHand } from './pokerHands.js'
+import { comboKey, handClassCombos, rangeCombos } from './combos.js'
+import { TOTAL_HOLDEM_COMBOS } from './rangeMath.js'
+import type { Card } from './cards.js'
 
 /**
  * Specific-combo selection (v4.1 "combo-level precision").

@@ -1,7 +1,7 @@
-import type { PokerHand } from './pokerHands'
-import type { Card } from './cards'
-import { rangeCombos, removeDeadCards } from './combos'
-import { isComboSelected, type ComboSelection } from './comboSelection'
+import type { PokerHand } from './pokerHands.js'
+import type { Card } from './cards.js'
+import { rangeCombos, removeDeadCards } from './combos.js'
+import { isComboSelected, type ComboSelection } from './comboSelection.js'
 
 /**
  * Blocker-aware practice prompt selection (v4.1 "blocker-aware practice").

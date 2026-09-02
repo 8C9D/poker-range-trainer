@@ -1,4 +1,4 @@
-import { RANKS, classifyHand, isValidHand, type PokerHand } from './pokerHands'
+import { RANKS, classifyHand, isValidHand, type PokerHand } from './pokerHands.js'
 
 /**
  * Poker-meaningful groupings of the 169 starting hands (v7.0 leak report).

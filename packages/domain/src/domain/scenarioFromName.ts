@@ -6,7 +6,7 @@ import {
   type Position,
   type RangeMetadata,
   type TableSize,
-} from '../types/range'
+} from '../types/range.js'
 
 /**
  * Reading a range's scenario back out of the name it was saved under.

@@ -1,5 +1,5 @@
-import type { PokerHand } from '../domain/pokerHands'
-import type { HandMixedStrategy } from '../domain/mixedStrategy'
+import type { PokerHand } from '../domain/pokerHands.js'
+import type { HandMixedStrategy } from '../domain/mixedStrategy.js'
 
 /**
  * Scenario metadata vocabularies.

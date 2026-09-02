@@ -1,5 +1,5 @@
-import type { PracticeSessionRecord } from '../types/practice'
-import { dailyHandCounts } from './weeklyStats'
+import type { PracticeSessionRecord } from '../types/practice.js'
+import { dailyHandCounts } from './weeklyStats.js'
 
 /**
  * A daily training target and how today is going against it (v7.3).

@@ -1,5 +1,5 @@
-import type { PokerHand } from '../domain/pokerHands'
-import type { RangeAction } from './range'
+import type { PokerHand } from '../domain/pokerHands.js'
+import type { RangeAction } from './range.js'
 
 /**
  * A single answered practice question: the prompted hand, whether it is

@@ -1,9 +1,9 @@
-import { accuracyPercentage } from './accuracy'
-import { ALL_HANDS, type PokerHand } from './pokerHands'
-import { calculateRangePercentage } from './rangeMath'
-import { formatRangeNotation, parseRangeNotation } from './rangeNotation'
-import type { ActionAttempt } from '../types/practice'
-import { RANGE_ACTIONS, RANGE_ACTION_LABELS, type RangeAction } from '../types/range'
+import { accuracyPercentage } from './accuracy.js'
+import { ALL_HANDS, type PokerHand } from './pokerHands.js'
+import { calculateRangePercentage } from './rangeMath.js'
+import { formatRangeNotation, parseRangeNotation } from './rangeNotation.js'
+import type { ActionAttempt } from '../types/practice.js'
+import { RANGE_ACTIONS, RANGE_ACTION_LABELS, type RangeAction } from '../types/range.js'
 
 /**
  * Pure helpers for v2.3 multi-action ranges, where each hand maps to a single

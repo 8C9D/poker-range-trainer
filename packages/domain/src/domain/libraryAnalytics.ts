@@ -1,5 +1,5 @@
-import type { RangePracticeStats } from '../types/practice'
-import { accuracyPercentage } from './accuracy'
+import type { RangePracticeStats } from '../types/practice.js'
+import { accuracyPercentage } from './accuracy.js'
 
 /**
  * Aggregate practice performance across the whole library (v6 analytics).

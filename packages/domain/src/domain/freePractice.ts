@@ -1,7 +1,7 @@
-import type { PokerHand } from './pokerHands'
-import { rankWeakHands, weakHandPools } from './weakHands'
-import type { RangeHandAccuracy, RangeReviewState } from '../types/practice'
-import type { SavedRange } from '../types/range'
+import type { PokerHand } from './pokerHands.js'
+import { rankWeakHands, weakHandPools } from './weakHands.js'
+import type { RangeHandAccuracy, RangeReviewState } from '../types/practice.js'
+import type { SavedRange } from '../types/range.js'
 
 /**
  * What to practise when nothing is due (v9.3).

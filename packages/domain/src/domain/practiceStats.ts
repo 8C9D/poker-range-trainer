@@ -1,5 +1,5 @@
-import type { RangePracticeStats } from '../types/practice'
-import { accuracyPercentage } from './accuracy'
+import type { RangePracticeStats } from '../types/practice.js'
+import { accuracyPercentage } from './accuracy.js'
 
 /**
  * Derive cumulative practice accuracy for one range as a percentage.
