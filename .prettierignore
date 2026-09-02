@@ -1,0 +1,27 @@
+# Dependencies and generated artifacts
+node_modules/
+dist/
+coverage/
+package-lock.json
+mobile/package-lock.json
+
+# Existing product surfaces retain their established tooling and style until migrated.
+mobile/
+src/
+archived/
+public/
+docs/
+review/
+reviews/
+screenshots/
+.claude/
+.agents/
+*.md
+
+# Existing Vite/TypeScript tooling remains outside the new workspace baseline.
+vite.config.ts
+vitest.config.ts
+eslint.config.js
+tsconfig.json
+tsconfig.app.json
+tsconfig.node.json
