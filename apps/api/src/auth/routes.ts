@@ -1,4 +1,4 @@
-import { Router, type Request, type Response } from 'express'
+import { Router } from 'express'
 import rateLimit from 'express-rate-limit'
 import {
   loginRequestSchema,
@@ -9,10 +9,11 @@ import {
   registerRequestSchema,
   registerResponseSchema,
 } from '@poker-range-trainer/contracts'
-import type { z } from 'zod'
 import type { Logger } from 'pino'
 
 import type { ApiConfig } from '../config.js'
+import { sendNoStoreJson } from '../http/response.js'
+import { parseRequestBody } from '../http/validation.js'
 import { sendProblem } from '../problem.js'
 import { clearAuthCookies, setAuthCookies } from './cookies.js'
 import { createAuthMiddleware, sendCsrfFailed, type AuthMiddleware } from './middleware.js'
@@ -25,46 +26,6 @@ export interface AuthRouterOptions {
   repository: AuthRepository
   service?: AuthService
   middleware?: AuthMiddleware
-}
-
-function validationProblem(request: Request, response: Response, error: z.ZodError): void {
-  sendProblem(request, response, {
-    status: 422,
-    title: 'Validation failed',
-    detail: 'Request validation failed.',
-    code: 'VALIDATION_FAILED',
-    issues: error.issues.map((issue) => ({
-      path: issue.path.filter((segment): segment is string | number => typeof segment !== 'symbol'),
-      code: issue.code,
-      message: issue.message,
-    })),
-  })
-}
-
-function parseBody<T extends z.ZodType>(
-  schema: T,
-  request: Request,
-  response: Response,
-): z.output<T> | undefined {
-  const parsed = schema.safeParse(request.body)
-  if (!parsed.success) {
-    validationProblem(request, response, parsed.error)
-    return undefined
-  }
-  return parsed.data
-}
-
-function parseLogoutBody(request: Request, response: Response): boolean {
-  // Express leaves body undefined when there is no JSON payload, which is the
-  // normal logout request. A supplied JSON document must still be the strict
-  // empty logout contract.
-  if (request.body === undefined) return true
-  return parseBody(logoutRequestSchema, request, response) !== undefined
-}
-
-function sendNoStore(response: Response, status: number, body: unknown): void {
-  response.setHeader('Cache-Control', 'no-store')
-  response.status(status).json(body)
 }
 
 function authLimiter(config: ApiConfig) {
@@ -104,13 +65,13 @@ export function createAuthRouter(options: AuthRouterOptions): Router {
   })
 
   router.post('/register', attempts, async (request, response, next) => {
-    const input = parseBody(registerRequestSchema, request, response)
-    if (!input) return
+    const parsed = parseRequestBody(registerRequestSchema, request, response)
+    if (!parsed.ok) return
     try {
-      const result = await service.register(input)
+      const result = await service.register(parsed.data)
       const body = registerResponseSchema.parse({ data: { user: result.user } })
       setAuthCookies(response, options.config, result.tokens)
-      sendNoStore(response, 201, body)
+      sendNoStoreJson(response, 201, body)
     } catch (error) {
       if (error instanceof EmailAlreadyExistsError) {
         response.setHeader('Cache-Control', 'no-store')
@@ -127,13 +88,13 @@ export function createAuthRouter(options: AuthRouterOptions): Router {
   })
 
   router.post('/login', attempts, async (request, response, next) => {
-    const input = parseBody(loginRequestSchema, request, response)
-    if (!input) return
+    const parsed = parseRequestBody(loginRequestSchema, request, response)
+    if (!parsed.ok) return
     try {
-      const result = await service.login(input)
+      const result = await service.login(parsed.data)
       const body = loginResponseSchema.parse({ data: { user: result.user } })
       setAuthCookies(response, options.config, result.tokens)
-      sendNoStore(response, 200, body)
+      sendNoStoreJson(response, 200, body)
     } catch (error) {
       if (error instanceof InvalidLoginError) {
         response.setHeader('Cache-Control', 'no-store')
@@ -150,7 +111,11 @@ export function createAuthRouter(options: AuthRouterOptions): Router {
   })
 
   router.post('/logout', middleware.optional, async (request, response, next) => {
-    if (!parseLogoutBody(request, response)) return
+    // Express leaves body undefined when there is no JSON payload, which is the
+    // normal logout request. A supplied JSON document must still be the strict
+    // empty logout contract.
+    if (request.body !== undefined && !parseRequestBody(logoutRequestSchema, request, response).ok)
+      return
     try {
       const session = request.authContext
       // Logout is idempotent only after the session has become invalid. A still-live
@@ -161,7 +126,7 @@ export function createAuthRouter(options: AuthRouterOptions): Router {
       }
       if (session) await options.repository.revokeSession(session.user.id, session.session.id)
       clearAuthCookies(response, options.config)
-      sendNoStore(response, 200, logoutResponseSchema.parse({ data: { success: true } }))
+      sendNoStoreJson(response, 200, logoutResponseSchema.parse({ data: { success: true } }))
     } catch (error) {
       next(error)
     }
@@ -181,7 +146,7 @@ export function createAuthRouter(options: AuthRouterOptions): Router {
           },
         })
       : meResponseSchema.parse({ data: { authenticated: false } })
-    sendNoStore(response, 200, body)
+    sendNoStoreJson(response, 200, body)
   })
 
   return router
