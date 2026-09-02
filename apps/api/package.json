@@ -10,13 +10,16 @@
     "runtime:smoke": "node dist/runtime-smoke.js",
     "typecheck": "tsc -p tsconfig.json --noEmit --pretty false --tsBuildInfoFile ../../node_modules/.tmp/api.typecheck.tsbuildinfo",
     "lint": "eslint src test",
-    "format:check": "prettier --check src test package.json tsconfig.json vitest.config.ts",
+    "format:check": "prettier --check src test package.json tsconfig.json vitest*.config.ts",
     "pretest": "npm --prefix ../.. run build:packages",
-    "test": "vitest run"
+    "test": "vitest run",
+    "pretest:integration": "npm run build",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
     "@poker-range-trainer/contracts": "^0.1.0",
     "@poker-range-trainer/database": "^0.1.0",
+    "argon2": "^0.44.0",
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "express-rate-limit": "^8.1.0",

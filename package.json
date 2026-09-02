@@ -25,6 +25,7 @@
     "preview": "vite preview",
     "typecheck": "tsc -b && npm run typecheck --workspaces --if-present && npm --prefix mobile run typecheck",
     "test:workspaces": "npm run test --workspaces --if-present",
+    "test:integration": "npm run build:packages && npm --workspace @poker-range-trainer/database run test:integration && npm --workspace @poker-range-trainer/api run test:integration",
     "test:api": "npm --workspace @poker-range-trainer/api run test",
     "test:runtime-packages": "node scripts/verify-shared-package-runtime.ts",
     "db:migrate": "npm --workspace @poker-range-trainer/database run migrate",
