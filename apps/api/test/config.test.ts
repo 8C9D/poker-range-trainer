@@ -14,6 +14,9 @@ describe('loadConfig', () => {
       trustProxy: false,
       rateLimitWindowMs: 60_000,
       rateLimitMax: 100,
+      sessionTtlSeconds: 7 * 24 * 60 * 60,
+      authRateLimitWindowMs: 15 * 60 * 1000,
+      authRateLimitMax: 10,
     })
   })
 
@@ -25,6 +28,15 @@ describe('loadConfig', () => {
     [{ DATABASE_URL: databaseUrl, API_ORIGINS: '*' }, 'wildcard'],
     [{ DATABASE_URL: databaseUrl, API_ORIGINS: 'https://example.com/path' }, 'exact'],
     [{ DATABASE_URL: databaseUrl, RATE_LIMIT_MAX: '10001' }, 'RATE_LIMIT_MAX'],
+    [{ DATABASE_URL: databaseUrl, SESSION_TTL_SECONDS: '59' }, 'SESSION_TTL_SECONDS'],
+    [{ DATABASE_URL: databaseUrl, SESSION_TTL_SECONDS: '2678401' }, 'SESSION_TTL_SECONDS'],
+    [{ DATABASE_URL: databaseUrl, AUTH_RATE_LIMIT_WINDOW_MS: '999' }, 'AUTH_RATE_LIMIT_WINDOW_MS'],
+    [
+      { DATABASE_URL: databaseUrl, AUTH_RATE_LIMIT_WINDOW_MS: '86400001' },
+      'AUTH_RATE_LIMIT_WINDOW_MS',
+    ],
+    [{ DATABASE_URL: databaseUrl, AUTH_RATE_LIMIT_MAX: '0' }, 'AUTH_RATE_LIMIT_MAX'],
+    [{ DATABASE_URL: databaseUrl, AUTH_RATE_LIMIT_MAX: '1001' }, 'AUTH_RATE_LIMIT_MAX'],
   ])('rejects invalid config %#', (env, message) => {
     expect(() => loadConfig(env)).toThrow(message)
   })
@@ -52,5 +64,20 @@ describe('loadConfig', () => {
         API_ORIGINS: 'https://app.example.com',
       }).trustProxy,
     ).toBe(1)
+  })
+
+  it('accepts bounded session and authentication limiter overrides', () => {
+    expect(
+      loadConfig({
+        DATABASE_URL: databaseUrl,
+        SESSION_TTL_SECONDS: '60',
+        AUTH_RATE_LIMIT_WINDOW_MS: '1000',
+        AUTH_RATE_LIMIT_MAX: '1',
+      }),
+    ).toMatchObject({
+      sessionTtlSeconds: 60,
+      authRateLimitWindowMs: 1_000,
+      authRateLimitMax: 1,
+    })
   })
 })

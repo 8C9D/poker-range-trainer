@@ -4,6 +4,7 @@ import {
   generateAuthTokens,
   generateOpaqueToken,
   hashOpaqueToken,
+  isOpaqueToken,
   tokenHashMatches,
 } from '../src/auth/tokens.js'
 
@@ -26,5 +27,15 @@ describe('auth capability tokens', () => {
     expect(tokenHashMatches(`${raw}x`, persisted)).toBe(false)
     expect(tokenHashMatches(raw, 'not-a-hash')).toBe(false)
     expect(tokenHashMatches(raw, 'A'.repeat(64))).toBe(false)
+  })
+
+  it('accepts only the fixed 256-bit URL-safe cookie shape', () => {
+    const token = generateOpaqueToken()
+    expect(isOpaqueToken(token)).toBe(true)
+    expect(isOpaqueToken(`${token}x`)).toBe(false)
+    expect(isOpaqueToken(`${token.slice(0, -1)}+`)).toBe(false)
+    expect(isOpaqueToken('a'.repeat(43))).toBe(true)
+    expect(isOpaqueToken('a'.repeat(42))).toBe(false)
+    expect(isOpaqueToken(undefined)).toBe(false)
   })
 })

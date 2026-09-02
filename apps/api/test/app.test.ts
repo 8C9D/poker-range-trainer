@@ -13,6 +13,7 @@ import { createServerRuntime } from '../src/server.js'
 
 const requestId = '7a7e6f3e-17be-4b69-a31b-1f902417c560'
 const ready = async (): Promise<void> => undefined
+const silentLogger = createLogger('silent')
 const config = (overrides: Partial<ApiConfig> = {}): ApiConfig => ({
   ...loadConfig({
     DATABASE_URL: 'postgresql://user:password@localhost:5432/poker',
@@ -36,7 +37,7 @@ function assertProblem(body: unknown, status: number, code: string): void {
 describe('API app factory', () => {
   it('has no listener side effect and returns contract-valid liveness', async () => {
     const now = () => new Date('2026-01-02T03:04:05.000Z')
-    const app = createApp({ config: config(), readiness: ready, now })
+    const app = createApp({ config: config(), logger: silentLogger, readiness: ready, now })
     expect(app).toBeTypeOf('function')
     const response = await request(app).get('/api/v1/health/live')
     expect(response.status).toBe(200)
@@ -48,7 +49,7 @@ describe('API app factory', () => {
 
   it('checks injected PostgreSQL readiness and conceals failures', async () => {
     const readiness = vi.fn<() => Promise<void>>().mockResolvedValue(undefined)
-    const app = createApp({ config: config(), readiness })
+    const app = createApp({ config: config(), logger: silentLogger, readiness })
     await request(app).get('/api/v1/health/live').expect(200)
     expect(readiness).not.toHaveBeenCalled()
     await request(app).get('/api/v1/health/ready').expect(200)
@@ -56,6 +57,7 @@ describe('API app factory', () => {
 
     const unavailable = createApp({
       config: config(),
+      logger: silentLogger,
       readiness: async () => {
         throw new Error('postgres://secret-host')
       },
@@ -67,7 +69,7 @@ describe('API app factory', () => {
   })
 
   it('propagates only valid UUID request IDs', async () => {
-    const app = createApp({ config: config(), readiness: ready })
+    const app = createApp({ config: config(), logger: silentLogger, readiness: ready })
     const accepted = await request(app)
       .get('/api/v1/health/live')
       .set('x-request-id', requestId)
@@ -84,6 +86,7 @@ describe('API app factory', () => {
   it('uses credentialed CORS only for exact allowed origins', async () => {
     const app = createApp({
       config: config({ frontendOrigins: ['https://app.example.com'] }),
+      logger: silentLogger,
       readiness: ready,
     })
     const allowed = await request(app)
@@ -113,7 +116,11 @@ describe('API app factory', () => {
   })
 
   it('sets security headers and maps parsing, payload, rate-limit, and 404 failures', async () => {
-    const app = createApp({ config: config({ rateLimitMax: 100 }), readiness: ready })
+    const app = createApp({
+      config: config({ rateLimitMax: 100 }),
+      logger: silentLogger,
+      readiness: ready,
+    })
     const headers = await request(app).get('/api/v1/health/live').expect(200)
     expect(headers.headers['x-content-type-options']).toBe('nosniff')
     expect(headers.headers['content-security-policy']).toContain("default-src 'self'")
@@ -135,12 +142,20 @@ describe('API app factory', () => {
     const missing = await request(app).get('/api/v1/absent').expect(404)
     assertProblem(missing.body, 404, 'NOT_FOUND')
 
-    const limited = createApp({ config: config({ rateLimitMax: 1 }), readiness: ready })
+    const limited = createApp({
+      config: config({ rateLimitMax: 1 }),
+      logger: silentLogger,
+      readiness: ready,
+    })
     await request(limited).get('/api/v1/health/live').expect(200)
     const limitedResponse = await request(limited).get('/api/v1/health/live').expect(429)
     assertProblem(limitedResponse.body, 429, 'RATE_LIMITED')
 
-    const parseProtected = createApp({ config: config({ rateLimitMax: 1 }), readiness: ready })
+    const parseProtected = createApp({
+      config: config({ rateLimitMax: 1 }),
+      logger: silentLogger,
+      readiness: ready,
+    })
     await request(parseProtected)
       .post('/api/v1/unknown')
       .set('Content-Type', 'application/json')

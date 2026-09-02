@@ -3,9 +3,11 @@ import { pathToFileURL } from 'node:url'
 
 import type { Logger } from 'pino'
 
-import { closeDatabase, createPostgresPool } from '@poker-range-trainer/database'
+import { closeDatabase, createDatabase, createPostgresPool } from '@poker-range-trainer/database'
 
 import { createApp, type ReadinessCheck } from './app.js'
+import { PostgresAuthRepository } from './auth/repository.js'
+import { createAuthRouter } from './auth/routes.js'
 import { loadConfig, type ApiConfig } from './config.js'
 import { createLogger } from './logger.js'
 
@@ -36,10 +38,15 @@ export function createServerRuntime(
   const readiness: ReadinessCheck = async () => {
     await pool.query('SELECT 1')
   }
+  const database = createDatabase(pool)
+  const authRepository = new PostgresAuthRepository(database, { now: () => new Date() })
   const app = createApp({
     config,
     logger,
     readiness,
+    registerRoutes(api) {
+      api.use('/api/v1/auth', createAuthRouter({ config, logger, repository: authRepository }))
+    },
   })
   const server = (dependencies.createHttpServer ?? createServer)(app)
   let closing: Promise<void> | undefined

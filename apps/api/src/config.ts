@@ -10,6 +10,9 @@ export interface ApiConfig {
   trustProxy: boolean | number
   rateLimitWindowMs: number
   rateLimitMax: number
+  sessionTtlSeconds: number
+  authRateLimitWindowMs: number
+  authRateLimitMax: number
 }
 
 type Environment = Record<string, string | undefined>
@@ -116,5 +119,22 @@ export function loadConfig(env: Environment = process.env): ApiConfig {
       900_000,
     ),
     rateLimitMax: boundedInteger(env.RATE_LIMIT_MAX, 'RATE_LIMIT_MAX', 100, 1, 10_000),
+    // Sessions are deliberately bounded: a deployment cannot accidentally create
+    // credentials that outlive a reasonable revocation window.
+    sessionTtlSeconds: boundedInteger(
+      env.SESSION_TTL_SECONDS,
+      'SESSION_TTL_SECONDS',
+      7 * 24 * 60 * 60,
+      60,
+      31 * 24 * 60 * 60,
+    ),
+    authRateLimitWindowMs: boundedInteger(
+      env.AUTH_RATE_LIMIT_WINDOW_MS,
+      'AUTH_RATE_LIMIT_WINDOW_MS',
+      15 * 60 * 1000,
+      1_000,
+      24 * 60 * 60 * 1000,
+    ),
+    authRateLimitMax: boundedInteger(env.AUTH_RATE_LIMIT_MAX, 'AUTH_RATE_LIMIT_MAX', 10, 1, 1_000),
   }
 }

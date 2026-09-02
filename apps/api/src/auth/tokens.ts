@@ -2,6 +2,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 
 const tokenBytes = 32
 const sha256Hex = /^[0-9a-f]{64}$/
+const opaqueToken = /^[A-Za-z0-9_-]{43}$/
 
 export interface AuthTokens {
   sessionToken: string
@@ -24,6 +25,11 @@ export function generateAuthTokens(): AuthTokens {
 /** The only representation appropriate for persistence. */
 export function hashOpaqueToken(token: string): string {
   return hashOpaqueTokenDigest(token).toString('hex')
+}
+
+/** Reject malformed cookie/header values before hashing or looking up a session. */
+export function isOpaqueToken(value: unknown): value is string {
+  return typeof value === 'string' && opaqueToken.test(value)
 }
 
 function hashOpaqueTokenDigest(token: string): Buffer {
