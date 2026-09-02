@@ -21,6 +21,9 @@
     "preview": "vite preview",
     "typecheck": "tsc -b && npm run typecheck --workspaces --if-present && npm --prefix mobile run typecheck",
     "test:workspaces": "npm run test --workspaces --if-present",
+    "db:migrate": "npm --workspace @poker-range-trainer/database run migrate",
+    "db:seed": "npm --workspace @poker-range-trainer/database run seed",
+    "db:test": "npm --workspace @poker-range-trainer/database run test:integration",
     "format": "prettier --write --ignore-unknown .",
     "format:check": "prettier --check --ignore-unknown ."
   },

@@ -274,7 +274,7 @@ export function spotPrefillMetadata(spot: Spot): RangeMetadata {
   return {
     tableSize: spot.tableSize,
     position: spot.position,
-    versusPosition: spot.versusPosition,
+    ...(spot.versusPosition === undefined ? {} : { versusPosition: spot.versusPosition }),
     stackDepthBb: spot.stackDepthBb,
     actionType: defaultActionTypeForSpot(spot),
   }

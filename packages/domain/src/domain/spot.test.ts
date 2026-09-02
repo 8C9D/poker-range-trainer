@@ -7,6 +7,7 @@ import {
   parseSpotKey,
   scoreRangeForSpot,
   seatsForTableSize,
+  spotPrefillMetadata,
   spotKey,
   standardSpots,
   villainsForSituation,
@@ -183,6 +184,24 @@ describe('defaultActionTypeForSpot', () => {
   it('takes the first allowed action type for the other situations', () => {
     expect(defaultActionTypeForSpot(btnOpen)).toBe('open')
     expect(defaultActionTypeForSpot({ ...btnOpen, situation: 'facingJam' })).toBe('callJam')
+  })
+})
+
+describe('spotPrefillMetadata', () => {
+  it('omits the opponent when a spot has none and retains it when supplied', () => {
+    expect(spotPrefillMetadata(btnOpen)).toEqual({
+      tableSize: 'sixMax',
+      position: 'btn',
+      stackDepthBb: 100,
+      actionType: 'open',
+    })
+    expect(spotPrefillMetadata(bbVsCo)).toEqual({
+      tableSize: 'sixMax',
+      position: 'bb',
+      versusPosition: 'co',
+      stackDepthBb: 100,
+      actionType: 'defend',
+    })
   })
 })
 
