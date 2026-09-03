@@ -17,6 +17,9 @@ import { PracticeService } from './practice/service.js'
 import { PostgresRangeRepository } from './ranges/repository.js'
 import { createRangeRouter } from './ranges/routes.js'
 import { RangeService } from './ranges/service.js'
+import { PostgresSettingsRepository } from './settings/repository.js'
+import { createSettingsRouter } from './settings/routes.js'
+import { SettingsService } from './settings/service.js'
 
 type PostgresPool = ReturnType<typeof createPostgresPool>
 
@@ -52,6 +55,8 @@ export function createServerRuntime(
   const rangeService = new RangeService(rangeRepository)
   const practiceRepository = new PostgresPracticeRepository(database)
   const practiceService = new PracticeService(practiceRepository)
+  const settingsRepository = new PostgresSettingsRepository(database)
+  const settingsService = new SettingsService(settingsRepository)
   const app = createApp({
     config,
     logger,
@@ -73,6 +78,10 @@ export function createServerRuntime(
       api.use(
         '/api/v1/practice',
         createPracticeRouter({ service: practiceService, middleware: authMiddleware }),
+      )
+      api.use(
+        '/api/v1/settings',
+        createSettingsRouter({ service: settingsService, middleware: authMiddleware }),
       )
     },
   })
