@@ -5,6 +5,7 @@ import {
   meResponseSchema,
   practiceSessionSubmissionResponseSchema,
   problemDetailsSchema,
+  progressResponseSchema,
   bulkRangeMutationResponseSchema,
   rangeArchiveResponseSchema,
   rangeCreateResponseSchema,
@@ -18,6 +19,8 @@ import {
   rangeUpdateResponseSchema,
   registerRequestSchema,
   registerResponseSchema,
+  todayResponseSchema,
+  trainingGoalResponseSchema,
   type BulkRangeMutationRequest,
   type RangeCreateRequest,
   type RangeDuplicateRequest,
@@ -264,5 +267,36 @@ export function submitPracticeSession(input: PracticeSessionSubmission) {
 export function getRangePractice(rangeId: string) {
   return apiRequest(`/practice/ranges/${encodeURIComponent(rangeId)}`, {
     schema: rangePracticeReadResponseSchema,
+  })
+}
+
+/**
+ * The Today and Progress read models are bucketed into calendar days, so both
+ * carry the caller's IANA zone. The API rejects a zone it has not got
+ * installed rather than silently falling back to UTC, which is why the value
+ * travels as given instead of being normalised here.
+ */
+export function getToday(timeZone: string) {
+  return apiRequest(`/practice/today?timeZone=${encodeURIComponent(timeZone)}`, {
+    schema: todayResponseSchema,
+  })
+}
+
+export function getProgress(timeZone: string) {
+  return apiRequest(`/practice/progress?timeZone=${encodeURIComponent(timeZone)}`, {
+    schema: progressResponseSchema,
+  })
+}
+
+export function getTrainingGoal() {
+  return apiRequest('/settings/training-goal', { schema: trainingGoalResponseSchema })
+}
+
+/** `null` turns the daily goal off; the server keeps no separate "enabled" flag. */
+export function updateTrainingGoal(dailyHandsGoal: number | null) {
+  return apiRequest('/settings/training-goal', {
+    method: 'PUT',
+    body: { dailyHandsGoal },
+    schema: trainingGoalResponseSchema,
   })
 }

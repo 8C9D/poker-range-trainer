@@ -6,6 +6,8 @@ import { getCurrentUser, logout } from '@/lib/api-client'
 
 import { AuthenticatedShell } from './authenticated-shell'
 
+let pathname = '/app/library'
+vi.mock('next/navigation', () => ({ usePathname: () => pathname }))
 vi.mock('@/lib/api-client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api-client')>()
   return { ...actual, getCurrentUser: vi.fn(), logout: vi.fn() }
@@ -19,6 +21,7 @@ describe('AuthenticatedShell', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    pathname = '/app/library'
   })
 
   it('renders loading, ready content without fake ranges, and signs out with the API', async () => {
@@ -43,10 +46,44 @@ describe('AuthenticatedShell', () => {
       },
     })
     await screen.findByText('Library content')
-    expect(screen.getByRole('link', { name: 'Library' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Library' })).toHaveAttribute('href', '/app/library')
+    expect(screen.getByRole('link', { name: 'Today' })).toHaveAttribute('href', '/app/today')
+    expect(screen.getByRole('link', { name: 'Progress' })).toHaveAttribute('href', '/app/progress')
+    // Account is the one section that has nothing behind it yet.
+    expect(screen.queryByRole('link', { name: 'Account' })).not.toBeInTheDocument()
+    expect(screen.getByText('Account')).toHaveAttribute('aria-disabled', 'true')
     await user.click(screen.getByRole('button', { name: 'Sign out' }))
     expect(logoutRequest).toHaveBeenCalledOnce()
     expect(await screen.findByRole('link', { name: 'Sign in' })).toBeInTheDocument()
+  })
+
+  it('marks the open section, including the pages that live under it', async () => {
+    const ready = {
+      data: {
+        authenticated: true,
+        user: {
+          id: '7a7e6f3e-17be-4b69-a31b-1f902417c560',
+          email: 'player@example.test',
+          createdAt: '2026-01-02T03:04:05.000Z',
+        },
+      },
+    } as const
+
+    pathname = '/app/today'
+    currentUser.mockResolvedValueOnce(ready)
+    const { unmount } = render(<AuthenticatedShell>Today content</AuthenticatedShell>)
+    await screen.findByText('Today content')
+    expect(screen.getByRole('link', { name: 'Today' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'Library' })).not.toHaveAttribute('aria-current')
+    unmount()
+
+    // A range page is still the Library section, not a fourth destination.
+    pathname = '/app/library/7a7e6f3e-17be-4b69-a31b-1f902417c560'
+    currentUser.mockResolvedValueOnce(ready)
+    render(<AuthenticatedShell>Range content</AuthenticatedShell>)
+    await screen.findByText('Range content')
+    expect(screen.getByRole('link', { name: 'Library' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'Progress' })).not.toHaveAttribute('aria-current')
   })
 
   it('offers a retry after a session load failure', async () => {

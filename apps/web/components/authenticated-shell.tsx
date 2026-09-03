@@ -1,9 +1,17 @@
 'use client'
 
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 
 import { ApiClientError, getCurrentUser, logout } from '@/lib/api-client'
+
+/** The sections of the practice room, in the order they are worked through. */
+const SECTIONS = [
+  { href: '/app/today', label: 'Today' },
+  { href: '/app/library', label: 'Library' },
+  { href: '/app/progress', label: 'Progress' },
+] as const
 
 type ShellState =
   | { status: 'loading' }
@@ -30,6 +38,7 @@ interface AuthenticatedShellProps {
 }
 
 export function AuthenticatedShell({ children }: AuthenticatedShellProps) {
+  const pathname = usePathname() ?? ''
   const [state, setState] = useState<ShellState>({ status: 'loading' })
   const [loggingOut, setLoggingOut] = useState(false)
   const [logoutError, setLogoutError] = useState<string>()
@@ -125,13 +134,21 @@ export function AuthenticatedShell({ children }: AuthenticatedShellProps) {
         </div>
       </header>
       <nav className="app-nav" aria-label="Practice navigation">
-        <Link href="/app/library">Library</Link>
-        <span aria-disabled="true" title="Coming soon">
-          Today
-        </span>
-        <span aria-disabled="true" title="Coming soon">
-          Progress
-        </span>
+        {SECTIONS.map((section) => (
+          <Link
+            key={section.href}
+            href={section.href}
+            // A range page belongs to Library, so the section stays marked while
+            // its own pages are open rather than only on its index.
+            aria-current={
+              pathname === section.href || pathname.startsWith(`${section.href}/`)
+                ? 'page'
+                : undefined
+            }
+          >
+            {section.label}
+          </Link>
+        ))}
         <span aria-disabled="true" title="Coming soon">
           Account
         </span>

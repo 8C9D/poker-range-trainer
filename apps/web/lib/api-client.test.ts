@@ -8,14 +8,18 @@ import {
   createRange,
   deleteRange,
   getCurrentUser,
+  getProgress,
   getRange,
   getRangePractice,
+  getToday,
+  getTrainingGoal,
   listRanges,
   login,
   submitPracticeSession,
   setRangeArchived,
   setRangeFavorite,
   updateRange,
+  updateTrainingGoal,
 } from './api-client'
 
 const requestId = '7a7e6f3e-17be-4b69-a31b-1f902417c560'
@@ -256,6 +260,104 @@ describe('API client', () => {
     expect((init?.headers as Headers).get('x-csrf-token')).toBe('practice-token')
     expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/v1/practice/ranges/a%2Fb')
     expect(fetchMock.mock.calls[1]?.[1]?.method).toBe('GET')
+  })
+
+  it('sends the caller time zone on the day reports and round-trips the training goal', async () => {
+    document.cookie = 'prt_csrf=goal-token; path=/'
+    const today = {
+      generatedAt: '2026-09-03T12:00:00.000Z',
+      streakDays: 3,
+      dailyGoal: { target: 20, handsAnswered: 12, remainingHands: 8 },
+      trailingSevenDays: {
+        handsAnswered: 40,
+        correctAnswers: 30,
+        accuracyPercentage: 75,
+        sharpestRange: {
+          id: requestId,
+          name: 'BTN open',
+          handsAnswered: 20,
+          correctAnswers: 18,
+          accuracyPercentage: 90,
+        },
+      },
+      dueRanges: [
+        {
+          id: requestId,
+          name: 'BTN open',
+          dueAt: '2026-09-03T00:00:00.000Z',
+          accuracyPercentage: 72,
+          lastPracticedAt: '2026-09-01T09:00:00.000Z',
+        },
+      ],
+      caughtUp: false,
+      freePractice: null,
+    }
+    const progress = {
+      generatedAt: '2026-09-03T12:00:00.000Z',
+      streakDays: 3,
+      allTime: {
+        rangesPracticed: 2,
+        handsAnswered: 100,
+        correctAnswers: 80,
+        accuracyPercentage: 80,
+      },
+      trailingThirtyDays: { handsAnswered: 60, correctAnswers: 45, accuracyPercentage: 75 },
+      dailyActivity: [{ day: '2026-09-03', handsAnswered: 12 }],
+      weeklyAccuracyTrend: [
+        { weekStart: '2026-08-31', handsAnswered: 40, correctAnswers: 30, accuracyPercentage: 75 },
+      ],
+      handClassLeaks: [],
+      mistakeBias: { loose: 8, tight: 2, mistakes: 10, loosePercentage: 80, bias: 'loose' },
+      positionLeans: [],
+      weakestHands: [],
+    }
+    const goal = { dailyHandsGoal: 20, updatedAt: '2026-09-03T12:00:00.000Z' }
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(jsonResponse({ data: today }))
+      .mockResolvedValueOnce(jsonResponse({ data: progress }))
+      .mockResolvedValueOnce(jsonResponse({ data: goal }))
+      .mockResolvedValueOnce(jsonResponse({ data: { dailyHandsGoal: null, updatedAt: null } }))
+
+    await expect(getToday('America/New_York')).resolves.toEqual({ data: today })
+    await expect(getProgress('Europe/Berlin')).resolves.toEqual({ data: progress })
+    await expect(getTrainingGoal()).resolves.toEqual({ data: goal })
+    await expect(updateTrainingGoal(null)).resolves.toEqual({
+      data: { dailyHandsGoal: null, updatedAt: null },
+    })
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/v1/practice/today?timeZone=America%2FNew_York')
+    expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/v1/practice/progress?timeZone=Europe%2FBerlin')
+    expect(fetchMock.mock.calls[2]?.[0]).toBe('/api/v1/settings/training-goal')
+    expect(fetchMock.mock.calls[2]?.[1]?.method).toBe('GET')
+    const [path, init] = fetchMock.mock.calls[3] ?? []
+    expect(path).toBe('/api/v1/settings/training-goal')
+    expect(init?.method).toBe('PUT')
+    expect(init?.body).toBe(JSON.stringify({ dailyHandsGoal: null }))
+    expect((init?.headers as Headers).get('x-csrf-token')).toBe('goal-token')
+  })
+
+  it('rejects a Today projection whose remaining hands contradict its goal', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      jsonResponse({
+        data: {
+          generatedAt: '2026-09-03T12:00:00.000Z',
+          streakDays: 0,
+          dailyGoal: { target: 20, handsAnswered: 12, remainingHands: 0 },
+          trailingSevenDays: {
+            handsAnswered: 0,
+            correctAnswers: 0,
+            accuracyPercentage: 0,
+            sharpestRange: null,
+          },
+          dueRanges: [],
+          caughtUp: true,
+          freePractice: null,
+        },
+      }),
+    )
+
+    await expect(getToday('UTC')).rejects.toMatchObject({ kind: 'invalid-response' })
   })
 
   it('rejects a practice response whose accuracy does not follow from its counters', async () => {
