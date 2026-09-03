@@ -1,7 +1,7 @@
 import type { PracticeSessionRecord } from '../types/practice.js'
 import type { SavedRange } from '../types/range.js'
 import { accuracyPercentage } from './accuracy.js'
-import { localCalendarDay, localDayStart } from './calendarDay.js'
+import { localCalendarDays, localDayStart, type CalendarDays } from './calendarDay.js'
 
 /**
  * The recorded sessions belonging to ranges the library still holds.
@@ -46,9 +46,10 @@ export function summarizeWeek(
   history: Record<string, PracticeSessionRecord[]>,
   now: string,
   windowDays = 7,
+  calendar: CalendarDays = localCalendarDays,
 ): WeeklySummary {
   const nowTimestamp = new Date(now).getTime()
-  const todayNum = localCalendarDay(now)
+  const todayNum = calendar.dayNumber(now)
   if (!Number.isFinite(nowTimestamp) || todayNum === null || windowDays <= 0) {
     return {
       handsAnswered: 0,
@@ -66,7 +67,7 @@ export function summarizeWeek(
   for (const sessions of Object.values(history)) {
     for (const session of sessions) {
       const at = new Date(session.playedAt).getTime()
-      const dayNum = localCalendarDay(session.playedAt)
+      const dayNum = calendar.dayNumber(session.playedAt)
       if (dayNum === null || dayNum < firstNum || dayNum > todayNum || at > nowTimestamp) continue
       handsAnswered += session.totalQuestions
       correctAnswers += session.correctAnswers
@@ -105,8 +106,15 @@ export function summarizeWeek(
 
 /** One day of the hands-per-day chart. */
 export interface DailyHandCount {
-  /** Start of the local calendar day as an ISO timestamp. */
+  /**
+   * Start of the PROCESS-LOCAL calendar day as an ISO timestamp, kept for the
+   * on-device callers that have always labelled their columns with it. It is
+   * derived from the machine's zone, NOT from the `calendar` that did the
+   * bucketing, so a zone-aware caller must label from `dayNumber` instead.
+   */
   dayStart: string
+  /** The `calendar` day number this column counts (see `isoDateOfDayNumber`). */
+  dayNumber: number
   handsAnswered: number
 }
 
@@ -118,15 +126,16 @@ export function dailyHandCounts(
   history: Record<string, PracticeSessionRecord[]>,
   now: string,
   days = 7,
+  calendar: CalendarDays = localCalendarDays,
 ): DailyHandCount[] {
-  const todayNum = localCalendarDay(now)
+  const todayNum = calendar.dayNumber(now)
   const todayStart = localDayStart(now)
   if (todayNum === null || todayStart === null) return []
   const firstNum = todayNum - (days - 1)
   const counts = new Array<number>(days).fill(0)
   for (const sessions of Object.values(history)) {
     for (const session of sessions) {
-      const dayNum = localCalendarDay(session.playedAt)
+      const dayNum = calendar.dayNumber(session.playedAt)
       if (dayNum === null) continue
       if (dayNum < firstNum || dayNum > todayNum) continue
       counts[dayNum - firstNum] += session.totalQuestions
@@ -135,14 +144,21 @@ export function dailyHandCounts(
   return counts.map((handsAnswered, index) => {
     const dayStart = new Date(todayStart)
     dayStart.setDate(dayStart.getDate() - (days - 1 - index))
-    return { dayStart: dayStart.toISOString(), handsAnswered }
+    return { dayStart: dayStart.toISOString(), dayNumber: firstNum + index, handsAnswered }
   })
 }
 
 /** One 7-day bucket of the accuracy trend. */
 export interface WeeklyAccuracyPoint {
-  /** Start of the bucket's first local calendar day, as an ISO timestamp. */
+  /**
+   * Start of the bucket's first PROCESS-LOCAL calendar day, as an ISO
+   * timestamp. Like {@link DailyHandCount.dayStart} it comes from the machine's
+   * zone rather than from the `calendar`, so zone-aware callers label from
+   * `weekStartDayNumber`.
+   */
   weekStart: string
+  /** The `calendar` day number the bucket starts on (see `isoDateOfDayNumber`). */
+  weekStartDayNumber: number
   handsAnswered: number
   correctAnswers: number
   /** 0 when nothing was answered in the bucket. */
@@ -163,8 +179,9 @@ export function weeklyAccuracyTrend(
   history: Record<string, PracticeSessionRecord[]>,
   now: string,
   weeks = 8,
+  calendar: CalendarDays = localCalendarDays,
 ): WeeklyAccuracyPoint[] {
-  const todayNum = localCalendarDay(now)
+  const todayNum = calendar.dayNumber(now)
   const todayStart = localDayStart(now)
   if (todayNum === null || todayStart === null || weeks <= 0) return []
 
@@ -172,7 +189,7 @@ export function weeklyAccuracyTrend(
   const firstNum = todayNum - (weeks * 7 - 1)
   for (const sessions of Object.values(history)) {
     for (const session of sessions) {
-      const dayNum = localCalendarDay(session.playedAt)
+      const dayNum = calendar.dayNumber(session.playedAt)
       if (dayNum === null || dayNum < firstNum || dayNum > todayNum) continue
       // Bucket 0 is the newest week, so read the series back to front below.
       const bucket = Math.floor((todayNum - dayNum) / 7)
@@ -187,6 +204,7 @@ export function weeklyAccuracyTrend(
       weekStart.setDate(weekStart.getDate() - (index * 7 + 6))
       return {
         weekStart: weekStart.toISOString(),
+        weekStartDayNumber: todayNum - (index * 7 + 6),
         handsAnswered: bucket.total,
         correctAnswers: bucket.correct,
         accuracy: accuracyPercentage(bucket.correct, bucket.total),

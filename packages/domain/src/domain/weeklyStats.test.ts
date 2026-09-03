@@ -5,6 +5,7 @@ import {
   summarizeWeek,
   weeklyAccuracyTrend,
 } from './weeklyStats'
+import { isoDateOfDayNumber, localCalendarDay, zonedCalendarDays } from './calendarDay'
 import type { PracticeSessionRecord } from '../types/practice'
 import type { SavedRange } from '../types/range'
 
@@ -276,5 +277,58 @@ describe('weeklyAccuracyTrend', () => {
 
     expect(starts[1] - starts[0]).toBe(7 * 86_400_000)
     expect(starts[2] - starts[1]).toBe(7 * 86_400_000)
+  })
+})
+
+/**
+ * The API buckets by the day the USER was living in, which is never the day the
+ * server process happens to be on. These cases pin one instant that falls on
+ * different calendar days for two real users: 2026-07-11T11:00Z is 23:00 on the
+ * 11th in Auckland and 04:00 on the 11th in Los Angeles, while the `now` an hour
+ * later is already 01:00 on the 12th in Auckland and still the morning of the
+ * 11th in Los Angeles.
+ */
+describe('bucketing in a supplied calendar', () => {
+  const auckland = zonedCalendarDays('Pacific/Auckland')
+  const losAngeles = zonedCalendarDays('America/Los_Angeles')
+  const now = '2026-07-11T13:00:00.000Z'
+  const history = { a: [session('a', '2026-07-11T11:00:00.000Z', 12, 9)] }
+
+  it('moves what counts as today without moving what counts as this week', () => {
+    expect(summarizeWeek(history, now, 1, losAngeles).handsAnswered).toBe(12)
+    expect(summarizeWeek(history, now, 1, auckland).handsAnswered).toBe(0)
+    expect(summarizeWeek(history, now, 7, auckland).handsAnswered).toBe(12)
+    expect(summarizeWeek(history, now, 7, auckland).sharpestRangeId).toBe('a')
+  })
+
+  it('fills and numbers the daily chart from the days of the given zone', () => {
+    const inAuckland = dailyHandCounts(history, now, 7, auckland)
+    const inLosAngeles = dailyHandCounts(history, now, 7, losAngeles)
+
+    expect(isoDateOfDayNumber(inAuckland[6].dayNumber)).toBe('2026-07-12')
+    expect(isoDateOfDayNumber(inLosAngeles[6].dayNumber)).toBe('2026-07-11')
+    // The same session is yesterday in Auckland and today in Los Angeles.
+    expect(inAuckland.map((day) => day.handsAnswered)).toEqual([0, 0, 0, 0, 0, 12, 0])
+    expect(inLosAngeles.map((day) => day.handsAnswered)).toEqual([0, 0, 0, 0, 0, 0, 12])
+  })
+
+  it('numbers each accuracy bucket from the first day of the zone week', () => {
+    const [inAuckland] = weeklyAccuracyTrend(history, now, 1, auckland)
+    const [inLosAngeles] = weeklyAccuracyTrend(history, now, 1, losAngeles)
+
+    expect(isoDateOfDayNumber(inAuckland.weekStartDayNumber)).toBe('2026-07-06')
+    expect(isoDateOfDayNumber(inLosAngeles.weekStartDayNumber)).toBe('2026-07-05')
+    expect([inAuckland.handsAnswered, inLosAngeles.handsAnswered]).toEqual([12, 12])
+  })
+})
+
+describe('the day numbers beside the local labels', () => {
+  it('agree with the local timestamps the charts have always carried', () => {
+    for (const day of dailyHandCounts({ a: [session('a', NOW, 10, 8)] }, NOW)) {
+      expect(day.dayNumber).toBe(localCalendarDay(day.dayStart))
+    }
+    for (const point of weeklyAccuracyTrend({ a: [session('a', NOW, 10, 8)] }, NOW, 3)) {
+      expect(point.weekStartDayNumber).toBe(localCalendarDay(point.weekStart))
+    }
   })
 })

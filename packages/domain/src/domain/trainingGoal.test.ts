@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { evaluateDailyGoal, goalLine } from './trainingGoal'
+import { zonedCalendarDays } from './calendarDay'
 import type { PracticeSessionRecord } from '../types/practice'
 
 const NOW = '2026-07-11T12:00:00.000Z'
@@ -60,5 +61,25 @@ describe('goalLine', () => {
       'Goal met — 20 hands today.',
     )
     expect(goalLine(evaluateDailyGoal({}, NOW, 0))).toBe('No daily goal set.')
+  })
+})
+
+describe('evaluateDailyGoal in a supplied calendar', () => {
+  it('counts the hands answered on the day the user is having', () => {
+    // 11:00Z is 23:00 on the 11th in Auckland and 04:00 on the 11th in Los
+    // Angeles; an hour later Auckland has already rolled over to the 12th.
+    const history = { r1: [session('2026-07-11T11:00:00.000Z', 12)] }
+    const now = '2026-07-11T13:00:00.000Z'
+
+    const inLosAngeles = evaluateDailyGoal(
+      history,
+      now,
+      20,
+      zonedCalendarDays('America/Los_Angeles'),
+    )
+    const inAuckland = evaluateDailyGoal(history, now, 20, zonedCalendarDays('Pacific/Auckland'))
+
+    expect(inLosAngeles).toMatchObject({ answered: 12, remaining: 8, percent: 60, met: false })
+    expect(inAuckland).toMatchObject({ answered: 0, remaining: 20, percent: 0, met: false })
   })
 })

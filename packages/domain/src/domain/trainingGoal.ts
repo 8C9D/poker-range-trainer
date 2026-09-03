@@ -1,4 +1,5 @@
 import type { PracticeSessionRecord } from '../types/practice.js'
+import { localCalendarDays, type CalendarDays } from './calendarDay.js'
 import { dailyHandCounts } from './weeklyStats.js'
 
 /**
@@ -36,8 +37,9 @@ export function evaluateDailyGoal(
   history: Record<string, PracticeSessionRecord[]>,
   now: string,
   target: number,
+  calendar: CalendarDays = localCalendarDays,
 ): DailyGoalProgress {
-  const days = dailyHandCounts(history, now, 1)
+  const days = dailyHandCounts(history, now, 1, calendar)
   const answered = days[0]?.handsAnswered ?? 0
   if (!Number.isFinite(target) || target <= 0) {
     return { target: 0, answered, remaining: 0, percent: 0, met: false }

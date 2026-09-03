@@ -1,5 +1,12 @@
 import { describe, it, expect, afterEach, vi } from 'vitest'
-import { DAY_MS, localCalendarDay, localDayStart } from './calendarDay'
+import {
+  DAY_MS,
+  isoDateOfDayNumber,
+  localCalendarDay,
+  localCalendarDays,
+  localDayStart,
+  zonedCalendarDays,
+} from './calendarDay'
 
 /**
  * Every "did I practice today" question in the app funnels through these two
@@ -117,5 +124,74 @@ describe('the two helpers together', () => {
 describe('DAY_MS', () => {
   it('is a fixed 24-hour interval', () => {
     expect(DAY_MS).toBe(24 * 60 * 60 * 1000)
+  })
+})
+
+describe('localCalendarDays', () => {
+  it('is the process-local helper behind the calendar interface', () => {
+    const iso = localIso(2026, 6, 15, 9)
+    expect(localCalendarDays.dayNumber(iso)).toBe(localCalendarDay(iso))
+    expect(localCalendarDays.dayNumber('not a date')).toBeNull()
+  })
+})
+
+/**
+ * The server bucket. `localCalendarDay` asks the machine what day it is, which on
+ * a server is a fact about the data centre, not about the user: someone in
+ * Auckland finishing a session at 11:30 UTC has practiced on the 12th, and a
+ * process in California would credit it to the 11th and silently break their
+ * streak. These cases pin the two directions with real zones.
+ */
+describe('zonedCalendarDays', () => {
+  it('reads the wall-clock day in the given zone, not the UTC one', () => {
+    const lateUtcEvening = '2026-06-15T23:30:00.000Z'
+    const dateIn = (timeZone: string, iso: string): string =>
+      isoDateOfDayNumber(zonedCalendarDays(timeZone).dayNumber(iso) as number)
+
+    // 11:30 on the 16th in Auckland, 16:30 on the 15th in Los Angeles.
+    expect(dateIn('Pacific/Auckland', lateUtcEvening)).toBe('2026-06-16')
+    expect(dateIn('UTC', lateUtcEvening)).toBe('2026-06-15')
+    expect(dateIn('America/Los_Angeles', lateUtcEvening)).toBe('2026-06-15')
+
+    // And just past UTC midnight it is still the previous day on the US west coast.
+    const justPastUtcMidnight = '2026-06-16T00:30:00.000Z'
+    expect(dateIn('Pacific/Auckland', justPastUtcMidnight)).toBe('2026-06-16')
+    expect(dateIn('UTC', justPastUtcMidnight)).toBe('2026-06-16')
+    expect(dateIn('America/Los_Angeles', justPastUtcMidnight)).toBe('2026-06-15')
+  })
+
+  it('gives one day number to a zone day and advances across its midnight', () => {
+    const auckland = zonedCalendarDays('Pacific/Auckland')
+    // 12:00 and 23:59 on 2026-06-16 in Auckland (UTC+12), then 00:01 the next day.
+    const midday = auckland.dayNumber('2026-06-16T00:00:00.000Z')
+    expect(auckland.dayNumber('2026-06-16T11:59:00.000Z')).toBe(midday)
+    expect(auckland.dayNumber('2026-06-16T12:01:00.000Z')).toBe((midday ?? 0) + 1)
+  })
+
+  it('agrees with the local helper when asked for the machine zone', () => {
+    const machineZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    for (const hour of [0, 6, 12, 23]) {
+      const iso = localIso(2026, 6, 15, hour, 30)
+      expect(zonedCalendarDays(machineZone).dayNumber(iso)).toBe(localCalendarDay(iso))
+    }
+  })
+
+  it('returns null for a timestamp it cannot read', () => {
+    expect(zonedCalendarDays('UTC').dayNumber('not a date')).toBeNull()
+    expect(zonedCalendarDays('UTC').dayNumber('')).toBeNull()
+  })
+
+  it('refuses a zone the runtime does not know', () => {
+    expect(() => zonedCalendarDays('Not/AZone')).toThrow(RangeError)
+    expect(() => zonedCalendarDays('')).toThrow(RangeError)
+  })
+})
+
+describe('isoDateOfDayNumber', () => {
+  it('names the calendar date a day number stands for', () => {
+    const utc = zonedCalendarDays('UTC')
+    const endOfFebruary = utc.dayNumber('2026-02-28T12:00:00.000Z') as number
+    expect(isoDateOfDayNumber(endOfFebruary)).toBe('2026-02-28')
+    expect(isoDateOfDayNumber(endOfFebruary + 1)).toBe('2026-03-01')
   })
 })

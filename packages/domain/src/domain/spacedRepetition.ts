@@ -1,6 +1,6 @@
 import type { RangeReviewState } from '../types/practice.js'
 import type { SavedRange } from '../types/range.js'
-import { DAY_MS, localCalendarDay } from './calendarDay.js'
+import { DAY_MS, localCalendarDays, type CalendarDays } from './calendarDay.js'
 
 export { DAY_MS } from './calendarDay.js'
 
@@ -83,10 +83,14 @@ export function scheduleNextReview(
  * later still, so someone who trains in the mornings would be offered their due
  * ranges less and less often without anything appearing to be wrong.
  */
-export function isReviewDue(state: RangeReviewState, now: string): boolean {
+export function isReviewDue(
+  state: RangeReviewState,
+  now: string,
+  calendar: CalendarDays = localCalendarDays,
+): boolean {
   if (state.dueAt === '') return false
-  const dueDay = localCalendarDay(state.dueAt)
-  const nowDay = localCalendarDay(now)
+  const dueDay = calendar.dayNumber(state.dueAt)
+  const nowDay = calendar.dayNumber(now)
   if (dueDay === null || nowDay === null) return false
   return nowDay >= dueDay
 }
@@ -101,10 +105,11 @@ export function selectDueRanges(
   ranges: SavedRange[],
   reviewStates: Record<string, RangeReviewState>,
   now: string,
+  calendar: CalendarDays = localCalendarDays,
 ): SavedRange[] {
   return ranges.filter((range) => {
     const state = reviewStates[range.id]
-    return state === undefined || isReviewDue(state, now)
+    return state === undefined || isReviewDue(state, now, calendar)
   })
 }
 
@@ -115,13 +120,17 @@ export function selectDueRanges(
  * values across all ranges); multiple reviews on a day count once, and an empty
  * list is a streak of 0. Pure — `today` is supplied, never read from the clock.
  */
-export function currentStreak(reviewTimestamps: string[], today: string): number {
+export function currentStreak(
+  reviewTimestamps: string[],
+  today: string,
+  calendar: CalendarDays = localCalendarDays,
+): number {
   const activeDays = new Set(
     reviewTimestamps
-      .map(localCalendarDay)
+      .map((timestamp) => calendar.dayNumber(timestamp))
       .filter((day): day is number => day !== null),
   )
-  const todayNum = localCalendarDay(today)
+  const todayNum = calendar.dayNumber(today)
   if (todayNum === null) return 0
 
   let anchor: number

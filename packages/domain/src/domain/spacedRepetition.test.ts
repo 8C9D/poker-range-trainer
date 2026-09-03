@@ -9,6 +9,7 @@ import {
   selectDueRanges,
   currentStreak,
 } from './spacedRepetition'
+import { zonedCalendarDays } from './calendarDay'
 import type { RangeReviewState } from '../types/practice'
 import type { SavedRange } from '../types/range'
 
@@ -226,5 +227,59 @@ describe('scheduleNextReview confidence weighting', () => {
 
   it('ignores a non-finite confidence rather than corrupting the schedule', () => {
     expect(scheduleNextReview(strong, 90, '2026-01-01T00:00:00.000Z', NaN).intervalDays).toBe(25)
+  })
+})
+
+/**
+ * Due-ness and the streak are both day comparisons, so on a server they have to
+ * be made in the user's own zone. The instants here are chosen so the answer
+ * genuinely differs: 2026-07-12T04:00Z is late on the evening of the 11th in Los
+ * Angeles and already the afternoon of the 12th in Auckland.
+ */
+describe('reviewing in a supplied calendar', () => {
+  const auckland = zonedCalendarDays('Pacific/Auckland')
+  const losAngeles = zonedCalendarDays('America/Los_Angeles')
+  const now = '2026-07-12T04:00:00.000Z'
+  const dueTomorrowInLosAngeles: RangeReviewState = {
+    rangeId: 'r1',
+    ease: DEFAULT_EASE,
+    intervalDays: 1,
+    dueAt: '2026-07-12T09:00:00.000Z', // 02:00 on the 12th in LA, 21:00 on the 12th in Auckland
+    lastReviewedAt: '2026-07-11T09:00:00.000Z',
+  }
+
+  it('holds a range back until the day it is due arrives for the user', () => {
+    expect(isReviewDue(dueTomorrowInLosAngeles, now, auckland)).toBe(true)
+    expect(isReviewDue(dueTomorrowInLosAngeles, now, losAngeles)).toBe(false)
+  })
+
+  it("selects only the ranges due on the user's own day", () => {
+    const range = (id: string): SavedRange => ({
+      id,
+      name: id,
+      hands: ['AA'],
+      createdAt: now,
+      updatedAt: now,
+    })
+    const states = { r1: dueTomorrowInLosAngeles }
+
+    expect(selectDueRanges([range('r1'), range('fresh')], states, now, auckland).map((r) => r.id)).toEqual([
+      'r1',
+      'fresh',
+    ])
+    expect(
+      selectDueRanges([range('r1'), range('fresh')], states, now, losAngeles).map((r) => r.id),
+    ).toEqual(['fresh'])
+  })
+
+  it("counts the streak in the user's days, not the process days", () => {
+    // Two sessions four hours apart: one calendar day in Auckland (18:00 and
+    // 22:00 on the 11th), two in Los Angeles (23:00 on the 10th and 03:00 on the
+    // 11th).
+    const sessions = ['2026-07-11T06:00:00.000Z', '2026-07-11T10:00:00.000Z']
+    const today = '2026-07-11T11:00:00.000Z'
+
+    expect(currentStreak(sessions, today, losAngeles)).toBe(2)
+    expect(currentStreak(sessions, today, auckland)).toBe(1)
   })
 })
