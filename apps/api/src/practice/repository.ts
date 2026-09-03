@@ -1,14 +1,16 @@
 import { createHash, randomUUID } from 'node:crypto'
 
-import { and, asc, eq, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
 
 import {
   practiceSessionSubmissionResponseSchema,
   type PracticeSessionSubmission,
   type PracticeSessionSubmissionResponse,
+  type RangePracticeRead,
 } from '@poker-range-trainer/contracts'
 import type { Database } from '@poker-range-trainer/database'
 import {
+  handClasses,
   practiceAttempts,
   practiceSessions,
   practiceSubmissionReplays,
@@ -17,7 +19,9 @@ import {
   rangePracticeStats,
   ranges,
   reviewStates,
+  userTrainingGoals,
 } from '@poker-range-trainer/database'
+import { accuracyPercentage } from '@poker-range-trainer/domain/domain/accuracy'
 import { practiceAccuracyPercentage } from '@poker-range-trainer/domain/domain/practiceStats'
 import { rangeHandConfidence } from '@poker-range-trainer/domain/domain/practice'
 import { normalizeRangeHands } from '@poker-range-trainer/domain/domain/rangeMath'
@@ -26,10 +30,16 @@ import {
   seedReviewState,
 } from '@poker-range-trainer/domain/domain/spacedRepetition'
 import type { PokerHand } from '@poker-range-trainer/domain/domain/pokerHands'
-import type { RangeHandAccuracy } from '@poker-range-trainer/domain/types/practice'
+import type {
+  PracticeSessionRecord,
+  RangeHandAccuracy,
+  RangePracticeStats as RangePracticeStatsRecord,
+  RangeReviewState,
+} from '@poker-range-trainer/domain/types/practice'
+import type { RangeMetadata, SavedRange } from '@poker-range-trainer/domain/types/range'
 
 import { scorePracticeSubmission } from './scoring.js'
-import type { PracticeRepository } from './service.js'
+import type { LibrarySnapshot, PracticeRepository } from './service.js'
 
 export interface Clock {
   now(): Date
@@ -70,6 +80,10 @@ export class PracticeReplayCorruptedError extends Error {
 
 type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0]
 type Queryable = Database | Transaction
+type RangeRow = typeof ranges.$inferSelect
+
+/** How much session history one range read carries; the contract caps it there too. */
+const RECENT_SESSION_LIMIT = 20
 
 function requestFingerprint(submission: PracticeSessionSubmission): string {
   const canonical =
@@ -117,6 +131,33 @@ function asRangeHandAccuracy(
       },
     ]),
   ) as RangeHandAccuracy
+}
+
+/** Scenario metadata is stored column-per-field; the domain shape omits what is absent. */
+function snapshotMetadata(row: RangeRow): RangeMetadata | undefined {
+  const metadata: RangeMetadata = {}
+  if (row.gameType !== null) metadata.gameType = row.gameType
+  if (row.tableSize !== null) metadata.tableSize = row.tableSize
+  if (row.stackDepthBb !== null) metadata.stackDepthBb = Number(row.stackDepthBb)
+  if (row.position !== null) metadata.position = row.position
+  if (row.actionType !== null) metadata.actionType = row.actionType
+  if (row.versusPosition !== null) metadata.versusPosition = row.versusPosition
+  if (row.notes !== null) metadata.notes = row.notes
+  return Object.keys(metadata).length === 0 ? undefined : metadata
+}
+
+function snapshotRange(row: RangeRow, hands: PokerHand[]): SavedRange {
+  const metadata = snapshotMetadata(row)
+  return {
+    id: row.id,
+    name: row.name,
+    hands,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+    archived: row.archived,
+    favorite: row.favorite,
+    ...(metadata === undefined ? {} : { metadata }),
+  }
 }
 
 /** PostgreSQL practice persistence: a completed submission and its replay are one transaction. */
@@ -235,6 +276,239 @@ export class PostgresPracticeRepository implements PracticeRepository {
       })
       return response
     })
+  }
+
+  /**
+   * Everything practice knows about one of the owner's live ranges.
+   *
+   * A deleted or someone else's range is indistinguishable here — both return
+   * `undefined`, which the caller turns into the same 404, so this never
+   * confirms that another owner's identifier exists.
+   */
+  async readRangePractice(userId: string, rangeId: string): Promise<RangePracticeRead | undefined> {
+    const [range] = await this.database
+      .select({ id: ranges.id })
+      .from(ranges)
+      .where(and(eq(ranges.id, rangeId), eq(ranges.userId, userId), isNull(ranges.deletedAt)))
+      .limit(1)
+    if (!range) return undefined
+
+    const [stats] = await this.database
+      .select()
+      .from(rangePracticeStats)
+      .where(and(eq(rangePracticeStats.userId, userId), eq(rangePracticeStats.rangeId, rangeId)))
+      .limit(1)
+    const [review] = await this.database
+      .select()
+      .from(reviewStates)
+      .where(and(eq(reviewStates.userId, userId), eq(reviewStates.rangeId, rangeId)))
+      .limit(1)
+    // Canonical matrix order, so a client paints the 13x13 grid straight from
+    // the response instead of re-sorting it into agreement with the app.
+    const handRows = await this.database
+      .select({
+        handCode: rangeHandAccuracy.handCode,
+        attempts: rangeHandAccuracy.attempts,
+        correct: rangeHandAccuracy.correct,
+        falsePositives: rangeHandAccuracy.falsePositives,
+        falseNegatives: rangeHandAccuracy.falseNegatives,
+      })
+      .from(rangeHandAccuracy)
+      .innerJoin(handClasses, eq(handClasses.code, rangeHandAccuracy.handCode))
+      .where(and(eq(rangeHandAccuracy.userId, userId), eq(rangeHandAccuracy.rangeId, rangeId)))
+      .orderBy(asc(handClasses.matrixOrder))
+    const sessionRows = await this.database
+      .select({
+        id: practiceSessions.id,
+        mode: practiceSessions.mode,
+        totalQuestions: practiceSessions.totalQuestions,
+        correctAnswers: practiceSessions.correctAnswers,
+        completedAt: practiceSessions.completedAt,
+      })
+      .from(practiceSessions)
+      .where(and(eq(practiceSessions.userId, userId), eq(practiceSessions.rangeId, rangeId)))
+      .orderBy(desc(practiceSessions.completedAt), desc(practiceSessions.id))
+      .limit(RECENT_SESSION_LIMIT)
+
+    return {
+      rangeId,
+      stats: stats
+        ? {
+            rangeId,
+            totalAttempts: stats.totalAttempts,
+            correctAttempts: stats.correctAttempts,
+            accuracyPercentage: accuracyPercentage(stats.correctAttempts, stats.totalAttempts),
+            lastPracticedAt: stats.lastPracticedAt?.toISOString() ?? null,
+          }
+        : null,
+      review: review
+        ? {
+            rangeId,
+            ease: Number(review.ease),
+            intervalDays: review.intervalDays,
+            dueAt: review.dueAt?.toISOString() ?? null,
+            lastReviewedAt: review.lastReviewedAt?.toISOString() ?? null,
+          }
+        : null,
+      handAccuracy: handRows.map((row) => ({
+        hand: row.handCode as PokerHand,
+        attempts: row.attempts,
+        correct: row.correct,
+        falsePositives: row.falsePositives,
+        falseNegatives: row.falseNegatives,
+      })),
+      recentSessions: sessionRows.map((row) => ({
+        id: row.id,
+        rangeId,
+        mode: row.mode,
+        totalQuestions: row.totalQuestions,
+        correctAnswers: row.correctAnswers,
+        accuracyPercentage: accuracyPercentage(row.correctAnswers, row.totalQuestions),
+        completedAt: row.completedAt.toISOString(),
+      })),
+    }
+  }
+
+  /**
+   * The owner's live library and its practice records, in the legacy domain
+   * shapes the Today and Progress reports are written against.
+   *
+   * Every table is read owner-scoped and restricted to non-deleted ranges, so
+   * the projections stay scoped to the live library exactly like the on-device
+   * `sessionsForLibrary` does — a soft-deleted range's sessions would otherwise
+   * keep inflating volumes that every per-range cut beside them reports as gone.
+   */
+  async readLibrarySnapshot(userId: string): Promise<LibrarySnapshot> {
+    const [goal] = await this.database
+      .select({ dailyHandGoal: userTrainingGoals.dailyHandGoal })
+      .from(userTrainingGoals)
+      .where(eq(userTrainingGoals.userId, userId))
+      .limit(1)
+    const trainingGoal = goal?.dailyHandGoal ?? null
+
+    const rangeRows = await this.database
+      .select()
+      .from(ranges)
+      .where(and(eq(ranges.userId, userId), isNull(ranges.deletedAt)))
+      .orderBy(asc(ranges.displayOrder), asc(ranges.id))
+    if (rangeRows.length === 0) {
+      return {
+        ranges: [],
+        sessions: {},
+        practiceStats: {},
+        handAccuracy: {},
+        reviewStates: {},
+        trainingGoal,
+      }
+    }
+    const liveIds = rangeRows.map((row) => row.id)
+
+    const handRows = await this.database
+      .select({ rangeId: rangeHands.rangeId, handCode: rangeHands.handCode })
+      .from(rangeHands)
+      .where(and(eq(rangeHands.userId, userId), inArray(rangeHands.rangeId, liveIds)))
+      .orderBy(asc(rangeHands.handCode))
+    const handsByRange = new Map<string, PokerHand[]>()
+    for (const row of handRows) {
+      const hands = handsByRange.get(row.rangeId) ?? []
+      hands.push(row.handCode as PokerHand)
+      handsByRange.set(row.rangeId, hands)
+    }
+
+    const sessionRows = await this.database
+      .select({
+        rangeId: practiceSessions.rangeId,
+        completedAt: practiceSessions.completedAt,
+        totalQuestions: practiceSessions.totalQuestions,
+        correctAnswers: practiceSessions.correctAnswers,
+      })
+      .from(practiceSessions)
+      .where(and(eq(practiceSessions.userId, userId), inArray(practiceSessions.rangeId, liveIds)))
+      .orderBy(asc(practiceSessions.completedAt))
+    const sessions: Record<string, PracticeSessionRecord[]> = {}
+    for (const row of sessionRows) {
+      const records = sessions[row.rangeId] ?? []
+      records.push({
+        rangeId: row.rangeId,
+        playedAt: row.completedAt.toISOString(),
+        totalQuestions: row.totalQuestions,
+        correctAnswers: row.correctAnswers,
+      })
+      sessions[row.rangeId] = records
+    }
+
+    // A zero-attempt row carries no history; the legacy shape has no way to say
+    // "practiced at nothing", and every report treats it as absent anyway.
+    const statsRows = await this.database
+      .select()
+      .from(rangePracticeStats)
+      .where(
+        and(
+          eq(rangePracticeStats.userId, userId),
+          inArray(rangePracticeStats.rangeId, liveIds),
+          isNotNull(rangePracticeStats.lastPracticedAt),
+        ),
+      )
+    const practiceStats: Record<string, RangePracticeStatsRecord> = {}
+    for (const row of statsRows) {
+      if (!row.lastPracticedAt) continue
+      practiceStats[row.rangeId] = {
+        rangeId: row.rangeId,
+        totalAttempts: row.totalAttempts,
+        correctAttempts: row.correctAttempts,
+        lastPracticedAt: row.lastPracticedAt.toISOString(),
+      }
+    }
+
+    const accuracyRows = await this.database
+      .select({
+        rangeId: rangeHandAccuracy.rangeId,
+        handCode: rangeHandAccuracy.handCode,
+        attempts: rangeHandAccuracy.attempts,
+        correct: rangeHandAccuracy.correct,
+        falsePositives: rangeHandAccuracy.falsePositives,
+        falseNegatives: rangeHandAccuracy.falseNegatives,
+      })
+      .from(rangeHandAccuracy)
+      .where(and(eq(rangeHandAccuracy.userId, userId), inArray(rangeHandAccuracy.rangeId, liveIds)))
+      .orderBy(asc(rangeHandAccuracy.handCode))
+    const handAccuracy: Record<string, RangeHandAccuracy> = {}
+    for (const row of accuracyRows) {
+      const perRange = handAccuracy[row.rangeId] ?? ({} as RangeHandAccuracy)
+      perRange[row.handCode as PokerHand] = {
+        hand: row.handCode as PokerHand,
+        attempts: row.attempts,
+        correct: row.correct,
+        falsePositives: row.falsePositives,
+        falseNegatives: row.falseNegatives,
+      }
+      handAccuracy[row.rangeId] = perRange
+    }
+
+    const reviewRows = await this.database
+      .select()
+      .from(reviewStates)
+      .where(and(eq(reviewStates.userId, userId), inArray(reviewStates.rangeId, liveIds)))
+    const reviews: Record<string, RangeReviewState> = {}
+    for (const row of reviewRows) {
+      reviews[row.rangeId] = {
+        rangeId: row.rangeId,
+        ease: Number(row.ease),
+        intervalDays: row.intervalDays,
+        // The legacy shape spells "never scheduled" as an empty string.
+        dueAt: row.dueAt?.toISOString() ?? '',
+        lastReviewedAt: row.lastReviewedAt?.toISOString() ?? '',
+      }
+    }
+
+    return {
+      ranges: rangeRows.map((row) => snapshotRange(row, handsByRange.get(row.id) ?? [])),
+      sessions,
+      practiceStats,
+      handAccuracy,
+      reviewStates: reviews,
+      trainingGoal,
+    }
   }
 
   private async findReplay(transaction: Queryable, userId: string, idempotencyKey: string) {

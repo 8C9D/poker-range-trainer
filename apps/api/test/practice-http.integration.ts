@@ -6,7 +6,10 @@ import request from 'supertest'
 
 import {
   practiceSessionSubmissionResponseSchema,
+  progressResponseSchema,
   rangeCreateResponseSchema,
+  rangePracticeReadResponseSchema,
+  todayResponseSchema,
 } from '@poker-range-trainer/contracts'
 import {
   createDatabase,
@@ -232,5 +235,159 @@ describe('HTTP practice sessions against PostgreSQL', () => {
       .send({ ...submission, userId: randomUUID() })
       .expect(422)
     expect(malformed.body).toMatchObject({ code: 'VALIDATION_FAILED' })
+  })
+
+  it('reads back the practice one submission produced, for its owner only', async () => {
+    const owner = await register('practice-reader')
+    const stranger = await register('practice-stranger')
+    const created = await request(app)
+      .post('/api/v1/ranges')
+      .set(asUser(owner))
+      .send({ name: 'CO open', hands: ['AA', 'AKs'] })
+      .expect(201)
+    const rangeId = created.body.data.id as string
+
+    await request(app).get(`/api/v1/practice/ranges/${rangeId}`).expect(401)
+    await request(app).get('/api/v1/practice/today?timeZone=UTC').expect(401)
+    await request(app).get('/api/v1/practice/progress?timeZone=UTC').expect(401)
+    await request(app)
+      .get('/api/v1/practice/today?timeZone=Not%2FAZone')
+      .set(asUser(owner))
+      .expect(422)
+
+    const unpracticed = await request(app)
+      .get(`/api/v1/practice/ranges/${rangeId}`)
+      .set(asUser(owner))
+      .expect(200)
+    expect(rangePracticeReadResponseSchema.safeParse(unpracticed.body).success).toBe(true)
+    expect(unpracticed.body.data).toEqual({
+      rangeId,
+      stats: null,
+      review: null,
+      handAccuracy: [],
+      recentSessions: [],
+    })
+
+    // One played hand the chart folds, one folded hand it plays, one right answer.
+    const submitted = await request(app)
+      .post('/api/v1/practice/sessions')
+      .set(asUser(owner))
+      .send({
+        mode: 'recognition',
+        rangeId,
+        idempotencyKey: randomUUID(),
+        answers: [
+          {
+            questionId: randomUUID(),
+            hand: '22',
+            answer: true,
+            answeredAt: '2024-01-01T00:00:00.000Z',
+          },
+          {
+            questionId: randomUUID(),
+            hand: 'AA',
+            answer: true,
+            answeredAt: '2024-01-01T00:00:01.000Z',
+          },
+          {
+            questionId: randomUUID(),
+            hand: 'AKs',
+            answer: false,
+            answeredAt: '2024-01-01T00:00:02.000Z',
+          },
+        ],
+      })
+      .expect(200)
+    expect(practiceSessionSubmissionResponseSchema.safeParse(submitted.body).success).toBe(true)
+
+    const read = await request(app)
+      .get(`/api/v1/practice/ranges/${rangeId}`)
+      .set(asUser(owner))
+      .expect(200)
+    expect(rangePracticeReadResponseSchema.safeParse(read.body).success).toBe(true)
+    expect(read.headers['cache-control']).toBe('no-store')
+    expect(read.body.data.stats).toMatchObject({
+      rangeId,
+      totalAttempts: 3,
+      correctAttempts: 1,
+      accuracyPercentage: (1 / 3) * 100,
+    })
+    expect(read.body.data.review).toMatchObject({ rangeId, intervalDays: 1 })
+    // Canonical matrix order, which alphabetical order would have put 22 first.
+    expect(read.body.data.handAccuracy.map((stat: { hand: string }) => stat.hand)).toEqual([
+      'AA',
+      'AKs',
+      '22',
+    ])
+    expect(read.body.data.handAccuracy).toContainEqual({
+      hand: '22',
+      attempts: 1,
+      correct: 0,
+      falsePositives: 1,
+      falseNegatives: 0,
+    })
+    expect(read.body.data.recentSessions).toHaveLength(1)
+    expect(read.body.data.recentSessions[0]).toMatchObject({
+      id: submitted.body.data.session.id,
+      rangeId,
+      mode: 'recognition',
+      totalQuestions: 3,
+      correctAnswers: 1,
+    })
+    await request(app).get(`/api/v1/practice/ranges/${rangeId}`).set(asUser(stranger)).expect(404)
+
+    const today = await request(app)
+      .get('/api/v1/practice/today?timeZone=UTC')
+      .set(asUser(owner))
+      .expect(200)
+    expect(todayResponseSchema.safeParse(today.body).success).toBe(true)
+    expect(today.headers['cache-control']).toBe('no-store')
+    expect(today.body.data.streakDays).toBe(1)
+    expect(today.body.data.dailyGoal).toEqual({
+      target: null,
+      handsAnswered: 3,
+      remainingHands: 0,
+    })
+    expect(today.body.data.trailingSevenDays).toMatchObject({
+      handsAnswered: 3,
+      correctAnswers: 1,
+    })
+    // Practiced just now, so the schedule holds it until tomorrow.
+    expect(today.body.data.dueRanges).toEqual([])
+    expect(today.body.data.caughtUp).toBe(true)
+    expect(today.body.data.freePractice).toMatchObject({ kind: 'weakHands', handCount: 2 })
+
+    const progress = await request(app)
+      .get('/api/v1/practice/progress?timeZone=UTC')
+      .set(asUser(owner))
+      .expect(200)
+    expect(progressResponseSchema.safeParse(progress.body).success).toBe(true)
+    expect(progress.headers['cache-control']).toBe('no-store')
+    expect(progress.body.data.allTime).toEqual({
+      rangesPracticed: 1,
+      handsAnswered: 3,
+      correctAnswers: 1,
+      accuracyPercentage: (1 / 3) * 100,
+    })
+    const activity = progress.body.data.dailyActivity as { day: string; handsAnswered: number }[]
+    expect(activity).toHaveLength(7)
+    expect(activity.reduce((total, day) => total + day.handsAnswered, 0)).toBe(3)
+    expect(activity.at(-1)?.day).toBe(new Date().toISOString().slice(0, 10))
+    expect(
+      progress.body.data.weakestHands.map((entry: { hand: string }) => entry.hand).sort(),
+    ).toEqual(['22', 'AKs'])
+    expect(progress.body.data.mistakeBias).toMatchObject({ loose: 1, tight: 1, mistakes: 2 })
+
+    // A stranger sees their own empty library, never this owner's records.
+    const strangerProgress = await request(app)
+      .get('/api/v1/practice/progress?timeZone=UTC')
+      .set(asUser(stranger))
+      .expect(200)
+    expect(strangerProgress.body.data.allTime).toEqual({
+      rangesPracticed: 0,
+      handsAnswered: 0,
+      correctAnswers: 0,
+      accuracyPercentage: 0,
+    })
   })
 })

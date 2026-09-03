@@ -5,6 +5,12 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   practiceSessionSubmissionResponseSchema,
   problemDetailsSchema,
+  progressReadModelSchema,
+  progressResponseSchema,
+  rangePracticeReadResponseSchema,
+  rangePracticeReadSchema,
+  todayReadModelSchema,
+  todayResponseSchema,
   type PracticeSessionSubmission,
 } from '@poker-range-trainer/contracts'
 
@@ -65,6 +71,80 @@ function responseFor(mode: PracticeSessionSubmission['mode']) {
   })
 }
 
+const todayReadModel = todayReadModelSchema.parse({
+  generatedAt: timestamp,
+  streakDays: 2,
+  dailyGoal: { target: 20, handsAnswered: 12, remainingHands: 8 },
+  trailingSevenDays: {
+    handsAnswered: 12,
+    correctAnswers: 9,
+    accuracyPercentage: 75,
+    sharpestRange: {
+      id: rangeId,
+      name: 'BTN practice',
+      handsAnswered: 12,
+      correctAnswers: 9,
+      accuracyPercentage: 75,
+    },
+  },
+  dueRanges: [
+    {
+      id: rangeId,
+      name: 'BTN practice',
+      dueAt: timestamp,
+      accuracyPercentage: 75,
+      lastPracticedAt: timestamp,
+    },
+  ],
+  caughtUp: false,
+  freePractice: null,
+})
+
+const progressReadModel = progressReadModelSchema.parse({
+  generatedAt: timestamp,
+  streakDays: 2,
+  allTime: { rangesPracticed: 1, handsAnswered: 12, correctAnswers: 9, accuracyPercentage: 75 },
+  trailingThirtyDays: { handsAnswered: 12, correctAnswers: 9, accuracyPercentage: 75 },
+  dailyActivity: [{ day: '2026-01-02', handsAnswered: 12 }],
+  weeklyAccuracyTrend: [
+    { weekStart: '2025-12-27', handsAnswered: 12, correctAnswers: 9, accuracyPercentage: 75 },
+  ],
+  handClassLeaks: [],
+  mistakeBias: { loose: 0, tight: 0, mistakes: 0, loosePercentage: 0, bias: 'unknown' },
+  positionLeans: [],
+  weakestHands: [],
+})
+
+const rangePracticeRead = rangePracticeReadSchema.parse({
+  rangeId,
+  stats: {
+    rangeId,
+    totalAttempts: 12,
+    correctAttempts: 9,
+    accuracyPercentage: 75,
+    lastPracticedAt: timestamp,
+  },
+  review: {
+    rangeId,
+    ease: 2.5,
+    intervalDays: 1,
+    dueAt: '2026-01-03T03:04:05.000Z',
+    lastReviewedAt: timestamp,
+  },
+  handAccuracy: [{ hand: 'AA', attempts: 4, correct: 3, falsePositives: 1, falseNegatives: 0 }],
+  recentSessions: [
+    {
+      id: 'a2fa11de-89ef-479e-8d9d-6780e1fb5d14',
+      rangeId,
+      mode: 'recognition',
+      totalQuestions: 12,
+      correctAnswers: 9,
+      accuracyPercentage: 75,
+      completedAt: timestamp,
+    },
+  ],
+})
+
 function requestFor(mode: PracticeSessionSubmission['mode']): PracticeSessionSubmission {
   const idempotencyKey = 'd4e2a1de-89ef-479e-8d9d-6780e1fb5d14'
   if (mode === 'build') {
@@ -90,6 +170,9 @@ function createPracticeTestApp() {
     submit: vi.fn(async (_ownerId: string, input: PracticeSessionSubmission) =>
       responseFor(input.mode),
     ),
+    readRange: vi.fn(async () => rangePracticeRead),
+    today: vi.fn(async () => todayReadModel),
+    progress: vi.fn(async () => progressReadModel),
   }
   const attachAuth: RequestHandler = (request, _response, next) => {
     request.authContext = {
@@ -112,7 +195,8 @@ function createPracticeTestApp() {
     next()
   }
   const csrf = vi.fn(attachAuth)
-  const middleware: Pick<AuthMiddleware, 'csrf'> = { csrf }
+  const required = vi.fn(attachAuth)
+  const middleware: Pick<AuthMiddleware, 'required' | 'csrf'> = { csrf, required }
   const app = createApp({
     config: testConfig(),
     logger: createLogger('silent'),
@@ -121,7 +205,30 @@ function createPracticeTestApp() {
       api.use('/api/v1/practice', createPracticeRouter({ service, middleware }))
     },
   })
-  return { app, service, csrf }
+  return { app, service, csrf, required }
+}
+
+/** A router whose auth middleware runs but leaves the request anonymous. */
+function createAnonymousPracticeApp() {
+  const service = {
+    submit: vi.fn(),
+    readRange: vi.fn(),
+    today: vi.fn(),
+    progress: vi.fn(),
+  }
+  const pass: RequestHandler = (_request, _response, next) => next()
+  const app = createApp({
+    config: testConfig(),
+    logger: createLogger('silent'),
+    readiness: async () => undefined,
+    registerRoutes(api) {
+      api.use(
+        '/api/v1/practice',
+        createPracticeRouter({ service, middleware: { csrf: pass, required: pass } }),
+      )
+    },
+  })
+  return { app, service }
 }
 
 describe('HTTP practice session route', () => {
@@ -185,7 +292,7 @@ describe('HTTP practice session route', () => {
     }
     expect(service.submit).not.toHaveBeenCalled()
 
-    const csrfService = { submit: vi.fn() }
+    const csrfService = { submit: vi.fn(), readRange: vi.fn(), today: vi.fn(), progress: vi.fn() }
     const csrfBlocked = createApp({
       config: testConfig(),
       logger: createLogger('silent'),
@@ -195,7 +302,10 @@ describe('HTTP practice session route', () => {
           '/api/v1/practice',
           createPracticeRouter({
             service: csrfService,
-            middleware: { csrf: (req, res) => sendCsrfFailed(req, res) },
+            middleware: {
+              csrf: (req, res) => sendCsrfFailed(req, res),
+              required: (_req, _res, next) => next(),
+            },
           }),
         )
       },
@@ -207,7 +317,12 @@ describe('HTTP practice session route', () => {
     expect(problemDetailsSchema.safeParse(csrfFailure.body).success).toBe(true)
     expect(csrfService.submit).not.toHaveBeenCalled()
 
-    const unauthenticatedService = { submit: vi.fn() }
+    const unauthenticatedService = {
+      submit: vi.fn(),
+      readRange: vi.fn(),
+      today: vi.fn(),
+      progress: vi.fn(),
+    }
     const unauthenticated = createApp({
       config: testConfig(),
       logger: createLogger('silent'),
@@ -217,7 +332,10 @@ describe('HTTP practice session route', () => {
           '/api/v1/practice',
           createPracticeRouter({
             service: unauthenticatedService,
-            middleware: { csrf: (_req, _res, next) => next() },
+            middleware: {
+              csrf: (_req, _res, next) => next(),
+              required: (_req, _res, next) => next(),
+            },
           }),
         )
       },
@@ -271,5 +389,99 @@ describe('HTTP practice session route', () => {
       .send(requestFor('recognition'))
       .expect(500)
     expect(unexpected.body).toMatchObject({ code: 'INTERNAL_ERROR' })
+  })
+})
+
+describe('HTTP practice read routes', () => {
+  it('returns one range practice read for the authenticated owner', async () => {
+    const { app, service, required } = createPracticeTestApp()
+
+    const response = await request(app).get(`/api/v1/practice/ranges/${rangeId}`).expect(200)
+
+    expect(rangePracticeReadResponseSchema.safeParse(response.body).success).toBe(true)
+    expect(response.body.data).toMatchObject({ rangeId, stats: { totalAttempts: 12 } })
+    expect(response.headers['cache-control']).toBe('no-store')
+    expect(service.readRange).toHaveBeenCalledWith(ownerId, rangeId)
+    expect(required).toHaveBeenCalledOnce()
+  })
+
+  it('rejects a malformed range id and reports a missing range as not found', async () => {
+    const { app, service } = createPracticeTestApp()
+
+    const malformed = await request(app).get('/api/v1/practice/ranges/not-a-uuid').expect(422)
+    expect(problemDetailsSchema.safeParse(malformed.body).success).toBe(true)
+    expect(service.readRange).not.toHaveBeenCalled()
+
+    service.readRange.mockRejectedValueOnce(new PracticeRangeNotFoundError())
+    const missing = await request(app).get(`/api/v1/practice/ranges/${rangeId}`).expect(404)
+    expect(missing.body).toMatchObject({
+      code: 'NOT_FOUND',
+      detail: 'The requested range does not exist.',
+    })
+    expect(missing.headers['cache-control']).toBe('no-store')
+  })
+
+  it('returns the Today and Progress projections for a known zone', async () => {
+    const { app, service } = createPracticeTestApp()
+
+    const today = await request(app)
+      .get('/api/v1/practice/today?timeZone=Pacific%2FAuckland')
+      .expect(200)
+    const progress = await request(app).get('/api/v1/practice/progress?timeZone=UTC').expect(200)
+
+    expect(todayResponseSchema.safeParse(today.body).success).toBe(true)
+    expect(progressResponseSchema.safeParse(progress.body).success).toBe(true)
+    expect(today.body.data).toMatchObject({ streakDays: 2, caughtUp: false })
+    expect(progress.body.data).toMatchObject({ allTime: { handsAnswered: 12 } })
+    expect(today.headers['cache-control']).toBe('no-store')
+    expect(progress.headers['cache-control']).toBe('no-store')
+    expect(service.today).toHaveBeenCalledWith(ownerId, 'Pacific/Auckland')
+    expect(service.progress).toHaveBeenCalledWith(ownerId, 'UTC')
+  })
+
+  it('refuses a missing, unknown, or over-specified time zone before any service work', async () => {
+    const { app, service } = createPracticeTestApp()
+
+    const missing = await request(app).get('/api/v1/practice/today').expect(422)
+    const unknown = await request(app)
+      .get('/api/v1/practice/today?timeZone=Not%2FAZone')
+      .expect(422)
+    const unknownProgress = await request(app)
+      .get('/api/v1/practice/progress?timeZone=Mars%2FOlympus')
+      .expect(422)
+    const extraQuery = await request(app)
+      .get('/api/v1/practice/progress?timeZone=UTC&window=90')
+      .expect(422)
+
+    for (const response of [missing, unknown, unknownProgress, extraQuery]) {
+      expect(problemDetailsSchema.safeParse(response.body).success).toBe(true)
+      expect(response.body).toMatchObject({ code: 'VALIDATION_FAILED' })
+      expect(response.headers['cache-control']).toBe('no-store')
+    }
+    // An installed-zone failure is reported against the field the caller sent.
+    for (const response of [unknown, unknownProgress]) {
+      expect(response.body.issues).toEqual([
+        { path: ['timeZone'], code: 'invalid_time_zone', message: expect.any(String) },
+      ])
+    }
+    expect(service.today).not.toHaveBeenCalled()
+    expect(service.progress).not.toHaveBeenCalled()
+  })
+
+  it('never reads for an anonymous request', async () => {
+    const { app, service } = createAnonymousPracticeApp()
+
+    for (const path of [
+      `/api/v1/practice/ranges/${rangeId}`,
+      '/api/v1/practice/today?timeZone=UTC',
+      '/api/v1/practice/progress?timeZone=UTC',
+    ]) {
+      const response = await request(app).get(path).expect(401)
+      expect(problemDetailsSchema.safeParse(response.body).success).toBe(true)
+      expect(response.body).toMatchObject({ code: 'UNAUTHENTICATED' })
+    }
+    expect(service.readRange).not.toHaveBeenCalled()
+    expect(service.today).not.toHaveBeenCalled()
+    expect(service.progress).not.toHaveBeenCalled()
   })
 })
