@@ -11,6 +11,9 @@ import { PostgresAuthRepository } from './auth/repository.js'
 import { createAuthRouter } from './auth/routes.js'
 import { loadConfig, type ApiConfig } from './config.js'
 import { createLogger } from './logger.js'
+import { PostgresPracticeRepository } from './practice/repository.js'
+import { createPracticeRouter } from './practice/routes.js'
+import { PracticeService } from './practice/service.js'
 import { PostgresRangeRepository } from './ranges/repository.js'
 import { createRangeRouter } from './ranges/routes.js'
 import { RangeService } from './ranges/service.js'
@@ -47,6 +50,8 @@ export function createServerRuntime(
   const authMiddleware = createAuthMiddleware({ repository: authRepository, config, logger })
   const rangeRepository = new PostgresRangeRepository(database)
   const rangeService = new RangeService(rangeRepository)
+  const practiceRepository = new PostgresPracticeRepository(database)
+  const practiceService = new PracticeService(practiceRepository)
   const app = createApp({
     config,
     logger,
@@ -64,6 +69,10 @@ export function createServerRuntime(
       api.use(
         '/api/v1/ranges',
         createRangeRouter({ service: rangeService, middleware: authMiddleware }),
+      )
+      api.use(
+        '/api/v1/practice',
+        createPracticeRouter({ service: practiceService, middleware: authMiddleware }),
       )
     },
   })

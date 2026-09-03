@@ -259,6 +259,10 @@ describe('API app factory', () => {
       },
     })
     await request(mountedApp).get('/api/v1/ranges').expect(401).expect('Cache-Control', 'no-store')
+    await request(mountedApp)
+      .post('/api/v1/practice/sessions')
+      .expect(401)
+      .expect('Cache-Control', 'no-store')
     pool.emit('error', new Error('postgresql://username:password@secret-host'))
     expect(logger.error).toHaveBeenCalledWith({ errorName: 'Error' }, 'PostgreSQL pool error')
     await Promise.all([runtime.close(), runtime.close()])
