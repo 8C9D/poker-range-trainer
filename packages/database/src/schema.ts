@@ -272,6 +272,34 @@ export const practiceSessions = pgTable(
   ],
 )
 
+/** Immutable idempotency ledger for practice submissions; response data is replayed verbatim. */
+export const practiceSubmissionReplays = pgTable(
+  'practice_submission_replays',
+  {
+    userId: uuid('user_id').notNull(),
+    rangeId: uuid('range_id').notNull(),
+    idempotencyKey: uuid('idempotency_key').notNull(),
+    requestFingerprint: text('request_fingerprint').notNull(),
+    sessionId: uuid('session_id').notNull(),
+    responseSnapshot: jsonb('response_snapshot').$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.idempotencyKey], name: 'practice_replays_pkey' }),
+    unique('practice_replays_session_unique').on(table.sessionId),
+    foreignKey({
+      columns: [table.sessionId, table.userId, table.rangeId],
+      foreignColumns: [practiceSessions.id, practiceSessions.userId, practiceSessions.rangeId],
+      name: 'practice_replays_session_owner_range_fk',
+    }).onDelete('cascade'),
+    check(
+      'practice_replays_fingerprint_sha256',
+      sql`${table.requestFingerprint} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check('practice_replays_snapshot_object', sql`jsonb_typeof(${table.responseSnapshot}) = 'object'`),
+  ],
+)
+
 export const practiceAttempts = pgTable(
   'practice_attempts',
   {

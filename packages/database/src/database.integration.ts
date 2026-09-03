@@ -65,7 +65,10 @@ describe('PostgreSQL persistence foundation', () => {
       secondPool = createPostgresPool(connectionString)
 
       const results = await Promise.all([runMigrations(firstPool), runMigrations(secondPool)])
-      expect(results.flat()).toEqual(['0001_persistence_foundation.sql'])
+      expect(results.flat()).toEqual([
+        '0001_persistence_foundation.sql',
+        '0002_practice_submission_replays.sql',
+      ])
       const ledger = await firstPool.query<{ id: string; count: string }>(
         'select id, count(*) as count from schema_migrations group by id order by id',
       )
@@ -73,7 +76,10 @@ describe('PostgreSQL persistence foundation', () => {
         "select to_regclass('public.users')::text as users_table",
       )
 
-      expect(ledger.rows).toEqual([{ id: '0001_persistence_foundation.sql', count: '1' }])
+      expect(ledger.rows).toEqual([
+        { id: '0001_persistence_foundation.sql', count: '1' },
+        { id: '0002_practice_submission_replays.sql', count: '1' },
+      ])
       expect(usersTable.rows).toEqual([{ users_table: 'users' }])
     } finally {
       await firstPool?.end()
