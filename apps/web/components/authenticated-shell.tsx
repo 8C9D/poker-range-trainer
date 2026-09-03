@@ -11,6 +11,7 @@ const SECTIONS = [
   { href: '/app/today', label: 'Today' },
   { href: '/app/library', label: 'Library' },
   { href: '/app/progress', label: 'Progress' },
+  { href: '/app/account', label: 'Account' },
 ] as const
 
 type ShellState =
@@ -149,9 +150,6 @@ export function AuthenticatedShell({ children }: AuthenticatedShellProps) {
             {section.label}
           </Link>
         ))}
-        <span aria-disabled="true" title="Coming soon">
-          Account
-        </span>
       </nav>
       <main id="main-content" className="app-main">
         {children}

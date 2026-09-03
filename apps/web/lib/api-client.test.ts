@@ -1,12 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { PracticeSessionSubmission } from '@poker-range-trainer/contracts'
+import {
+  legacyBackupV1Schema,
+  type LegacyBackupV1,
+  type PracticeSessionSubmission,
+} from '@poker-range-trainer/contracts'
 
 import {
   ApiClientError,
   bulkMutateRanges,
+  commitLegacyBackup,
   createRange,
   deleteRange,
+  exportBackup,
   getCurrentUser,
   getProgress,
   getRange,
@@ -15,6 +21,8 @@ import {
   getTrainingGoal,
   listRanges,
   login,
+  previewLegacyBackup,
+  resetPracticeStats,
   submitPracticeSession,
   setRangeArchived,
   setRangeFavorite,
@@ -335,6 +343,118 @@ describe('API client', () => {
     expect(init?.method).toBe('PUT')
     expect(init?.body).toBe(JSON.stringify({ dailyHandsGoal: null }))
     expect((init?.headers as Headers).get('x-csrf-token')).toBe('goal-token')
+  })
+
+  it('previews, commits, exports and resets through the settings and backup endpoints', async () => {
+    document.cookie = 'prt_csrf=backup-token; path=/'
+    const backup: LegacyBackupV1 = legacyBackupV1Schema.parse({
+      version: 1,
+      exportedAt: '2026-02-01T09:15:00.000Z',
+      ranges: [
+        {
+          id: 'rng-1',
+          name: 'BTN open',
+          hands: ['AA', 'AKs'],
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-02T00:00:00.000Z',
+        },
+      ],
+      practiceStats: {},
+      handAccuracy: {},
+      actionAccuracy: {},
+      sessionHistory: {},
+      reviewStates: {},
+    })
+    const digest = `sha256:${'a'.repeat(64)}`
+    const counts = {
+      ranges: 1,
+      practiceStats: 0,
+      handAccuracy: 0,
+      actionAccuracy: 0,
+      sessions: 0,
+      reviewStates: 0,
+      spotAccuracy: 0,
+    }
+    const preview = {
+      digest,
+      counts,
+      preservationWarnings: [],
+      conflicts: [{ kind: 'merge_required', rangeIds: [], message: 'The library is not empty.' }],
+      alreadyImported: false,
+    }
+    const committed = { result: 'committed', atomic: true, digest, strategy: 'merge', counts }
+    const reset = { resetAt: '2026-02-01T09:15:00.000Z', rangesReset: 3 }
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(jsonResponse({ data: preview }))
+      .mockResolvedValueOnce(jsonResponse({ data: committed }))
+      .mockResolvedValueOnce(jsonResponse({ data: { backup } }))
+      .mockResolvedValueOnce(jsonResponse({ data: reset }))
+
+    await expect(previewLegacyBackup(backup)).resolves.toEqual({ data: preview })
+    await expect(
+      commitLegacyBackup({ backup, expectedDigest: digest, strategy: 'merge' }),
+    ).resolves.toEqual({ data: committed })
+    await expect(exportBackup()).resolves.toEqual({ data: { backup } })
+    await expect(resetPracticeStats()).resolves.toEqual({ data: reset })
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/v1/imports/legacy-backup/preview')
+    expect(fetchMock.mock.calls[0]?.[1]?.body).toBe(JSON.stringify({ backup }))
+    expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/v1/imports/legacy-backup')
+    expect(fetchMock.mock.calls[1]?.[1]?.body).toBe(
+      JSON.stringify({ backup, expectedDigest: digest, strategy: 'merge' }),
+    )
+    expect(fetchMock.mock.calls[2]?.[0]).toBe('/api/v1/exports/backup')
+    expect(fetchMock.mock.calls[2]?.[1]?.method).toBe('GET')
+    expect(fetchMock.mock.calls[3]?.[0]).toBe('/api/v1/settings/reset-practice-stats')
+    // The contract accepts one request shape, so the confirmation is not optional.
+    expect(fetchMock.mock.calls[3]?.[1]?.body).toBe(JSON.stringify({ confirm: true }))
+    for (const [, init] of fetchMock.mock.calls.slice(0, 2)) {
+      expect(init?.method).toBe('POST')
+      expect((init?.headers as Headers).get('x-csrf-token')).toBe('backup-token')
+    }
+    expect((fetchMock.mock.calls[3]?.[1]?.headers as Headers).get('x-csrf-token')).toBe(
+      'backup-token',
+    )
+  })
+
+  it('rejects a commit response that does not claim an atomic import', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      jsonResponse({
+        data: {
+          result: 'committed',
+          atomic: false,
+          digest: `sha256:${'a'.repeat(64)}`,
+          strategy: 'merge',
+          counts: {
+            ranges: 1,
+            practiceStats: 0,
+            handAccuracy: 0,
+            actionAccuracy: 0,
+            sessions: 0,
+            reviewStates: 0,
+            spotAccuracy: 0,
+          },
+        },
+      }),
+    )
+
+    await expect(
+      commitLegacyBackup({
+        backup: legacyBackupV1Schema.parse({
+          version: 1,
+          exportedAt: '2026-02-01T09:15:00.000Z',
+          ranges: [],
+          practiceStats: {},
+          handAccuracy: {},
+          actionAccuracy: {},
+          sessionHistory: {},
+          reviewStates: {},
+        }),
+        expectedDigest: `sha256:${'a'.repeat(64)}`,
+        strategy: 'merge',
+      }),
+    ).rejects.toMatchObject({ kind: 'invalid-response' })
   })
 
   it('rejects a Today projection whose remaining hands contradict its goal', async () => {

@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 import type { TodayReadModel } from '@poker-range-trainer/contracts'
-import { GOAL_OPTIONS, goalLine } from '@poker-range-trainer/domain/domain/trainingGoal'
+import { goalLine } from '@poker-range-trainer/domain/domain/trainingGoal'
 
+import { GoalSelect } from '@/components/goal-select'
 import { ApiClientError, getToday, listRanges, updateTrainingGoal } from '@/lib/api-client'
 import { storeDrillPools } from '@/lib/drill-handoff'
 import { browserTimeZone } from '@/lib/time-zone'
@@ -133,11 +134,11 @@ export function TodayView() {
    * show a progress figure the next load contradicts. A failed save leaves the
    * select on the target that is actually stored.
    */
-  async function saveGoal(value: string): Promise<void> {
+  async function saveGoal(nextTarget: number | null): Promise<void> {
     setSavingGoal(true)
     setGoalError(undefined)
     try {
-      await updateTrainingGoal(value === '' ? null : Number(value))
+      await updateTrainingGoal(nextTarget)
     } catch (error) {
       setGoalError(
         error instanceof ApiClientError ? error.message : 'Could not save the daily goal.',
@@ -186,12 +187,6 @@ export function TodayView() {
     percent,
     met: target !== null && handsAnswered >= target,
   }
-  // A target saved before these options existed (or from a legacy backup) still
-  // has to be selectable, or opening the picker would silently move the goal.
-  const goalOptions =
-    target === null || (GOAL_OPTIONS as readonly number[]).includes(target)
-      ? [...GOAL_OPTIONS]
-      : [...GOAL_OPTIONS, target].sort((left, right) => left - right)
   const week = today.trailingSevenDays
 
   return (
@@ -290,20 +285,13 @@ export function TodayView() {
           <section className="today-card today-goal" aria-label="Daily goal">
             <div className="today-goal-head">
               <h2>Daily goal</h2>
-              <select
+              <GoalSelect
                 className="today-goal-picker"
-                aria-label="Daily goal in hands"
-                value={target === null ? '' : String(target)}
+                label="Daily goal in hands"
+                target={target}
                 disabled={savingGoal}
-                onChange={(event) => void saveGoal(event.target.value)}
-              >
-                <option value="">Off</option>
-                {goalOptions.map((option) => (
-                  <option key={option} value={String(option)}>
-                    {option} hands
-                  </option>
-                ))}
-              </select>
+                onChange={(nextTarget) => void saveGoal(nextTarget)}
+              />
             </div>
             {goalError ? (
               <p className="form-error" role="alert">

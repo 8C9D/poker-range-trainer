@@ -345,16 +345,13 @@ h2 {
   padding: 0.5rem clamp(1.25rem, 4vw, 3rem);
   overflow-x: auto;
 }
-.app-nav a,
-.app-nav span {
+.app-nav a {
   min-height: 2.5rem;
   padding: 0.6rem 0.85rem;
   border-radius: 0.25rem;
+  color: var(--green-dark);
   font-weight: 750;
   white-space: nowrap;
-}
-.app-nav a {
-  color: var(--green-dark);
 }
 .app-nav a:hover {
   background: var(--canvas);
@@ -362,10 +359,6 @@ h2 {
 .app-nav a[aria-current='page'] {
   background: var(--canvas);
   box-shadow: inset 0 -2px 0 var(--green);
-}
-.app-nav span {
-  color: var(--muted);
-  cursor: not-allowed;
 }
 .account-email {
   max-width: 16rem;
@@ -1050,6 +1043,111 @@ h2 {
   text-overflow: ellipsis;
 }
 
+.account-view {
+  display: grid;
+  gap: 1.25rem;
+  max-width: 72rem;
+}
+.account-card {
+  display: grid;
+  gap: 0.75rem;
+  padding: clamp(1rem, 3vw, 1.5rem);
+  border: 1px solid var(--line);
+  background: var(--card);
+}
+.account-card h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+.account-card h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1.05rem;
+}
+.account-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.account-value {
+  margin: 0;
+  font-family: 'Bricolage Grotesque Variable', sans-serif;
+  font-size: 1.35rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+.account-note {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.account-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+}
+.account-file {
+  max-width: 30rem;
+}
+.account-preview,
+.account-committed,
+.account-choice,
+.account-rejected {
+  display: grid;
+  gap: 0.75rem;
+}
+.account-preview,
+.account-committed {
+  padding: 1rem;
+  border: 1px solid var(--line);
+  background: var(--canvas);
+}
+.account-counts {
+  width: 100%;
+  max-width: 30rem;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+}
+.account-counts caption {
+  padding-bottom: 0.4rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-align: left;
+}
+.account-counts th,
+.account-counts td {
+  padding: 0.35rem 0.6rem 0.35rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.account-counts th {
+  font-weight: 400;
+}
+.account-counts td {
+  text-align: right;
+  font-weight: 750;
+}
+.account-detail-list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  color: var(--muted);
+  line-height: 1.5;
+  list-style: none;
+}
+.account-detail-list li {
+  padding-left: 0.75rem;
+  border-left: 3px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.account-detail-kind {
+  color: var(--ink);
+  font-weight: 750;
+}
+
 @media (max-width: 700px) {
   .hero {
     grid-template-columns: 1fr;
@@ -1101,6 +1199,7 @@ h2 {
   }
   .today-cta,
   .today-goal-head,
+  .account-card-head,
   .progress-weak-header {
     align-items: flex-start;
     flex-direction: column;

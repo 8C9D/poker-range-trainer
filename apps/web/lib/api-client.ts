@@ -1,4 +1,7 @@
 import {
+  legacyBackupCommitResponseSchema,
+  legacyBackupExportResponseSchema,
+  legacyBackupPreviewResponseSchema,
   loginRequestSchema,
   loginResponseSchema,
   logoutResponseSchema,
@@ -19,9 +22,12 @@ import {
   rangeUpdateResponseSchema,
   registerRequestSchema,
   registerResponseSchema,
+  resetPracticeStatsResponseSchema,
   todayResponseSchema,
   trainingGoalResponseSchema,
   type BulkRangeMutationRequest,
+  type LegacyBackupCommitRequest,
+  type LegacyBackupV1,
   type RangeCreateRequest,
   type RangeDuplicateRequest,
   type PracticeSessionSubmission,
@@ -298,5 +304,48 @@ export function updateTrainingGoal(dailyHandsGoal: number | null) {
     method: 'PUT',
     body: { dailyHandsGoal },
     schema: trainingGoalResponseSchema,
+  })
+}
+
+/**
+ * Ask the API what a legacy backup would do, without writing anything. The
+ * `digest` it returns is what pins the previewed file to the commit below.
+ */
+export function previewLegacyBackup(backup: LegacyBackupV1) {
+  return apiRequest('/imports/legacy-backup/preview', {
+    method: 'POST',
+    body: { backup },
+    schema: legacyBackupPreviewResponseSchema,
+  })
+}
+
+/**
+ * Import a previewed backup in one atomic transaction. `expectedDigest` comes
+ * straight from the preview: the server recomputes it and answers 409 when the
+ * file has changed since, so a stale preview can never commit silently.
+ */
+export function commitLegacyBackup(input: LegacyBackupCommitRequest) {
+  return apiRequest('/imports/legacy-backup', {
+    method: 'POST',
+    body: input,
+    schema: legacyBackupCommitResponseSchema,
+  })
+}
+
+/** The signed-in owner's live library as a v1-format backup file. */
+export function exportBackup() {
+  return apiRequest('/exports/backup', { schema: legacyBackupExportResponseSchema })
+}
+
+/**
+ * Delete the practice record — sessions, per-range stats, hand accuracy and the
+ * review schedule — and keep the ranges. The confirmation travels in the body
+ * because the contract makes it the only accepted request shape.
+ */
+export function resetPracticeStats() {
+  return apiRequest('/settings/reset-practice-stats', {
+    method: 'POST',
+    body: { confirm: true },
+    schema: resetPracticeStatsResponseSchema,
   })
 }
