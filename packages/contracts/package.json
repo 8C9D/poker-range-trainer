@@ -6,7 +6,7 @@
   "description": "Framework-neutral request and response contracts for Poker Range Trainer APIs.",
   "exports": {
     ".": {
-      "development": "./src/index.ts",
+      "development": "./dist/index.js",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }

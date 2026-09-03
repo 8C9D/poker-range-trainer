@@ -14,12 +14,12 @@
   },
   "exports": {
     "./domain/*": {
-      "development": "./src/domain/*.ts",
+      "development": "./dist/domain/*.js",
       "types": "./dist/domain/*.d.ts",
       "import": "./dist/domain/*.js"
     },
     "./types/*": {
-      "development": "./src/types/*.ts",
+      "development": "./dist/types/*.js",
       "types": "./dist/types/*.d.ts",
       "import": "./dist/types/*.js"
     }
