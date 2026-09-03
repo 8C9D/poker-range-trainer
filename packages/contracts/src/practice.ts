@@ -182,3 +182,67 @@ export const practiceSessionSubmissionResponseSchema = successResponseSchema(
     .strict(),
 )
 export type PracticeSessionSubmissionResponse = z.infer<typeof practiceSessionSubmissionResponseSchema>
+
+export const handAccuracyStatSchema = z
+  .object({
+    hand: handCodeSchema,
+    attempts: attemptCountSchema,
+    correct: attemptCountSchema,
+    falsePositives: attemptCountSchema,
+    falseNegatives: attemptCountSchema,
+  })
+  .strict()
+  .superRefine((stat, context) => {
+    if (stat.correct > stat.attempts) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Correct answers cannot exceed attempts.',
+        path: ['correct'],
+      })
+      return
+    }
+    // Every miss is exactly one of the two directions, so the split has to
+    // account for all of them: a report that loses one has lost which way the
+    // user was wrong, which is the only thing the split is for.
+    if (stat.falsePositives + stat.falseNegatives !== stat.attempts - stat.correct) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Missed attempts must split exactly into false positives and false negatives.',
+        path: ['falsePositives'],
+      })
+    }
+  })
+export type HandAccuracyStat = z.infer<typeof handAccuracyStatSchema>
+
+/** The 169 cells are the ceiling, and a hand reports its record once. */
+const rangeHandAccuracySchema = z
+  .array(handAccuracyStatSchema)
+  .max(169)
+  .superRefine((hands, context) => {
+    const seen = new Set<string>()
+    hands.forEach((stat, index) => {
+      if (seen.has(stat.hand)) {
+        context.addIssue({
+          code: 'custom',
+          message: 'A hand can appear only once in the accuracy report.',
+          path: [index, 'hand'],
+        })
+      }
+      seen.add(stat.hand)
+    })
+  })
+
+/** Everything practice knows about one range: nulls mean "never practiced", not zero. */
+export const rangePracticeReadSchema = z
+  .object({
+    rangeId: idSchema,
+    stats: rangePracticeStatsSchema.nullable(),
+    review: reviewStateSchema.nullable(),
+    handAccuracy: rangeHandAccuracySchema,
+    recentSessions: z.array(apiPracticeSessionSchema).max(20),
+  })
+  .strict()
+export type RangePracticeRead = z.infer<typeof rangePracticeReadSchema>
+
+export const rangePracticeReadResponseSchema = successResponseSchema(rangePracticeReadSchema)
+export type RangePracticeReadResponse = z.infer<typeof rangePracticeReadResponseSchema>

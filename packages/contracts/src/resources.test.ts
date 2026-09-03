@@ -16,6 +16,7 @@ import {
   rangeFavoriteRequestSchema,
   rangeListQuerySchema,
   rangeListResponseSchema,
+  rangePracticeReadResponseSchema,
   rangeReadSchema,
   rangeRestoreRequestSchema,
   rangeRestoreResponseSchema,
@@ -645,5 +646,92 @@ describe('settings and read-model contracts', () => {
         weakestHands: [],
       },
     })).toMatchObject({ data: { streakDays: 0, trailingThirtyDays: { handsAnswered: 0 } } })
+  })
+})
+
+describe('range practice read contract', () => {
+  const read = {
+    data: {
+      rangeId: ids.range,
+      stats: {
+        rangeId: ids.range,
+        totalAttempts: 30,
+        correctAttempts: 21,
+        accuracyPercentage: 70,
+        lastPracticedAt: timestamp,
+      },
+      review: {
+        rangeId: ids.range,
+        ease: 2.5,
+        intervalDays: 3,
+        dueAt: timestamp,
+        lastReviewedAt: timestamp,
+      },
+      handAccuracy: [
+        { hand: 'AA', attempts: 4, correct: 3, falsePositives: 0, falseNegatives: 1 },
+        { hand: 'AKs', attempts: 2, correct: 2, falsePositives: 0, falseNegatives: 0 },
+      ],
+      recentSessions: [
+        {
+          id: ids.session,
+          rangeId: ids.range,
+          mode: 'recognition',
+          completedAt: timestamp,
+          totalQuestions: 10,
+          correctAnswers: 8,
+          accuracyPercentage: 80,
+        },
+      ],
+    },
+  }
+
+  it('reads a practiced range, and reports a never-practiced one as nulls', () => {
+    expect(rangePracticeReadResponseSchema.parse(read)).toEqual(read)
+    expect(
+      rangePracticeReadResponseSchema.parse({
+        data: {
+          rangeId: ids.range,
+          stats: null,
+          review: null,
+          handAccuracy: [],
+          recentSessions: [],
+        },
+      }),
+    ).toMatchObject({ data: { stats: null, review: null } })
+  })
+
+  it('rejects a repeated hand, a lost miss direction, and an unbounded session list', () => {
+    expect(
+      rangePracticeReadResponseSchema.safeParse({
+        data: { ...read.data, handAccuracy: [read.data.handAccuracy[0], read.data.handAccuracy[0]] },
+      }).success,
+    ).toBe(false)
+    expect(
+      rangePracticeReadResponseSchema.safeParse({
+        data: {
+          ...read.data,
+          handAccuracy: [{ hand: 'AA', attempts: 4, correct: 3, falsePositives: 0, falseNegatives: 0 }],
+        },
+      }).success,
+    ).toBe(false)
+    expect(
+      rangePracticeReadResponseSchema.safeParse({
+        data: {
+          ...read.data,
+          handAccuracy: [{ hand: 'AA', attempts: 2, correct: 3, falsePositives: 1, falseNegatives: 0 }],
+        },
+      }).success,
+    ).toBe(false)
+    expect(
+      rangePracticeReadResponseSchema.safeParse({
+        data: {
+          ...read.data,
+          recentSessions: Array.from({ length: 21 }, () => read.data.recentSessions[0]),
+        },
+      }).success,
+    ).toBe(false)
+    expect(
+      rangePracticeReadResponseSchema.safeParse({ data: { ...read.data, attempts: [] } }).success,
+    ).toBe(false)
   })
 })
