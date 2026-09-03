@@ -2,19 +2,27 @@
 
 ## Project
 
-Two apps in one repo, sharing one domain core, for drilling Texas Hold'em preflop starting-hand ranges.
+A trainer for Texas Hold'em preflop starting-hand ranges, being rebuilt from a
+local-only app into a multi-user web product. One npm-workspaces monorepo:
 
-- `mobile/` is the Expo / expo-router iOS app, and it is the product being launched to the App Store.
-- `src/` is the React + TypeScript + Vite web app; since the v1 launch decision it is a development surface and the home of the shared `@core` code, not a deployed product.
-- Mobile reaches `src/` through the `@core/*` alias; Metro resolves it through the `mobile/coresrc` symlink, so do not delete that link.
-- Everything is on-device. No accounts, no backend.
-- The single network feature is Sentry crash reporting on iOS, gated on `EXPO_PUBLIC_SENTRY_DSN` and inert when unset.
-- `archived/` holds the 13 features cut from v1, fenced from typecheck, lint, tests, Metro, and EAS; see `TRIM-REPORT.md` and `archived/RESTORE.md`.
+- `apps/web` — Next.js 16 web app (the product). Talks to the API only through
+  `apps/web/lib/api-client.ts` and the shared contracts; never touches the database
+  and never duplicates authorization or business rules.
+- `apps/api` — Express 5 API. The single authority for auth, validation, use
+  cases, and PostgreSQL transactions. Routers take a service port and middleware;
+  repositories own SQL; every response is parsed through its contract schema.
+- `packages/domain` — pure poker logic and analytics (no framework, no I/O).
+  Both apps reuse it; the API never re-implements analytics in SQL.
+- `packages/contracts` — Zod schemas for every request/response and the legacy
+  backup file. `packages/database` — Drizzle schema, SQL migrations, seed.
+- `src/` and `mobile/` — the LEGACY local-only web and iOS apps, kept intact as
+  the migration source (their JSON backup imports into the new app). `archived/`
+  holds features cut from the legacy v1, fenced from every toolchain.
 
-## Status
-
-`LAUNCH-CHECKLIST.md` is the live progress ledger; `PROD-READINESS.md` and `reviews/` hold nine rounds of adversarial review.
-Read the checklist for build state, submission blockers, and what still has to run rather than restating any of it here — a copy in this file goes stale, and the checklist wins.
+Design docs: `docs/architecture/target-architecture.md`,
+`docs/architecture/data-and-migration.md`, `docs/adr/`. The rebuild ledger is
+`docs/architecture/rebuild-status.md`; read it for what exists and what does not
+rather than restating it here. `LAUNCH-CHECKLIST.md` is the legacy iOS launch ledger.
 
 ## Workflow rules
 
@@ -22,35 +30,50 @@ Read the checklist for build state, submission blockers, and what still has to r
 - Keep each change small, focused, and reversible.
 - Push to the tracked remote after every commit (standing user authorization).
 - Commit only after a completed slice passes validation.
-- Do not add accounts, backend, payments, solver imports, postflop boards, mixed frequencies, or AI features unless explicitly requested.
+- Do not add payments, solver imports, postflop boards, mixed frequencies, sharing,
+  or AI features unless explicitly requested.
 - Explain assumptions before making large design decisions.
 - Report failures honestly. Do not claim tests passed unless they actually ran and passed.
 
 ## Technical preferences
 
-- Keep poker-domain logic separate from UI components.
-- Add or update tests for core domain logic.
-- Web UI fixes do not reach mobile; only `@core` propagates, so sweep `mobile/` for the mirror after hardening a web screen.
+- Keep poker-domain logic in `packages/domain`, separate from UI and HTTP code,
+  and add or update its tests.
+- Change an API contract in `packages/contracts` first; both apps validate against it.
+- Schema changes are new numbered SQL files in `packages/database/src/migrations`
+  plus the matching Drizzle schema edit; never edit an applied migration.
+- The API owns ownership checks: every query is scoped by `user_id`, and a
+  missing or foreign resource is the same 404.
+- Web data loading happens in effects through promise callbacks (the
+  `react-hooks/set-state-in-effect` rule is enforced); plain CSS in
+  `apps/web/app/globals.css`, no CSS frameworks.
 
-## Storage versioning
+## Legacy apps (`src/`, `mobile/`)
 
-- All persisted state lives in nine `localStorage` keys named `poker-range-trainer.<slice>.v1` (backed by MMKV through a shim on mobile).
-- There is no migration machinery.
-  Every loader re-validates on read and SILENTLY DROPS records that do not match its expected shape.
-- Because of that, never change a stored shape under an existing key: every device that already has data would silently lose that store on its next read.
-- The rule for an incompatible shape change is a SUFFIX BUMP, not an in-place migration: create the new key (`.v1` -> `.v2`), have the new module's loader read the old key once, transform forward, write the new key, and leave the old key in place as a recovery net.
-  Also bump `BACKUP_VERSION` in `src/storage/backup.ts` and teach `validateBackup` to accept the old file shape, so backups written before the change still import.
-- Purely additive OPTIONAL fields (absence means "feature never used") may stay on the same key; that is how every overlay field and `spotAccuracy`/`trainingGoal` were added.
-- Three guards classify every key, so adding or renaming one fails tests until it is accounted for: backup coverage (`src/storage/backup.test.ts`), reset coverage (`src/storage/statsReset.test.ts`), and verbatim web/mobile key parity (`mobile/__tests__/storage-parity.test.ts`).
+- Mobile reaches `src/` through the `@core/*` alias; Metro resolves it through the
+  `mobile/coresrc` symlink, so do not delete that link.
+- Web UI fixes in `src/` do not reach mobile; only `@core` propagates.
+- All persisted state lives in nine `localStorage` keys named
+  `poker-range-trainer.<slice>.v1` (MMKV shim on mobile). There is no migration
+  machinery: every loader re-validates on read and SILENTLY DROPS records that do
+  not match. Never change a stored shape under an existing key; an incompatible
+  change is a SUFFIX BUMP (`.v1` -> `.v2`) with a one-time forward transform, plus
+  a `BACKUP_VERSION` bump in `src/storage/backup.ts`. Purely additive OPTIONAL
+  fields may stay on the same key. Three guard tests classify every key
+  (`src/storage/backup.test.ts`, `src/storage/statsReset.test.ts`,
+  `mobile/__tests__/storage-parity.test.ts`).
+- The legacy backup format (version 1) is also what the API imports and exports,
+  so a change to it must be mirrored in `packages/contracts/src/legacy-backup.ts`.
 
 ## Validation
 
-After code changes, run these commands from the repo root:
+After code changes, run these from the repo root (never from `mobile/`, whose
+same-named scripts run the mobile-only variants):
 
-- npm run lint
-- npm run test:run
-- npm run build
-
-Run them from the repo root, never from `mobile/`: the root scripts drive both apps, and the same-named scripts inside `mobile/` run the mobile-only variants instead.
+- `npm run lint`
+- `npm run test:run`
+- `npm run build`
+- `npm run test:integration` — needs PostgreSQL (`docker compose up -d`) and
+  `DATABASE_URL=postgresql://poker_range_trainer:poker_range_trainer_local@localhost:54329/poker_range_trainer`
 
 If any command fails, diagnose and fix the root cause before committing.

@@ -1,7 +1,8 @@
-# Lint, test and build both apps on every push and pull request - the same
-# three commands the local validation gate runs, from the repo root (the root
-# scripts drive the mobile app via --prefix; running them from mobile/ would
-# silently run the mobile-only variants).
+# Lint, test, and build every workspace on every push and pull request - the
+# same commands the local validation gate runs, from the repo root (the root
+# scripts drive the legacy mobile app via --prefix; running them from mobile/
+# would silently run the mobile-only variants). The integration suites need a
+# real PostgreSQL, provided here as a service container.
 name: CI
 
 on:
@@ -11,6 +12,25 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: poker_range_trainer
+          POSTGRES_USER: poker_range_trainer
+          POSTGRES_PASSWORD: poker_range_trainer_local
+        ports:
+          - 54329:5432
+        options: >-
+          --health-cmd "pg_isready -U poker_range_trainer -d poker_range_trainer"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      DATABASE_URL: postgresql://poker_range_trainer:poker_range_trainer_local@localhost:54329/poker_range_trainer
+
     steps:
       - uses: actions/checkout@v4
 
@@ -23,7 +43,7 @@ jobs:
             package-lock.json
             mobile/package-lock.json
 
-      - name: Install web dependencies
+      - name: Install workspace dependencies
         run: npm ci
 
       - name: Install mobile dependencies
@@ -34,6 +54,9 @@ jobs:
 
       - name: Test
         run: npm run test:run
+
+      - name: Integration tests
+        run: npm run test:integration
 
       - name: Build
         run: npm run build
