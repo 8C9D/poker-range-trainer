@@ -68,6 +68,7 @@ describe('PostgreSQL persistence foundation', () => {
       expect(results.flat()).toEqual([
         '0001_persistence_foundation.sql',
         '0002_practice_submission_replays.sql',
+        '0003_widen_training_goal_constraint.sql',
       ])
       const ledger = await firstPool.query<{ id: string; count: string }>(
         'select id, count(*) as count from schema_migrations group by id order by id',
@@ -79,6 +80,7 @@ describe('PostgreSQL persistence foundation', () => {
       expect(ledger.rows).toEqual([
         { id: '0001_persistence_foundation.sql', count: '1' },
         { id: '0002_practice_submission_replays.sql', count: '1' },
+        { id: '0003_widen_training_goal_constraint.sql', count: '1' },
       ])
       expect(usersTable.rows).toEqual([{ users_table: 'users' }])
     } finally {
@@ -197,11 +199,31 @@ describe('PostgreSQL persistence foundation', () => {
         [sessionId, ownerId, rangeId, randomUUID()],
       ),
     ).rejects.toMatchObject({ code: '23514' })
+    const persistedGoal = await testPool.query<{ daily_hand_goal: number }>(
+      'insert into user_training_goals (user_id, daily_hand_goal) values ($1, 50) returning daily_hand_goal',
+      [ownerId],
+    )
+    expect(persistedGoal.rows).toEqual([{ daily_hand_goal: 50 }])
+
+    const maxGoalUser = await testPool.query<{ id: string }>(
+      "insert into users (email, password_hash) values ('max-goal@example.test', 'fixture-password-hash-maximum') returning id",
+    )
+    const maxGoalUserId = maxGoalUser.rows[0]?.id
+    expect(maxGoalUserId).toBeTruthy()
     await expect(
-      testPool.query('insert into user_training_goals (user_id, daily_hand_goal) values ($1, 15)', [
-        ownerId,
-      ]),
-    ).rejects.toMatchObject({ code: '23514' })
+      testPool.query(
+        'insert into user_training_goals (user_id, daily_hand_goal) values ($1, 1), ($2, 1000000000)',
+        [otherUserId, maxGoalUserId],
+      ),
+    ).resolves.toBeDefined()
+    for (const invalidGoal of [0, -1, 1_000_000_001]) {
+      await expect(
+        testPool.query('update user_training_goals set daily_hand_goal = $1 where user_id = $2', [
+          invalidGoal,
+          otherUserId,
+        ]),
+      ).rejects.toMatchObject({ code: '23514' })
+    }
   })
 
   it('cascades range-owned practice, stats, accuracy, and review records', async () => {

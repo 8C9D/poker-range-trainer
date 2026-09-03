@@ -5,12 +5,13 @@ import { HAND_CLASSES } from '@poker-range-trainer/domain/domain/handClass'
 import { POSITIONS } from '@poker-range-trainer/domain/types/range'
 
 import { handCodeSchema, idSchema, successResponseSchema, timestampSchema } from './common.js'
-import { dailyHandsGoalSchema } from './settings.js'
+import { dailyHandsGoalSchema, MAX_DAILY_HANDS_GOAL } from './settings.js'
 
 const percentageSchema = z.number().min(0).max(100)
-const boundedCountSchema = z.number().int().nonnegative().max(1_000_000_000)
+const boundedCountSchema = z.number().int().nonnegative().max(MAX_DAILY_HANDS_GOAL)
 const boundedRangeCountSchema = z.number().int().nonnegative().max(1_000_000)
 const calendarDateSchema = z.iso.date()
+const streakDaysSchema = z.number().int().nonnegative().max(36_500)
 
 /** Service code validates that this syntactically bounded identifier is an installed IANA zone. */
 export const ianaTimeZoneSchema = z.string().trim().min(1).max(100)
@@ -32,6 +33,47 @@ function requireComputedAccuracy(
   }
 }
 
+const answerSummarySchema = z
+  .object({
+    handsAnswered: boundedCountSchema,
+    correctAnswers: boundedCountSchema,
+    accuracyPercentage: percentageSchema,
+  })
+  .strict()
+  .superRefine((summary, context) => {
+    if (summary.correctAnswers > summary.handsAnswered) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Correct answers cannot exceed hands answered.',
+        path: ['correctAnswers'],
+      })
+    }
+    requireComputedAccuracy(summary, context)
+  })
+
+const uniqueHandsSchema = z
+  .array(handCodeSchema)
+  .min(1)
+  .max(169)
+  .superRefine((hands, context) => {
+    const seen = new Set<string>()
+    hands.forEach((hand, index) => {
+      if (seen.has(hand)) {
+        context.addIssue({ code: 'custom', message: 'Hands must not contain duplicates.', path: [index] })
+      }
+      seen.add(hand)
+    })
+  })
+
+const drillPoolsSchema = z.record(idSchema, uniqueHandsSchema).superRefine((pools, context) => {
+  if (Object.keys(pools).length > 100) {
+    context.addIssue({
+      code: 'custom',
+      message: 'A drill pool report cannot name more than 100 ranges.',
+    })
+  }
+})
+
 export const dueRangeSchema = z
   .object({
     id: idSchema,
@@ -42,10 +84,108 @@ export const dueRangeSchema = z
   })
   .strict()
 
+const sharpestRangeSchema = answerSummarySchema
+  .extend({
+    id: idSchema,
+    name: z.string().min(1).max(120),
+  })
+  .strict()
+  .superRefine((range, context) => {
+    if (range.handsAnswered === 0) {
+      context.addIssue({
+        code: 'custom',
+        message: 'A sharpest range must have answered hands.',
+        path: ['handsAnswered'],
+      })
+    }
+  })
+
+const trailingSevenDaysSchema = answerSummarySchema
+  .extend({ sharpestRange: sharpestRangeSchema.nullable() })
+  .strict()
+  .superRefine((summary, context) => {
+    const { sharpestRange } = summary
+    if (summary.handsAnswered === 0 && sharpestRange !== null) {
+      context.addIssue({
+        code: 'custom',
+        message: 'A seven-day summary without answers cannot name a sharpest range.',
+        path: ['sharpestRange'],
+      })
+    }
+    if (summary.handsAnswered > 0 && sharpestRange === null) {
+      context.addIssue({
+        code: 'custom',
+        message: 'A seven-day summary with answers must name a sharpest range.',
+        path: ['sharpestRange'],
+      })
+    }
+    if (
+      sharpestRange !== null &&
+      (sharpestRange.handsAnswered > summary.handsAnswered ||
+        sharpestRange.correctAnswers > summary.correctAnswers)
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Sharpest-range counters must be included in the seven-day summary.',
+        path: ['sharpestRange'],
+      })
+    }
+  })
+
+const MAX_FREE_PRACTICE_HANDS = 10
+
+const freePracticeWeakHandsSchema = z
+  .object({
+    kind: z.literal('weakHands'),
+    rangeIds: z.array(idSchema).min(1).max(MAX_FREE_PRACTICE_HANDS),
+    pools: drillPoolsSchema,
+    handCount: z.number().int().min(1).max(MAX_FREE_PRACTICE_HANDS),
+  })
+  .strict()
+  .superRefine((suggestion, context) => {
+    const uniqueRangeIds = new Set(suggestion.rangeIds)
+    if (uniqueRangeIds.size !== suggestion.rangeIds.length) {
+      context.addIssue({ code: 'custom', message: 'Range IDs must be unique.', path: ['rangeIds'] })
+    }
+
+    const poolRangeIds = Object.keys(suggestion.pools)
+    if (
+      poolRangeIds.length !== uniqueRangeIds.size ||
+      poolRangeIds.some((rangeId) => !uniqueRangeIds.has(rangeId))
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Weak-hand pools must be keyed by exactly the named ranges.',
+        path: ['pools'],
+      })
+    }
+
+    const handCount = Object.values(suggestion.pools).reduce((total, hands) => total + hands.length, 0)
+    if (suggestion.handCount !== handCount) {
+      context.addIssue({
+        code: 'custom',
+        message: 'handCount must equal the number of distinct range-hand pool entries.',
+        path: ['handCount'],
+      })
+    }
+  })
+
+const freePracticeReviewEarlySchema = z
+  .object({
+    kind: z.literal('reviewEarly'),
+    rangeId: idSchema,
+    dueAt: timestampSchema,
+  })
+  .strict()
+
+const freePracticeSchema = z
+  .discriminatedUnion('kind', [freePracticeWeakHandsSchema, freePracticeReviewEarlySchema])
+  .nullable()
+
 export const todayReadModelSchema = z
   .object({
     generatedAt: timestampSchema,
-    streakDays: z.number().int().nonnegative().max(36_500),
+    streakDays: streakDaysSchema,
     dailyGoal: z
       .object({
         target: dailyHandsGoalSchema.nullable(),
@@ -53,8 +193,10 @@ export const todayReadModelSchema = z
         remainingHands: boundedCountSchema,
       })
       .strict(),
+    trailingSevenDays: trailingSevenDaysSchema,
     dueRanges: z.array(dueRangeSchema).max(100),
     caughtUp: z.boolean(),
+    freePractice: freePracticeSchema,
   })
   .strict()
   .superRefine((today, context) => {
@@ -63,6 +205,25 @@ export const todayReadModelSchema = z
         code: 'custom',
         message: 'caughtUp must reflect whether any ranges are due.',
         path: ['caughtUp'],
+      })
+    }
+
+    if (today.dueRanges.length > 0 && today.freePractice !== null) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Free practice is available only when no ranges are due.',
+        path: ['freePractice'],
+      })
+    }
+
+    if (
+      today.freePractice?.kind === 'reviewEarly' &&
+      Date.parse(today.freePractice.dueAt) <= Date.parse(today.generatedAt)
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message: 'An early review must be due after this Today projection was generated.',
+        path: ['freePractice', 'dueAt'],
       })
     }
 
@@ -131,29 +292,6 @@ const weakHandSchema = z
       })
     }
   })
-
-const uniqueHandsSchema = z
-  .array(handCodeSchema)
-  .min(1)
-  .max(169)
-  .superRefine((hands, context) => {
-    const seen = new Set<string>()
-    hands.forEach((hand, index) => {
-      if (seen.has(hand)) {
-        context.addIssue({ code: 'custom', message: 'Hands must not contain duplicates.', path: [index] })
-      }
-      seen.add(hand)
-    })
-  })
-
-const drillPoolsSchema = z.record(idSchema, uniqueHandsSchema).superRefine((pools, context) => {
-  if (Object.keys(pools).length > 100) {
-    context.addIssue({
-      code: 'custom',
-      message: 'A drill pool report cannot name more than 100 ranges.',
-    })
-  }
-})
 
 const handClassLeakSchema = z
   .object({
@@ -240,6 +378,7 @@ const positionLeanSchema = z
 export const progressReadModelSchema = z
   .object({
     generatedAt: timestampSchema,
+    streakDays: streakDaysSchema,
     allTime: z
       .object({
         rangesPracticed: boundedRangeCountSchema,
@@ -248,6 +387,7 @@ export const progressReadModelSchema = z
         accuracyPercentage: percentageSchema,
       })
       .strict(),
+    trailingThirtyDays: answerSummarySchema,
     dailyActivity: z.array(activityPointSchema).max(90),
     weeklyAccuracyTrend: z.array(accuracyTrendPointSchema).max(52),
     handClassLeaks: z.array(handClassLeakSchema).max(HAND_CLASSES.length),

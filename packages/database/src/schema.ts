@@ -437,6 +437,9 @@ export const userTrainingGoals = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    check('user_training_goals_supported_goal', sql`${table.dailyHandGoal} in (10, 20, 40, 80)`),
+    check(
+      'user_training_goals_daily_hand_goal_valid',
+      sql`${table.dailyHandGoal} between 1 and 1000000000`,
+    ),
   ],
 )

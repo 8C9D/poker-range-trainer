@@ -5,6 +5,7 @@ import {
   practiceSessionSubmissionSchema,
   bulkRangeMutationRequestSchema,
   bulkRangeMutationResponseSchema,
+  MAX_DAILY_HANDS_GOAL,
   progressResponseSchema,
   rangeArchiveRequestSchema,
   rangeCreateRequestSchema,
@@ -371,7 +372,9 @@ describe('settings and read-model contracts', () => {
   const progress = {
     data: {
       generatedAt: timestamp,
+      streakDays: 4,
       allTime: { rangesPracticed: 1, handsAnswered: 30, correctAnswers: 21, accuracyPercentage: 70 },
+      trailingThirtyDays: { handsAnswered: 24, correctAnswers: 18, accuracyPercentage: 75 },
       dailyActivity: [{ day: '2026-09-02', handsAnswered: 12 }],
       weeklyAccuracyTrend: [
         { weekStart: '2026-09-01', handsAnswered: 30, correctAnswers: 21, accuracyPercentage: 70 },
@@ -392,13 +395,22 @@ describe('settings and read-model contracts', () => {
     },
   }
 
-  it('supports exact training goals and an explicit stats reset', () => {
+  it('preserves arbitrary bounded positive training goals and an explicit stats reset', () => {
     expect(
-      trainingGoalResponseSchema.parse({ data: { dailyHandsGoal: 40, updatedAt: timestamp } }),
-    ).toEqual({ data: { dailyHandsGoal: 40, updatedAt: timestamp } })
-    expect(trainingGoalUpdateRequestSchema.parse({ dailyHandsGoal: 40 })).toEqual({ dailyHandsGoal: 40 })
+      trainingGoalResponseSchema.parse({ data: { dailyHandsGoal: 50, updatedAt: timestamp } }),
+    ).toEqual({ data: { dailyHandsGoal: 50, updatedAt: timestamp } })
+    expect(trainingGoalUpdateRequestSchema.parse({ dailyHandsGoal: 50 })).toEqual({ dailyHandsGoal: 50 })
+    expect(trainingGoalUpdateRequestSchema.parse({ dailyHandsGoal: 1 })).toEqual({ dailyHandsGoal: 1 })
+    expect(trainingGoalUpdateRequestSchema.parse({ dailyHandsGoal: MAX_DAILY_HANDS_GOAL })).toEqual({
+      dailyHandsGoal: MAX_DAILY_HANDS_GOAL,
+    })
     expect(trainingGoalUpdateRequestSchema.parse({ dailyHandsGoal: null })).toEqual({ dailyHandsGoal: null })
-    expect(trainingGoalUpdateRequestSchema.safeParse({ dailyHandsGoal: 25 }).success).toBe(false)
+    for (const dailyHandsGoal of [0, -1, 20.5, MAX_DAILY_HANDS_GOAL + 1]) {
+      expect(trainingGoalUpdateRequestSchema.safeParse({ dailyHandsGoal }).success).toBe(false)
+    }
+    expect(
+      trainingGoalResponseSchema.safeParse({ data: { dailyHandsGoal: null, updatedAt: timestamp } }).success,
+    ).toBe(false)
     expect(resetPracticeStatsRequestSchema.safeParse({ confirm: false }).success).toBe(false)
   })
 
@@ -414,6 +426,152 @@ describe('settings and read-model contracts', () => {
         generatedAt: timestamp,
         streakDays: 4,
         dailyGoal: { target: 20, handsAnswered: 12, remainingHands: 8 },
+        trailingSevenDays: {
+          handsAnswered: 30,
+          correctAnswers: 21,
+          accuracyPercentage: 70,
+          sharpestRange: {
+            id: ids.range,
+            name: 'BTN open 100bb',
+            handsAnswered: 12,
+            correctAnswers: 10,
+            accuracyPercentage: (10 / 12) * 100,
+          },
+        },
+        dueRanges: [{
+          id: ids.range,
+          name: 'BTN open 100bb',
+          dueAt: timestamp,
+          accuracyPercentage: null,
+          lastPracticedAt: null,
+        }],
+        caughtUp: false,
+        freePractice: null,
+      },
+    })).toMatchObject({ data: { streakDays: 4 } })
+
+    const caughtUpToday = {
+      data: {
+        generatedAt: timestamp,
+        streakDays: 0,
+        dailyGoal: { target: null, handsAnswered: 0, remainingHands: 0 },
+        trailingSevenDays: {
+          handsAnswered: 0,
+          correctAnswers: 0,
+          accuracyPercentage: 0,
+          sharpestRange: null,
+        },
+        dueRanges: [],
+        caughtUp: true,
+        freePractice: {
+          kind: 'weakHands' as const,
+          rangeIds: [ids.range, ids.rangeTwo],
+          pools: { [ids.range]: ['AA'], [ids.rangeTwo]: ['AKs'] },
+          handCount: 2,
+        },
+      },
+    }
+    expect(todayResponseSchema.parse(caughtUpToday)).toMatchObject({
+      data: { freePractice: { kind: 'weakHands', handCount: 2 } },
+    })
+    expect(todayResponseSchema.parse({
+      ...caughtUpToday,
+      data: {
+        ...caughtUpToday.data,
+        freePractice: { kind: 'reviewEarly', rangeId: ids.range, dueAt: '2026-09-03T12:00:00.000Z' },
+      },
+    })).toMatchObject({ data: { freePractice: { kind: 'reviewEarly' } } })
+    expect(todayResponseSchema.safeParse({
+      data: {
+        generatedAt: timestamp,
+        streakDays: 4,
+        dailyGoal: { target: null, handsAnswered: 12, remainingHands: 8 },
+        trailingSevenDays: caughtUpToday.data.trailingSevenDays,
+        dueRanges: [],
+        caughtUp: true,
+        freePractice: null,
+      },
+    }).success).toBe(false)
+    expect(todayResponseSchema.safeParse({
+      data: {
+        generatedAt: timestamp,
+        streakDays: 4,
+        dailyGoal: { target: 20, handsAnswered: 12, remainingHands: 8 },
+        trailingSevenDays: caughtUpToday.data.trailingSevenDays,
+        dueRanges: [],
+        caughtUp: false,
+        freePractice: null,
+      },
+    }).success).toBe(false)
+    expect(todayResponseSchema.safeParse({
+      ...caughtUpToday,
+      data: {
+        ...caughtUpToday.data,
+        freePractice: {
+          kind: 'weakHands',
+          rangeIds: [ids.range, ids.range],
+          pools: { [ids.range]: ['AA'] },
+          handCount: 1,
+        },
+      },
+    }).success).toBe(false)
+    expect(todayResponseSchema.safeParse({
+      ...caughtUpToday,
+      data: {
+        ...caughtUpToday.data,
+        freePractice: {
+          kind: 'weakHands',
+          rangeIds: [ids.range],
+          pools: { [ids.rangeTwo]: ['AA'] },
+          handCount: 1,
+        },
+      },
+    }).success).toBe(false)
+    expect(todayResponseSchema.safeParse({
+      ...caughtUpToday,
+      data: {
+        ...caughtUpToday.data,
+        freePractice: {
+          kind: 'weakHands',
+          rangeIds: [ids.range],
+          pools: { [ids.range]: ['AA'] },
+          handCount: 2,
+        },
+      },
+    }).success).toBe(false)
+    expect(todayResponseSchema.safeParse({
+      ...caughtUpToday,
+      data: {
+        ...caughtUpToday.data,
+        trailingSevenDays: {
+          handsAnswered: 2,
+          correctAnswers: 1,
+          accuracyPercentage: 50,
+          sharpestRange: {
+            id: ids.range,
+            name: 'BTN open 100bb',
+            handsAnswered: 3,
+            correctAnswers: 1,
+            accuracyPercentage: (1 / 3) * 100,
+          },
+        },
+      },
+    }).success).toBe(false)
+    expect(todayResponseSchema.safeParse({
+      ...caughtUpToday,
+      data: {
+        ...caughtUpToday.data,
+        trailingSevenDays: {
+          handsAnswered: 2,
+          correctAnswers: 1,
+          accuracyPercentage: 0,
+          sharpestRange: null,
+        },
+      },
+    }).success).toBe(false)
+    expect(todayResponseSchema.safeParse({
+      data: {
+        ...caughtUpToday.data,
         dueRanges: [{
           id: ids.range,
           name: 'BTN open 100bb',
@@ -423,23 +581,19 @@ describe('settings and read-model contracts', () => {
         }],
         caughtUp: false,
       },
-    })).toMatchObject({ data: { streakDays: 4 } })
+    }).success).toBe(false)
     expect(todayResponseSchema.safeParse({
+      ...caughtUpToday,
       data: {
-        generatedAt: timestamp,
-        streakDays: 4,
-        dailyGoal: { target: null, handsAnswered: 12, remainingHands: 8 },
-        dueRanges: [],
-        caughtUp: true,
+        ...caughtUpToday.data,
+        freePractice: { kind: 'reviewEarly', rangeId: ids.range, dueAt: timestamp },
       },
     }).success).toBe(false)
     expect(todayResponseSchema.safeParse({
+      ...caughtUpToday,
       data: {
-        generatedAt: timestamp,
-        streakDays: 4,
-        dailyGoal: { target: 20, handsAnswered: 12, remainingHands: 8 },
-        dueRanges: [],
-        caughtUp: false,
+        ...caughtUpToday.data,
+        freePractice: { kind: 'reviewEarly', rangeId: ids.range, dueAt: 'tomorrow' },
       },
     }).success).toBe(false)
   })
@@ -451,6 +605,13 @@ describe('settings and read-model contracts', () => {
     expect(progressResponseSchema.safeParse({
       ...progress,
       data: { ...progress.data, allTime: { ...progress.data.allTime, accuracyPercentage: 0 } },
+    }).success).toBe(false)
+    expect(progressResponseSchema.safeParse({
+      ...progress,
+      data: {
+        ...progress.data,
+        trailingThirtyDays: { handsAnswered: 12, correctAnswers: 8, accuracyPercentage: 0 },
+      },
     }).success).toBe(false)
     expect(progressResponseSchema.safeParse({
       ...progress,
@@ -470,5 +631,19 @@ describe('settings and read-model contracts', () => {
       ...progress,
       data: { ...progress.data, attempt: { expectedInRange: true } },
     }).success).toBe(false)
+    expect(progressResponseSchema.parse({
+      data: {
+        generatedAt: timestamp,
+        streakDays: 0,
+        allTime: { rangesPracticed: 0, handsAnswered: 0, correctAnswers: 0, accuracyPercentage: 0 },
+        trailingThirtyDays: { handsAnswered: 0, correctAnswers: 0, accuracyPercentage: 0 },
+        dailyActivity: [],
+        weeklyAccuracyTrend: [],
+        handClassLeaks: [],
+        mistakeBias: { loose: 0, tight: 0, mistakes: 0, loosePercentage: 0, bias: 'unknown' },
+        positionLeans: [],
+        weakestHands: [],
+      },
+    })).toMatchObject({ data: { streakDays: 0, trailingThirtyDays: { handsAnswered: 0 } } })
   })
 })
