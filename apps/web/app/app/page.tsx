@@ -1,9 +1,5 @@
-import type { Metadata } from 'next'
-
-import { AuthenticatedShell } from '@/components/authenticated-shell'
-
-export const metadata: Metadata = { title: 'Practice room' }
+import { redirect } from 'next/navigation'
 
 export default function AppPage() {
-  return <AuthenticatedShell />
+  redirect('/app/library')
 }

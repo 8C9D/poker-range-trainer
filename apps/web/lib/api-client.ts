@@ -4,8 +4,23 @@ import {
   logoutResponseSchema,
   meResponseSchema,
   problemDetailsSchema,
+  bulkRangeMutationResponseSchema,
+  rangeArchiveResponseSchema,
+  rangeCreateResponseSchema,
+  rangeDeleteResponseSchema,
+  rangeDuplicateResponseSchema,
+  rangeFavoriteResponseSchema,
+  rangeListResponseSchema,
+  rangeReadResponseSchema,
+  rangeRestoreResponseSchema,
+  rangeUpdateResponseSchema,
   registerRequestSchema,
   registerResponseSchema,
+  type BulkRangeMutationRequest,
+  type RangeCreateRequest,
+  type RangeDuplicateRequest,
+  type RangeListQuery,
+  type RangeUpdateRequest,
   type ProblemDetails,
 } from '@poker-range-trainer/contracts'
 import type { z } from 'zod'
@@ -34,6 +49,21 @@ export interface ApiRequestOptions<Schema extends z.ZodType> {
   schema: Schema
   method?: ApiMethod
   body?: unknown
+}
+
+export type RangeListOptions = Partial<RangeListQuery>
+
+function rangePath(rangeId: string, suffix = ''): string {
+  return `/ranges/${encodeURIComponent(rangeId)}${suffix}`
+}
+
+function rangeQuery(query: RangeListOptions): string {
+  const parameters = new URLSearchParams()
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined) parameters.set(key, String(value))
+  }
+  const serialized = parameters.toString()
+  return serialized ? `?${serialized}` : ''
 }
 
 function csrfToken(): string | undefined {
@@ -78,6 +108,9 @@ export async function apiRequest<Schema extends z.ZodType>(
   path: string,
   options: ApiRequestOptions<Schema>,
 ): Promise<z.output<Schema>> {
+  if (!path.startsWith('/') || path.startsWith('//') || path.includes('://')) {
+    throw new ApiClientError('invalid-response', 'The request path is invalid.')
+  }
   const method = options.method ?? 'GET'
   const headers = new Headers({ Accept: 'application/json' })
   if (options.body !== undefined) headers.set('Content-Type', 'application/json')
@@ -147,4 +180,72 @@ export function register(input: z.input<typeof registerRequestSchema>) {
 
 export function logout() {
   return apiRequest('/auth/logout', { method: 'POST', schema: logoutResponseSchema })
+}
+
+export function listRanges(query: RangeListOptions = {}) {
+  return apiRequest(`/ranges${rangeQuery(query)}`, { schema: rangeListResponseSchema })
+}
+
+export function getRange(rangeId: string) {
+  return apiRequest(rangePath(rangeId), { schema: rangeReadResponseSchema })
+}
+
+export function createRange(input: RangeCreateRequest) {
+  return apiRequest('/ranges', { method: 'POST', body: input, schema: rangeCreateResponseSchema })
+}
+
+export function updateRange(rangeId: string, input: RangeUpdateRequest) {
+  return apiRequest(rangePath(rangeId), {
+    method: 'PATCH',
+    body: input,
+    schema: rangeUpdateResponseSchema,
+  })
+}
+
+export function setRangeFavorite(rangeId: string, version: number, favorite: boolean) {
+  return apiRequest(rangePath(rangeId, '/favorite'), {
+    method: 'POST',
+    body: { version, favorite },
+    schema: rangeFavoriteResponseSchema,
+  })
+}
+
+export function setRangeArchived(rangeId: string, version: number, archived: boolean) {
+  return apiRequest(rangePath(rangeId, '/archive'), {
+    method: 'POST',
+    body: { version, archived },
+    schema: rangeArchiveResponseSchema,
+  })
+}
+
+export function duplicateRange(rangeId: string, input: RangeDuplicateRequest) {
+  return apiRequest(rangePath(rangeId, '/duplicate'), {
+    method: 'POST',
+    body: input,
+    schema: rangeDuplicateResponseSchema,
+  })
+}
+
+export function deleteRange(rangeId: string, version: number) {
+  return apiRequest(rangePath(rangeId), {
+    method: 'DELETE',
+    body: { version },
+    schema: rangeDeleteResponseSchema,
+  })
+}
+
+export function restoreRange(rangeId: string, version: number) {
+  return apiRequest(rangePath(rangeId, '/restore'), {
+    method: 'POST',
+    body: { version },
+    schema: rangeRestoreResponseSchema,
+  })
+}
+
+export function bulkMutateRanges(input: BulkRangeMutationRequest) {
+  return apiRequest('/ranges/bulk', {
+    method: 'POST',
+    body: input,
+    schema: bulkRangeMutationResponseSchema,
+  })
 }

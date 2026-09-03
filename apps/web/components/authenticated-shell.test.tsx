@@ -30,7 +30,7 @@ describe('AuthenticatedShell', () => {
     )
     logoutRequest.mockResolvedValueOnce({ data: { success: true } })
     const user = userEvent.setup()
-    render(<AuthenticatedShell />)
+    render(<AuthenticatedShell>Library content</AuthenticatedShell>)
     expect(screen.getByText('Loading your practice room…')).toBeInTheDocument()
     resolveUser!({
       data: {
@@ -42,8 +42,8 @@ describe('AuthenticatedShell', () => {
         },
       },
     })
-    await screen.findByText('Your training space is ready')
-    expect(screen.getByText(/saved range library will connect next/i)).toBeInTheDocument()
+    await screen.findByText('Library content')
+    expect(screen.getByRole('link', { name: 'Library' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Sign out' }))
     expect(logoutRequest).toHaveBeenCalledOnce()
     expect(await screen.findByRole('link', { name: 'Sign in' })).toBeInTheDocument()
@@ -54,7 +54,7 @@ describe('AuthenticatedShell', () => {
       data: { authenticated: false },
     })
     const user = userEvent.setup()
-    render(<AuthenticatedShell />)
+    render(<AuthenticatedShell>Library content</AuthenticatedShell>)
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not load your session.')
     await user.click(screen.getByRole('button', { name: 'Try again' }))
     await waitFor(() => expect(currentUser).toHaveBeenCalledTimes(2))
@@ -78,10 +78,10 @@ describe('AuthenticatedShell', () => {
     })
     logoutRequest.mockRejectedValueOnce(new Error('offline'))
     const user = userEvent.setup()
-    render(<AuthenticatedShell />)
-    await screen.findByText('Your training space is ready')
+    render(<AuthenticatedShell>Library content</AuthenticatedShell>)
+    await screen.findByText('Library content')
     await user.click(screen.getByRole('button', { name: 'Sign out' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not sign out. Try again.')
-    expect(screen.getByText('Your training space is ready')).toBeInTheDocument()
+    expect(screen.getByText('Library content')).toBeInTheDocument()
   })
 })

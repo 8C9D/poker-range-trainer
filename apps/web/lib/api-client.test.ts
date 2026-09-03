@@ -1,6 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { ApiClientError, getCurrentUser, login } from './api-client'
+import {
+  ApiClientError,
+  bulkMutateRanges,
+  createRange,
+  deleteRange,
+  getCurrentUser,
+  getRange,
+  listRanges,
+  login,
+  setRangeArchived,
+  setRangeFavorite,
+  updateRange,
+} from './api-client'
 
 const requestId = '7a7e6f3e-17be-4b69-a31b-1f902417c560'
 
@@ -100,5 +112,73 @@ describe('API client', () => {
     })
     await expect(getCurrentUser()).rejects.toMatchObject({ kind: 'invalid-response' })
     expect((fetchMock.mock.calls[0]?.[1]?.headers as Headers).get('x-csrf-token')).toBeNull()
+  })
+
+  it('encodes range paths, serializes supported queries, parses mutations, and keeps CSRF centralized', async () => {
+    document.cookie = 'prt_csrf=range-token; path=/'
+    const range = {
+      id: requestId,
+      version: 2,
+      name: 'BTN open',
+      hands: ['AA'],
+      metadata: null,
+      displayOrder: 0,
+      archived: false,
+      favorite: false,
+      createdAt: '2026-01-02T03:04:05.000Z',
+      updatedAt: '2026-01-02T03:04:05.000Z',
+      deletedAt: null,
+    }
+    const listItem = {
+      id: range.id,
+      version: range.version,
+      name: range.name,
+      metadata: range.metadata,
+      displayOrder: range.displayOrder,
+      archived: range.archived,
+      favorite: range.favorite,
+      updatedAt: range.updatedAt,
+      deletedAt: range.deletedAt,
+      handCount: 1,
+      comboCount: 6,
+      rangePercentage: (6 / 1326) * 100,
+    }
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: [listItem],
+          meta: { page: 2, pageSize: 20, totalItems: 21, totalPages: 2 },
+        }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ data: range }))
+      .mockResolvedValueOnce(jsonResponse({ data: range }))
+      .mockResolvedValueOnce(jsonResponse({ data: range }))
+      .mockResolvedValueOnce(jsonResponse({ data: range }))
+      .mockResolvedValueOnce(jsonResponse({ data: range }))
+      .mockResolvedValueOnce(
+        jsonResponse({ data: { id: requestId, version: 3, deletedAt: range.updatedAt } }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ data: { action: 'archive', atomic: true, items: [listItem] } }),
+      )
+
+    await listRanges({ page: 2, search: 'BTN & CO', archived: 'include', favorite: true })
+    await getRange('a/b')
+    await createRange({ name: 'BTN open', hands: ['AA'] })
+    await updateRange(requestId, { version: 2, name: 'BTN open' })
+    await setRangeFavorite(requestId, 2, true)
+    await setRangeArchived(requestId, 2, true)
+    await deleteRange(requestId, 2)
+    await bulkMutateRanges({ action: 'archive', items: [{ id: requestId, version: 2 }] })
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      '/api/v1/ranges?page=2&search=BTN+%26+CO&archived=include&favorite=true',
+    )
+    expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/v1/ranges/a%2Fb')
+    for (const [, init] of fetchMock.mock.calls.slice(2)) {
+      expect((init?.headers as Headers).get('x-csrf-token')).toBe('range-token')
+      expect(init?.cache).toBe('no-store')
+    }
   })
 })

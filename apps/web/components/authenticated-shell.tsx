@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 
 import { ApiClientError, getCurrentUser, logout } from '@/lib/api-client'
 
@@ -25,7 +25,11 @@ async function loadSession(): Promise<ShellState> {
   }
 }
 
-export function AuthenticatedShell() {
+interface AuthenticatedShellProps {
+  children?: ReactNode
+}
+
+export function AuthenticatedShell({ children }: AuthenticatedShellProps) {
   const [state, setState] = useState<ShellState>({ status: 'loading' })
   const [loggingOut, setLoggingOut] = useState(false)
   const [logoutError, setLogoutError] = useState<string>()
@@ -120,17 +124,20 @@ export function AuthenticatedShell() {
           </button>
         </div>
       </header>
+      <nav className="app-nav" aria-label="Practice navigation">
+        <Link href="/app/library">Library</Link>
+        <span aria-disabled="true" title="Coming soon">
+          Today
+        </span>
+        <span aria-disabled="true" title="Coming soon">
+          Progress
+        </span>
+        <span aria-disabled="true" title="Coming soon">
+          Account
+        </span>
+      </nav>
       <main id="main-content" className="app-main">
-        <p className="eyebrow">Practice library</p>
-        <h1>Your training space is ready</h1>
-        <p className="app-lede">
-          Your saved range library will connect next. This foundation keeps authentication and
-          navigation ready without inventing records that are not here yet.
-        </p>
-        <section className="next-card" aria-labelledby="library-next">
-          <h2 id="library-next">What’s coming next</h2>
-          <p>Build, organize, and drill your own preflop ranges from this space.</p>
-        </section>
+        {children}
         {logoutError ? (
           <p className="form-error" role="alert">
             {logoutError}
