@@ -1,5 +1,6 @@
 import type { Express } from 'express'
 import { EventEmitter } from 'node:events'
+import { createServer } from 'node:http'
 import type { Logger } from 'pino'
 import request from 'supertest'
 import { describe, expect, it, vi } from 'vitest'
@@ -249,9 +250,15 @@ describe('API app factory', () => {
     }
     const pool = new TestPool()
     const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() } as unknown as Logger
+    let mountedApp: Express | undefined
     const runtime = createServerRuntime(config(), logger, {
       createPool: () => pool as never,
+      createHttpServer: (app) => {
+        mountedApp = app
+        return createServer(app)
+      },
     })
+    await request(mountedApp).get('/api/v1/ranges').expect(401).expect('Cache-Control', 'no-store')
     pool.emit('error', new Error('postgresql://username:password@secret-host'))
     expect(logger.error).toHaveBeenCalledWith({ errorName: 'Error' }, 'PostgreSQL pool error')
     await Promise.all([runtime.close(), runtime.close()])

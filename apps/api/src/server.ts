@@ -6,10 +6,14 @@ import type { Logger } from 'pino'
 import { closeDatabase, createDatabase, createPostgresPool } from '@poker-range-trainer/database'
 
 import { createApp, type ReadinessCheck } from './app.js'
+import { createAuthMiddleware } from './auth/middleware.js'
 import { PostgresAuthRepository } from './auth/repository.js'
 import { createAuthRouter } from './auth/routes.js'
 import { loadConfig, type ApiConfig } from './config.js'
 import { createLogger } from './logger.js'
+import { PostgresRangeRepository } from './ranges/repository.js'
+import { createRangeRouter } from './ranges/routes.js'
+import { RangeService } from './ranges/service.js'
 
 type PostgresPool = ReturnType<typeof createPostgresPool>
 
@@ -40,12 +44,27 @@ export function createServerRuntime(
   }
   const database = createDatabase(pool)
   const authRepository = new PostgresAuthRepository(database, { now: () => new Date() })
+  const authMiddleware = createAuthMiddleware({ repository: authRepository, config, logger })
+  const rangeRepository = new PostgresRangeRepository(database)
+  const rangeService = new RangeService(rangeRepository)
   const app = createApp({
     config,
     logger,
     readiness,
     registerRoutes(api) {
-      api.use('/api/v1/auth', createAuthRouter({ config, logger, repository: authRepository }))
+      api.use(
+        '/api/v1/auth',
+        createAuthRouter({
+          config,
+          logger,
+          repository: authRepository,
+          middleware: authMiddleware,
+        }),
+      )
+      api.use(
+        '/api/v1/ranges',
+        createRangeRouter({ service: rangeService, middleware: authMiddleware }),
+      )
     },
   })
   const server = (dependencies.createHttpServer ?? createServer)(app)
