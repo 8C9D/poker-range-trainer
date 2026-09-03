@@ -24,6 +24,10 @@ limitation is removed; this file, not the README, is the source of truth for
 
 ## Not built yet
 
+- Signed-in browser end-to-end tests (Playwright against the real stack). The
+  pages are covered by component tests and the production build; an API-level
+  smoke of every route passed on 2026-09-03, but no automated click-through
+  exists yet.
 - Deployment: no Dockerfile, hosting config, or migration/backup runbook beyond
   the npm scripts.
 - A mobile client for the API. `mobile/` still runs against local storage only.
