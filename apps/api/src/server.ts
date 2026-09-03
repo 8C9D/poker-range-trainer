@@ -10,6 +10,9 @@ import { createAuthMiddleware } from './auth/middleware.js'
 import { PostgresAuthRepository } from './auth/repository.js'
 import { createAuthRouter } from './auth/routes.js'
 import { loadConfig, type ApiConfig } from './config.js'
+import { PostgresImportsRepository } from './imports/repository.js'
+import { createExportsRouter, createImportsRouter } from './imports/routes.js'
+import { ImportsService } from './imports/service.js'
 import { createLogger } from './logger.js'
 import { PostgresPracticeRepository } from './practice/repository.js'
 import { createPracticeRouter } from './practice/routes.js'
@@ -57,6 +60,8 @@ export function createServerRuntime(
   const practiceService = new PracticeService(practiceRepository)
   const settingsRepository = new PostgresSettingsRepository(database)
   const settingsService = new SettingsService(settingsRepository)
+  const importsRepository = new PostgresImportsRepository(database)
+  const importsService = new ImportsService(importsRepository)
   const app = createApp({
     config,
     logger,
@@ -82,6 +87,14 @@ export function createServerRuntime(
       api.use(
         '/api/v1/settings',
         createSettingsRouter({ service: settingsService, middleware: authMiddleware }),
+      )
+      api.use(
+        '/api/v1/imports',
+        createImportsRouter({ service: importsService, middleware: authMiddleware }),
+      )
+      api.use(
+        '/api/v1/exports',
+        createExportsRouter({ service: importsService, middleware: authMiddleware }),
       )
     },
   })

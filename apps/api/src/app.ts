@@ -18,6 +18,9 @@ import { requestId, sendProblem } from './problem.js'
 
 export type ReadinessCheck = () => Promise<void>
 
+/** Mount point of the import router, whose bodies bypass the general parser. */
+const IMPORT_PATH_PREFIX = '/api/v1/imports'
+
 export interface CreateAppOptions {
   config: ApiConfig
   readiness: ReadinessCheck
@@ -37,6 +40,11 @@ function isUuid(value: unknown): value is string {
     typeof value === 'string' &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
   )
+}
+
+/** Requests the import router parses for itself, once the caller is known. */
+function isImportPath(path: string): boolean {
+  return path === IMPORT_PATH_PREFIX || path.startsWith(`${IMPORT_PATH_PREFIX}/`)
 }
 
 function healthData(now: () => Date) {
@@ -105,7 +113,16 @@ export function createApp(options: CreateAppOptions): Express {
       },
     }),
   )
-  app.use(express.json({ limit: '1mb', strict: true }))
+  // A legacy backup is one JSON document far larger than any other request this
+  // API accepts, so the import router parses its own body behind authentication
+  // and CSRF. Reading it here would let an anonymous client spend the process's
+  // memory before anything checked who was asking; every other route stays
+  // bounded at 1 MiB.
+  const parseJsonBody = express.json({ limit: '1mb', strict: true })
+  app.use((req, res, next) => {
+    if (isImportPath(req.path)) return next()
+    parseJsonBody(req, res, next)
+  })
 
   app.get('/api/v1/health/live', (_req, res) => res.status(200).json(healthData(now)))
   app.get('/api/v1/health/ready', async (req, res) => {
@@ -175,7 +192,7 @@ function errorHandler(logger: Logger, isProduction: boolean): ErrorRequestHandle
       sendProblem(req, res, {
         status: 413,
         title: 'Payload too large',
-        detail: 'Request body must not exceed 1 MiB.',
+        detail: 'Request body is larger than this endpoint accepts.',
         code: 'PAYLOAD_TOO_LARGE',
       })
       return

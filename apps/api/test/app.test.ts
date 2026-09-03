@@ -1,11 +1,15 @@
-import type { Express } from 'express'
+import express, { type Express } from 'express'
 import { EventEmitter } from 'node:events'
 import { createServer } from 'node:http'
 import type { Logger } from 'pino'
 import request from 'supertest'
 import { describe, expect, it, vi } from 'vitest'
 
-import { healthResponseSchema, problemDetailsSchema } from '@poker-range-trainer/contracts'
+import {
+  healthResponseSchema,
+  MAX_LEGACY_BACKUP_BYTES,
+  problemDetailsSchema,
+} from '@poker-range-trainer/contracts'
 
 import { createApp } from '../src/app.js'
 import { loadConfig, type ApiConfig } from '../src/config.js'
@@ -168,6 +172,50 @@ describe('API app factory', () => {
       .send('{')
       .expect(429)
     assertProblem(rejectedBeforeParsing.body, 429, 'RATE_LIMITED')
+  })
+
+  it('never reads an import body itself and caps every other route at 1 MiB', async () => {
+    const oversized = JSON.stringify({ padding: 'x'.repeat(2 * 1024 * 1024) })
+    const app = createApp({
+      config: config({ rateLimitMax: 100 }),
+      logger: silentLogger,
+      readiness: ready,
+      registerRoutes(api: Express) {
+        api.post('/api/v1/imports/unparsed', (req, res) => {
+          res.status(200).json({ padding: (req.body as { padding?: string } | undefined)?.padding })
+        })
+        api.post(
+          '/api/v1/imports/legacy-backup/preview',
+          express.json({ limit: MAX_LEGACY_BACKUP_BYTES, strict: true }),
+          (req, res) => {
+            res.status(200).json({ padding: (req.body as { padding: string }).padding.length })
+          },
+        )
+      },
+    })
+
+    const rejected = await request(app)
+      .post('/api/v1/ranges')
+      .set('Content-Type', 'application/json')
+      .send(oversized)
+      .expect(413)
+    assertProblem(rejected.body, 413, 'PAYLOAD_TOO_LARGE')
+
+    // The import prefix reaches its router with the body still unread, so only
+    // that router decides what an authenticated caller may send.
+    const untouched = await request(app)
+      .post('/api/v1/imports/unparsed')
+      .set('Content-Type', 'application/json')
+      .send('{"padding":"small"}')
+      .expect(200)
+    expect(untouched.body).toEqual({})
+
+    const accepted = await request(app)
+      .post('/api/v1/imports/legacy-backup/preview')
+      .set('Content-Type', 'application/json')
+      .send(oversized)
+      .expect(200)
+    expect(accepted.body).toEqual({ padding: 2 * 1024 * 1024 })
   })
 
   it('conceals internal errors in production and logs no request body', async () => {
