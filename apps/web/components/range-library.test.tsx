@@ -147,6 +147,10 @@ describe('RangeLibrary', () => {
     render(<RangeLibrary />)
     await screen.findByText('BTN open')
     const user = userEvent.setup()
+    expect(screen.getByRole('link', { name: 'Practice' })).toHaveAttribute(
+      'href',
+      `/app/practice?range=${range.id}`,
+    )
     await user.click(screen.getByRole('button', { name: 'Favorite' }))
     await waitFor(() => expect(favorite).toHaveBeenCalledWith(range.id, 2, true))
     await user.click(screen.getByRole('button', { name: 'Archive' }))

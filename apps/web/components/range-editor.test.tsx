@@ -70,6 +70,7 @@ describe('RangeEditor', () => {
   it('prevents an empty create, then creates with the selected hands and navigates to the range', async () => {
     render(<RangeEditor />)
     expect(screen.getByRole('button', { name: 'Create range' })).toBeDisabled()
+    expect(screen.queryByRole('link', { name: 'Practice this range' })).not.toBeInTheDocument()
     selectHand()
     expect(screen.getByRole('button', { name: 'AA', pressed: true })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Create range' })).toBeEnabled()
@@ -91,6 +92,10 @@ describe('RangeEditor', () => {
   it('loads an edit, clears whole metadata explicitly, and submits the loaded version', async () => {
     render(<RangeEditor rangeId={rangeId} />)
     expect(await screen.findByDisplayValue('BTN open')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Practice this range' })).toHaveAttribute(
+      'href',
+      `/app/practice?range=${rangeId}`,
+    )
     expect(screen.getByRole('combobox', { name: 'Game' })).toHaveValue('cash')
     const user = userEvent.setup()
     await user.click(screen.getByRole('checkbox', { name: 'Include context' }))

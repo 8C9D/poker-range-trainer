@@ -235,9 +235,16 @@ export function RangeEditor({ rangeId }: RangeEditorProps) {
             Select the hand classes that belong in this preflop spot, then add optional context.
           </p>
         </div>
-        <Link className="text-link" href="/app/library">
-          Cancel
-        </Link>
+        <div className="editor-heading-actions">
+          {rangeId !== undefined ? (
+            <Link className="text-link" href={`/app/practice?range=${encodeURIComponent(rangeId)}`}>
+              Practice this range
+            </Link>
+          ) : null}
+          <Link className="text-link" href="/app/library">
+            Cancel
+          </Link>
+        </div>
       </div>
       {error ? (
         <p className="form-error" role="alert">

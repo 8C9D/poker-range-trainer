@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { PracticeSessionSubmission } from '@poker-range-trainer/contracts'
+
 import {
   ApiClientError,
   bulkMutateRanges,
@@ -7,8 +9,10 @@ import {
   deleteRange,
   getCurrentUser,
   getRange,
+  getRangePractice,
   listRanges,
   login,
+  submitPracticeSession,
   setRangeArchived,
   setRangeFavorite,
   updateRange,
@@ -180,5 +184,118 @@ describe('API client', () => {
       expect((init?.headers as Headers).get('x-csrf-token')).toBe('range-token')
       expect(init?.cache).toBe('no-store')
     }
+  })
+  it('posts a practice session with CSRF, encodes the practice read path, and parses both', async () => {
+    document.cookie = 'prt_csrf=practice-token; path=/'
+    const sessionId = 'ac0f1f8e-1cf3-4b0b-8b53-9d5a26fb6b31'
+    const questionId = '2f0d4d51-4a1e-4f7c-8a2b-9d1c0f6e5a44'
+    const submission: PracticeSessionSubmission = {
+      mode: 'recognition',
+      rangeId: requestId,
+      idempotencyKey: sessionId,
+      answers: [
+        { questionId, hand: 'AA', answer: true, answeredAt: '2026-01-02T03:04:05.000Z' },
+        {
+          questionId: '5b7f2a0e-2a09-4a70-9d2f-6f8b1d3c7e21',
+          hand: '72o',
+          answer: true,
+          answeredAt: '2026-01-02T03:04:06.000Z',
+        },
+      ],
+    }
+    const sessionBody = {
+      data: {
+        session: {
+          id: sessionId,
+          rangeId: requestId,
+          mode: 'recognition',
+          totalQuestions: 2,
+          correctAnswers: 1,
+          accuracyPercentage: 50,
+          completedAt: '2026-01-02T03:04:07.000Z',
+        },
+        stats: {
+          rangeId: requestId,
+          totalAttempts: 12,
+          correctAttempts: 9,
+          accuracyPercentage: 75,
+          lastPracticedAt: '2026-01-02T03:04:07.000Z',
+        },
+        review: {
+          rangeId: requestId,
+          ease: 2.5,
+          intervalDays: 3,
+          dueAt: '2026-01-05T03:04:07.000Z',
+          lastReviewedAt: '2026-01-02T03:04:07.000Z',
+        },
+      },
+    }
+    const readBody = {
+      data: {
+        rangeId: requestId,
+        stats: null,
+        review: null,
+        handAccuracy: [
+          { hand: '72o', attempts: 3, correct: 1, falsePositives: 2, falseNegatives: 0 },
+        ],
+        recentSessions: [],
+      },
+    }
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(jsonResponse(sessionBody))
+      .mockResolvedValueOnce(jsonResponse(readBody))
+
+    await expect(submitPracticeSession(submission)).resolves.toEqual(sessionBody)
+    await expect(getRangePractice('a/b')).resolves.toEqual(readBody)
+
+    const [path, init] = fetchMock.mock.calls[0] ?? []
+    expect(path).toBe('/api/v1/practice/sessions')
+    expect(init?.method).toBe('POST')
+    expect(init?.body).toBe(JSON.stringify(submission))
+    expect((init?.headers as Headers).get('x-csrf-token')).toBe('practice-token')
+    expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/v1/practice/ranges/a%2Fb')
+    expect(fetchMock.mock.calls[1]?.[1]?.method).toBe('GET')
+  })
+
+  it('rejects a practice response whose accuracy does not follow from its counters', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      jsonResponse({
+        data: {
+          session: {
+            id: requestId,
+            rangeId: requestId,
+            mode: 'recognition',
+            totalQuestions: 2,
+            correctAnswers: 1,
+            accuracyPercentage: 100,
+            completedAt: '2026-01-02T03:04:07.000Z',
+          },
+          stats: {
+            rangeId: requestId,
+            totalAttempts: 0,
+            correctAttempts: 0,
+            accuracyPercentage: 0,
+            lastPracticedAt: null,
+          },
+          review: {
+            rangeId: requestId,
+            ease: 2.5,
+            intervalDays: 0,
+            dueAt: null,
+            lastReviewedAt: null,
+          },
+        },
+      }),
+    )
+
+    await expect(
+      submitPracticeSession({
+        mode: 'build',
+        rangeId: requestId,
+        idempotencyKey: requestId,
+        selectedHands: ['AA'],
+      }),
+    ).rejects.toMatchObject({ kind: 'invalid-response' })
   })
 })

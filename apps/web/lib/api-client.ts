@@ -3,6 +3,7 @@ import {
   loginResponseSchema,
   logoutResponseSchema,
   meResponseSchema,
+  practiceSessionSubmissionResponseSchema,
   problemDetailsSchema,
   bulkRangeMutationResponseSchema,
   rangeArchiveResponseSchema,
@@ -11,6 +12,7 @@ import {
   rangeDuplicateResponseSchema,
   rangeFavoriteResponseSchema,
   rangeListResponseSchema,
+  rangePracticeReadResponseSchema,
   rangeReadResponseSchema,
   rangeRestoreResponseSchema,
   rangeUpdateResponseSchema,
@@ -19,6 +21,7 @@ import {
   type BulkRangeMutationRequest,
   type RangeCreateRequest,
   type RangeDuplicateRequest,
+  type PracticeSessionSubmission,
   type RangeListQuery,
   type RangeUpdateRequest,
   type ProblemDetails,
@@ -247,5 +250,19 @@ export function bulkMutateRanges(input: BulkRangeMutationRequest) {
     method: 'POST',
     body: input,
     schema: bulkRangeMutationResponseSchema,
+  })
+}
+
+export function submitPracticeSession(input: PracticeSessionSubmission) {
+  return apiRequest('/practice/sessions', {
+    method: 'POST',
+    body: input,
+    schema: practiceSessionSubmissionResponseSchema,
+  })
+}
+
+export function getRangePractice(rangeId: string) {
+  return apiRequest(`/practice/ranges/${encodeURIComponent(rangeId)}`, {
+    schema: rangePracticeReadResponseSchema,
   })
 }

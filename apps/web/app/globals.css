@@ -380,7 +380,8 @@ h2 {
   font-size: clamp(3rem, 7vw, 5.8rem);
 }
 .library,
-.editor {
+.editor,
+.practice {
   max-width: 72rem;
 }
 .library-heading,
@@ -392,28 +393,42 @@ h2 {
 .range-row,
 .range-row-title,
 .range-actions,
-.editor-actions {
+.editor-actions,
+.editor-heading-actions,
+.practice-heading,
+.practice-actions,
+.drill-status,
+.drill-answers {
   display: flex;
   align-items: center;
 }
 .library-heading,
 .editor-heading,
 .section-heading,
-.metadata-toggle {
+.metadata-toggle,
+.practice-heading,
+.drill-status {
   justify-content: space-between;
   gap: 1.5rem;
 }
 .library-heading,
-.editor-heading {
+.editor-heading,
+.practice-heading {
   align-items: flex-start;
   margin-bottom: 2rem;
 }
 .library-heading h1,
-.editor-heading h1 {
+.editor-heading h1,
+.practice-heading h1 {
   max-width: 14ch;
 }
+.editor-heading-actions {
+  gap: 1.25rem;
+}
 .library-state,
-.empty-library {
+.empty-library,
+.practice-summary,
+.save-failure {
   max-width: 38rem;
   padding: 2rem;
   border: 1px solid var(--line);
@@ -423,7 +438,8 @@ h2 {
 .empty-library p,
 .quiet,
 .range-meta,
-.range-stats {
+.range-stats,
+.drill-status p {
   color: var(--muted);
   line-height: 1.5;
 }
@@ -629,6 +645,124 @@ h2 {
 .editor-actions {
   gap: 1rem;
 }
+.practice-modes {
+  margin-bottom: 1.5rem;
+}
+.practice-modes ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+.mode-link {
+  display: inline-block;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--green-dark);
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+.mode-link:hover {
+  border-color: var(--green);
+}
+.mode-link.is-current {
+  border-color: var(--green);
+  background: var(--green);
+  color: var(--paper);
+}
+.drill {
+  max-width: 38rem;
+  padding: 2rem;
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: 4px;
+}
+.drill-status {
+  margin-bottom: 1.5rem;
+}
+.prompt-hand {
+  text-align: center;
+}
+.playing-cards {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+}
+.playing-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 4.5rem;
+  height: 6.5rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fffefb;
+  font-family: 'Bricolage Grotesque Variable', Georgia, serif;
+  font-size: 1.9rem;
+  line-height: 1.1;
+}
+.playing-card-s,
+.playing-card-c {
+  color: #182d32;
+}
+.playing-card-h,
+.playing-card-d {
+  color: #a3221f;
+}
+.prompt-hand-code {
+  margin: 0.75rem 0 0;
+  font-size: 1.25rem;
+  letter-spacing: 0.08em;
+}
+.drill-feedback {
+  min-height: 4.5rem;
+  margin: 1.25rem 0;
+  text-align: center;
+}
+.drill-feedback p {
+  margin: 0.25rem 0;
+}
+.drill-hit {
+  color: var(--green);
+  font-weight: 600;
+}
+.drill-miss {
+  color: #a3221f;
+  font-weight: 600;
+}
+.drill-answers,
+.practice-actions {
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.drill-answers {
+  justify-content: center;
+}
+.practice-summary,
+.save-failure {
+  max-width: 44rem;
+}
+.summary-headline {
+  font-family: 'Bricolage Grotesque Variable', Georgia, serif;
+  font-size: 1.75rem;
+  margin: 0.5rem 0;
+}
+.summary-hands {
+  margin: 1.5rem 0;
+}
+.hand-list h3 {
+  margin: 1rem 0 0.25rem;
+  font-size: 1rem;
+}
+.hand-list p {
+  margin: 0;
+  word-break: break-word;
+}
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -665,6 +799,7 @@ h2 {
   .editor-heading,
   .section-heading,
   .metadata-toggle,
+  .practice-heading,
   .range-row {
     align-items: flex-start;
     flex-direction: column;
@@ -681,6 +816,9 @@ h2 {
   }
   .hand-cell {
     min-height: 2rem;
+  }
+  .drill {
+    padding: 1.25rem;
   }
   .metadata-fields {
     grid-template-columns: 1fr;

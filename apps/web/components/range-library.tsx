@@ -563,6 +563,9 @@ function RangeRow({
         </p>
       </div>
       <div className="range-actions" aria-label={`Manage ${range.name}`}>
+        <Link className="text-link" href={`/app/practice?range=${encodeURIComponent(range.id)}`}>
+          Practice
+        </Link>
         <button className="text-button" type="button" disabled={pending} onClick={onFavorite}>
           {range.favorite ? 'Unfavorite' : 'Favorite'}
         </button>
