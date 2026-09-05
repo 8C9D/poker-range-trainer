@@ -34,7 +34,7 @@ Existing data is local under the `poker-range-trainer.*.v1` keys and is also
 exportable as backup version 1. The safe migration path is intentionally
 additive:
 
-1. Leave the existing Vite/Expo implementation and its local data untouched.
+1. Leave the existing legacy (`src/`, `mobile/`) implementation and its local data untouched.
 2. In the new app, authenticate, choose **Import existing backup**, and submit a
    JSON backup exported by the legacy app. A browser helper may offer a local
    snapshot, but it must ask before uploading anything.

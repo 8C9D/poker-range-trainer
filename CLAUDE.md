@@ -15,8 +15,9 @@ local-only app into a multi-user web product. One npm-workspaces monorepo:
   Both apps reuse it; the API never re-implements analytics in SQL.
 - `packages/contracts` — Zod schemas for every request/response and the legacy
   backup file. `packages/database` — Drizzle schema, SQL migrations, seed.
-- `src/` and `mobile/` — the LEGACY local-only web and iOS apps, kept intact as
-  the migration source (their JSON backup imports into the new app). `archived/`
+- `src/` and `mobile/` — the LEGACY local-only web and iOS code, kept as the
+  migration source (their JSON backup imports into the new app). `src/` no longer
+  has a web entry point; it is the shared code `mobile/` builds against. `archived/`
   holds features cut from the legacy v1, fenced from every toolchain.
 
 Design docs: `docs/architecture/target-architecture.md`,

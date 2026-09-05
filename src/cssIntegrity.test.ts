@@ -508,29 +508,15 @@ describe('app icons', () => {
     expect(used.filter((hex) => !lightValues.has(hex))).toEqual([])
   })
 
-  it('keeps the manifest and the tab-strip color on the palette too', () => {
+  it('keeps the manifest colors on the palette too', () => {
     const manifest = readFileSync(join(process.cwd(), 'public', 'manifest.webmanifest'), 'utf8')
-    const html = readFileSync(join(process.cwd(), 'index.html'), 'utf8')
     const declared = [
-      ...[...manifest.matchAll(/"(?:background|theme)_color":\s*"(#[0-9a-f]{3,8})"/gi)],
-      ...[...html.matchAll(/name="theme-color"\s+content="(#[0-9a-f]{3,8})"/gi)],
+      ...manifest.matchAll(/"(?:background|theme)_color":\s*"(#[0-9a-f]{3,8})"/gi),
     ].map((match) => match[1].toLowerCase())
-    expect(declared.length).toBeGreaterThanOrEqual(4)
+    expect(declared.length).toBeGreaterThanOrEqual(2)
     // The dark theme-color is a dark-block token, so check both blocks here.
     const all = new Set([...lightValues, ...Object.values(tokensIn(themeCss))])
     expect(declared.filter((hex) => !all.has(hex))).toEqual([])
-  })
-
-  it('references every icon the app ships, and ships no others', () => {
-    // The dead Bluesky sprite that sat here referenced nothing and was
-    // referenced by nothing; public/ is small enough to hold to that.
-    const shipped = readdirSync(join(process.cwd(), 'public')).filter((f) => f.endsWith('.svg'))
-    const referenced = readFileSync(join(process.cwd(), 'index.html'), 'utf8')
-    const manifest = readFileSync(join(process.cwd(), 'public', 'manifest.webmanifest'), 'utf8')
-    expect(shipped.length).toBeGreaterThan(0)
-    for (const file of shipped) {
-      expect(`${referenced}${manifest}`, `nothing references public/${file}`).toContain(file)
-    }
   })
 })
 

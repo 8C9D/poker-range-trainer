@@ -126,9 +126,11 @@ Tests live beside the code they cover; API HTTP tests live in `apps/api/test`.
 
 ## Legacy apps
 
-`src/` (React + Vite) and `mobile/` (Expo, iOS) are the original local-only
-implementation, kept intact as the migration source: their JSON backup is what
-the new app imports. `mobile/` reaches `src/` through the `@core/*` alias and the
+`src/` (React) and `mobile/` (Expo, iOS) are the original local-only
+implementation, kept as the migration source: their JSON backup is what the new
+app imports. The `src/` web shell (its Vite entry point) has been removed, so
+`src/` is no longer runnable on its own; it remains the shared code the mobile
+app builds against. `mobile/` reaches `src/` through the `@core/*` alias and the
 `mobile/coresrc` symlink. Everything they persist lives in `localStorage` keys
 named `poker-range-trainer.<slice>.v1` with no migration machinery; see
 [`CLAUDE.md`](CLAUDE.md) for the storage-versioning rule before touching a stored

@@ -16,8 +16,7 @@ docs/
 screenshots/
 *.md
 
-# Existing Vite/TypeScript tooling remains outside the new workspace baseline.
-vite.config.ts
+# Existing TypeScript tooling remains outside the new workspace baseline.
 vitest.config.ts
 eslint.config.js
 tsconfig.json
