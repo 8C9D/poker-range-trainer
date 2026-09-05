@@ -22,7 +22,7 @@ local-only app into a multi-user web product. One npm-workspaces monorepo:
 Design docs: `docs/architecture/target-architecture.md`,
 `docs/architecture/data-and-migration.md`, `docs/adr/`. The rebuild ledger is
 `docs/architecture/rebuild-status.md`; read it for what exists and what does not
-rather than restating it here. `LAUNCH-CHECKLIST.md` is the legacy iOS launch ledger.
+rather than restating it here.
 
 ## Workflow rules
 

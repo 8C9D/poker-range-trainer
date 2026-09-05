@@ -3,8 +3,8 @@
 # Why it exists: the archiver did not honor mobile/.gitignore's `/ios` rule
 # when packing from the repo root, so the locally generated 598MB mobile/ios
 # (whose Pods and env files carry machine-local absolute paths) was uploaded
-# and broke the remote build - hermesc was invoked at a /Users/<user>
-# path that does not exist on the builder.
+# and broke the remote build - hermesc was invoked at a machine-local
+# absolute path that does not exist on the builder.
 
 # dependencies (the builder runs its own install)
 node_modules/

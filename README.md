@@ -116,7 +116,7 @@ packages/
   domain/         Pure poker logic and analytics (no framework, no I/O)
   contracts/      Zod request/response schemas shared by both apps
   database/       Drizzle schema, SQL migrations, migrator, seed, connection
-docs/             Architecture, ADRs, rebuild status, roadmaps, legacy guides
+docs/             Architecture, ADRs, rebuild status, the legacy iOS app's privacy and support pages
 compose.yaml      Local PostgreSQL
 src/, mobile/     Legacy local-only apps (see below)
 archived/         Features cut from the legacy v1, fenced from every toolchain
@@ -132,12 +132,10 @@ the new app imports. `mobile/` reaches `src/` through the `@core/*` alias and th
 `mobile/coresrc` symlink. Everything they persist lives in `localStorage` keys
 named `poker-range-trainer.<slice>.v1` with no migration machinery; see
 [`CLAUDE.md`](CLAUDE.md) for the storage-versioning rule before touching a stored
-shape. The iOS launch ledger is [`LAUNCH-CHECKLIST.md`](LAUNCH-CHECKLIST.md).
+shape.
 
 ## Documentation
 
 - [`docs/architecture/`](docs/architecture/) — target architecture, data model and import design, rebuild status.
 - [`docs/adr/`](docs/adr/) — architecture decision records.
-- [`docs/roadmap.md`](docs/roadmap.md) / [`docs/roadmap-progress.md`](docs/roadmap-progress.md) — the original product roadmap and its slice ledger (legacy).
-- [`docs/manual-testing-guide.md`](docs/manual-testing-guide.md) — the legacy apps' manual test checklist.
 - [`CLAUDE.md`](CLAUDE.md) — workflow rules and the validation gate.

@@ -13,11 +13,7 @@ src/
 archived/
 public/
 docs/
-review/
-reviews/
 screenshots/
-.claude/
-.agents/
 *.md
 
 # Existing Vite/TypeScript tooling remains outside the new workspace baseline.

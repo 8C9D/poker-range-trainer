@@ -17,8 +17,8 @@ export default defineConfig({
     // inline restores it only on the path where nothing failed: a failing
     // assertion skips the restore, and the spy leaks into every test after it in
     // the file. That turns one red test into a cascade and makes the guard
-    // unreadable as evidence of what it covers, which is the whole reason the
-    // guards in PROD-READINESS.md were accepted. Restoring runs BEFORE each
+    // unreadable as evidence of what it covers, which is the whole reason these
+    // guards exist. Restoring runs BEFORE each
     // test's `beforeEach` (`@vitest/runner` calls `onBeforeTryTask`, which does
     // the restoring, and then the `beforeEach` hooks), so a spy THAT hook
     // installs still reaches the body. A spy installed in `beforeAll` does not
