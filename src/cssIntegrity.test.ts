@@ -482,45 +482,6 @@ describe('literal colors', () => {
 })
 
 /**
- * The app's identity assets, which live outside the stylesheet's reach.
- *
- * A favicon and an installed app icon are the two places the product is seen
- * before any of its CSS loads, and nothing in the build ties them to the
- * palette: the shipped pair had drifted a whole design system behind, painting
- * purple on near-black beside a cream-and-gold app, and the favicon was not even
- * this product's mark. They are held here to the same light-theme tokens the
- * SVG export answers to.
- */
-describe('app icons', () => {
-  const themeCss = readFileSync(join(SRC, 'theme.css'), 'utf8')
-  const lightValues = new Set(
-    Object.values(tokensIn(themeCss.slice(0, themeCss.indexOf('@media (prefers-color-scheme: dark)')))),
-  )
-  const icons = ['favicon.svg', 'app-icon.svg'].map((name) => ({
-    name,
-    svg: readFileSync(join(process.cwd(), 'public', name), 'utf8'),
-  }))
-
-  it.each(icons)('paints $name only in palette colors', ({ svg }) => {
-    const used = [...svg.matchAll(/#[0-9a-f]{3,8}/gi)].map((match) => match[0].toLowerCase())
-    // Guards the guard: an icon that had stopped declaring colors would pass.
-    expect(used.length).toBeGreaterThanOrEqual(2)
-    expect(used.filter((hex) => !lightValues.has(hex))).toEqual([])
-  })
-
-  it('keeps the manifest colors on the palette too', () => {
-    const manifest = readFileSync(join(process.cwd(), 'public', 'manifest.webmanifest'), 'utf8')
-    const declared = [
-      ...manifest.matchAll(/"(?:background|theme)_color":\s*"(#[0-9a-f]{3,8})"/gi),
-    ].map((match) => match[1].toLowerCase())
-    expect(declared.length).toBeGreaterThanOrEqual(2)
-    // The dark theme-color is a dark-block token, so check both blocks here.
-    const all = new Set([...lightValues, ...Object.values(tokensIn(themeCss))])
-    expect(declared.filter((hex) => !all.has(hex))).toEqual([])
-  })
-})
-
-/**
  * A drill asks which of two answers is right, so neither may be dressed as the
  * one to press. Gold is the palette's "single primary action on a screen" fill
  * and it sat on the yes button, promoting one side of the very judgement being

@@ -35,7 +35,7 @@ coverage
 .playwright-mcp
 
 # Screenshots dropped at the repo root by browser tooling given a bare filename.
-# Root-level only: real image assets live in public/ and mobile/assets/.
+# Root-level only: real image assets live in mobile/assets/.
 /*.png
 
 # App Store screenshot candidates: the PNGs are regenerable upload assets, not

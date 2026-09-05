@@ -22,9 +22,9 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src"],
-  /* Read their subjects off disk (the stylesheets, and the service worker in
-     public/), so they need node types this browser-only config deliberately
-     withholds; tsconfig.node.json typechecks them instead. archived/ holds
-     features cut from v1 whose code is expected not to compile. */
-  "exclude": ["src/cssIntegrity.test.ts", "src/serviceWorker.test.ts", "archived"]
+  /* Reads its subjects (the stylesheets) off disk, so it needs node types this
+     browser-only config deliberately withholds; tsconfig.node.json typechecks it
+     instead. archived/ holds features cut from v1 whose code is expected not to
+     compile. */
+  "exclude": ["src/cssIntegrity.test.ts", "archived"]
 }

@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Poker Range Trainer">
-  <title>Poker Range Trainer</title>
-  <!-- The same mark as app-icon.svg, drawn as a tile: nothing crops a favicon,
-       so it keeps its own corner radius and can carry a larger spade. Gold
-       rather than the app's cream background, which would vanish into a light
-       tab strip at 16px. -->
-  <rect width="512" height="512" rx="112" fill="#d9ab33"/>
-  <path fill="#241c05" transform="translate(256 259) scale(1.55) translate(-256 -259)" d="M256 150c-44 46-92 78-92 124a52 52 0 0 0 84 41c-4 24-14 41-28 53h72c-14-12-24-29-28-53a52 52 0 0 0 84-41c0-46-48-78-92-124z"/>
-</svg>

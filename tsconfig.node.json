@@ -20,5 +20,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src/cssIntegrity.test.ts", "src/serviceWorker.test.ts"]
+  "include": ["src/cssIntegrity.test.ts"]
 }
