@@ -19,8 +19,9 @@ multi-user web product. One npm-workspaces monorepo:
 - `packages/contracts` — Zod schemas for every request/response and the version 1
   JSON backup file. `packages/database` — Drizzle schema, SQL migrations, seed.
 - `mobile/` — an iOS client that stores its data on the device. `src/` — the
-  TypeScript core it builds against; `src/` has no web entry point of its own.
-  `archived/` holds code fenced out of every toolchain.
+  TypeScript core it imports through `@core`, plus React components that no build
+  target uses. `archived/` — fourteen trimmed features, fenced out of every
+  toolchain; `archived/RESTORE.md` says how to hook one back up.
 
 Design docs: `docs/architecture/architecture.md`,
 `docs/architecture/data-and-import.md`, `docs/adr/`. The build ledger is

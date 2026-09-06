@@ -127,21 +127,32 @@ packages/
 docs/             Architecture, ADRs, implementation status, the iOS app's privacy and support pages
 compose.yaml      Local PostgreSQL
 mobile/           iOS client (on-device storage)
-src/              Shared TypeScript core the iOS client builds against
-archived/         Code fenced out of every toolchain
+src/              TypeScript core the iOS client imports, plus React components no build target uses
+archived/         Fourteen trimmed features, fenced out of every toolchain (archived/RESTORE.md)
 ```
 
 Tests live beside the code they cover; API HTTP tests live in `apps/api/test`.
 
 ## The iOS client
 
-`mobile/` is an iOS app that stores its data on the device. It reaches the shared
-core in `src/` through the `@core/*` alias, which Metro resolves through the
-`mobile/coresrc` symlink, so that link must stay in place. Everything it persists
-lives in `localStorage`-style keys named `poker-range-trainer.<slice>.v1` with no
-migration machinery; see [`CLAUDE.md`](CLAUDE.md) for the storage-versioning rule
-before touching a stored shape. Its JSON backup file is the same version 1 format
-the web app imports and exports, so a library moves between them.
+`mobile/` is an iOS app that stores its data on the device. It reaches `src/`
+through the `@core/*` alias, which Metro resolves through the `mobile/coresrc`
+symlink, so that link must stay in place. Only what it imports through `@core`
+reaches the app: the domain, storage, type, and app-helper modules. The React
+components alongside them in `src/` are not part of any build target, so editing
+one changes nothing that ships.
+
+Everything the iOS app persists lives in `localStorage`-style keys named
+`poker-range-trainer.<slice>.v1` with no migration machinery; see
+[`CLAUDE.md`](CLAUDE.md) for the storage-versioning rule before touching a stored
+shape. Its JSON backup file is the same version 1 format the web app imports and
+exports, so a library moves between them.
+
+`archived/` holds fourteen features trimmed out of the product — postflop tools,
+share links, cloud sync, combo tools, per-hand notes, daily workout, range
+compare, and others. Every toolchain excludes the directory: typecheck, lint,
+tests, Metro, and EAS uploads. [`archived/RESTORE.md`](archived/RESTORE.md)
+records what each one moved and how to hook it back up.
 
 ## Documentation
 
