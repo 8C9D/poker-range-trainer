@@ -353,8 +353,8 @@ export function AccountView() {
         <h2 id="account-export">Export backup</h2>
         <p className="account-note">
           Downloads everything — ranges, stats, history, review schedules and your daily goal — as
-          one JSON file. It is the same version 1 format the original on-device app reads and
-          writes, so the file works in both.
+          one JSON file. It is the version 1 backup format, so the file can be imported back into
+          any Poker Range Trainer account or device.
         </p>
         <div className="account-buttons">
           <button
@@ -379,11 +379,10 @@ export function AccountView() {
       </section>
 
       <section className="account-card" aria-labelledby="account-import">
-        <h2 id="account-import">Import legacy backup</h2>
+        <h2 id="account-import">Import backup</h2>
         <p className="account-note">
-          Choose a backup exported by the on-device app. Nothing is uploaded or changed until you
-          have seen what the file contains and chosen how to import it; the file itself is never
-          modified.
+          Choose a version 1 backup file. Nothing is uploaded or changed until you have seen what
+          the file contains and chosen how to import it; the file itself is never modified.
         </p>
         <div className="field account-file">
           <label htmlFor="account-import-file">Backup file</label>

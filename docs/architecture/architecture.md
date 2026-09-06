@@ -1,16 +1,12 @@
-# Target architecture
+# Architecture
 
 ## Product boundary
 
-Poker Range Trainer remains a focused Texas Hold'em preflop range-training
-application. It keeps the range editor, library management, drills, spaced
-repetition, progress analytics, backup/import, and reset behavior. Archived
-postflop, sharing, solver, frequency, combo, and AI features remain out of scope.
-
-The existing Expo application and local-only implementation remain intact until a
-validated import-first migration path exists. The new web app becomes the
-production product; the mobile code is retained as a legacy data source during
-the transition.
+Poker Range Trainer is a focused Texas Hold'em preflop range-training
+application. It covers the range editor, library management, drills, spaced
+repetition, progress analytics, backup import/export, and stats reset. Postflop
+training, sharing, solver integrations, mixed frequencies, combo tooling, and AI
+features are out of scope.
 
 ## Containers and responsibilities
 
@@ -19,7 +15,7 @@ flowchart LR
   Browser[React single-page app] -->|HTTPS REST + session cookie, same origin| API[Express API]
   API -->|built bundle + index.html fallback| Browser
   API -->|SQL transactions| DB[(PostgreSQL)]
-  Browser -->|one-time validated export/import| Legacy[Legacy localStorage or JSON backup]
+  Browser -->|validated JSON backup import/export| File[Version 1 backup file]
 ```
 
 ### Web front end
@@ -56,7 +52,7 @@ a matching client helper exists.
 
 PostgreSQL is the durable system of record. Schema migrations create constraints,
 indexes, and seed data. See [ADR 0001](../adr/0001-postgresql-over-nosql.md) and
-[data and migration design](data-and-migration.md).
+[data model and import design](data-and-import.md).
 
 ## API, authentication, and errors
 
@@ -89,13 +85,13 @@ frontend origin and permits credentials only for that origin. Input is schema
 validated at the API boundary; logs contain request IDs and operational context,
 never passwords, sessions, or full user data.
 
-Initial resource groups are:
+The resource groups are:
 
 - `POST /auth/register`, `POST /auth/login`, `POST /auth/logout`, and
   `GET /auth/me`.
 - `GET|POST /ranges`, `GET|PATCH|DELETE /ranges/:rangeId`, and restore/archive
   operations.
-- `POST /practice-sessions` to atomically record a completed drill; read endpoints
+- `POST /practice/sessions` to atomically record a completed drill; read endpoints
   provide range statistics, Today, and Progress projections.
 - `GET|PUT /settings/training-goal`.
 - `POST /imports/legacy-backup` and `GET /exports/backup`.
@@ -115,11 +111,10 @@ documented alongside Docker development.
 
 - A thin browser client and one API process keep auth and persistence logic in a
   single place and make the API independently testable; the trade is that there
-  is no path to server rendering without reintroducing a framework (ADR 0002).
+  is no path to server rendering without introducing a framework (ADR 0002).
 - Session cookies fit a browser-first product and reduce token exposure; they
   require deliberate CSRF-aware same-site/origin policy.
 - Derived practice records are persisted for fast library and progress reads,
   while session records remain the audit trail.
-- Offline-first synchronization is not part of this rebuild. The legacy app keeps
-  working during migration, and the new web app clearly represents network
-  loading and failure states.
+- Offline-first synchronization is out of scope. The web app instead represents
+  network loading and failure states clearly.

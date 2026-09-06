@@ -1,6 +1,6 @@
 # Lint, test, and build every workspace on every push and pull request - the
 # same commands the local validation gate runs, from the repo root (the root
-# scripts drive the legacy mobile app via --prefix; running them from mobile/
+# scripts drive the iOS client via --prefix; running them from mobile/
 # would silently run the mobile-only variants). The integration suites need a
 # real PostgreSQL, provided here as a service container.
 name: CI
@@ -46,7 +46,7 @@ jobs:
       - name: Install workspace dependencies
         run: npm ci
 
-      - name: Install mobile dependencies
+      - name: Install iOS client dependencies
         run: npm ci --prefix mobile
 
       - name: Lint

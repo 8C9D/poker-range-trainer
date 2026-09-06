@@ -2,8 +2,8 @@
 
 ## Project
 
-A trainer for Texas Hold'em preflop starting-hand ranges, being rebuilt from a
-local-only app into a multi-user web product. One npm-workspaces monorepo:
+A trainer for Texas Hold'em preflop starting-hand ranges, delivered as a
+multi-user web product. One npm-workspaces monorepo:
 
 - `apps/web` — Vite + React 19 single-page app on React Router (the product).
   Every URL is a row in `apps/web/src/routes.tsx`. Talks to the API only through
@@ -16,16 +16,15 @@ local-only app into a multi-user web product. One npm-workspaces monorepo:
   repositories own SQL; every response is parsed through its contract schema.
 - `packages/domain` — pure poker logic and analytics (no framework, no I/O).
   Both apps reuse it; the API never re-implements analytics in SQL.
-- `packages/contracts` — Zod schemas for every request/response and the legacy
-  backup file. `packages/database` — Drizzle schema, SQL migrations, seed.
-- `src/` and `mobile/` — the LEGACY local-only web and iOS code, kept as the
-  migration source (their JSON backup imports into the new app). `src/` no longer
-  has a web entry point; it is the shared code `mobile/` builds against. `archived/`
-  holds features cut from the legacy v1, fenced from every toolchain.
+- `packages/contracts` — Zod schemas for every request/response and the version 1
+  JSON backup file. `packages/database` — Drizzle schema, SQL migrations, seed.
+- `mobile/` — an iOS client that stores its data on the device. `src/` — the
+  TypeScript core it builds against; `src/` has no web entry point of its own.
+  `archived/` holds code fenced out of every toolchain.
 
-Design docs: `docs/architecture/target-architecture.md`,
-`docs/architecture/data-and-migration.md`, `docs/adr/`. The rebuild ledger is
-`docs/architecture/rebuild-status.md`; read it for what exists and what does not
+Design docs: `docs/architecture/architecture.md`,
+`docs/architecture/data-and-import.md`, `docs/adr/`. The build ledger is
+`docs/architecture/status.md`; read it for what exists and what does not
 rather than restating it here.
 
 ## Workflow rules
@@ -52,11 +51,12 @@ rather than restating it here.
   `react-hooks/set-state-in-effect` rule is enforced); plain CSS in
   `apps/web/src/globals.css`, no CSS frameworks.
 
-## Legacy apps (`src/`, `mobile/`)
+## iOS client and shared core (`mobile/`, `src/`)
 
 - Mobile reaches `src/` through the `@core/*` alias; Metro resolves it through the
   `mobile/coresrc` symlink, so do not delete that link.
-- Web UI fixes in `src/` do not reach mobile; only `@core` propagates.
+- Only the modules mobile imports through `@core` reach the iOS app; edits to the
+  React components in `src/` do not.
 - All persisted state lives in nine `localStorage` keys named
   `poker-range-trainer.<slice>.v1` (MMKV shim on mobile). There is no migration
   machinery: every loader re-validates on read and SILENTLY DROPS records that do
@@ -66,8 +66,8 @@ rather than restating it here.
   fields may stay on the same key. Three guard tests classify every key
   (`src/storage/backup.test.ts`, `src/storage/statsReset.test.ts`,
   `mobile/__tests__/storage-parity.test.ts`).
-- The legacy backup format (version 1) is also what the API imports and exports,
-  so a change to it must be mirrored in `packages/contracts/src/legacy-backup.ts`.
+- The version 1 backup format is also what the API imports and exports, so a
+  change to it must be mirrored in `packages/contracts/src/legacy-backup.ts`.
 
 ## Validation
 

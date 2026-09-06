@@ -5,18 +5,18 @@
 
 ## Context
 
-Poker Range Trainer is moving from on-device browser/MMKV storage to a multi-user
-web application. Its primary data is relational: a user owns ranges; ranges own
-hand memberships, practice sessions, review schedules, and derived accuracy
-records. The application filters and sorts a user's library by scenario metadata
-and activity, and recording a completed drill updates several related records.
+Poker Range Trainer is a multi-user web application, and its primary data is
+relational: a user owns ranges; ranges own hand memberships, practice sessions,
+review schedules, and derived accuracy records. The application filters and sorts
+a user's library by scenario metadata and activity, and recording a completed
+drill updates several related records.
 
 ## Decision
 
-Use PostgreSQL as the system of record. Model the active product data with
-normalized, owner-scoped tables and database constraints. Use a small JSONB
-payload only to preserve unsupported legacy fields during import, not as the
-primary range or analytics model.
+Use PostgreSQL as the system of record. Model the product data with normalized,
+owner-scoped tables and database constraints. Use a small JSONB payload only to
+preserve fields a backup file carries that the product does not surface, not as
+the primary range or analytics model.
 
 ## Rationale
 
@@ -37,5 +37,5 @@ production, addressed with Docker-based local development and documented
 migrations. NoSQL may be reconsidered only if a new feature has a demonstrated
 document-shaped workload that cannot be served by PostgreSQL or JSONB.
 
-See [target architecture](../architecture/target-architecture.md) and
-[data and migration design](../architecture/data-and-migration.md).
+See [architecture](../architecture/architecture.md) and
+[data model and import design](../architecture/data-and-import.md).

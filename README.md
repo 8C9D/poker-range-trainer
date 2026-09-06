@@ -4,10 +4,8 @@ A trainer for Texas Hold'em preflop starting-hand ranges: build a range on the
 13×13 grid, drill yourself on it, and let spaced repetition and progress analytics
 tell you what to practise next.
 
-The product is a web application backed by an API and a relational database. It
-is the multi-user rebuild of an earlier local-only app; that earlier
-implementation still lives in this repo (see [Legacy apps](#legacy-apps)) and its
-backup files import into the new one.
+The product is a multi-user web application: a React single-page app served by an
+Express API over PostgreSQL, in one npm-workspaces monorepo.
 
 ## Architecture
 
@@ -17,15 +15,15 @@ backup files import into the new one.
 | API | `apps/api` | Express 5. The single authority for authentication (email + password, Argon2, HTTP-only session cookie with a double-submit CSRF token), authorization, validation, use cases, and PostgreSQL transactions. Structured JSON logging, rate limits, security headers, RFC 9457 problem responses. |
 | Database | PostgreSQL 16 | System of record. Schema and SQL migrations live in `packages/database`. |
 | Domain | `packages/domain` | Framework-neutral poker logic: hand matrix, range math, drill scoring, spaced repetition, streaks, leaks, and analytics. Shared by the API and the web app. |
-| Contracts | `packages/contracts` | Zod schemas for every request, response, and the legacy backup file. Both apps validate against them. |
+| Contracts | `packages/contracts` | Zod schemas for every request, response, and the JSON backup file. Both apps validate against them. |
 | Database package | `packages/database` | Drizzle schema, migrations, migrator, seed, and connection helpers. |
 
 The design is written up in
-[`docs/architecture/target-architecture.md`](docs/architecture/target-architecture.md),
-[`docs/architecture/data-and-migration.md`](docs/architecture/data-and-migration.md),
+[`docs/architecture/architecture.md`](docs/architecture/architecture.md),
+[`docs/architecture/data-and-import.md`](docs/architecture/data-and-import.md),
 [`docs/adr/0001-postgresql-over-nosql.md`](docs/adr/0001-postgresql-over-nosql.md), and
 [`docs/adr/0002-vite-react-spa-served-by-express.md`](docs/adr/0002-vite-react-spa-served-by-express.md).
-[`docs/architecture/rebuild-status.md`](docs/architecture/rebuild-status.md) records
+[`docs/architecture/status.md`](docs/architecture/status.md) records
 what has been built and what has not.
 
 ## Features
@@ -45,9 +43,8 @@ what has been built and what has not.
 - **Progress** — hands per day, accuracy by week, leaks by hand class, which way
   you miss (overall and by seat), and the weakest hands, each one click from a
   targeted drill.
-- **Backup** — export the library as the v1 JSON backup file the legacy app
-  reads; import a legacy backup after a preview, atomically, with merge or
-  replace semantics.
+- **Backup** — export the whole library as a version 1 JSON file; import one back
+  after a preview, atomically, with merge or replace semantics.
 - **Settings** — daily hands goal and an explicit practice-stats reset.
 
 ## Getting started
@@ -56,7 +53,6 @@ Requirements: Node.js 24.15 or later, npm 11.12.1, and Docker (for PostgreSQL).
 
 ```bash
 npm ci                     # root workspaces: apps/* and packages/*
-npm ci --prefix mobile     # only if you also want to run the legacy iOS app
 docker compose up -d       # PostgreSQL 16 on localhost:54329
 
 # Environment: copy the values from .env.example into your shell (there is no
@@ -71,8 +67,8 @@ npm run dev:web            # Vite on http://localhost:5173, proxying /api to 300
 ```
 
 Register an account at `http://localhost:5173/register`. To try the import path,
-use **Account → Import legacy backup** with `screenshots/seed-backup.json`, a
-realistic legacy fixture.
+use **Account → Import backup** with `screenshots/seed-backup.json`, a realistic
+fixture.
 
 To run the production shape locally, build everything and point the API at the
 web bundle; one process then serves both the app and `/api`:
@@ -82,6 +78,9 @@ npm run build
 WEB_DIST_DIR=apps/web/dist npm run start:api   # http://localhost:3001
 ```
 
+The iOS client in `mobile/` has its own dependency tree; install it with
+`npm ci --prefix mobile` only if you intend to build or type-check it.
+
 ## Scripts
 
 Run these from the repo root.
@@ -89,10 +88,10 @@ Run these from the repo root.
 | Command | What it does |
 |---------|--------------|
 | `npm run dev:web` / `npm run dev:api` | Development servers (packages are built first). |
-| `npm run lint` | ESLint over the workspaces and the legacy mobile app. |
-| `npm run test:run` | Unit suites: packages (Vitest), web (Vitest + Testing Library), API (Vitest + supertest), mobile (Jest). |
+| `npm run lint` | ESLint over the workspaces and the iOS app. |
+| `npm run test:run` | Unit suites: packages (Vitest), web (Vitest + Testing Library), API (Vitest + supertest), iOS app (Jest). |
 | `npm run test:integration` | Database and API tests against a real PostgreSQL (`DATABASE_URL` required; each file creates and drops its own database). |
-| `npm run build` | Builds packages, the web bundle, and the API; runs the compiled-package smoke test and the API runtime smoke (which serves the bundle); type-checks the legacy apps. |
+| `npm run build` | Builds packages, the web bundle, and the API; runs the compiled-package smoke test and the API runtime smoke (which serves the bundle); type-checks the remaining TypeScript projects, the iOS client included. |
 | `npm run db:migrate` / `npm run db:seed` | Apply migrations / seed hand classes. |
 | `npm run format` / `npm run format:check` | Prettier. |
 
@@ -125,28 +124,27 @@ packages/
   domain/         Pure poker logic and analytics (no framework, no I/O)
   contracts/      Zod request/response schemas shared by both apps
   database/       Drizzle schema, SQL migrations, migrator, seed, connection
-docs/             Architecture, ADRs, rebuild status, the legacy iOS app's privacy and support pages
+docs/             Architecture, ADRs, implementation status, the iOS app's privacy and support pages
 compose.yaml      Local PostgreSQL
-src/, mobile/     Legacy local-only apps (see below)
-archived/         Features cut from the legacy v1, fenced from every toolchain
+mobile/           iOS client (on-device storage)
+src/              Shared TypeScript core the iOS client builds against
+archived/         Code fenced out of every toolchain
 ```
 
 Tests live beside the code they cover; API HTTP tests live in `apps/api/test`.
 
-## Legacy apps
+## The iOS client
 
-`src/` (React) and `mobile/` (Expo, iOS) are the original local-only
-implementation, kept as the migration source: their JSON backup is what the new
-app imports. The `src/` web shell (its Vite entry point) has been removed, so
-`src/` is no longer runnable on its own; it remains the shared code the mobile
-app builds against. `mobile/` reaches `src/` through the `@core/*` alias and the
-`mobile/coresrc` symlink. Everything they persist lives in `localStorage` keys
-named `poker-range-trainer.<slice>.v1` with no migration machinery; see
-[`CLAUDE.md`](CLAUDE.md) for the storage-versioning rule before touching a stored
-shape.
+`mobile/` is an iOS app that stores its data on the device. It reaches the shared
+core in `src/` through the `@core/*` alias, which Metro resolves through the
+`mobile/coresrc` symlink, so that link must stay in place. Everything it persists
+lives in `localStorage`-style keys named `poker-range-trainer.<slice>.v1` with no
+migration machinery; see [`CLAUDE.md`](CLAUDE.md) for the storage-versioning rule
+before touching a stored shape. Its JSON backup file is the same version 1 format
+the web app imports and exports, so a library moves between them.
 
 ## Documentation
 
-- [`docs/architecture/`](docs/architecture/) — target architecture, data model and import design, rebuild status.
+- [`docs/architecture/`](docs/architecture/) — architecture, data model and import design, implementation status.
 - [`docs/adr/`](docs/adr/) — architecture decision records.
 - [`CLAUDE.md`](CLAUDE.md) — workflow rules and the validation gate.
