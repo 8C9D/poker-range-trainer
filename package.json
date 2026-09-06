@@ -16,7 +16,7 @@
     "dev:web": "npm --workspace @poker-range-trainer/domain run build && npm --workspace @poker-range-trainer/contracts run build && npm --workspace @poker-range-trainer/web run dev",
     "dev:api": "npm run build:packages && npm --workspace @poker-range-trainer/api run dev",
     "start:api": "npm --workspace @poker-range-trainer/api run start",
-    "build": "npm run build:packages && npm run test:runtime-packages && npm run build:api && npm run build:web && tsc -b && npm --prefix mobile run typecheck",
+    "build": "npm run build:packages && npm run test:runtime-packages && npm run build:web && npm run build:api && tsc -b && npm --prefix mobile run typecheck",
     "build:web": "npm --workspace @poker-range-trainer/web run build",
     "build:api": "npm --workspace @poker-range-trainer/api run build && npm --workspace @poker-range-trainer/api run runtime:smoke",
     "build:packages": "npm --workspace @poker-range-trainer/domain run build && npm --workspace @poker-range-trainer/contracts run build && npm --workspace @poker-range-trainer/database run build",
