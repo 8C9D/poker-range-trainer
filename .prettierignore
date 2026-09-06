@@ -1,8 +1,6 @@
 # Dependencies and generated artifacts
 node_modules/
 dist/
-apps/web/.next/
-apps/web/next-env.d.ts
 coverage/
 package-lock.json
 mobile/package-lock.json

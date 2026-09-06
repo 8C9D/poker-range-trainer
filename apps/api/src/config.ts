@@ -1,3 +1,6 @@
+import { existsSync } from 'node:fs'
+import path from 'node:path'
+
 export type NodeEnvironment = 'development' | 'test' | 'production'
 export type LogLevel = 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'silent'
 
@@ -13,6 +16,12 @@ export interface ApiConfig {
   sessionTtlSeconds: number
   authRateLimitWindowMs: number
   authRateLimitMax: number
+  /**
+   * Absolute path of the built web bundle Express serves alongside the API, or
+   * undefined to serve the API alone (development behind the Vite dev server,
+   * tests, and the runtime smoke).
+   */
+  webDistDir: string | undefined
 }
 
 type Environment = Record<string, string | undefined>
@@ -92,6 +101,15 @@ function parseDatabaseUrl(value: string | undefined): string {
   return databaseUrl
 }
 
+function parseWebDistDir(value: string | undefined): string | undefined {
+  if (value === undefined || value.trim() === '') return undefined
+  const directory = path.resolve(value.trim())
+  if (!existsSync(path.join(directory, 'index.html'))) {
+    throw new Error('WEB_DIST_DIR must point at a built web bundle containing index.html.')
+  }
+  return directory
+}
+
 export function loadConfig(env: Environment = process.env): ApiConfig {
   const nodeEnv = (env.NODE_ENV ?? 'development') as NodeEnvironment
   if (!['development', 'test', 'production'].includes(nodeEnv)) {
@@ -136,5 +154,6 @@ export function loadConfig(env: Environment = process.env): ApiConfig {
       24 * 60 * 60 * 1000,
     ),
     authRateLimitMax: boundedInteger(env.AUTH_RATE_LIMIT_MAX, 'AUTH_RATE_LIMIT_MAX', 10, 1, 1_000),
+    webDistDir: parseWebDistDir(env.WEB_DIST_DIR),
   }
 }

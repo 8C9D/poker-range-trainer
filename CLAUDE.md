@@ -5,9 +5,12 @@
 A trainer for Texas Hold'em preflop starting-hand ranges, being rebuilt from a
 local-only app into a multi-user web product. One npm-workspaces monorepo:
 
-- `apps/web` — Next.js 16 web app (the product). Talks to the API only through
-  `apps/web/lib/api-client.ts` and the shared contracts; never touches the database
-  and never duplicates authorization or business rules.
+- `apps/web` — Vite + React 19 single-page app on React Router (the product).
+  Every URL is a row in `apps/web/src/routes.tsx`. Talks to the API only through
+  `apps/web/src/lib/api-client.ts` and the shared contracts; never touches the
+  database and never duplicates authorization or business rules. In production
+  the API serves its built bundle (`WEB_DIST_DIR`); in development the Vite dev
+  server proxies `/api` to Express.
 - `apps/api` — Express 5 API. The single authority for auth, validation, use
   cases, and PostgreSQL transactions. Routers take a service port and middleware;
   repositories own SQL; every response is parsed through its contract schema.
@@ -47,7 +50,7 @@ rather than restating it here.
   missing or foreign resource is the same 404.
 - Web data loading happens in effects through promise callbacks (the
   `react-hooks/set-state-in-effect` rule is enforced); plain CSS in
-  `apps/web/app/globals.css`, no CSS frameworks.
+  `apps/web/src/globals.css`, no CSS frameworks.
 
 ## Legacy apps (`src/`, `mobile/`)
 

@@ -1,6 +1,9 @@
 import express, { type Express } from 'express'
 import { EventEmitter } from 'node:events'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import type { Logger } from 'pino'
 import request from 'supertest'
 import { describe, expect, it, vi } from 'vitest'
@@ -37,6 +40,18 @@ function assertProblem(body: unknown, status: number, code: string): void {
     }),
   )
   expect(problemDetailsSchema.safeParse(body).success).toBe(true)
+}
+
+/** A stand-in for `vite build` output: an index.html and one hashed asset. */
+function buildWebBundle(): string {
+  const dist = mkdtempSync(path.join(tmpdir(), 'web-dist-'))
+  mkdirSync(path.join(dist, 'assets'))
+  writeFileSync(
+    path.join(dist, 'index.html'),
+    '<!doctype html><html lang="en"><body><div id="root"></div><script type="module" src="/assets/index-abc123.js"></script></body></html>',
+  )
+  writeFileSync(path.join(dist, 'assets', 'index-abc123.js'), 'console.log("bundle")')
+  return dist
 }
 
 describe('API app factory', () => {
@@ -237,6 +252,89 @@ describe('API app factory', () => {
       expect.objectContaining({ errorName: 'Error' }),
       'request failed',
     )
+  })
+
+  it('serves the web bundle behind the API routes with an SPA fallback', async () => {
+    const app = createApp({
+      config: config({ webDistDir: buildWebBundle() }),
+      logger: silentLogger,
+      readiness: ready,
+      registerRoutes(api: Express) {
+        api.get('/api/v1/ranges', (_req, res) => res.status(200).json({ data: [] }))
+      },
+    })
+
+    const home = await request(app).get('/').expect(200)
+    expect(home.headers['content-type']).toContain('text/html')
+    expect(home.text).toContain('<div id="root"></div>')
+    expect(home.headers['cache-control']).toBe('no-cache')
+    const policy = home.headers['content-security-policy']
+    expect(policy).toContain("default-src 'self'")
+    expect(policy).toMatch(/script-src 'self'(;|$)/)
+    expect(policy).not.toMatch(/script-src[^;]*'unsafe-inline'/)
+    expect(policy).toContain("frame-ancestors 'none'")
+    expect(policy).toContain("connect-src 'self'")
+    expect(policy).toContain("font-src 'self'")
+    expect(policy).toContain("img-src 'self'")
+    expect(policy).toContain("style-src 'self' 'unsafe-inline'")
+    expect(policy).not.toContain('upgrade-insecure-requests')
+    expect(home.headers['x-frame-options']).toBe('DENY')
+    expect(home.headers['x-content-type-options']).toBe('nosniff')
+    expect(home.headers['referrer-policy']).toBe('no-referrer')
+    expect(home.headers['cross-origin-opener-policy']).toBe('same-origin')
+    expect(home.headers['permissions-policy']).toBe('camera=(), geolocation=(), microphone=()')
+    expect(home.headers['strict-transport-security']).toContain('max-age=31536000')
+
+    // Client-routed URLs, deep or not, get the same document.
+    const deep = await request(app).get('/app/library/7a7e6f3e-17be-4b69-a31b-1f902417c560?tab=1')
+    expect(deep.status).toBe(200)
+    expect(deep.text).toBe(home.text)
+    await request(app).head('/app/today').expect(200)
+    const explicit = await request(app).get('/index.html').expect(200)
+    expect(explicit.headers['cache-control']).toBe('no-cache')
+
+    // Hashed assets are immutable for a year; a missing one is a 404, never HTML.
+    const asset = await request(app).get('/assets/index-abc123.js').expect(200)
+    expect(asset.headers['cache-control']).toBe('public, max-age=31536000, immutable')
+    expect(asset.text).toBe('console.log("bundle")')
+    const staleAsset = await request(app).get('/assets/index-old.js').expect(404)
+    expect(staleAsset.headers['content-type']).toContain('application/problem+json')
+    assertProblem(staleAsset.body, 404, 'NOT_FOUND')
+
+    // The API keeps winning: registered routes answer and unknown ones stay problem+json.
+    await request(app).get('/api/v1/ranges').expect(200, { data: [] })
+    await request(app).get('/api/v1/health/live').expect(200)
+    for (const missing of ['/api/v1/absent', '/api/v1/absent/deeper', '/api', '/api/']) {
+      const response = await request(app).get(missing).expect(404)
+      expect(response.headers['content-type']).toContain('application/problem+json')
+      assertProblem(response.body, 404, 'NOT_FOUND')
+    }
+
+    // Only GET and HEAD fall back; a write to a page URL is not a page.
+    const post = await request(app).post('/app/today').send({}).expect(404)
+    assertProblem(post.body, 404, 'NOT_FOUND')
+
+    // Production adds the upgrade directive the HTML needs behind TLS.
+    const production = createApp({
+      config: config({
+        webDistDir: buildWebBundle(),
+        nodeEnv: 'production',
+        frontendOrigins: ['https://app.example.com'],
+      }),
+      logger: silentLogger,
+      readiness: ready,
+    })
+    const secured = await request(production).get('/app').expect(200)
+    expect(secured.headers['content-security-policy']).toContain('upgrade-insecure-requests')
+  })
+
+  it('answers non-API paths with problem+json when no bundle is configured', async () => {
+    const app = createApp({ config: config(), logger: silentLogger, readiness: ready })
+    for (const missing of ['/', '/app/today', '/assets/index-abc123.js']) {
+      const response = await request(app).get(missing).expect(404)
+      expect(response.headers['content-type']).toContain('application/problem+json')
+      assertProblem(response.body, 404, 'NOT_FOUND')
+    }
   })
 
   it('redacts credential-bearing log fields', () => {

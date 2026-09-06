@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import path from 'node:path'
 
 import cors from 'cors'
 import express, {
@@ -20,6 +21,13 @@ export type ReadinessCheck = () => Promise<void>
 
 /** Mount point of the import router, whose bodies bypass the general parser. */
 const IMPORT_PATH_PREFIX = '/api/v1/imports'
+
+/**
+ * Prefixes the SPA fallback never answers for. An unknown API path keeps its
+ * problem+json 404, and a hashed asset that is missing (a stale tab after a
+ * deploy, say) must come back as a 404 the browser can act on, never as HTML.
+ */
+const RESERVED_PATH_PREFIXES = ['/api', '/assets']
 
 export interface CreateAppOptions {
   config: ApiConfig
@@ -45,6 +53,45 @@ function isUuid(value: unknown): value is string {
 /** Requests the import router parses for itself, once the caller is known. */
 function isImportPath(path: string): boolean {
   return path === IMPORT_PATH_PREFIX || path.startsWith(`${IMPORT_PATH_PREFIX}/`)
+}
+
+function isReservedPath(pathname: string): boolean {
+  return RESERVED_PATH_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  )
+}
+
+/**
+ * The built single-page app. Files under `dist/` win, hashed assets with an
+ * immutable year-long cache and everything else revalidated on every load; any
+ * other GET that is not reserved gets `index.html` so the client router can
+ * answer the URL. Mounted after the API routers, so those always match first.
+ */
+function webBundle(distDir: string): express.Router {
+  const router = express.Router()
+  const assetsDir = path.join(distDir, 'assets') + path.sep
+  const indexHtml = path.join(distDir, 'index.html')
+  router.use(
+    express.static(distDir, {
+      index: false,
+      redirect: false,
+      dotfiles: 'ignore',
+      setHeaders(res, filePath) {
+        res.setHeader(
+          'Cache-Control',
+          filePath.startsWith(assetsDir) ? 'public, max-age=31536000, immutable' : 'no-cache',
+        )
+      },
+    }),
+  )
+  router.use((req, res, next) => {
+    if ((req.method !== 'GET' && req.method !== 'HEAD') || isReservedPath(req.path)) return next()
+    res.setHeader('Cache-Control', 'no-cache')
+    res.sendFile(indexHtml, (error?: Error) => {
+      if (error) next(error)
+    })
+  })
+  return router
 }
 
 function healthData(now: () => Date) {
@@ -86,7 +133,37 @@ export function createApp(options: CreateAppOptions): Express {
     next()
   })
   app.use(loggingMiddleware(logger))
-  app.use(helmet())
+  // The policy the Next.js front end used to send, tightened: the Vite bundle has
+  // no inline scripts, so script-src drops 'unsafe-inline'. style-src keeps it for
+  // the percentage bars the views size through the style attribute. Helmet applies
+  // it to every response, HTML and JSON alike, as it always did here.
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        useDefaults: false,
+        directives: {
+          'default-src': ["'self'"],
+          'base-uri': ["'self'"],
+          'object-src': ["'none'"],
+          'frame-ancestors': ["'none'"],
+          'frame-src': ["'none'"],
+          'form-action': ["'self'"],
+          'connect-src': ["'self'"],
+          'font-src': ["'self'"],
+          'img-src': ["'self'"],
+          'script-src': ["'self'"],
+          'script-src-attr': ["'none'"],
+          'style-src': ["'self'", "'unsafe-inline'"],
+          ...(config.nodeEnv === 'production' ? { 'upgrade-insecure-requests': [] } : {}),
+        },
+      },
+      frameguard: { action: 'deny' },
+    }),
+  )
+  app.use((_req, res, next) => {
+    res.setHeader('Permissions-Policy', 'camera=(), geolocation=(), microphone=()')
+    next()
+  })
   app.use(
     cors({
       credentials: true,
@@ -144,6 +221,7 @@ export function createApp(options: CreateAppOptions): Express {
   })
 
   registerRoutes?.(app)
+  if (config.webDistDir !== undefined) app.use(webBundle(config.webDistDir))
   app.use((req, res) => {
     sendProblem(req, res, {
       status: 404,

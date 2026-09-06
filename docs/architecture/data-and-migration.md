@@ -64,5 +64,5 @@ accepted by the import test suite; it is not production user data.
   postflop training, mixed frequencies, combo tooling, or AI features.
 - No destructive conversion of the `mobile/` app, the local storage keys, or
   archived code until the import path and clean setup validation are complete.
-- No database access from Next.js browser code and no duplicated auth/business
-  logic in Next.js route handlers.
+- No database access from browser code and no duplicated auth/business logic
+  outside the Express API.

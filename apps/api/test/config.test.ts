@@ -1,3 +1,7 @@
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+
 import { describe, expect, it } from 'vitest'
 
 import { loadConfig } from '../src/config.js'
@@ -64,6 +68,23 @@ describe('loadConfig', () => {
         API_ORIGINS: 'https://app.example.com',
       }).trustProxy,
     ).toBe(1)
+  })
+
+  it('serves the API alone unless WEB_DIST_DIR names a built bundle', () => {
+    const dist = mkdtempSync(path.join(tmpdir(), 'web-dist-'))
+    expect(loadConfig({ DATABASE_URL: databaseUrl }).webDistDir).toBeUndefined()
+    expect(loadConfig({ DATABASE_URL: databaseUrl, WEB_DIST_DIR: ' ' }).webDistDir).toBeUndefined()
+    expect(() => loadConfig({ DATABASE_URL: databaseUrl, WEB_DIST_DIR: dist })).toThrow(
+      'WEB_DIST_DIR',
+    )
+    writeFileSync(path.join(dist, 'index.html'), '<!doctype html>')
+    expect(loadConfig({ DATABASE_URL: databaseUrl, WEB_DIST_DIR: dist }).webDistDir).toBe(dist)
+    expect(
+      loadConfig({
+        DATABASE_URL: databaseUrl,
+        WEB_DIST_DIR: path.relative(process.cwd(), dist),
+      }).webDistDir,
+    ).toBe(dist)
   })
 
   it('accepts bounded session and authentication limiter overrides', () => {

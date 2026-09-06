@@ -16,18 +16,21 @@ the transition.
 
 ```mermaid
 flowchart LR
-  Browser[Next.js web application] -->|HTTPS REST + session cookie| API[Express API]
+  Browser[React single-page app] -->|HTTPS REST + session cookie, same origin| API[Express API]
+  API -->|built bundle + index.html fallback| Browser
   API -->|SQL transactions| DB[(PostgreSQL)]
   Browser -->|one-time validated export/import| Legacy[Legacy localStorage or JSON backup]
 ```
 
-### Next.js frontend
+### Web front end
 
-Next.js owns routes, server/client rendering, accessible responsive UI, optimistic
-interaction states, and an API client. It does not implement authorization rules,
-write domain records directly, or duplicate business logic. Server rendering may
-read presentation-safe data through the Express API, but Express remains the
-single source of backend authority.
+The web app is a Vite-built React single-page app on React Router
+([ADR 0002](../adr/0002-vite-react-spa-served-by-express.md)). It owns the
+route table, accessible responsive UI, optimistic interaction states, and an API
+client. It does not implement authorization rules, write domain records
+directly, or duplicate business logic. There is no server rendering: every page
+loads its data from the Express API in the browser, and in production Express
+serves the built bundle so the app and the API share one origin.
 
 ### Express API
 
@@ -35,7 +38,10 @@ Express is the only authority for authentication, authorization, request
 validation, domain use cases, persistence, import processing, and structured
 logging. Routes are versioned under `/api/v1`; controllers stay thin and call the
 shared domain/application layer. The API owns PostgreSQL transactions and is the
-only process with database credentials.
+only process with database credentials. In production it also serves the web
+bundle: hashed assets with an immutable cache and `index.html` for any other
+page URL, mounted after the API routes so an unknown `/api` path still answers
+with problem+json.
 
 ### Shared packages
 
@@ -97,7 +103,8 @@ Initial resource groups are:
 ## Security and operational baseline
 
 Environment variables are parsed and fail fast at API startup; secrets never use
-the public Next.js environment prefix. Production configuration requires a
+the browser-exposed `VITE_` prefix, and the web bundle carries no configuration
+at all: it calls its own origin. Production configuration requires a
 database URL, session secret, allowed frontend origin, and explicit runtime mode.
 The API applies HTTPS-aware cookies, CORS, rate limits, payload limits, security
 headers, structured JSON logging, health/readiness endpoints, and centralized
@@ -106,8 +113,9 @@ documented alongside Docker development.
 
 ## Key tradeoffs
 
-- Separate Next.js and Express adds an HTTP hop, but it prevents duplicated auth
-  and persistence logic and makes the API independently testable.
+- A thin browser client and one API process keep auth and persistence logic in a
+  single place and make the API independently testable; the trade is that there
+  is no path to server rendering without reintroducing a framework (ADR 0002).
 - Session cookies fit a browser-first product and reduce token exposure; they
   require deliberate CSRF-aware same-site/origin policy.
 - Derived practice records are persisted for fast library and progress reads,
