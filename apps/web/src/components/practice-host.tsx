@@ -1,8 +1,5 @@
-'use client'
-
-import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link, useSearchParams } from 'react-router'
 
 import {
   practiceModeValues,
@@ -181,7 +178,7 @@ function practiceHref(
 }
 
 export function PracticeHost() {
-  const searchParams = useSearchParams()
+  const [searchParams] = useSearchParams()
   const search = searchParams.toString()
   const request = useMemo(() => parseDrillRequest(new URLSearchParams(search)), [search])
   const { rangeIds, mode, questionCount, seconds, poolsKey } = request
@@ -416,7 +413,7 @@ export function PracticeHost() {
         <p className="eyebrow">Practice</p>
         <h1 id="practice-title">Choose a range</h1>
         <p>Pick a range from your library and start a drill from its Practice link.</p>
-        <Link className="button button-primary" href="/app/library">
+        <Link className="button button-primary" to="/app/library">
           Go to library
         </Link>
       </section>
@@ -432,7 +429,7 @@ export function PracticeHost() {
             ? `${skipped.length} queued range${skipped.length === 1 ? '' : 's'} no longer exist, so there was nothing to drill.`
             : 'This queue has no ranges left.'}
         </p>
-        <Link className="button button-primary" href="/app/library">
+        <Link className="button button-primary" to="/app/library">
           Back to library
         </Link>
       </section>
@@ -484,7 +481,7 @@ export function PracticeHost() {
             </p>
           ) : null}
         </div>
-        <Link className="text-link" href="/app/library">
+        <Link className="text-link" to="/app/library">
           Back to library
         </Link>
       </div>
@@ -519,7 +516,7 @@ export function PracticeHost() {
         <section className="library-state">
           <h2>{drill.plan.notice}</h2>
           <p>Drill this range first, and the hands you miss will show up here.</p>
-          <Link className="button button-primary" href={practiceHref(range.id, 'recognition')}>
+          <Link className="button button-primary" to={practiceHref(range.id, 'recognition')}>
             Practice recognition instead
           </Link>
         </section>
@@ -542,7 +539,7 @@ export function PracticeHost() {
             <button className="button button-primary" type="button" onClick={() => restart(false)}>
               Practice again
             </button>
-            <Link className="text-link" href="/app/library">
+            <Link className="text-link" to="/app/library">
               Back to library
             </Link>
           </div>
@@ -671,7 +668,7 @@ function ModePicker({
           <li key={option}>
             <Link
               className={`mode-link${option === mode ? ' is-current' : ''}`}
-              href={practiceHref(rangeId, option, {
+              to={practiceHref(rangeId, option, {
                 count: questionCount,
                 ...(option === 'timed' && seconds !== DEFAULT_DRILL_SECONDS ? { seconds } : {}),
               })}
@@ -688,7 +685,7 @@ function ModePicker({
             <li key={option}>
               <Link
                 className={`mode-link${option === seconds ? ' is-current' : ''}`}
-                href={practiceHref(rangeId, 'timed', { count: questionCount, seconds: option })}
+                to={practiceHref(rangeId, 'timed', { count: questionCount, seconds: option })}
                 {...(option === seconds ? { 'aria-current': 'page' as const } : {})}
               >
                 {option}s
@@ -827,7 +824,7 @@ function SessionSummary({
             Next range
           </button>
         ) : null}
-        <Link className="text-link" href="/app/library">
+        <Link className="text-link" to="/app/library">
           Back to library
         </Link>
       </div>

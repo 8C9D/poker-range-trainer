@@ -9,9 +9,10 @@ import { clearDrillPoolCache } from '@/lib/drill-handoff'
 
 import { ProgressView } from './progress-view'
 
-const push = vi.fn()
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push, replace: vi.fn(), refresh: vi.fn() }),
+const navigate = vi.fn()
+vi.mock('react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('react-router')>()),
+  useNavigate: () => navigate,
 }))
 vi.mock('@/lib/api-client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api-client')>()
@@ -192,7 +193,7 @@ describe('ProgressView', () => {
     await user.click(await screen.findByRole('button', { name: 'Drill Suited gappers' }))
     let [key] = Object.keys(storedPools())
     expect(storedPools()[key!]).toEqual(leakPools)
-    expect(push).toHaveBeenLastCalledWith(
+    expect(navigate).toHaveBeenLastCalledWith(
       `/app/practice?queue=${btn}&mode=recognition&pools=${key}`,
     )
 
@@ -208,7 +209,7 @@ describe('ProgressView', () => {
     ;[key] = Object.keys(storedPools())
     // Grouped by range, and the record whose range is gone cannot be drilled.
     expect(storedPools()[key!]).toEqual({ [btn]: ['K8s', 'J7s'] })
-    expect(push).toHaveBeenLastCalledWith(
+    expect(navigate).toHaveBeenLastCalledWith(
       `/app/practice?queue=${btn}&mode=recognition&pools=${key}`,
     )
   })

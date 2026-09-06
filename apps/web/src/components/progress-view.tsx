@@ -1,7 +1,5 @@
-'use client'
-
-import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router'
 
 import type { ProgressReadModel } from '@poker-range-trainer/contracts'
 import { HAND_CLASS_LABELS } from '@poker-range-trainer/domain/domain/handClass'
@@ -78,7 +76,7 @@ async function loadProgress(): Promise<ProgressState> {
 
 /** Long-term training overview: streak, accuracy, volume, and where the leaks are. */
 export function ProgressView() {
-  const router = useRouter()
+  const navigate = useNavigate()
   const [state, setState] = useState<ProgressState>({ status: 'loading' })
   const [loadAttempt, setLoadAttempt] = useState(0)
 
@@ -101,7 +99,7 @@ export function ProgressView() {
   function drill(pools: DrillPools): void {
     const rangeIds = Object.keys(pools).filter((rangeId) => (pools[rangeId]?.length ?? 0) > 0)
     if (rangeIds.length === 0) return
-    router.push(practiceHref(rangeIds, storeDrillPools(pools)))
+    navigate(practiceHref(rangeIds, storeDrillPools(pools)))
   }
 
   if (state.status === 'loading') {

@@ -1,17 +1,19 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { TodayReadModel } from '@poker-range-trainer/contracts'
 
 import { ApiClientError, getToday, listRanges, updateTrainingGoal } from '@/lib/api-client'
+import { renderAt } from '@/test/router'
 import { clearDrillPoolCache } from '@/lib/drill-handoff'
 
 import { TodayView } from './today-view'
 
-const push = vi.fn()
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push, replace: vi.fn(), refresh: vi.fn() }),
+const navigate = vi.fn()
+vi.mock('react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('react-router')>()),
+  useNavigate: () => navigate,
 }))
 vi.mock('@/lib/api-client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api-client')>()
@@ -126,7 +128,7 @@ describe('TodayView', () => {
   afterEach(cleanup)
 
   it('opens the due review with the whole queue and an honest time estimate', async () => {
-    render(<TodayView />)
+    renderAt(<TodayView />, '/app/today')
 
     const start = await screen.findByRole('link', { name: 'Start review' })
     expect(start).toHaveAttribute('href', `/app/practice?queue=${btn},${cutoff}&mode=recognition`)
@@ -145,7 +147,7 @@ describe('TodayView', () => {
   it('hands the weak-hand pools over through storage before starting the drill', async () => {
     today.mockResolvedValue(respond(caughtUpDay))
     const user = userEvent.setup()
-    render(<TodayView />)
+    renderAt(<TodayView />, '/app/today')
 
     expect(
       await screen.findByText(
@@ -157,7 +159,7 @@ describe('TodayView', () => {
     const stored = storedPools()
     const [poolsKey] = Object.keys(stored)
     expect(stored[poolsKey!]).toEqual(weakHandPools)
-    expect(push).toHaveBeenCalledWith(
+    expect(navigate).toHaveBeenCalledWith(
       `/app/practice?queue=${btn},${cutoff}&mode=recognition&pools=${poolsKey}`,
     )
   })
@@ -169,7 +171,7 @@ describe('TodayView', () => {
         respond({ ...dueDay, dailyGoal: { target: 40, handsAnswered: 12, remainingHands: 28 } }),
       )
     const user = userEvent.setup()
-    render(<TodayView />)
+    renderAt(<TodayView />, '/app/today')
 
     const picker = await screen.findByRole('combobox', { name: 'Daily goal in hands' })
     expect(screen.getByText('12 of 20 hands — 8 to go.')).toBeInTheDocument()
@@ -196,7 +198,7 @@ describe('TodayView', () => {
       respond({ ...dueDay, dailyGoal: { target: 50, handsAnswered: 12, remainingHands: 38 } }),
     )
     const user = userEvent.setup()
-    render(<TodayView />)
+    renderAt(<TodayView />, '/app/today')
 
     const picker = await screen.findByRole('combobox', { name: 'Daily goal in hands' })
     // A target that is not one of the offered options still has to be selectable.
@@ -217,7 +219,7 @@ describe('TodayView', () => {
   it('asks the library before welcoming a brand-new account', async () => {
     today.mockResolvedValue(respond(quietDay))
     list.mockResolvedValue(emptyLibrary())
-    render(<TodayView />)
+    renderAt(<TodayView />, '/app/today')
 
     expect(await screen.findByText('Welcome')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Create a range' })).toHaveAttribute(
@@ -250,7 +252,7 @@ describe('TodayView', () => {
       ],
       meta: { page: 1, pageSize: 1, totalItems: 1, totalPages: 1 },
     })
-    render(<TodayView />)
+    renderAt(<TodayView />, '/app/today')
 
     expect(
       await screen.findByText('Nothing is due right now. Fancy a free practice run anyway?'),
@@ -269,7 +271,7 @@ describe('TodayView', () => {
         freePractice: { kind: 'reviewEarly', rangeId: btn, dueAt: '2026-09-05T12:00:00.000Z' },
       }),
     )
-    render(<TodayView />)
+    renderAt(<TodayView />, '/app/today')
 
     expect(await screen.findByRole('link', { name: 'Review early' })).toHaveAttribute(
       'href',
@@ -284,7 +286,7 @@ describe('TodayView', () => {
         resolveToday = resolve
       }),
     )
-    const { unmount } = render(<TodayView />)
+    const { unmount } = renderAt(<TodayView />, '/app/today')
     expect(screen.getByText('Loading your day…')).toBeInTheDocument()
     resolveToday!(respond(dueDay))
     await screen.findByRole('link', { name: 'Start review' })
@@ -293,7 +295,7 @@ describe('TodayView', () => {
     today
       .mockRejectedValueOnce(new ApiClientError('network', 'We could not reach the server.'))
       .mockResolvedValueOnce(respond(dueDay))
-    render(<TodayView />)
+    renderAt(<TodayView />, '/app/today')
     expect(await screen.findByRole('alert')).toHaveTextContent('We could not reach the server.')
     await userEvent.setup().click(screen.getByRole('button', { name: 'Try again' }))
     expect(await screen.findByRole('link', { name: 'Start review' })).toBeInTheDocument()

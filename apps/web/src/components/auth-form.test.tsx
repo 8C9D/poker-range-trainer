@@ -1,15 +1,18 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiClientError, getCurrentUser, login, register } from '@/lib/api-client'
+import { renderAt } from '@/test/router'
 
 import { AuthForm } from './auth-form'
 
-const replace = vi.fn()
-const refresh = vi.fn()
+const navigate = vi.fn()
 
-vi.mock('next/navigation', () => ({ useRouter: () => ({ replace, refresh }) }))
+vi.mock('react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('react-router')>()),
+  useNavigate: () => navigate,
+}))
 vi.mock('@/lib/api-client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api-client')>()
   return { ...actual, getCurrentUser: vi.fn(), login: vi.fn(), register: vi.fn() }
@@ -44,7 +47,7 @@ describe('AuthForm', () => {
         },
       }),
     )
-    render(<AuthForm mode="login" />)
+    renderAt(<AuthForm mode="login" />, '/login')
     await waitFor(() => expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled())
 
     const password = screen.getByLabelText('Password')
@@ -75,8 +78,8 @@ describe('AuthForm', () => {
         },
       },
     })
-    const { unmount } = render(<AuthForm mode="login" />)
-    await waitFor(() => expect(replace).toHaveBeenCalledWith('/app'))
+    const { unmount } = renderAt(<AuthForm mode="login" />, '/login')
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/app', { replace: true }))
     unmount()
 
     currentUser.mockResolvedValueOnce({ data: { authenticated: false } })
@@ -90,12 +93,12 @@ describe('AuthForm', () => {
       },
     })
     const user = userEvent.setup()
-    render(<AuthForm mode="login" />)
+    renderAt(<AuthForm mode="login" />, '/login')
     await waitFor(() => expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled())
     await user.type(screen.getByLabelText('Email address'), 'player@example.test')
     await user.type(screen.getByLabelText('Password'), 'password12345')
     await user.click(screen.getByRole('button', { name: 'Sign in' }))
-    await waitFor(() => expect(replace).toHaveBeenCalledWith('/app'))
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/app', { replace: true }))
   })
 
   it('handles registration, general network errors, and pending submission state', async () => {
@@ -106,7 +109,7 @@ describe('AuthForm', () => {
       }),
     )
     const user = userEvent.setup()
-    render(<AuthForm mode="login" />)
+    renderAt(<AuthForm mode="login" />, '/login')
     await waitFor(() => expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled())
     await user.type(screen.getByLabelText('Email address'), 'player@example.test')
     await user.type(screen.getByLabelText('Password'), 'password12345')
@@ -122,7 +125,7 @@ describe('AuthForm', () => {
         },
       },
     })
-    await waitFor(() => expect(replace).toHaveBeenCalledWith('/app'))
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/app', { replace: true }))
     cleanup()
 
     loginRequest.mockRejectedValueOnce(
@@ -131,7 +134,7 @@ describe('AuthForm', () => {
         'We could not reach the server. Check your connection and retry.',
       ),
     )
-    render(<AuthForm mode="login" />)
+    renderAt(<AuthForm mode="login" />, '/login')
     await waitFor(() => expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled())
     await user.type(screen.getByLabelText('Email address'), 'player@example.test')
     await user.type(screen.getByLabelText('Password'), 'password12345')
@@ -148,7 +151,7 @@ describe('AuthForm', () => {
         },
       },
     })
-    render(<AuthForm mode="register" />)
+    renderAt(<AuthForm mode="register" />, '/register')
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Create account' })).toBeEnabled(),
     )

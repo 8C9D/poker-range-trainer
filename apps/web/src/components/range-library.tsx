@@ -1,7 +1,5 @@
-'use client'
-
-import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router'
 
 import type { RangeListItem } from '@poker-range-trainer/contracts'
 import {
@@ -232,7 +230,7 @@ export function RangeLibrary() {
             Build the spots you want to train, then return here to keep them organized.
           </p>
         </div>
-        <Link className="button button-primary" href="/app/library/new">
+        <Link className="button button-primary" to="/app/library/new">
           New range
         </Link>
       </div>
@@ -359,7 +357,7 @@ export function RangeLibrary() {
               Clear filters
             </button>
           ) : (
-            <Link className="button button-primary" href="/app/library/new">
+            <Link className="button button-primary" to="/app/library/new">
               Create a range
             </Link>
           )}
@@ -552,7 +550,7 @@ function RangeRow({
       </label>
       <div className="range-row-main">
         <div className="range-row-title">
-          <Link href={`/app/library/${encodeURIComponent(range.id)}`}>{range.name}</Link>
+          <Link to={`/app/library/${encodeURIComponent(range.id)}`}>{range.name}</Link>
           {range.favorite ? <span aria-label="Favorite">★</span> : null}
           {range.archived ? <span className="status-chip">Archived</span> : null}
         </div>
@@ -563,7 +561,7 @@ function RangeRow({
         </p>
       </div>
       <div className="range-actions" aria-label={`Manage ${range.name}`}>
-        <Link className="text-link" href={`/app/practice?range=${encodeURIComponent(range.id)}`}>
+        <Link className="text-link" to={`/app/practice?range=${encodeURIComponent(range.id)}`}>
           Practice
         </Link>
         <button className="text-button" type="button" disabled={pending} onClick={onFavorite}>

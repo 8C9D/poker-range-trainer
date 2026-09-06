@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 
@@ -21,6 +21,7 @@ import {
   resetPracticeStats,
   updateTrainingGoal,
 } from '@/lib/api-client'
+import { renderAt } from '@/test/router'
 
 import { AccountView } from './account-view'
 
@@ -143,7 +144,7 @@ function readyAccount(): void {
 /** Render and wait for the loaded page. */
 async function renderAccount() {
   const user = userEvent.setup()
-  render(<AccountView />)
+  renderAt(<AccountView />, '/app/account')
   await screen.findByRole('heading', { level: 1, name: 'Account' })
   return user
 }
@@ -376,7 +377,7 @@ describe('AccountView', () => {
       .mockRejectedValueOnce(new ApiClientError('network', 'We could not reach the server.'))
       .mockResolvedValueOnce({ data: { dailyHandsGoal: null, updatedAt: null } })
     const user = userEvent.setup()
-    render(<AccountView />)
+    renderAt(<AccountView />, '/app/account')
 
     expect(await screen.findByRole('alert')).toHaveTextContent('We could not reach the server.')
     await user.click(screen.getByRole('button', { name: 'Try again' }))

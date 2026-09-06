@@ -1,8 +1,5 @@
-'use client'
-
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useId, useState, type FormEvent } from 'react'
+import { Link, useNavigate } from 'react-router'
 
 import type { RangeRead, ScenarioMetadata } from '@poker-range-trainer/contracts'
 import {
@@ -78,7 +75,7 @@ interface RangeEditorProps {
 }
 
 export function RangeEditor({ rangeId }: RangeEditorProps) {
-  const router = useRouter()
+  const navigate = useNavigate()
   const nameId = useId()
   const notesId = useId()
   const [loaded, setLoaded] = useState<RangeRead>()
@@ -189,7 +186,7 @@ export function RangeEditor({ rangeId }: RangeEditorProps) {
           ...(metadataEnabled && nextMetadata ? { metadata: nextMetadata } : {}),
         })
         setDirty(false)
-        router.push(`/app/library/${encodeURIComponent(response.data.id)}`)
+        navigate(`/app/library/${encodeURIComponent(response.data.id)}`)
       }
     } catch (caught) {
       if (caught instanceof ApiClientError && caught.status === 409) {
@@ -217,7 +214,7 @@ export function RangeEditor({ rangeId }: RangeEditorProps) {
       <section className="library-state" role="alert">
         <h1>Range not found</h1>
         <p>This range may have been deleted or you may no longer have access to it.</p>
-        <Link className="button button-primary" href="/app/library">
+        <Link className="button button-primary" to="/app/library">
           Back to library
         </Link>
       </section>
@@ -237,11 +234,11 @@ export function RangeEditor({ rangeId }: RangeEditorProps) {
         </div>
         <div className="editor-heading-actions">
           {rangeId !== undefined ? (
-            <Link className="text-link" href={`/app/practice?range=${encodeURIComponent(rangeId)}`}>
+            <Link className="text-link" to={`/app/practice?range=${encodeURIComponent(rangeId)}`}>
               Practice this range
             </Link>
           ) : null}
-          <Link className="text-link" href="/app/library">
+          <Link className="text-link" to="/app/library">
             Cancel
           </Link>
         </div>
@@ -366,7 +363,7 @@ export function RangeEditor({ rangeId }: RangeEditorProps) {
           >
             {pending ? 'Saving…' : editing ? 'Save changes' : 'Create range'}
           </button>
-          <Link className="text-link" href="/app/library">
+          <Link className="text-link" to="/app/library">
             Cancel
           </Link>
         </div>

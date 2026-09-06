@@ -1,16 +1,18 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { RangeRead } from '@poker-range-trainer/contracts'
 
 import { ApiClientError, createRange, getRange, updateRange } from '@/lib/api-client'
+import { renderAt } from '@/test/router'
 
 import { RangeEditor } from './range-editor'
 
-const push = vi.fn()
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push, replace: vi.fn(), refresh: vi.fn() }),
+const navigate = vi.fn()
+vi.mock('react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('react-router')>()),
+  useNavigate: () => navigate,
 }))
 vi.mock('@/lib/api-client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api-client')>()
@@ -68,7 +70,7 @@ describe('RangeEditor', () => {
   afterEach(cleanup)
 
   it('prevents an empty create, then creates with the selected hands and navigates to the range', async () => {
-    render(<RangeEditor />)
+    renderAt(<RangeEditor />, '/app/library')
     expect(screen.getByRole('button', { name: 'Create range' })).toBeDisabled()
     expect(screen.queryByRole('link', { name: 'Practice this range' })).not.toBeInTheDocument()
     selectHand()
@@ -78,11 +80,11 @@ describe('RangeEditor', () => {
     await user.type(screen.getByRole('textbox', { name: 'Range name' }), '  BTN open ')
     await user.click(screen.getByRole('button', { name: 'Create range' }))
     await waitFor(() => expect(create).toHaveBeenCalledWith({ name: 'BTN open', hands: ['AA'] }))
-    expect(push).toHaveBeenCalledWith(`/app/library/${rangeId}`)
+    expect(navigate).toHaveBeenCalledWith(`/app/library/${rangeId}`)
   })
 
   it('offers the domain scenario vocabulary as labelled options', () => {
-    render(<RangeEditor />)
+    renderAt(<RangeEditor />, '/app/library')
     fireEvent.click(screen.getByRole('checkbox', { name: 'Include context' }))
     expect(screen.getByRole('option', { name: 'Sit & Go' })).toHaveValue('sitAndGo')
     expect(screen.getByRole('option', { name: '3-bet' })).toHaveValue('threeBet')
@@ -90,7 +92,7 @@ describe('RangeEditor', () => {
   })
 
   it('loads an edit, clears whole metadata explicitly, and submits the loaded version', async () => {
-    render(<RangeEditor rangeId={rangeId} />)
+    renderAt(<RangeEditor rangeId={rangeId} />, '/app/library')
     expect(await screen.findByDisplayValue('BTN open')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Practice this range' })).toHaveAttribute(
       'href',
@@ -110,7 +112,7 @@ describe('RangeEditor', () => {
 
   it('preserves edits after a conflict and lets the user review the current saved range', async () => {
     update.mockRejectedValueOnce(problem(409, 'CONFLICT'))
-    render(<RangeEditor rangeId={rangeId} />)
+    renderAt(<RangeEditor rangeId={rangeId} />, '/app/library')
     const input = await screen.findByDisplayValue('BTN open')
     const user = userEvent.setup()
     await user.clear(input)
@@ -125,7 +127,7 @@ describe('RangeEditor', () => {
 
   it('handles a missing edited range without attempting an overwrite', async () => {
     read.mockRejectedValueOnce(problem(404, 'NOT_FOUND'))
-    render(<RangeEditor rangeId={rangeId} />)
+    renderAt(<RangeEditor rangeId={rangeId} />, '/app/library')
     expect(await screen.findByRole('alert')).toHaveTextContent('Range not found')
     expect(update).not.toHaveBeenCalled()
   })

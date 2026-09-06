@@ -1,7 +1,5 @@
-'use client'
-
-import Link from 'next/link'
 import { useEffect, useState, type ChangeEvent } from 'react'
+import { Link } from 'react-router'
 
 import {
   MAX_LEGACY_BACKUP_BYTES,
@@ -438,10 +436,10 @@ export function AccountView() {
             </p>
             <CountsTable counts={stage.outcome.counts} caption="What was imported" />
             <div className="account-buttons">
-              <Link className="button button-primary" href="/app/library">
+              <Link className="button button-primary" to="/app/library">
                 Open library
               </Link>
-              <Link className="text-link" href="/app/today">
+              <Link className="text-link" to="/app/today">
                 Back to Today
               </Link>
             </div>

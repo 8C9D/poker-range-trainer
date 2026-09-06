@@ -1,8 +1,5 @@
-'use client'
-
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router'
 
 import type { TodayReadModel } from '@poker-range-trainer/contracts'
 import { goalLine } from '@poker-range-trainer/domain/domain/trainingGoal'
@@ -107,7 +104,7 @@ async function loadToday(): Promise<TodayState> {
 
 /** The home screen: what is due today, and one primary action. */
 export function TodayView() {
-  const router = useRouter()
+  const navigate = useNavigate()
   const [state, setState] = useState<TodayState>({ status: 'loading' })
   const [loadAttempt, setLoadAttempt] = useState(0)
   const [goalError, setGoalError] = useState<string>()
@@ -152,7 +149,7 @@ export function TodayView() {
 
   function startWeakHandDrill(suggestion: Extract<FreePractice, { kind: 'weakHands' }>): void {
     const poolsKey = storeDrillPools(suggestion.pools)
-    router.push(practiceHref(suggestion.rangeIds, poolsKey))
+    navigate(practiceHref(suggestion.rangeIds, poolsKey))
   }
 
   if (state.status === 'loading') {
@@ -214,10 +211,10 @@ export function TodayView() {
             </p>
           </div>
           <div className="today-cta-actions">
-            <Link className="button button-primary" href="/app/library/new">
+            <Link className="button button-primary" to="/app/library/new">
               Create a range
             </Link>
-            <Link className="text-link" href="/app/library">
+            <Link className="text-link" to="/app/library">
               Open library
             </Link>
           </div>
@@ -234,7 +231,7 @@ export function TodayView() {
               </div>
               <Link
                 className="button button-primary"
-                href={practiceHref(due.map((range) => range.id))}
+                to={practiceHref(due.map((range) => range.id))}
               >
                 Start review
               </Link>
@@ -273,7 +270,7 @@ export function TodayView() {
                           : `${range.accuracyPercentage.toFixed(0)}% last accuracy · practiced ${dayDistance(range.lastPracticedAt, today.generatedAt)}`}
                       </span>
                     </div>
-                    <Link className="text-link" href={practiceHref([range.id])}>
+                    <Link className="text-link" to={practiceHref([range.id])}>
                       Review
                     </Link>
                   </li>
@@ -356,14 +353,14 @@ function FreePracticeAction({
 }) {
   if (suggestion === null) {
     return (
-      <Link className="button button-primary" href="/app/library">
+      <Link className="button button-primary" to="/app/library">
         Free practice
       </Link>
     )
   }
   if (suggestion.kind === 'reviewEarly') {
     return (
-      <Link className="button button-primary" href={practiceHref([suggestion.rangeId])}>
+      <Link className="button button-primary" to={practiceHref([suggestion.rangeId])}>
         Review early
       </Link>
     )

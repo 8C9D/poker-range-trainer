@@ -1,13 +1,13 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { getCurrentUser, logout } from '@/lib/api-client'
+import { renderAt } from '@/test/router'
 
 import { AuthenticatedShell } from './authenticated-shell'
 
 let pathname = '/app/library'
-vi.mock('next/navigation', () => ({ usePathname: () => pathname }))
 vi.mock('@/lib/api-client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api-client')>()
   return { ...actual, getCurrentUser: vi.fn(), logout: vi.fn() }
@@ -33,7 +33,7 @@ describe('AuthenticatedShell', () => {
     )
     logoutRequest.mockResolvedValueOnce({ data: { success: true } })
     const user = userEvent.setup()
-    render(<AuthenticatedShell>Library content</AuthenticatedShell>)
+    renderAt(<AuthenticatedShell>Library content</AuthenticatedShell>, pathname)
     expect(screen.getByText('Loading your practice room…')).toBeInTheDocument()
     resolveUser!({
       data: {
@@ -71,7 +71,7 @@ describe('AuthenticatedShell', () => {
 
     pathname = '/app/today'
     currentUser.mockResolvedValueOnce(ready)
-    const { unmount } = render(<AuthenticatedShell>Today content</AuthenticatedShell>)
+    const { unmount } = renderAt(<AuthenticatedShell>Today content</AuthenticatedShell>, pathname)
     await screen.findByText('Today content')
     expect(screen.getByRole('link', { name: 'Today' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('link', { name: 'Library' })).not.toHaveAttribute('aria-current')
@@ -80,7 +80,7 @@ describe('AuthenticatedShell', () => {
     // A range page is still the Library section, not a destination of its own.
     pathname = '/app/library/7a7e6f3e-17be-4b69-a31b-1f902417c560'
     currentUser.mockResolvedValueOnce(ready)
-    const range = render(<AuthenticatedShell>Range content</AuthenticatedShell>)
+    const range = renderAt(<AuthenticatedShell>Range content</AuthenticatedShell>, pathname)
     await screen.findByText('Range content')
     expect(screen.getByRole('link', { name: 'Library' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('link', { name: 'Progress' })).not.toHaveAttribute('aria-current')
@@ -88,7 +88,7 @@ describe('AuthenticatedShell', () => {
 
     pathname = '/app/account'
     currentUser.mockResolvedValueOnce(ready)
-    render(<AuthenticatedShell>Account content</AuthenticatedShell>)
+    renderAt(<AuthenticatedShell>Account content</AuthenticatedShell>, pathname)
     await screen.findByText('Account content')
     expect(screen.getByRole('link', { name: 'Account' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('link', { name: 'Today' })).not.toHaveAttribute('aria-current')
@@ -99,7 +99,7 @@ describe('AuthenticatedShell', () => {
       data: { authenticated: false },
     })
     const user = userEvent.setup()
-    render(<AuthenticatedShell>Library content</AuthenticatedShell>)
+    renderAt(<AuthenticatedShell>Library content</AuthenticatedShell>, pathname)
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not load your session.')
     await user.click(screen.getByRole('button', { name: 'Try again' }))
     await waitFor(() => expect(currentUser).toHaveBeenCalledTimes(2))
@@ -107,7 +107,7 @@ describe('AuthenticatedShell', () => {
 
   it('renders unauthenticated and logout failure states without discarding the ready shell', async () => {
     currentUser.mockResolvedValueOnce({ data: { authenticated: false } })
-    const { unmount } = render(<AuthenticatedShell />)
+    const { unmount } = renderAt(<AuthenticatedShell />, pathname)
     expect(await screen.findByRole('link', { name: 'Sign in' })).toBeInTheDocument()
     unmount()
 
@@ -123,7 +123,7 @@ describe('AuthenticatedShell', () => {
     })
     logoutRequest.mockRejectedValueOnce(new Error('offline'))
     const user = userEvent.setup()
-    render(<AuthenticatedShell>Library content</AuthenticatedShell>)
+    renderAt(<AuthenticatedShell>Library content</AuthenticatedShell>, pathname)
     await screen.findByText('Library content')
     await user.click(screen.getByRole('button', { name: 'Sign out' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not sign out. Try again.')

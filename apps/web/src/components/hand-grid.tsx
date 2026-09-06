@@ -1,5 +1,3 @@
-'use client'
-
 import { useId, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 
 import {

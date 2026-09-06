@@ -1,5 +1,3 @@
-'use client'
-
 import { GOAL_OPTIONS } from '@poker-range-trainer/domain/domain/trainingGoal'
 
 interface GoalSelectProps {

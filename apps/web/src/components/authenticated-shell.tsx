@@ -1,8 +1,5 @@
-'use client'
-
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { Link, useLocation } from 'react-router'
 
 import { ApiClientError, getCurrentUser, logout } from '@/lib/api-client'
 
@@ -39,7 +36,7 @@ interface AuthenticatedShellProps {
 }
 
 export function AuthenticatedShell({ children }: AuthenticatedShellProps) {
-  const pathname = usePathname() ?? ''
+  const { pathname } = useLocation()
   const [state, setState] = useState<ShellState>({ status: 'loading' })
   const [loggingOut, setLoggingOut] = useState(false)
   const [logoutError, setLogoutError] = useState<string>()
@@ -105,7 +102,7 @@ export function AuthenticatedShell({ children }: AuthenticatedShellProps) {
           <p className="eyebrow">Your practice room</p>
           <h1>Sign in to continue</h1>
           <p>Your saved range library is available after you sign in.</p>
-          <Link className="button button-primary" href="/login">
+          <Link className="button button-primary" to="/login">
             Sign in
           </Link>
         </section>
@@ -119,7 +116,7 @@ export function AuthenticatedShell({ children }: AuthenticatedShellProps) {
         Skip to content
       </a>
       <header className="app-header">
-        <Link className="brand" href="/">
+        <Link className="brand" to="/">
           <span aria-hidden="true">♠</span> Rangecraft
         </Link>
         <div className="account-actions">
@@ -138,7 +135,7 @@ export function AuthenticatedShell({ children }: AuthenticatedShellProps) {
         {SECTIONS.map((section) => (
           <Link
             key={section.href}
-            href={section.href}
+            to={section.href}
             // A range page belongs to Library, so the section stays marked while
             // its own pages are open rather than only on its index.
             aria-current={

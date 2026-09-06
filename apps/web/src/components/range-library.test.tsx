@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -13,6 +13,7 @@ import {
   setRangeArchived,
   setRangeFavorite,
 } from '@/lib/api-client'
+import { renderAt } from '@/test/router'
 
 import { RangeLibrary } from './range-library'
 
@@ -94,14 +95,14 @@ describe('RangeLibrary', () => {
         resolveList = resolve
       }),
     )
-    const { unmount } = render(<RangeLibrary />)
+    const { unmount } = renderAt(<RangeLibrary />, '/app/library')
     expect(screen.getByText(/Loading your range library/i)).toBeInTheDocument()
     resolveList!(response([]))
     expect(await screen.findByText('Your library is empty')).toBeInTheDocument()
     unmount()
 
     list.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(response([]))
-    render(<RangeLibrary />)
+    renderAt(<RangeLibrary />, '/app/library')
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'The range library could not be updated.',
     )
@@ -111,12 +112,12 @@ describe('RangeLibrary', () => {
   })
 
   it('labels scenario metadata with the domain vocabulary', async () => {
-    render(<RangeLibrary />)
+    renderAt(<RangeLibrary />, '/app/library')
     expect(await screen.findByText('Cash · 6-max · BTN · 3-bet')).toBeInTheDocument()
   })
 
   it('applies server filters and sorts, pages, and clears filters', async () => {
-    render(<RangeLibrary />)
+    renderAt(<RangeLibrary />, '/app/library')
     await screen.findByText('BTN open')
     const user = userEvent.setup()
     await user.type(screen.getByRole('textbox', { name: 'Search ranges' }), 'BTN')
@@ -144,7 +145,7 @@ describe('RangeLibrary', () => {
   })
 
   it('runs each row action and provides session-local delete undo', async () => {
-    render(<RangeLibrary />)
+    renderAt(<RangeLibrary />, '/app/library')
     await screen.findByText('BTN open')
     const user = userEvent.setup()
     expect(screen.getByRole('link', { name: 'Practice' })).toHaveAttribute(
@@ -170,7 +171,7 @@ describe('RangeLibrary', () => {
 
   it('uses atomic bulk actions, clears selection, and restores a bulk delete as one request', async () => {
     list.mockResolvedValue(response([range, second]))
-    render(<RangeLibrary />)
+    renderAt(<RangeLibrary />, '/app/library')
     await screen.findByText('BTN open')
     const user = userEvent.setup()
     await user.click(screen.getByRole('checkbox', { name: 'Select BTN open' }))

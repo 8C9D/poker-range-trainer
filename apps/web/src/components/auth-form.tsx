@@ -1,8 +1,5 @@
-'use client'
-
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useEffect, useId, useState, type FormEvent } from 'react'
+import { Link, useNavigate } from 'react-router'
 
 import { ApiClientError, getCurrentUser, login, register } from '@/lib/api-client'
 
@@ -22,7 +19,7 @@ function fieldErrors(error: ApiClientError): Record<string, string> {
 }
 
 export function AuthForm({ mode }: AuthFormProps) {
-  const router = useRouter()
+  const navigate = useNavigate()
   const emailId = useId()
   const passwordId = useId()
   const [passwordVisible, setPasswordVisible] = useState(false)
@@ -36,7 +33,7 @@ export function AuthForm({ mode }: AuthFormProps) {
     let current = true
     void getCurrentUser()
       .then((response) => {
-        if (current && response.data.authenticated) router.replace('/app')
+        if (current && response.data.authenticated) navigate('/app', { replace: true })
       })
       .catch(() => {
         if (current)
@@ -48,7 +45,7 @@ export function AuthForm({ mode }: AuthFormProps) {
     return () => {
       current = false
     }
-  }, [router])
+  }, [navigate])
 
   async function submit(formData: FormData): Promise<void> {
     setPending(true)
@@ -61,8 +58,7 @@ export function AuthForm({ mode }: AuthFormProps) {
     try {
       if (mode === 'login') await login(input)
       else await register(input)
-      router.replace('/app')
-      router.refresh()
+      navigate('/app', { replace: true })
     } catch (error) {
       if (error instanceof ApiClientError) {
         const fields = fieldErrors(error)
@@ -87,7 +83,7 @@ export function AuthForm({ mode }: AuthFormProps) {
 
   return (
     <main className="auth-page">
-      <Link className="brand" href="/">
+      <Link className="brand" to="/">
         <span aria-hidden="true">♠</span> Rangecraft
       </Link>
       <section className="auth-card" aria-labelledby="auth-title">
@@ -179,7 +175,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         </form>
         <p className="auth-switch">
           {isLogin ? 'New to Rangecraft?' : 'Already have an account?'}{' '}
-          <Link href={isLogin ? '/register' : '/login'}>
+          <Link to={isLogin ? '/register' : '/login'}>
             {isLogin ? 'Create an account' : 'Sign in'}
           </Link>
         </p>

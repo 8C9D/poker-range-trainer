@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 
@@ -9,12 +9,14 @@ import {
 } from '@poker-range-trainer/contracts'
 
 import { ApiClientError, getRange, getRangePractice, submitPracticeSession } from '@/lib/api-client'
+import { renderAt } from '@/test/router'
 
 import { PracticeHost } from './practice-host'
 
 const navigation = vi.hoisted(() => ({ search: '' }))
-vi.mock('next/navigation', () => ({
-  useSearchParams: () => new URLSearchParams(navigation.search),
+vi.mock('react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('react-router')>()),
+  useSearchParams: () => [new URLSearchParams(navigation.search), vi.fn()],
 }))
 vi.mock('@/lib/api-client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api-client')>()
@@ -132,7 +134,7 @@ describe('PracticeHost', () => {
 
   it('offers every mode on a fresh single-range drill, and stops offering them once it starts', async () => {
     navigation.search = `range=${rangeId}&count=30`
-    render(<PracticeHost />)
+    renderAt(<PracticeHost />, '/app/practice')
     expect(await screen.findByRole('heading', { name: 'BTN open' })).toBeInTheDocument()
 
     const picker = screen.getByRole('navigation', { name: 'Practice modes' })
@@ -165,7 +167,7 @@ describe('PracticeHost', () => {
 
   it('restarts the run under the new mode when the URL mode changes', async () => {
     navigation.search = `range=${rangeId}`
-    const { rerender } = render(<PracticeHost />)
+    const { rerender } = renderAt(<PracticeHost />, '/app/practice')
     expect(await screen.findByRole('heading', { name: 'BTN open' })).toBeInTheDocument()
     await userEvent.setup().keyboard('i')
     expect(screen.getByText('Correct')).toBeInTheDocument()
@@ -182,7 +184,7 @@ describe('PracticeHost', () => {
 
   it('marks the running duration on a timed drill and hides the picker for a queue', async () => {
     navigation.search = `range=${rangeId}&mode=timed&seconds=30`
-    render(<PracticeHost />)
+    renderAt(<PracticeHost />, '/app/practice')
     expect(await screen.findByRole('heading', { name: 'BTN open' })).toBeInTheDocument()
     const durations = screen.getByRole('list', { name: 'Timed drill length' })
     expect(
@@ -198,7 +200,7 @@ describe('PracticeHost', () => {
     cleanup()
 
     navigation.search = `queue=${rangeId},${secondId}`
-    render(<PracticeHost />)
+    renderAt(<PracticeHost />, '/app/practice')
     expect(await screen.findByRole('heading', { name: 'BTN open' })).toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: 'Practice modes' })).not.toBeInTheDocument()
   })
@@ -210,7 +212,7 @@ describe('PracticeHost', () => {
         new ApiClientError('network', 'We could not reach the server. Check your connection.'),
       )
       .mockResolvedValueOnce(sessionResponse())
-    render(<PracticeHost />)
+    renderAt(<PracticeHost />, '/app/practice')
     expect(await screen.findByRole('heading', { name: 'BTN open' })).toBeInTheDocument()
     const user = userEvent.setup()
 
@@ -248,7 +250,7 @@ describe('PracticeHost', () => {
   it('submits a built range and reports what it missed and added', async () => {
     navigation.search = `range=${rangeId}&mode=build`
     submit.mockResolvedValue(sessionResponse({ totalQuestions: 4, correctAnswers: 1 }))
-    render(<PracticeHost />)
+    renderAt(<PracticeHost />, '/app/practice')
     expect(await screen.findByRole('heading', { name: 'BTN open' })).toBeInTheDocument()
 
     const user = userEvent.setup()
@@ -273,7 +275,7 @@ describe('PracticeHost', () => {
     read.mockImplementation((id: string) =>
       Promise.resolve({ data: id === rangeId ? range : secondRange }),
     )
-    render(<PracticeHost />)
+    renderAt(<PracticeHost />, '/app/practice')
     expect(await screen.findByRole('heading', { name: 'BTN open' })).toBeInTheDocument()
     expect(screen.getByText('Range 1 of 2')).toBeInTheDocument()
 
@@ -293,7 +295,7 @@ describe('PracticeHost', () => {
     let elapsed = 0
     const clock = vi.spyOn(Date, 'now').mockImplementation(() => start + elapsed)
     try {
-      render(<PracticeHost />)
+      renderAt(<PracticeHost />, '/app/practice')
       expect(await screen.findByRole('heading', { name: 'BTN open' })).toBeInTheDocument()
       expect(screen.getByText('30s left · 0 answered')).toBeInTheDocument()
 
@@ -317,14 +319,14 @@ describe('PracticeHost', () => {
     read.mockImplementation((id: string) =>
       id === rangeId ? Promise.reject(problem(404)) : Promise.resolve({ data: secondRange }),
     )
-    render(<PracticeHost />)
+    renderAt(<PracticeHost />, '/app/practice')
     expect(await screen.findByRole('heading', { name: 'CO open' })).toBeInTheDocument()
     expect(screen.getByText(/1 queued range was skipped/)).toBeInTheDocument()
   })
 
   it('asks for a range when the URL names none', () => {
     navigation.search = ''
-    render(<PracticeHost />)
+    renderAt(<PracticeHost />, '/app/practice')
     expect(screen.getByRole('heading', { name: 'Choose a range' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Go to library' })).toBeInTheDocument()
     expect(read).not.toHaveBeenCalled()
@@ -332,7 +334,7 @@ describe('PracticeHost', () => {
 
   it('refuses to run a mistakes drill with no recorded mistakes, and records nothing', async () => {
     navigation.search = `range=${rangeId}&mode=mistakes`
-    render(<PracticeHost />)
+    renderAt(<PracticeHost />, '/app/practice')
     expect(
       await screen.findByRole('heading', { name: 'No recorded mistakes for this range yet' }),
     ).toBeInTheDocument()
@@ -348,7 +350,7 @@ describe('PracticeHost', () => {
   it('offers a retry when the range itself will not load', async () => {
     navigation.search = `range=${rangeId}`
     read.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce({ data: range })
-    render(<PracticeHost />)
+    renderAt(<PracticeHost />, '/app/practice')
     expect(await screen.findByRole('alert')).toHaveTextContent('We could not load this drill')
     await userEvent.setup().click(screen.getByRole('button', { name: 'Try again' }))
     expect(await screen.findByRole('heading', { name: 'BTN open' })).toBeInTheDocument()
