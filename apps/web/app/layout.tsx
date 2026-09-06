@@ -1,6 +1,6 @@
 import '@fontsource-variable/bricolage-grotesque'
 import '@fontsource-variable/instrument-sans'
-import './globals.css'
+import '@/globals.css'
 
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
