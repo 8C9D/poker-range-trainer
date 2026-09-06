@@ -13,7 +13,7 @@ backup files import into the new one.
 
 | Part | Path | Role |
 |------|------|------|
-| Web app | `apps/web` | Next.js 16 (App Router, React 19). Routes, accessible UI, and an API client. Talks to the API only through same-origin `/api/v1` calls that Next rewrites to the Express origin. Never touches the database. |
+| Web app | `apps/web` | Vite + React 19 single-page app on React Router. An explicit route table, accessible UI, and an API client. Talks to the API only through same-origin `/api/v1` calls: the Vite dev server proxies them to Express, and in production Express serves the built bundle itself. Never touches the database. |
 | API | `apps/api` | Express 5. The single authority for authentication (email + password, Argon2, HTTP-only session cookie with a double-submit CSRF token), authorization, validation, use cases, and PostgreSQL transactions. Structured JSON logging, rate limits, security headers, RFC 9457 problem responses. |
 | Database | PostgreSQL 16 | System of record. Schema and SQL migrations live in `packages/database`. |
 | Domain | `packages/domain` | Framework-neutral poker logic: hand matrix, range math, drill scoring, spaced repetition, streaks, leaks, and analytics. Shared by the API and the web app. |
@@ -23,7 +23,8 @@ backup files import into the new one.
 The design is written up in
 [`docs/architecture/target-architecture.md`](docs/architecture/target-architecture.md),
 [`docs/architecture/data-and-migration.md`](docs/architecture/data-and-migration.md),
-and [`docs/adr/0001-postgresql-over-nosql.md`](docs/adr/0001-postgresql-over-nosql.md).
+[`docs/adr/0001-postgresql-over-nosql.md`](docs/adr/0001-postgresql-over-nosql.md), and
+[`docs/adr/0002-vite-react-spa-served-by-express.md`](docs/adr/0002-vite-react-spa-served-by-express.md).
 [`docs/architecture/rebuild-status.md`](docs/architecture/rebuild-status.md) records
 what has been built and what has not.
 
@@ -61,17 +62,25 @@ docker compose up -d       # PostgreSQL 16 on localhost:54329
 # Environment: copy the values from .env.example into your shell (there is no
 # dotenv loader). At minimum the API needs DATABASE_URL and API_ORIGINS.
 export DATABASE_URL=postgresql://poker_range_trainer:poker_range_trainer_local@localhost:54329/poker_range_trainer
-export API_ORIGINS=http://localhost:3000
+export API_ORIGINS=http://localhost:5173
 
 npm run db:migrate         # apply packages/database/src/migrations in order
 npm run db:seed            # the 169 canonical hand classes
 npm run dev:api            # Express on http://localhost:3001
-npm run dev:web            # Next on http://localhost:3000, proxying /api to 3001
+npm run dev:web            # Vite on http://localhost:5173, proxying /api to 3001
 ```
 
-Register an account at `http://localhost:3000/register`. To try the import path,
+Register an account at `http://localhost:5173/register`. To try the import path,
 use **Account → Import legacy backup** with `screenshots/seed-backup.json`, a
 realistic legacy fixture.
+
+To run the production shape locally, build everything and point the API at the
+web bundle; one process then serves both the app and `/api`:
+
+```bash
+npm run build
+WEB_DIST_DIR=apps/web/dist npm run start:api   # http://localhost:3001
+```
 
 ## Scripts
 
@@ -83,7 +92,7 @@ Run these from the repo root.
 | `npm run lint` | ESLint over the workspaces and the legacy mobile app. |
 | `npm run test:run` | Unit suites: packages (Vitest), web (Vitest + Testing Library), API (Vitest + supertest), mobile (Jest). |
 | `npm run test:integration` | Database and API tests against a real PostgreSQL (`DATABASE_URL` required; each file creates and drops its own database). |
-| `npm run build` | Builds packages, API, and web; runs the compiled-package smoke test; type-checks the legacy apps. |
+| `npm run build` | Builds packages, the web bundle, and the API; runs the compiled-package smoke test and the API runtime smoke (which serves the bundle); type-checks the legacy apps. |
 | `npm run db:migrate` / `npm run db:seed` | Apply migrations / seed hand classes. |
 | `npm run format` / `npm run format:check` | Prettier. |
 
@@ -111,7 +120,7 @@ are `{ data }` (collections add `meta`); failures are `application/problem+json`
 ```text
 apps/
   api/            Express API: auth/, ranges/, practice/, settings/, imports/, app.ts, server.ts
-  web/            Next.js app: app/ (routes), components/, lib/ (api-client, drill logic)
+  web/            Vite + React SPA: src/routes.tsx (route table), src/components/, src/lib/ (api-client, drill logic)
 packages/
   domain/         Pure poker logic and analytics (no framework, no I/O)
   contracts/      Zod request/response schemas shared by both apps
