@@ -24,6 +24,12 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  // Playwright fixtures are functions taking `use`, which is not React's hook.
+  {
+    files: ['apps/e2e/**/*.ts'],
+    languageOptions: { globals: globals.node },
+    rules: { 'react-hooks/rules-of-hooks': 'off' },
+  },
   // The web app is the only React tree here: React's own rules plus the
   // accessibility rules, the coverage eslint-config-next used to bring along.
   {

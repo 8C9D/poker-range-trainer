@@ -16,6 +16,17 @@ interface HandGridProps {
   onChange: (hands: Set<string>) => void
 }
 
+interface ActivePaint {
+  /** Whether this drag adds hands or removes them, fixed by the cell it began on. */
+  selecting: boolean
+  hands: Set<string>
+  x: number
+  y: number
+}
+
+/** Floor on the walk along a drag, for a grid with no measured width yet. */
+const MIN_SAMPLE_SPACING_PX = 4
+
 /**
  * Controlled 13×13 selection grid: click or drag to paint, one roving tab stop
  * moved with the arrow keys, Space/Enter to toggle. Cells are toggle buttons
@@ -26,7 +37,12 @@ export function HandGrid({ selectedHands, onChange }: HandGridProps) {
   const gridRef = useRef<HTMLDivElement>(null)
   const helpId = useId()
   const [activeIndex, setActiveIndex] = useState(0)
-  const paintMode = useRef<boolean | undefined>(undefined)
+  /**
+   * The drag in progress. It keeps its own set because pointer moves are batched:
+   * several can land before a render, and each must build on the one before it
+   * rather than on the `selectedHands` of the last render.
+   */
+  const paint = useRef<ActivePaint | undefined>(undefined)
 
   function changeHand(hand: string, selected: boolean): void {
     if (selectedHands.has(hand) === selected) return
@@ -87,23 +103,66 @@ export function HandGrid({ selectedHands, onChange }: HandGridProps) {
     return button?.dataset.hand
   }
 
+  /**
+   * The cells along a straight line. A quick drag moves many cells between two
+   * pointer events, so the events alone would leave gaps in a selection the grid
+   * promises is continuous.
+   */
+  function handsAlong(fromX: number, fromY: number, toX: number, toY: number): string[] {
+    const cell = gridRef.current?.querySelector('[data-hand]')?.getBoundingClientRect().width ?? 0
+    const distance = Math.hypot(toX - fromX, toY - fromY)
+    const samples = Math.ceil(distance / Math.max(cell / 2, MIN_SAMPLE_SPACING_PX))
+    const hands: string[] = []
+    for (let sample = 1; sample <= samples; sample += 1) {
+      const progress = sample / samples
+      const element = document.elementFromPoint?.(
+        fromX + (toX - fromX) * progress,
+        fromY + (toY - fromY) * progress,
+      )
+      const hand = element?.closest<HTMLButtonElement>('[data-hand]')?.dataset.hand
+      if (hand) hands.push(hand)
+    }
+    return hands
+  }
+
+  function applyPaint(active: ActivePaint, hands: readonly string[]): void {
+    let changed = false
+    for (const hand of hands) {
+      if (active.hands.has(hand) === active.selecting) continue
+      if (active.selecting) active.hands.add(hand)
+      else active.hands.delete(hand)
+      changed = true
+    }
+    if (changed) onChange(new Set(active.hands))
+  }
+
   function beginPaint(event: PointerEvent<HTMLDivElement>): void {
     const hand = handAtPoint(event)
     if (!hand) return
     event.preventDefault()
-    paintMode.current = !selectedHands.has(hand)
     event.currentTarget.setPointerCapture(event.pointerId)
-    changeHand(hand, paintMode.current)
+    const active = {
+      selecting: !selectedHands.has(hand),
+      hands: new Set(selectedHands),
+      x: event.clientX,
+      y: event.clientY,
+    }
+    paint.current = active
+    applyPaint(active, [hand])
   }
 
   function continuePaint(event: PointerEvent<HTMLDivElement>): void {
-    if (paintMode.current === undefined) return
+    const active = paint.current
+    if (active === undefined) return
+    const crossed = handsAlong(active.x, active.y, event.clientX, event.clientY)
     const hand = handAtPoint(event)
-    if (hand) changeHand(hand, paintMode.current)
+    active.x = event.clientX
+    active.y = event.clientY
+    applyPaint(active, hand === undefined ? crossed : [...crossed, hand])
   }
 
   function finishPaint(): void {
-    paintMode.current = undefined
+    paint.current = undefined
   }
 
   return (

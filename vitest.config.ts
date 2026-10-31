@@ -10,8 +10,9 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     // The mobile/ Expo app carries its own Jest toolchain; keep its tests out of
     // the web Vitest run so they are never picked up here. archived/ holds
-    // features cut from v1 whose code is expected not to compile.
-    exclude: [...configDefaults.exclude, 'mobile/**', 'archived/**'],
+    // features cut from v1 whose code is expected not to compile. apps/e2e holds
+    // Playwright specs, run by Playwright against a built stack.
+    exclude: [...configDefaults.exclude, 'mobile/**', 'archived/**', 'apps/e2e/**'],
     // Uninstall every `vi.spyOn` between tests, so a spy is never one test's
     // problem to hand to the next. Without this a test that restores its spy
     // inline restores it only on the path where nothing failed: a failing

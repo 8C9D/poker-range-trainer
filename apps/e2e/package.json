@@ -1,0 +1,20 @@
+{
+  "name": "@poker-range-trainer/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser end-to-end tests against the production build behind TLS.",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "typecheck": "tsc -p tsconfig.json --noEmit --pretty false"
+  },
+  "dependencies": {
+    "@poker-range-trainer/database": "^0.1.0"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@playwright/test": "1.64.1",
+    "@types/node": "^24.12.3",
+    "typescript": "~6.0.2"
+  }
+}

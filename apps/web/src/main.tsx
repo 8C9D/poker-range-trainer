@@ -1,3 +1,4 @@
+import '@/lib/zod-config'
 import '@fontsource-variable/bricolage-grotesque'
 import '@fontsource-variable/instrument-sans'
 import '@/globals.css'

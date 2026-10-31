@@ -8,6 +8,8 @@
   --green: #165d51;
   --green-dark: #0f463d;
   --orange: #eb8e4c;
+  /* The accent as text: --orange is too light to read on --card. */
+  --orange-deep: #a84c14;
   color: var(--ink);
   background: var(--paper);
   font-family: 'Instrument Sans Variable', system-ui, sans-serif;
@@ -194,7 +196,7 @@ h2 {
 }
 .card-number {
   margin: 0 0 3rem;
-  color: var(--orange);
+  color: var(--orange-deep);
   font-family: 'Bricolage Grotesque Variable', sans-serif;
   font-size: 3rem;
   font-weight: 800;
@@ -221,7 +223,7 @@ h2 {
   line-height: 1.55;
 }
 .principle-index {
-  color: var(--orange);
+  color: var(--orange-deep);
   font-size: 0.8rem;
   font-weight: 800;
 }

@@ -31,6 +31,10 @@ coverage
 *.sln
 *.sw?
 
+# Playwright run output
+playwright-report
+test-results
+
 # Playwright MCP scratch output (snapshots, console logs)
 .playwright-mcp
 
