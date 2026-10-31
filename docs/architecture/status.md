@@ -13,13 +13,13 @@ limitation is removed; this file, not the README, is the source of truth for
 | Monorepo, shared packages, compiled-package smoke test | root, `packages/*`, `scripts/` | Domain is a NodeNext package consumed by both apps. |
 | PostgreSQL schema + migrations (0001–0004), seed, migrator with advisory lock | `packages/database` | Owner-scoped tables, check constraints, partial unique indexes for imported ids and session fingerprints. |
 | Express foundation | `apps/api/src/app.ts` | Request ids, pino logging with redaction, helmet (the production CSP included), CORS allowlist, rate limits, 1 MiB JSON limit (larger only on `/api/v1/imports`), problem+json errors, health/readiness. With `WEB_DIST_DIR` set it also serves the built web bundle: immutable hashed assets and an `index.html` fallback for page URLs, mounted after the API routes so unknown `/api` paths keep their problem+json 404 ([ADR 0002](../adr/0002-vite-react-spa-served-by-express.md)). |
-| Auth | `apps/api/src/auth` | Argon2 password hashing, server-side revocable sessions, HTTP-only cookie + double-submit CSRF, auth-specific rate limiter, session touch. |
+| Auth | `apps/api/src/auth` | Argon2 password hashing, server-side revocable sessions, HTTP-only cookie + double-submit CSRF, auth-specific rate limiter, session touch, hourly purge of dead sessions. Password change (revokes every other session, and a sign-in racing it is refused), sign out everywhere, and account deletion (cascades to everything the account owns). |
 | Ranges | `apps/api/src/ranges` | CRUD, list with search/filters/sorts/pagination, archive/favorite/restore/duplicate, atomic bulk mutations, optimistic versions. |
 | Practice sessions | `apps/api/src/practice` | Server-side scoring from the saved range, one transaction per submission, idempotent replay ledger. |
 | Practice read models | `apps/api/src/practice` | Per-range read, Today, Progress; computed with the domain functions over a library snapshot; time-zone aware via `zonedCalendarDays`. |
 | Settings | `apps/api/src/settings` | Training goal (any bounded positive integer) and an explicit practice-stats reset. |
 | Backup import/export | `apps/api/src/imports` | Preview (digest, counts, preservation warnings, conflicts), atomic commit with `merge`/`replace`, audit row, unsupported fields kept in `legacy_payload`, export as a version 1 file. |
-| Web app | `apps/web` | Vite + React 19 single-page app on React Router 7 ([ADR 0002](../adr/0002-vite-react-spa-served-by-express.md)); every URL is a row in `src/routes.tsx`. Register/login, authenticated shell, range library and editor, `/app/practice` with six drill modes and idempotent saving, Today, Progress (with drill hand-offs), and Account (goal, backup export/import with preview, stats reset). |
+| Web app | `apps/web` | Vite + React 19 single-page app on React Router 7 ([ADR 0002](../adr/0002-vite-react-spa-served-by-express.md)); every URL is a row in `src/routes.tsx`. Register/login, authenticated shell, range library and editor, `/app/practice` with six drill modes and idempotent saving, Today, Progress (with drill hand-offs), and Account (goal, backup export/import with preview, stats reset, password, sign out everywhere, deletion). |
 | Browser end-to-end tests | `apps/e2e` | Playwright against the production shape: the compiled API serving the built bundle with `NODE_ENV=production`, behind TLS, on a database made by the compiled migrate and seed commands. Chromium runs everything, including axe WCAG 2.1 AA scans of every page; Firefox, WebKit, and a phone viewport run the core journeys. `npm run test:e2e` (needs `DATABASE_URL` on a server it may create a database on) and `.github/workflows/e2e.yml`. |
 | Production image | `Dockerfile`, `scripts/smoke-image.sh`, [deployment.md](../deployment.md) | Non-root, health-checked, 37 MB of runtime dependencies. CI builds it on every push and proves migrate, seed, serve, register, and a clean SIGTERM (`.github/workflows/image.yml`). |
 
@@ -28,9 +28,8 @@ limitation is removed; this file, not the README, is the source of truth for
 - A hosted deployment. Nothing is running anywhere: no host is chosen, so there is
   no platform config, TLS proxy, or scheduled database backup yet.
   [deployment.md](../deployment.md) says what a host must provide.
-- Account self-service: password change and reset, email verification, account
-  deletion. A user who forgets a password has no way back in, and reset needs an
-  email provider.
+- Password reset and email verification. A user who forgets a password has no way
+  back in; both need an email provider.
 - An API-backed mobile client. The iOS app in `mobile/` reads and writes
   on-device storage only.
 - Offline-first synchronization (explicitly out of scope in the architecture

@@ -30,7 +30,10 @@ what has been built and what has not, and
 
 ## Features
 
-- **Accounts** — register, sign in, sign out; sessions are server-side and revocable.
+- **Accounts** — register, sign in, sign out, change password (which signs out every
+  other device), sign out everywhere, and delete the account and everything it owns.
+  Sessions are server-side and revocable. There is no password reset, because the
+  product sends no email.
 - **Range editor** — 13×13 grid with click-to-toggle, drag-to-paint, and keyboard
   navigation; optional scenario metadata (game type, table size, stack depth,
   positions, action, notes); optimistic-version conflict handling.
@@ -118,7 +121,7 @@ are `{ data }` (collections add `meta`); failures are `application/problem+json`
 | Area | Routes |
 |------|--------|
 | Health | `GET /health/live`, `GET /health/ready` |
-| Auth | `POST /auth/register`, `POST /auth/login`, `POST /auth/logout`, `GET /auth/me` |
+| Auth | `POST /auth/register`, `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`, `POST /auth/password`, `POST /auth/sign-out-everywhere`, `POST /auth/delete-account` |
 | Ranges | `GET\|POST /ranges`, `GET\|PATCH\|DELETE /ranges/:id`, `POST /ranges/:id/{archive,favorite,restore,duplicate}`, `POST /ranges/bulk` |
 | Practice | `POST /practice/sessions`, `GET /practice/ranges/:id`, `GET /practice/today?timeZone=`, `GET /practice/progress?timeZone=` |
 | Settings | `GET\|PUT /settings/training-goal`, `POST /settings/reset-practice-stats` |

@@ -4,7 +4,8 @@
 
 Poker Range Trainer is a focused Texas Hold'em preflop range-training
 application. It covers the range editor, library management, drills, spaced
-repetition, progress analytics, backup import/export, and stats reset. Postflop
+repetition, progress analytics, backup import/export, stats reset, and account
+self-service (password change, sign out everywhere, account deletion). Postflop
 training, sharing, solver integrations, mixed frequencies, combo tooling, and AI
 features are out of scope.
 
@@ -89,6 +90,9 @@ The resource groups are:
 
 - `POST /auth/register`, `POST /auth/login`, `POST /auth/logout`, and
   `GET /auth/me`.
+- `POST /auth/password`, `POST /auth/sign-out-everywhere`, and
+  `POST /auth/delete-account`. Changing the password and deleting the account
+  each re-check the password, even from a live session.
 - `GET|POST /ranges`, `GET|PATCH|DELETE /ranges/:rangeId`, and restore/archive
   operations.
 - `POST /practice/sessions` to atomically record a completed drill; read endpoints

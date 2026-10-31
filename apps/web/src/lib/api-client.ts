@@ -5,6 +5,11 @@ import {
   loginRequestSchema,
   loginResponseSchema,
   logoutResponseSchema,
+  changePasswordResponseSchema,
+  deleteAccountResponseSchema,
+  signOutEverywhereResponseSchema,
+  type ChangePasswordRequest,
+  type DeleteAccountRequest,
   meResponseSchema,
   practiceSessionSubmissionResponseSchema,
   problemDetailsSchema,
@@ -192,6 +197,29 @@ export function register(input: z.input<typeof registerRequestSchema>) {
 
 export function logout() {
   return apiRequest('/auth/logout', { method: 'POST', schema: logoutResponseSchema })
+}
+
+export function changePassword(input: ChangePasswordRequest) {
+  return apiRequest('/auth/password', {
+    method: 'POST',
+    body: input,
+    schema: changePasswordResponseSchema,
+  })
+}
+
+export function signOutEverywhere() {
+  return apiRequest('/auth/sign-out-everywhere', {
+    method: 'POST',
+    schema: signOutEverywhereResponseSchema,
+  })
+}
+
+export function deleteAccount(input: DeleteAccountRequest) {
+  return apiRequest('/auth/delete-account', {
+    method: 'POST',
+    body: input,
+    schema: deleteAccountResponseSchema,
+  })
 }
 
 export function listRanges(query: RangeListOptions = {}) {

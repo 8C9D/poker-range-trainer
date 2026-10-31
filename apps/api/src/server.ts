@@ -176,8 +176,10 @@ export function run(): void {
         ),
     )
   }
-  process.once('SIGTERM', () => shutdown('SIGTERM'))
-  process.once('SIGINT', () => shutdown('SIGINT'))
+  // `on`, not `once`: a repeated signal, which a process-group kill delivers, must
+  // land on the guard above rather than on Node's default of dying mid-drain.
+  process.on('SIGTERM', () => shutdown('SIGTERM'))
+  process.on('SIGINT', () => shutdown('SIGINT'))
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) run()

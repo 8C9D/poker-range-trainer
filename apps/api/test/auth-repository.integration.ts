@@ -240,4 +240,41 @@ describe('PostgreSQL auth repository', () => {
     await repository.purgeDeadSessions(new Date(now.getTime() + 3 * day))
     expect(await remaining()).toEqual([longLived.id])
   })
+
+  it('refuses a sign-in verified against a password that has since changed', async () => {
+    const day = 24 * 60 * 60 * 1000
+    const { user } = await createUser(`stale-${randomUUID()}@example.test`)
+    const stale = DUMMY_PASSWORD_HASH
+    const replacement = `${DUMMY_PASSWORD_HASH}x`
+
+    // The password change has written but not committed when the sign-in arrives.
+    const change = await testPool.connect()
+    await change.query('begin')
+    await change.query('update users set password_hash = $1 where id = $2', [replacement, user.id])
+
+    let settled = false
+    const signIn = repository
+      .createAdditionalSession({
+        userId: user.id,
+        verifiedPasswordHash: stale,
+        ...hashedSession(new Date(now.getTime() + day)),
+      })
+      .finally(() => {
+        settled = true
+      })
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    expect(settled).toBe(false)
+
+    await change.query('commit')
+    change.release()
+    expect(await signIn).toBeUndefined()
+
+    await expect(
+      repository.createAdditionalSession({
+        userId: user.id,
+        verifiedPasswordHash: replacement,
+        ...hashedSession(new Date(now.getTime() + day)),
+      }),
+    ).resolves.toMatchObject({ userId: user.id })
+  })
 })

@@ -63,6 +63,55 @@ export type LogoutRequest = z.infer<typeof logoutRequestSchema>
 export const logoutResponseSchema = successResponseSchema(z.object({ success: z.literal(true) }).strict())
 export type LogoutResponse = z.infer<typeof logoutResponseSchema>
 
+/**
+ * Proves who is asking. Deliberately not the password policy: a password set under
+ * an older policy must still work, and a wrong guess should not learn the rules.
+ */
+const currentPasswordSchema = z.string().min(1).max(128)
+
+export const changePasswordRequestSchema = z
+  .object({
+    currentPassword: currentPasswordSchema,
+    newPassword: passwordSchema,
+  })
+  .strict()
+  .superRefine((input, context) => {
+    if (input.currentPassword === input.newPassword) {
+      context.addIssue({
+        code: 'custom',
+        path: ['newPassword'],
+        message: 'Choose a password different from your current one.',
+      })
+    }
+  })
+export type ChangePasswordRequest = z.input<typeof changePasswordRequestSchema>
+
+/** The session that asked stays signed in; every other one is revoked. */
+export const changePasswordResponseSchema = successResponseSchema(
+  z.object({ otherSessionsRevoked: z.number().int().nonnegative() }).strict(),
+)
+export type ChangePasswordResponse = z.infer<typeof changePasswordResponseSchema>
+
+export const signOutEverywhereRequestSchema = logoutRequestSchema
+export const signOutEverywhereResponseSchema = successResponseSchema(
+  z.object({ sessionsRevoked: z.number().int().nonnegative() }).strict(),
+)
+export type SignOutEverywhereResponse = z.infer<typeof signOutEverywhereResponseSchema>
+
+/** Deleting an account takes the password, even from a live session, and is permanent. */
+export const deleteAccountRequestSchema = z
+  .object({
+    password: currentPasswordSchema,
+    confirm: z.literal(true),
+  })
+  .strict()
+export type DeleteAccountRequest = z.input<typeof deleteAccountRequestSchema>
+
+export const deleteAccountResponseSchema = successResponseSchema(
+  z.object({ success: z.literal(true) }).strict(),
+)
+export type DeleteAccountResponse = z.infer<typeof deleteAccountResponseSchema>
+
 export const meDataSchema = z.discriminatedUnion('authenticated', [
   z
     .object({

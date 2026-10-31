@@ -1,4 +1,4 @@
-import { and, eq, gt, isNotNull, isNull, lt, or } from 'drizzle-orm'
+import { and, eq, gt, isNotNull, isNull, lt, ne, or } from 'drizzle-orm'
 
 import type { Database } from '@poker-range-trainer/database'
 import { authSessions, users } from '@poker-range-trainer/database'
@@ -53,6 +53,18 @@ export interface CreateUserWithInitialSessionInput {
 
 export interface CreateAdditionalSessionInput extends SessionHashes {
   userId: string
+  /**
+   * The hash the caller verified. The session is refused if the account no longer
+   * has it, so a sign-in racing a password change cannot outlive that change.
+   */
+  verifiedPasswordHash?: string
+}
+
+export interface ReplacePasswordInput {
+  userId: string
+  passwordHash: string
+  /** The session making the change, which alone stays signed in. */
+  keepSessionId: string
 }
 
 export interface TouchSessionInput {
@@ -68,10 +80,20 @@ export interface AuthRepository {
     session: AuthSessionMetadata
   }>
   findCredentialsByEmail(email: string): Promise<InternalCredentials | undefined>
-  createAdditionalSession(input: CreateAdditionalSessionInput): Promise<AuthSessionMetadata>
+  findPasswordHash(userId: string): Promise<string | undefined>
+  /** `undefined` when `verifiedPasswordHash` no longer matches the account. */
+  createAdditionalSession(
+    input: CreateAdditionalSessionInput,
+  ): Promise<AuthSessionMetadata | undefined>
   resolveActiveSession(tokenHash: string): Promise<ResolvedAuthSession | undefined>
   revokeSession(userId: string, sessionId: string): Promise<boolean>
   touchSessionLastSeen(input: TouchSessionInput): Promise<boolean>
+  /** Swaps the password and revokes every other session, as one change; returns how many. */
+  replacePassword(input: ReplacePasswordInput): Promise<number>
+  /** Revokes every live session the user has; returns how many. */
+  revokeAllSessions(userId: string): Promise<number>
+  /** Deletes the account and, by cascade, everything it owns. */
+  deleteUser(userId: string): Promise<boolean>
   /** Deletes sessions that expired or were revoked before `before`; returns how many. */
   purgeDeadSessions(before: Date): Promise<number>
 }
@@ -187,10 +209,35 @@ export class PostgresAuthRepository implements AuthRepository {
     return { ...publicUser(row), passwordHash: row.passwordHash }
   }
 
-  async createAdditionalSession(input: CreateAdditionalSessionInput): Promise<AuthSessionMetadata> {
+  async findPasswordHash(userId: string): Promise<string | undefined> {
+    const [row] = await this.database
+      .select({ passwordHash: users.passwordHash })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1)
+    return row?.passwordHash
+  }
+
+  async createAdditionalSession(
+    input: CreateAdditionalSessionInput,
+  ): Promise<AuthSessionMetadata | undefined> {
     const now = this.clock.now()
     this.assertNewSession(input, now)
-    return this.insertSession(this.database, input.userId, input, now)
+    const { verifiedPasswordHash } = input
+    if (verifiedPasswordHash === undefined) {
+      return this.insertSession(this.database, input.userId, input, now)
+    }
+    return this.database.transaction(async (transaction) => {
+      // The share lock waits out a password change in progress, so this reads its
+      // result: either that change revokes this session, or this one is refused.
+      const [owner] = await transaction
+        .select({ passwordHash: users.passwordHash })
+        .from(users)
+        .where(eq(users.id, input.userId))
+        .for('share')
+      if (owner?.passwordHash !== verifiedPasswordHash) return undefined
+      return this.insertSession(transaction, input.userId, input, now)
+    })
   }
 
   async resolveActiveSession(tokenHash: string): Promise<ResolvedAuthSession | undefined> {
@@ -274,6 +321,45 @@ export class PostgresAuthRepository implements AuthRepository {
     return rows.length === 1
   }
 
+  async replacePassword(input: ReplacePasswordInput): Promise<number> {
+    const now = this.clock.now()
+    return this.database.transaction(async (transaction) => {
+      await transaction
+        .update(users)
+        .set({ passwordHash: input.passwordHash, updatedAt: now })
+        .where(eq(users.id, input.userId))
+      const revoked = await transaction
+        .update(authSessions)
+        .set({ revokedAt: now })
+        .where(
+          and(
+            eq(authSessions.userId, input.userId),
+            ne(authSessions.id, input.keepSessionId),
+            isNull(authSessions.revokedAt),
+          ),
+        )
+        .returning({ id: authSessions.id })
+      return revoked.length
+    })
+  }
+
+  async revokeAllSessions(userId: string): Promise<number> {
+    const rows = await this.database
+      .update(authSessions)
+      .set({ revokedAt: this.clock.now() })
+      .where(and(eq(authSessions.userId, userId), isNull(authSessions.revokedAt)))
+      .returning({ id: authSessions.id })
+    return rows.length
+  }
+
+  async deleteUser(userId: string): Promise<boolean> {
+    const rows = await this.database
+      .delete(users)
+      .where(eq(users.id, userId))
+      .returning({ id: users.id })
+    return rows.length === 1
+  }
+
   async purgeDeadSessions(before: Date): Promise<number> {
     const rows = await this.database
       .delete(authSessions)
@@ -300,7 +386,7 @@ export class PostgresAuthRepository implements AuthRepository {
   }
 
   private async insertSession(
-    database: Pick<Database, 'insert'>,
+    database: Pick<Database, 'insert'> | Parameters<Parameters<Database['transaction']>[0]>[0],
     userId: string,
     session: SessionHashes,
     now: Date,

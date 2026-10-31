@@ -1,6 +1,10 @@
-import { Router } from 'express'
+import { Router, type Request, type Response } from 'express'
 import rateLimit from 'express-rate-limit'
 import {
+  changePasswordRequestSchema,
+  changePasswordResponseSchema,
+  deleteAccountRequestSchema,
+  deleteAccountResponseSchema,
   loginRequestSchema,
   loginResponseSchema,
   logoutRequestSchema,
@@ -8,6 +12,8 @@ import {
   meResponseSchema,
   registerRequestSchema,
   registerResponseSchema,
+  signOutEverywhereRequestSchema,
+  signOutEverywhereResponseSchema,
 } from '@poker-range-trainer/contracts'
 import type { Logger } from 'pino'
 
@@ -16,9 +22,19 @@ import { sendNoStoreJson } from '../http/response.js'
 import { parseRequestBody } from '../http/validation.js'
 import { sendProblem } from '../problem.js'
 import { clearAuthCookies, setAuthCookies } from './cookies.js'
-import { createAuthMiddleware, sendCsrfFailed, type AuthMiddleware } from './middleware.js'
+import {
+  createAuthMiddleware,
+  sendCsrfFailed,
+  sendUnauthenticated,
+  type AuthMiddleware,
+} from './middleware.js'
 import type { AuthRepository } from './repository.js'
-import { AuthService, EmailAlreadyExistsError, InvalidLoginError } from './service.js'
+import {
+  AuthService,
+  EmailAlreadyExistsError,
+  InvalidLoginError,
+  WrongPasswordError,
+} from './service.js'
 
 export interface AuthRouterOptions {
   config: ApiConfig
@@ -43,6 +59,17 @@ function authLimiter(config: ApiConfig) {
         code: 'RATE_LIMITED',
       })
     },
+  })
+}
+
+/** A field error, not a 401: the session is fine, and the client must not treat it as expired. */
+function sendWrongPassword(request: Request, response: Response, field: string): void {
+  sendProblem(request, response, {
+    status: 422,
+    title: 'Validation failed',
+    detail: 'That password is not correct.',
+    code: 'VALIDATION_FAILED',
+    issues: [{ path: [field], code: 'custom', message: 'That password is not correct.' }],
   })
 }
 
@@ -128,6 +155,70 @@ export function createAuthRouter(options: AuthRouterOptions): Router {
       clearAuthCookies(response, options.config)
       sendNoStoreJson(response, 200, logoutResponseSchema.parse({ data: { success: true } }))
     } catch (error) {
+      next(error)
+    }
+  })
+
+  router.post('/password', attempts, middleware.csrf, async (request, response, next) => {
+    const parsed = parseRequestBody(changePasswordRequestSchema, request, response)
+    if (!parsed.ok) return
+    const session = request.authContext
+    if (!session) return sendUnauthenticated(request, response)
+    try {
+      const otherSessionsRevoked = await service.changePassword(
+        session.user.id,
+        session.session.id,
+        parsed.data,
+      )
+      sendNoStoreJson(
+        response,
+        200,
+        changePasswordResponseSchema.parse({ data: { otherSessionsRevoked } }),
+      )
+    } catch (error) {
+      if (error instanceof WrongPasswordError) {
+        sendWrongPassword(request, response, 'currentPassword')
+        return
+      }
+      next(error)
+    }
+  })
+
+  router.post('/sign-out-everywhere', middleware.csrf, async (request, response, next) => {
+    if (
+      request.body !== undefined &&
+      !parseRequestBody(signOutEverywhereRequestSchema, request, response).ok
+    )
+      return
+    const session = request.authContext
+    if (!session) return sendUnauthenticated(request, response)
+    try {
+      const sessionsRevoked = await service.signOutEverywhere(session.user.id)
+      clearAuthCookies(response, options.config)
+      sendNoStoreJson(
+        response,
+        200,
+        signOutEverywhereResponseSchema.parse({ data: { sessionsRevoked } }),
+      )
+    } catch (error) {
+      next(error)
+    }
+  })
+
+  router.post('/delete-account', attempts, middleware.csrf, async (request, response, next) => {
+    const parsed = parseRequestBody(deleteAccountRequestSchema, request, response)
+    if (!parsed.ok) return
+    const session = request.authContext
+    if (!session) return sendUnauthenticated(request, response)
+    try {
+      await service.deleteAccount(session.user.id, parsed.data.password)
+      clearAuthCookies(response, options.config)
+      sendNoStoreJson(response, 200, deleteAccountResponseSchema.parse({ data: { success: true } }))
+    } catch (error) {
+      if (error instanceof WrongPasswordError) {
+        sendWrongPassword(request, response, 'password')
+        return
+      }
       next(error)
     }
   })

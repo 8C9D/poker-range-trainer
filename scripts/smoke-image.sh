@@ -71,6 +71,8 @@ status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
   "$base/api/v1/auth/register")"
 [ "$status" = 201 ] || fail "registering answered $status"
 
+# Twice, as a process-group kill does: the repeat must not cut the drain short.
+docker kill --signal SIGTERM "$app" >/dev/null
 docker stop --time 15 "$app" >/dev/null
 code="$(docker inspect --format '{{.State.ExitCode}}' "$app")"
 [ "$code" = 0 ] || fail "the server exited with $code on SIGTERM"

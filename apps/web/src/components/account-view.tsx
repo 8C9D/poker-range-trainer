@@ -15,6 +15,7 @@ import {
 } from '@poker-range-trainer/contracts'
 import type { z } from 'zod'
 
+import { AccountSecurity } from '@/components/account-security'
 import { GoalSelect } from '@/components/goal-select'
 import {
   ApiClientError,
@@ -124,7 +125,7 @@ function downloadJson(filename: string, text: string): void {
   URL.revokeObjectURL(url)
 }
 
-/** Account and data: the daily goal, the backup file, and the practice reset. */
+/** Account and data: the daily goal, the backup file, the practice reset, and security. */
 export function AccountView() {
   const [state, setState] = useState<AccountState>({ status: 'loading' })
   const [loadAttempt, setLoadAttempt] = useState(0)
@@ -483,6 +484,8 @@ export function AccountView() {
           </p>
         ) : null}
       </section>
+
+      <AccountSecurity />
     </section>
   )
 }

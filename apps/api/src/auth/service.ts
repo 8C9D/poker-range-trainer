@@ -28,6 +28,14 @@ export class InvalidLoginError extends Error {
   }
 }
 
+/** The password offered to authorize a change is not the account's. */
+export class WrongPasswordError extends Error {
+  constructor() {
+    super('That password is not correct.')
+    this.name = 'WrongPasswordError'
+  }
+}
+
 export interface AuthSessionResult {
   user: AuthenticatedUser
   tokens: AuthTokens
@@ -76,13 +84,44 @@ export class AuthService {
     if (!credentials || !verified) throw new InvalidLoginError()
 
     const tokens = this.generateTokens()
-    await this.repository.createAdditionalSession({
+    const session = await this.repository.createAdditionalSession({
       userId: credentials.id,
+      verifiedPasswordHash: credentials.passwordHash,
       ...this.sessionHashes(tokens),
     })
+    if (!session) throw new InvalidLoginError()
     const result = { user: publicUser(credentials), tokens }
     loginResponseSchema.parse({ data: { user: result.user } })
     return result
+  }
+
+  /** Keeps the asking session and signs out the rest; returns how many that was. */
+  async changePassword(
+    userId: string,
+    keepSessionId: string,
+    input: { currentPassword: string; newPassword: string },
+  ): Promise<number> {
+    await this.assertPassword(userId, input.currentPassword)
+    return this.repository.replacePassword({
+      userId,
+      keepSessionId,
+      passwordHash: await this.hash(input.newPassword),
+    })
+  }
+
+  signOutEverywhere(userId: string): Promise<number> {
+    return this.repository.revokeAllSessions(userId)
+  }
+
+  async deleteAccount(userId: string, password: string): Promise<void> {
+    await this.assertPassword(userId, password)
+    await this.repository.deleteUser(userId)
+  }
+
+  private async assertPassword(userId: string, password: string): Promise<void> {
+    const passwordHash = await this.repository.findPasswordHash(userId)
+    const verified = await this.verify(password, passwordHash)
+    if (!passwordHash || !verified) throw new WrongPasswordError()
   }
 
   private sessionHashes(tokens: AuthTokens) {

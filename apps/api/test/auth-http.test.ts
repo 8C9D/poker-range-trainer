@@ -74,6 +74,10 @@ class FakeRepository implements AuthRepository {
   })
   readonly touchSessionLastSeen = vi.fn(async () => true)
   readonly purgeDeadSessions = vi.fn(async () => 0)
+  readonly findPasswordHash = vi.fn(async () => undefined)
+  readonly replacePassword = vi.fn(async () => 0)
+  readonly revokeAllSessions = vi.fn(async () => 0)
+  readonly deleteUser = vi.fn(async () => true)
   readonly revokeSession = vi.fn(async (userId: string, sessionId: string) => {
     for (const [hash, resolved] of this.sessions) {
       if (resolved.user.id === userId && resolved.session.id === sessionId) {

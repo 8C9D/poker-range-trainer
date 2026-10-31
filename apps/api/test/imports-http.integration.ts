@@ -114,7 +114,12 @@ describe('HTTP legacy backup import and export against PostgreSQL', () => {
   const configuredUrl = requireDatabaseUrl()
   const adminPool = createPostgresPool(configuredUrl)
   const testUrl = databaseUrlFor(configuredUrl, testDatabaseName)
-  const config = loadConfig({ DATABASE_URL: testUrl, NODE_ENV: 'test', RATE_LIMIT_MAX: '1000' })
+  const config = loadConfig({
+    DATABASE_URL: testUrl,
+    NODE_ENV: 'test',
+    RATE_LIMIT_MAX: '1000',
+    AUTH_RATE_LIMIT_MAX: '1000',
+  })
   const logger = createLogger('silent')
   let testPool: Pool | undefined
   let app: ReturnType<typeof createApp>
@@ -800,5 +805,66 @@ describe('HTTP legacy backup import and export against PostgreSQL', () => {
     expect(progress.body.data.trailingThirtyDays.handsAnswered).toBeGreaterThanOrEqual(307)
     const [leak] = progress.body.data.handClassLeaks as { pools: Record<string, string[]> }[]
     expect(Object.keys(leak?.pools ?? {})).toHaveLength(100)
+  })
+
+  it('erases everything an account owns when it is deleted, and nothing else', async () => {
+    const owner = await register('delete-owner')
+    const bystander = await register('delete-bystander')
+    await importSeed(owner)
+    await importSeed(bystander)
+    const [range] = await listRanges(owner)
+    await request(app)
+      .post('/api/v1/practice/sessions')
+      .set(asUser(owner))
+      .send({
+        mode: 'recognition',
+        rangeId: range?.id,
+        idempotencyKey: randomUUID(),
+        answers: [
+          {
+            questionId: randomUUID(),
+            hand: 'AA',
+            answer: true,
+            answeredAt: '2024-01-01T00:00:00.000Z',
+          },
+        ],
+      })
+      .expect(200)
+
+    const owned = [
+      'auth_sessions',
+      'legacy_imports',
+      'ranges',
+      'range_hands',
+      'practice_sessions',
+      'practice_attempts',
+      'practice_submission_replays',
+      'range_practice_stats',
+      'range_hand_accuracy',
+      'review_states',
+      'user_training_goals',
+    ]
+    const countFor = async (userId: string) =>
+      Object.fromEntries(
+        await Promise.all(
+          owned.map(async (table) => [
+            table,
+            await countRows(`select count(*) from ${table} where user_id = $1`, [userId]),
+          ]),
+        ),
+      ) as Record<string, number>
+
+    expect((await countFor(owner.userId)).practice_attempts).toBe(1)
+    const bystanderBefore = await countFor(bystander.userId)
+
+    await request(app)
+      .post('/api/v1/auth/delete-account')
+      .set(asUser(owner))
+      .send({ password: 'password12345', confirm: true })
+      .expect(200)
+
+    expect(Object.values(await countFor(owner.userId))).toEqual(owned.map(() => 0))
+    expect(await countRows('select count(*) from users where id = $1', [owner.userId])).toBe(0)
+    expect(await countFor(bystander.userId)).toEqual(bystanderBefore)
   })
 })
