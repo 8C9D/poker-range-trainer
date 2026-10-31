@@ -4,17 +4,19 @@ import '@/globals.css'
 
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from 'react-router'
+import { createBrowserRouter, RouterProvider } from 'react-router'
 
-import { App } from '@/app'
+import { routes } from '@/routes'
 
 const container = document.getElementById('root')
 if (!container) throw new Error('index.html has no #root element to mount into.')
 
+// A data router, because only a data router can hold a navigation back while a
+// screen with unsaved work asks first (`useUnsavedGuard`).
+const router = createBrowserRouter(routes)
+
 createRoot(container).render(
   <StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
+    <RouterProvider router={router} />
   </StrictMode>,
 )

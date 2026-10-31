@@ -15,6 +15,7 @@ import {
 
 import { HandGrid } from '@/components/hand-grid'
 import { ApiClientError, createRange, getRange, updateRange } from '@/lib/api-client'
+import { useUnsavedGuard } from '@/lib/unsaved-guard'
 
 const gameTypes = GAME_TYPES.map((value) => [value, GAME_TYPE_LABELS[value]] as const)
 const tableSizes = TABLE_SIZES.map((value) => [value, TABLE_SIZE_LABELS[value]] as const)
@@ -48,6 +49,17 @@ function metadataToForm(metadata: ScenarioMetadata | null): MetadataForm {
   }
 }
 
+/** Whether the form says something other than the saved metadata does. */
+function metadataEdited(
+  enabled: boolean,
+  form: MetadataForm,
+  saved: ScenarioMetadata | null,
+): boolean {
+  if (enabled !== (saved !== null)) return true
+  const savedForm = metadataToForm(saved)
+  return (Object.keys(form) as (keyof MetadataForm)[]).some((key) => form[key] !== savedForm[key])
+}
+
 function formMetadata(form: MetadataForm): ScenarioMetadata | undefined {
   const stackDepthBb = form.stackDepthBb === '' ? undefined : Number(form.stackDepthBb)
   const metadata: ScenarioMetadata = {
@@ -64,11 +76,12 @@ function formMetadata(form: MetadataForm): ScenarioMetadata | undefined {
   return Object.keys(metadata).length === 0 ? undefined : metadata
 }
 
-function problemMessage(error: unknown): string {
-  return error instanceof ApiClientError
-    ? error.message
-    : 'We could not save this range. Try again.'
+function problemMessage(error: unknown, fallback: string): string {
+  return error instanceof ApiClientError ? error.message : fallback
 }
+
+const SAVE_FAILED = 'We could not save this range. Try again.'
+const LOAD_FAILED = 'We could not load this range.'
 
 interface RangeEditorProps {
   rangeId?: string
@@ -82,6 +95,7 @@ export function RangeEditor({ rangeId }: RangeEditorProps) {
   const [loading, setLoading] = useState(rangeId !== undefined)
   const [loadAttempt, setLoadAttempt] = useState(0)
   const [notFound, setNotFound] = useState(false)
+  const [loadError, setLoadError] = useState<string>()
   const [name, setName] = useState('')
   const [hands, setHands] = useState<Set<string>>(new Set())
   const [metadataEnabled, setMetadataEnabled] = useState(false)
@@ -112,7 +126,7 @@ export function RangeEditor({ rangeId }: RangeEditorProps) {
       .catch((caught: unknown) => {
         if (!active) return
         if (caught instanceof ApiClientError && caught.status === 404) setNotFound(true)
-        else setError(problemMessage(caught))
+        else setLoadError(problemMessage(caught, LOAD_FAILED))
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -122,38 +136,28 @@ export function RangeEditor({ rangeId }: RangeEditorProps) {
     }
   }, [rangeId, loadAttempt, applyRange])
 
-  useEffect(() => {
-    if (!dirty) return
-    const preventUnload = (event: BeforeUnloadEvent) => {
-      event.preventDefault()
-      event.returnValue = ''
-    }
-    const protectInternalNavigation = (event: MouseEvent) => {
-      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey) return
-      const target =
-        event.target instanceof Element ? event.target.closest('a[href^="/app"]') : null
-      if (target && !window.confirm('Discard unsaved range changes?')) {
-        event.preventDefault()
-        event.stopPropagation()
-      }
-    }
-    window.addEventListener('beforeunload', preventUnload)
-    document.addEventListener('click', protectInternalNavigation, true)
-    return () => {
-      window.removeEventListener('beforeunload', preventUnload)
-      document.removeEventListener('click', protectInternalNavigation, true)
-    }
-  }, [dirty])
+  const unsavedGuard = useUnsavedGuard(dirty, 'Discard unsaved range changes?')
 
   function reloadSaved(): void {
     setLoading(true)
     setNotFound(false)
+    setLoadError(undefined)
     setLoadAttempt((attempt) => attempt + 1)
   }
 
-  function updateMetadata(key: keyof MetadataForm, value: string): void {
-    setMetadata((current) => ({ ...current, [key]: value }))
+  /**
+   * Every change to the draft goes through here. While a save is in flight the
+   * draft is what is being saved, and the response replaces it, so a change made
+   * now would vanish; the fields stay focusable and simply hold still.
+   */
+  function edit(change: () => void): void {
+    if (pending) return
+    change()
     setDirty(true)
+  }
+
+  function updateMetadata(key: keyof MetadataForm, value: string): void {
+    edit(() => setMetadata((current) => ({ ...current, [key]: value })))
   }
 
   async function save(event: FormEvent<HTMLFormElement>): Promise<void> {
@@ -176,7 +180,11 @@ export function RangeEditor({ rangeId }: RangeEditorProps) {
           version: loaded.version,
           name: name.trim(),
           hands: [...hands],
-          metadata: metadataEnabled ? nextMetadata : null,
+          // Only when it changed: saving metadata retires any imported original
+          // of those fields, and a rename should not do that.
+          ...(metadataEdited(metadataEnabled, metadata, loaded.metadata)
+            ? { metadata: metadataEnabled ? nextMetadata : null }
+            : {}),
         })
         applyRange(response.data)
       } else {
@@ -185,6 +193,7 @@ export function RangeEditor({ rangeId }: RangeEditorProps) {
           hands: [...hands],
           ...(metadataEnabled && nextMetadata ? { metadata: nextMetadata } : {}),
         })
+        unsavedGuard.release()
         setDirty(false)
         navigate(`/app/library/${encodeURIComponent(response.data.id)}`)
       }
@@ -196,7 +205,7 @@ export function RangeEditor({ rangeId }: RangeEditorProps) {
         setNotFound(true)
         setError('This range no longer exists.')
       } else {
-        setError(problemMessage(caught))
+        setError(problemMessage(caught, SAVE_FAILED))
       }
     } finally {
       setPending(false)
@@ -217,6 +226,20 @@ export function RangeEditor({ rangeId }: RangeEditorProps) {
         <Link className="button button-primary" to="/app/library">
           Back to library
         </Link>
+      </section>
+    )
+  }
+
+  // No record behind the form means nothing to edit; showing it anyway would turn
+  // "Save changes" into creating a second range.
+  if (rangeId !== undefined && loaded === undefined) {
+    return (
+      <section className="library-state" role="alert">
+        <h1>Range unavailable</h1>
+        <p>{loadError ?? LOAD_FAILED}</p>
+        <button className="button button-primary" type="button" onClick={reloadSaved}>
+          Try again
+        </button>
       </section>
     )
   }
@@ -260,8 +283,8 @@ export function RangeEditor({ rangeId }: RangeEditorProps) {
             id={nameId}
             value={name}
             onChange={(event) => {
-              setName(event.target.value)
-              setDirty(true)
+              const next = event.target.value
+              edit(() => setName(next))
             }}
             required
             minLength={1}
@@ -271,10 +294,7 @@ export function RangeEditor({ rangeId }: RangeEditorProps) {
         </div>
         <HandGrid
           selectedHands={hands}
-          onChange={(nextHands) => {
-            setHands(nextHands)
-            setDirty(true)
-          }}
+          onChange={(nextHands) => edit(() => setHands(nextHands))}
         />
         <section className="metadata-panel" aria-labelledby="metadata-title">
           <div className="metadata-toggle">
@@ -287,8 +307,8 @@ export function RangeEditor({ rangeId }: RangeEditorProps) {
                 type="checkbox"
                 checked={metadataEnabled}
                 onChange={(event) => {
-                  setMetadataEnabled(event.target.checked)
-                  setDirty(true)
+                  const next = event.target.checked
+                  edit(() => setMetadataEnabled(next))
                 }}
               />
               Include context

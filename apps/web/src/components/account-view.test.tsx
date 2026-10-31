@@ -289,19 +289,25 @@ describe('AccountView', () => {
     expect(previewBackup).not.toHaveBeenCalled()
   })
 
-  it('offers no import when the backup was already imported', async () => {
+  it('offers a restore, not a merge, for a backup that was already imported', async () => {
     previewBackup.mockResolvedValueOnce({ data: alreadyImportedPreview })
+    commitBackup.mockResolvedValueOnce(commitResponse('replace'))
     const user = await renderAccount()
 
     await chooseBackup(user, backupFile())
 
-    expect(
-      await screen.findByText(
-        'This backup is already in your library, so there is nothing to import.',
-      ),
-    ).toBeInTheDocument()
+    expect(await screen.findByText(/merging it would add nothing/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Merge' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Replace' })).not.toBeInTheDocument()
+    const replace = screen.getByRole('button', { name: 'Replace' })
+    expect(replace).toBeDisabled()
+
+    await user.click(
+      screen.getByRole('checkbox', { name: 'I understand this replaces my current library' }),
+    )
+    await user.click(replace)
+    await waitFor(() =>
+      expect(commitBackup).toHaveBeenCalledWith(expect.objectContaining({ strategy: 'replace' })),
+    )
   })
 
   it('surfaces a 409 from the commit and offers a fresh preview', async () => {

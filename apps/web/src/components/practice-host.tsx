@@ -22,6 +22,7 @@ import {
 import { HandGrid } from '@/components/hand-grid'
 import { ApiClientError, getRange, getRangePractice, submitPracticeSession } from '@/lib/api-client'
 import { readDrillPools } from '@/lib/drill-handoff'
+import { useUnsavedGuard } from '@/lib/unsaved-guard'
 import {
   DEFAULT_QUESTION_COUNT,
   buildDrillPlan,
@@ -280,15 +281,7 @@ export function PracticeHost() {
   }, [mode, seconds, drill, outcome.status, run, finish])
 
   const unsaved = outcome.status !== 'saved' && (run.answers.length > 0 || run.built.size > 0)
-  useEffect(() => {
-    if (!unsaved) return
-    const preventUnload = (event: BeforeUnloadEvent) => {
-      event.preventDefault()
-      event.returnValue = ''
-    }
-    window.addEventListener('beforeunload', preventUnload)
-    return () => window.removeEventListener('beforeunload', preventUnload)
-  }, [unsaved])
+  useUnsavedGuard(unsaved, 'Leave this drill? Your answers have not been saved.')
 
   const dealing =
     drill !== undefined && !drill.plan.empty && mode !== 'build' && outcome.status === 'idle'

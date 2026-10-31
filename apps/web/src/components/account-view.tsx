@@ -54,7 +54,7 @@ const WARNING_LABELS: Record<LegacyPreservationWarning['kind'], string> = {
 /** What each conflict kind means for the person choosing how to import. */
 const CONFLICT_MEANINGS: Record<LegacyImportConflict['kind'], string> = {
   already_imported:
-    'You have imported this exact file before. Importing it again would not add anything.',
+    'You have imported this exact file before. Merging it again would add nothing; replacing restores your library from it.',
   range_id_collision:
     'Some ranges in the file are already in your library. Merge leaves the copies you have alone and skips them; Replace archives your current library first.',
   merge_required:
@@ -571,12 +571,13 @@ function ImportPreview({
         </div>
       ) : null}
 
-      {preview.alreadyImported ? (
-        <p className="account-note">
-          This backup is already in your library, so there is nothing to import.
-        </p>
-      ) : (
-        <div className="account-choice">
+      <div className="account-choice">
+        {preview.alreadyImported ? (
+          <p className="account-note">
+            This backup has been imported before, so merging it would add nothing. You can still
+            restore your library from it.
+          </p>
+        ) : (
           <div className="account-buttons">
             <button
               className="button button-primary"
@@ -588,30 +589,30 @@ function ImportPreview({
             </button>
             <span className="account-note">Adds the new ranges and skips the ones you have.</span>
           </div>
-          <label className="checkbox-label">
-            <input
-              type="checkbox"
-              checked={replaceAcknowledged}
-              disabled={committing}
-              onChange={(event) => onAcknowledgeReplace(event.target.checked)}
-            />
-            I understand this replaces my current library
-          </label>
-          <div className="account-buttons">
-            <button
-              className="button danger-button"
-              type="button"
-              disabled={!replaceAcknowledged || committing}
-              onClick={() => onCommit('replace')}
-            >
-              {committing ? 'Importing…' : 'Replace'}
-            </button>
-            <span className="account-note">
-              Archives everything in the library first, then imports the file.
-            </span>
-          </div>
+        )}
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={replaceAcknowledged}
+            disabled={committing}
+            onChange={(event) => onAcknowledgeReplace(event.target.checked)}
+          />
+          I understand this replaces my current library
+        </label>
+        <div className="account-buttons">
+          <button
+            className="button danger-button"
+            type="button"
+            disabled={!replaceAcknowledged || committing}
+            onClick={() => onCommit('replace')}
+          >
+            {committing ? 'Importing…' : 'Replace'}
+          </button>
+          <span className="account-note">
+            Archives everything in the library first, then imports the file.
+          </span>
         </div>
-      )}
+      </div>
 
       {commitError ? (
         <div className="account-rejected" role="alert">

@@ -38,7 +38,7 @@ const read = vi.mocked(getRange)
 const update = vi.mocked(updateRange)
 const create = vi.mocked(createRange)
 
-function problem(status: number, code: 'CONFLICT' | 'NOT_FOUND') {
+function problem(status: number, code: 'CONFLICT' | 'NOT_FOUND' | 'INTERNAL_ERROR') {
   return new ApiClientError('problem', code, {
     status,
     problem: {
@@ -108,6 +108,54 @@ describe('RangeEditor', () => {
         expect.objectContaining({ version: 2, metadata: null }),
       ),
     )
+  })
+
+  it('sends metadata only when it changed, so a rename leaves it alone', async () => {
+    renderAt(<RangeEditor rangeId={rangeId} />, '/app/library')
+    const input = await screen.findByDisplayValue('BTN open')
+    const user = userEvent.setup()
+    await user.type(input, ' v2')
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => expect(update).toHaveBeenCalledOnce())
+    expect(update.mock.calls[0]?.[1]).toEqual({
+      version: 2,
+      name: 'BTN open v2',
+      hands: ['AA'],
+    })
+  })
+
+  it('holds the draft still while a save is in flight', async () => {
+    let finishSave: (value: { data: RangeRead }) => void = () => undefined
+    update.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishSave = resolve
+      }),
+    )
+    renderAt(<RangeEditor rangeId={rangeId} />, '/app/library')
+    const input = await screen.findByDisplayValue('BTN open')
+    const user = userEvent.setup()
+    await user.type(input, ' v2')
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    await screen.findByRole('button', { name: 'Saving…' })
+
+    await user.type(input, ' typed too late')
+    expect(input).toHaveValue('BTN open v2')
+
+    finishSave({ data: { ...loadedRange, version: 3, name: 'BTN open v2' } })
+    expect(await screen.findByRole('button', { name: 'Save changes' })).toBeEnabled()
+    expect(input).toHaveValue('BTN open v2')
+  })
+
+  it('never offers the form for a range that failed to load', async () => {
+    read.mockRejectedValueOnce(problem(500, 'INTERNAL_ERROR'))
+    renderAt(<RangeEditor rangeId={rangeId} />, '/app/library')
+
+    expect(await screen.findByRole('heading', { name: 'Range unavailable' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Save changes' })).not.toBeInTheDocument()
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByDisplayValue('BTN open')).toBeInTheDocument()
+    expect(create).not.toHaveBeenCalled()
   })
 
   it('preserves edits after a conflict and lets the user review the current saved range', async () => {

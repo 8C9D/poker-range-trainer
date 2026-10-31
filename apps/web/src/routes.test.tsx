@@ -1,9 +1,9 @@
 import { cleanup, render, screen } from '@testing-library/react'
-import { MemoryRouter } from 'react-router'
+import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { App } from '@/app'
 import { getCurrentUser } from '@/lib/api-client'
+import { routes } from '@/routes'
 
 vi.mock('@/lib/api-client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api-client')>()
@@ -14,11 +14,7 @@ const currentUser = vi.mocked(getCurrentUser)
 const rangeId = '7a7e6f3e-17be-4b69-a31b-1f902417c560'
 
 function open(path: string) {
-  return render(
-    <MemoryRouter initialEntries={[path]}>
-      <App />
-    </MemoryRouter>,
-  )
+  return render(<RouterProvider router={createMemoryRouter(routes, { initialEntries: [path] })} />)
 }
 
 describe('routes', () => {
