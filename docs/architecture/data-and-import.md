@@ -48,7 +48,8 @@ Importing is deliberately non-destructive:
 4. The backup file itself is never modified, so it remains a recovery net.
 
 The importer is idempotent through a user-scoped checksum/import record, so a
-repeated upload cannot duplicate sessions or ranges. Conflict handling is
+repeated upload cannot duplicate sessions or ranges: merging a file a second time
+is refused, and replacing from it again restores the library to that file. Conflict handling is
 explicit: an initial import creates records; a later import requires a user
 choice to merge or replace after a preview. No automatic background import
 occurs.

@@ -104,8 +104,8 @@ at all: it calls its own origin. Production configuration requires a
 database URL, session secret, allowed frontend origin, and explicit runtime mode.
 The API applies HTTPS-aware cookies, CORS, rate limits, payload limits, security
 headers, structured JSON logging, health/readiness endpoints, and centralized
-error middleware. Database migration, backup, and deployment commands are
-documented alongside Docker development.
+error middleware. Database migration, backup, and deployment commands are in
+[deployment.md](../deployment.md).
 
 ## Key tradeoffs
 

@@ -1,4 +1,5 @@
 import {
+  MAX_DRILL_POOL_RANGES,
   progressReadModelSchema,
   rangePracticeReadSchema,
   todayReadModelSchema,
@@ -9,6 +10,7 @@ import {
   type TodayReadModel,
 } from '@poker-range-trainer/contracts'
 import {
+  DAY_MS,
   isoDateOfDayNumber,
   zonedCalendarDays,
   type CalendarDays,
@@ -21,6 +23,7 @@ import {
   positionBiasPools,
   summarizeMistakeBias,
 } from '@poker-range-trainer/domain/domain/mistakeBias'
+import type { PokerHand } from '@poker-range-trainer/domain/domain/pokerHands'
 import { practiceAccuracyPercentage } from '@poker-range-trainer/domain/domain/practiceStats'
 import {
   currentStreak,
@@ -71,7 +74,13 @@ export interface PracticeRepository {
   ): Promise<PracticeSessionSubmissionResponse>
   /** `undefined` when the range is not one of the owner's live ranges. */
   readRangePractice(userId: string, rangeId: string): Promise<RangePracticeRead | undefined>
-  readLibrarySnapshot(userId: string): Promise<LibrarySnapshot>
+  /**
+   * `sessions` holds only what was played since `sessionsSince`, and rows may be
+   * merged into 15-minute buckets, which keeps every calendar-day total intact.
+   */
+  readLibrarySnapshot(userId: string, sessionsSince: Date): Promise<LibrarySnapshot>
+  /** When the owner practiced, across all their history, newest first. */
+  readPracticeTimes(userId: string): Promise<string[]>
 }
 
 const TODAY_WINDOW_DAYS = 7
@@ -80,6 +89,12 @@ const ACTIVITY_DAYS = 7
 const TREND_WEEKS = 8
 const MAX_DUE_RANGES = 100
 const MAX_WEAK_HANDS = 20
+/**
+ * How far back the reports look: the trend's weeks, plus the six days a first
+ * week can begin before them, plus time-zone slack. Reading only this keeps Today
+ * and Progress as fast for a five-year player as for a new one.
+ */
+const RECENT_HISTORY_DAYS = TREND_WEEKS * 7 + 9
 
 function playedAtOf(sessions: Record<string, PracticeSessionRecord[]>): string[] {
   return Object.values(sessions).flatMap((records) => records.map((record) => record.playedAt))
@@ -115,6 +130,21 @@ function sharpestRangeSummary(
 }
 
 /**
+ * A drill's pools, within the contract's reach: the ranges with the most hands in
+ * them, since a library of hundreds can share one leak across more than one drill
+ * can cover.
+ */
+function boundedPools<Pools extends Record<string, readonly PokerHand[]>>(pools: Pools): Pools {
+  const entries = Object.entries(pools)
+  if (entries.length <= MAX_DRILL_POOL_RANGES) return pools
+  return Object.fromEntries(
+    entries
+      .sort(([, left], [, right]) => right.length - left.length)
+      .slice(0, MAX_DRILL_POOL_RANGES),
+  ) as Pools
+}
+
+/**
  * Application boundary for practice. It owns no persistence and no framework:
  * the repository loads records, the domain does the maths, and every projection
  * leaves through its contract schema so an inconsistent read model fails here
@@ -139,11 +169,28 @@ export class PracticeService {
     return rangePracticeReadSchema.parse(read)
   }
 
+  private recentSnapshot(userId: string, generatedAt: string): Promise<LibrarySnapshot> {
+    const since = new Date(new Date(generatedAt).getTime() - RECENT_HISTORY_DAYS * DAY_MS)
+    return this.repository.readLibrarySnapshot(userId, since)
+  }
+
+  /** Only a run reaching the start of the recent window can continue beyond it. */
+  private async streakDays(
+    userId: string,
+    sessions: Record<string, PracticeSessionRecord[]>,
+    generatedAt: string,
+    calendar: CalendarDays,
+  ): Promise<number> {
+    const streak = currentStreak(playedAtOf(sessions), generatedAt, calendar)
+    if (streak < RECENT_HISTORY_DAYS - 2) return streak
+    return currentStreak(await this.repository.readPracticeTimes(userId), generatedAt, calendar)
+  }
+
   /** `timeZone` must be an installed IANA zone; the router validates it first. */
   async today(userId: string, timeZone: string): Promise<TodayReadModel> {
     const calendar = zonedCalendarDays(timeZone)
     const generatedAt = this.clock.now().toISOString()
-    const snapshot = await this.repository.readLibrarySnapshot(userId)
+    const snapshot = await this.recentSnapshot(userId, generatedAt)
     const { handAccuracy, practiceStats, ranges, reviewStates, sessions } = snapshot
 
     const goal = evaluateDailyGoal(sessions, generatedAt, snapshot.trainingGoal ?? 0, calendar)
@@ -174,7 +221,7 @@ export class PracticeService {
 
     return todayReadModelSchema.parse({
       generatedAt,
-      streakDays: currentStreak(playedAtOf(sessions), generatedAt, calendar),
+      streakDays: await this.streakDays(userId, sessions, generatedAt, calendar),
       dailyGoal: {
         target: snapshot.trainingGoal,
         handsAnswered: goal.answered,
@@ -212,7 +259,7 @@ export class PracticeService {
   async progress(userId: string, timeZone: string): Promise<ProgressReadModel> {
     const calendar = zonedCalendarDays(timeZone)
     const generatedAt = this.clock.now().toISOString()
-    const snapshot = await this.repository.readLibrarySnapshot(userId)
+    const snapshot = await this.recentSnapshot(userId, generatedAt)
     const { handAccuracy, practiceStats, ranges, sessions } = snapshot
 
     const allTime = summarizeLibraryAnalytics(Object.values(practiceStats))
@@ -220,7 +267,7 @@ export class PracticeService {
 
     return progressReadModelSchema.parse({
       generatedAt,
-      streakDays: currentStreak(playedAtOf(sessions), generatedAt, calendar),
+      streakDays: await this.streakDays(userId, sessions, generatedAt, calendar),
       allTime: {
         rangesPracticed: allTime.rangesPracticed,
         handsAnswered: allTime.totalAttempts,
@@ -250,13 +297,13 @@ export class PracticeService {
         correct: leak.correct,
         accuracyPercentage: leak.accuracy,
         missedHands: leak.missedHands,
-        pools: leak.pools,
+        pools: boundedPools(leak.pools),
       })),
       mistakeBias: summarizeMistakeBias(handAccuracy),
       positionLeans: mistakeBiasByPosition(ranges, handAccuracy).map((lean) => ({
         position: lean.position,
         summary: lean.summary,
-        pools: positionBiasPools(ranges, handAccuracy, lean),
+        pools: boundedPools(positionBiasPools(ranges, handAccuracy, lean)),
       })),
       weakestHands: rankWeakHands(handAccuracy, MAX_WEAK_HANDS).map((entry) => ({
         rangeId: entry.rangeId,

@@ -183,14 +183,44 @@ const CAUGHT_UP_REVIEWS: Record<string, RangeReviewState> = {
   [ids.gamma]: reviewState(ids.gamma, '2026-07-15T12:00:00.000Z', '2026-07-08T12:00:00.000Z'),
 }
 
-function serviceFor(snapshot: LibrarySnapshot, read?: RangePracticeRead) {
+function serviceFor(
+  snapshot: LibrarySnapshot,
+  read?: RangePracticeRead,
+  practiceTimes: string[] = [],
+) {
   const repository: PracticeRepository = {
     submit: vi.fn(),
     readRangePractice: vi.fn(async () => read),
     readLibrarySnapshot: vi.fn(async () => snapshot),
+    readPracticeTimes: vi.fn(async () => practiceTimes),
   } as unknown as PracticeRepository
   return { repository, service: new PracticeService(repository, { now: () => new Date(NOW) }) }
 }
+
+const daysBefore = (days: number) =>
+  new Date(Date.parse(NOW) - days * 24 * 60 * 60 * 1000).toISOString()
+
+describe('PracticeService streak reach', () => {
+  it('reads further back only for a streak that reaches the recent window edge', async () => {
+    const recent = Array.from({ length: 65 }, (_, day) => ({
+      rangeId: ids.alpha,
+      playedAt: daysBefore(day),
+      totalQuestions: 1,
+      correctAnswers: 1,
+    }))
+    const allTime = Array.from({ length: 200 }, (_, day) => daysBefore(day))
+    const { repository, service } = serviceFor(
+      { ...librarySnapshot(), sessions: { [ids.alpha]: recent } },
+      undefined,
+      allTime,
+    )
+
+    const today = await service.today(OWNER, 'UTC')
+
+    expect(repository.readPracticeTimes).toHaveBeenCalledWith(OWNER)
+    expect(today.streakDays).toBe(200)
+  })
+})
 
 describe('PracticeService.today', () => {
   it('projects the streak, goal, week and review queue of one library', async () => {
@@ -198,7 +228,12 @@ describe('PracticeService.today', () => {
 
     const today = await service.today(OWNER, 'UTC')
 
-    expect(repository.readLibrarySnapshot).toHaveBeenCalledWith(OWNER)
+    // Sixty-five days: enough for every report, however long the owner has played.
+    expect(repository.readLibrarySnapshot).toHaveBeenCalledWith(
+      OWNER,
+      new Date(Date.parse(NOW) - 65 * 24 * 60 * 60 * 1000),
+    )
+    expect(repository.readPracticeTimes).not.toHaveBeenCalled()
     expect(todayReadModelSchema.safeParse(today).success).toBe(true)
     expect(today.generatedAt).toBe(NOW)
     expect(today.streakDays).toBe(3)

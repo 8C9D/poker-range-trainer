@@ -737,4 +737,68 @@ describe('HTTP legacy backup import and export against PostgreSQL', () => {
     const saved = file.ranges.find((candidate) => candidate.id === 'rng-btn-open')
     expect(saved?.metadata).toEqual({ extension: 'kept' })
   })
+
+  it('reports on a library of hundreds with a streak older than the report windows', async () => {
+    const owner = await register('import-large-library')
+    const day = 24 * 60 * 60 * 1000
+    const now = Date.now()
+    const longest = 'range-000'
+    const timestamp = '2026-01-01T00:00:00.000Z'
+    const ids = Array.from({ length: 120 }, (_, index) => `range-${String(index).padStart(3, '0')}`)
+    const backup = legacyBackupV1Schema.parse({
+      version: 1,
+      exportedAt: new Date(now).toISOString(),
+      ranges: ids.map((id) => ({
+        id,
+        name: id,
+        hands: ['AA', 'KK'],
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      })),
+      practiceStats: {},
+      // Every range shares one leak: more ranges than one drill's pools may name.
+      handAccuracy: Object.fromEntries(
+        ids.map((id) => [
+          id,
+          { AA: { hand: 'AA', attempts: 4, correct: 1, falsePositives: 0, falseNegatives: 3 } },
+        ]),
+      ),
+      actionAccuracy: {},
+      sessionHistory: {
+        [longest]: [
+          ...Array.from({ length: 90 }, (_, age) => ({
+            rangeId: longest,
+            playedAt: new Date(now - age * day).toISOString(),
+            totalQuestions: 10,
+            correctAnswers: 5,
+          })),
+          // Two drills in one quarter hour must both count.
+          {
+            rangeId: longest,
+            playedAt: new Date(now - 1000).toISOString(),
+            totalQuestions: 7,
+            correctAnswers: 7,
+          },
+        ],
+      },
+      reviewStates: {},
+    })
+    const previewed = await preview(owner, backup)
+    await commit(owner, backup, 'merge', previewed.digest)
+
+    const today = await request(app)
+      .get('/api/v1/practice/today?timeZone=UTC')
+      .set(asUser(owner))
+      .expect(200)
+    expect(today.body.data.streakDays).toBe(90)
+
+    const progress = await request(app)
+      .get('/api/v1/practice/progress?timeZone=UTC')
+      .set(asUser(owner))
+      .expect(200)
+    expect(progress.body.data.streakDays).toBe(90)
+    expect(progress.body.data.trailingThirtyDays.handsAnswered).toBeGreaterThanOrEqual(307)
+    const [leak] = progress.body.data.handClassLeaks as { pools: Record<string, string[]> }[]
+    expect(Object.keys(leak?.pools ?? {})).toHaveLength(100)
+  })
 })

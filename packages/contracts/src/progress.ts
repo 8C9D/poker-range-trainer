@@ -65,11 +65,14 @@ const uniqueHandsSchema = z
     })
   })
 
+/** One drill's reach: a queue of ranges longer than this is not a drill anyone runs. */
+export const MAX_DRILL_POOL_RANGES = 100
+
 const drillPoolsSchema = z.record(idSchema, uniqueHandsSchema).superRefine((pools, context) => {
-  if (Object.keys(pools).length > 100) {
+  if (Object.keys(pools).length > MAX_DRILL_POOL_RANGES) {
     context.addIssue({
       code: 'custom',
-      message: 'A drill pool report cannot name more than 100 ranges.',
+      message: `A drill pool report cannot name more than ${MAX_DRILL_POOL_RANGES} ranges.`,
     })
   }
 })

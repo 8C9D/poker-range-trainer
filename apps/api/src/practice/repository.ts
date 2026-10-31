@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 
-import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
 
 import {
   practiceSessionSubmissionResponseSchema,
@@ -84,6 +84,20 @@ type RangeRow = typeof ranges.$inferSelect
 
 /** How much session history one range read carries; the contract caps it there too. */
 const RECENT_SESSION_LIMIT = 20
+
+/**
+ * Sessions merged for reporting. Every real time-zone offset is a whole number of
+ * quarter hours, so a bucket never straddles anyone's midnight and each calendar
+ * day's totals are unchanged; the analytics stay in the domain, on fewer rows.
+ */
+const sessionBucket = sql<string>`date_bin('15 minutes', ${practiceSessions.completedAt}, timestamptz '1970-01-01T00:00:00Z')`
+
+/**
+ * More merged rows than any person could produce. A hand-built import can reach
+ * it, and past this point its reports stop counting rather than stall the process
+ * every other user is being served from.
+ */
+const MAX_REPORTED_SESSION_ROWS = 100_000
 
 function requestFingerprint(submission: PracticeSessionSubmission): string {
   const canonical =
@@ -378,15 +392,30 @@ export class PostgresPracticeRepository implements PracticeRepository {
    * `sessionsForLibrary` does — a soft-deleted range's sessions would otherwise
    * keep inflating volumes that every per-range cut beside them reports as gone.
    */
-  async readLibrarySnapshot(userId: string): Promise<LibrarySnapshot> {
-    return this.database.transaction((transaction) => this.librarySnapshot(transaction, userId), {
-      isolationLevel: 'repeatable read',
-      accessMode: 'read only',
-    })
+  async readLibrarySnapshot(userId: string, sessionsSince: Date): Promise<LibrarySnapshot> {
+    return this.database.transaction(
+      (transaction) => this.librarySnapshot(transaction, userId, sessionsSince),
+      { isolationLevel: 'repeatable read', accessMode: 'read only' },
+    )
+  }
+
+  async readPracticeTimes(userId: string): Promise<string[]> {
+    const rows = await this.database
+      .selectDistinct({ playedAt: sessionBucket })
+      .from(practiceSessions)
+      .innerJoin(ranges, eq(ranges.id, practiceSessions.rangeId))
+      .where(and(eq(practiceSessions.userId, userId), isNull(ranges.deletedAt)))
+      .orderBy(desc(sessionBucket))
+      .limit(MAX_REPORTED_SESSION_ROWS)
+    return rows.map((row) => new Date(row.playedAt).toISOString())
   }
 
   /** Reports cross-check these tables, so they must all describe one moment. */
-  private async librarySnapshot(database: Queryable, userId: string): Promise<LibrarySnapshot> {
+  private async librarySnapshot(
+    database: Queryable,
+    userId: string,
+    sessionsSince: Date,
+  ): Promise<LibrarySnapshot> {
     const [goal] = await database
       .select({ dailyHandGoal: userTrainingGoals.dailyHandGoal })
       .from(userTrainingGoals)
@@ -426,21 +455,29 @@ export class PostgresPracticeRepository implements PracticeRepository {
     const sessionRows = await database
       .select({
         rangeId: practiceSessions.rangeId,
-        completedAt: practiceSessions.completedAt,
-        totalQuestions: practiceSessions.totalQuestions,
-        correctAnswers: practiceSessions.correctAnswers,
+        playedAt: sessionBucket,
+        totalQuestions: sql<string>`sum(${practiceSessions.totalQuestions})`,
+        correctAnswers: sql<string>`sum(${practiceSessions.correctAnswers})`,
       })
       .from(practiceSessions)
-      .where(and(eq(practiceSessions.userId, userId), inArray(practiceSessions.rangeId, liveIds)))
-      .orderBy(asc(practiceSessions.completedAt))
+      .where(
+        and(
+          eq(practiceSessions.userId, userId),
+          inArray(practiceSessions.rangeId, liveIds),
+          gte(practiceSessions.completedAt, sessionsSince),
+        ),
+      )
+      .groupBy(practiceSessions.rangeId, sessionBucket)
+      .orderBy(desc(sessionBucket))
+      .limit(MAX_REPORTED_SESSION_ROWS)
     const sessions: Record<string, PracticeSessionRecord[]> = {}
     for (const row of sessionRows) {
       const records = sessions[row.rangeId] ?? []
       records.push({
         rangeId: row.rangeId,
-        playedAt: row.completedAt.toISOString(),
-        totalQuestions: row.totalQuestions,
-        correctAnswers: row.correctAnswers,
+        playedAt: new Date(row.playedAt).toISOString(),
+        totalQuestions: Number(row.totalQuestions),
+        correctAnswers: Number(row.correctAnswers),
       })
       sessions[row.rangeId] = records
     }

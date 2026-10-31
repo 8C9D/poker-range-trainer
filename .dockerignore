@@ -1,0 +1,17 @@
+# The image is the API and the web bundle, built from these sources alone.
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+**/test-results
+**/playwright-report
+.git
+.github
+.claude
+.env
+.env.*
+archived
+docs
+mobile
+screenshots
+src
+*.md
