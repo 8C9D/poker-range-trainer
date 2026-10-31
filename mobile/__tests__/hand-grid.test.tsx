@@ -1,9 +1,41 @@
 import { fireEvent, render } from '@testing-library/react-native';
 
-import { HandGrid, handAtPoint } from '../components/HandGrid';
+import { HandGrid, handAtPoint, handsAlong } from '../components/HandGrid';
 
 // Pure mapping used by drag-paint — reliably testable without simulating gestures.
 // Grid is 13×13; with side 130 each cell is 10px.
+describe('handsAlong', () => {
+  it('fills in every cell a fast swipe crosses between two updates', () => {
+    expect([...new Set(handsAlong(5, 5, 125, 5, 130))]).toEqual([
+      'AKs',
+      'AQs',
+      'AJs',
+      'ATs',
+      'A9s',
+      'A8s',
+      'A7s',
+      'A6s',
+      'A5s',
+      'A4s',
+      'A3s',
+      'A2s',
+    ]);
+  });
+
+  it('crosses the diagonal too', () => {
+    expect(new Set(handsAlong(5, 5, 125, 125, 130))).toContain('88');
+    expect(new Set(handsAlong(5, 5, 125, 125, 130))).toContain('22');
+  });
+
+  it('ignores the part of a stroke outside the grid', () => {
+    expect(handsAlong(125, 5, 200, 5, 130).every((hand) => hand === 'A2s')).toBe(true);
+  });
+
+  it('paints nothing before the grid has been measured', () => {
+    expect(handsAlong(0, 0, 100, 100, 0)).toEqual([]);
+  });
+});
+
 describe('handAtPoint', () => {
   it('maps the grid corners and center to the right hands', () => {
     expect(handAtPoint(5, 5, 130)).toBe('AA'); // top-left = pair

@@ -27,6 +27,34 @@ export function handAtPoint(x: number, y: number, side: number): PokerHand | nul
   return HAND_MATRIX[row][col];
 }
 
+/**
+ * Every hand a straight stroke crosses, in order, from just past its start to its
+ * end. A fast swipe moves several cells between two gesture updates, and the grid
+ * promises a continuous selection, so the updates alone would leave gaps.
+ */
+export function handsAlong(
+  fromX: number,
+  fromY: number,
+  toX: number,
+  toY: number,
+  side: number,
+): PokerHand[] {
+  if (side <= 0) return [];
+  const halfCell = side / MATRIX_SIZE / 2;
+  const samples = Math.max(1, Math.ceil(Math.hypot(toX - fromX, toY - fromY) / halfCell));
+  const hands: PokerHand[] = [];
+  for (let sample = 1; sample <= samples; sample += 1) {
+    const progress = sample / samples;
+    const hand = handAtPoint(
+      fromX + (toX - fromX) * progress,
+      fromY + (toY - fromY) * progress,
+      side,
+    );
+    if (hand !== null) hands.push(hand);
+  }
+  return hands;
+}
+
 interface HandCellProps {
   hand: PokerHand;
   selected: boolean;
@@ -90,6 +118,7 @@ export function HandGrid({ selected, onSetSelected, disabled = false }: HandGrid
   const sideRef = useRef(0);
   const paintModeRef = useRef(false);
   const paintedRef = useRef<Set<PokerHand>>(new Set());
+  const lastPointRef = useRef({ x: 0, y: 0 });
   // Keep the latest selection + setter in refs (synced in an effect, never during
   // render) so the long-lived gesture callbacks read current values without the
   // gesture being rebuilt on every selection change.
@@ -116,6 +145,7 @@ export function HandGrid({ selected, onSetSelected, disabled = false }: HandGrid
         .activeOffsetX([-10, 10])
         .activeOffsetY([-10, 10])
         .onStart((e) => {
+          lastPointRef.current = { x: e.x, y: e.y };
           const hand = handAtPoint(e.x, e.y, sideRef.current);
           if (hand === null) return;
           paintModeRef.current = !selectedRef.current.has(hand);
@@ -123,10 +153,13 @@ export function HandGrid({ selected, onSetSelected, disabled = false }: HandGrid
           onSetSelectedRef.current(hand, paintModeRef.current);
         })
         .onUpdate((e) => {
-          const hand = handAtPoint(e.x, e.y, sideRef.current);
-          if (hand === null || paintedRef.current.has(hand)) return;
-          paintedRef.current.add(hand);
-          onSetSelectedRef.current(hand, paintModeRef.current);
+          const { x, y } = lastPointRef.current;
+          lastPointRef.current = { x: e.x, y: e.y };
+          for (const hand of handsAlong(x, y, e.x, e.y, sideRef.current)) {
+            if (paintedRef.current.has(hand)) continue;
+            paintedRef.current.add(hand);
+            onSetSelectedRef.current(hand, paintModeRef.current);
+          }
         })
         .onFinalize(() => {
           paintedRef.current = new Set();

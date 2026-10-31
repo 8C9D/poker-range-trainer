@@ -17,7 +17,9 @@ export function sendProblem(request: Request, response: Response, input: Problem
     type: `${problemBaseUrl}/${input.code.toLowerCase().replaceAll('_', '-')}`,
     title: input.title,
     status: input.status,
-    instance: request.path,
+    // The whole path: inside a mounted router `path` is relative to the mount, and a
+    // query string can carry search text that has no place in an error record.
+    instance: (request.originalUrl ?? request.path).split('?', 1)[0] ?? request.path,
     requestId: requestId(request),
     code: input.code,
     ...(input.detail === undefined ? {} : { detail: input.detail }),

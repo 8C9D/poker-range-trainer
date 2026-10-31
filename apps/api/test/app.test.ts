@@ -64,7 +64,8 @@ describe('API rate limit scope', () => {
       await request(app).get('/api/v1/health/ready').expect(200)
     }
     await request(app).get('/api/v1/absent').expect(404)
-    await request(app).get('/api/v1/absent').expect(429)
+    const limited = await request(app).get('/api/v1/absent?secret=1').expect(429)
+    expect(limited.body.instance).toBe('/api/v1/absent')
   })
 
   it('leaves the web bundle outside the API limit', async () => {

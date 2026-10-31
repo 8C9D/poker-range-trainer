@@ -38,6 +38,9 @@ jobs:
       - name: Install workspace dependencies
         run: npm ci
 
+      - name: Type-check the tests
+        run: npm run build:packages && npm --workspace @poker-range-trainer/e2e run typecheck
+
       - name: Install browsers
         run: npx playwright install --with-deps chromium firefox webkit
         working-directory: apps/e2e
