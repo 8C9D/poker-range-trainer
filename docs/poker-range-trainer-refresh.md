@@ -316,7 +316,7 @@ cd apps/web && npx vitest run components/<f>.test.tsx   #   each of the 5 files 
 npm --workspace @poker-range-trainer/api run test # 114 passed
 npm --prefix mobile run test:run -- --runInBand   # 246 passed
 npm run build                                     # ok incl. shared-package runtime smoke + mobile typecheck
-docker compose up -d && DATABASE_URL=postgresql://poker_range_trainer:poker_range_trainer_local@localhost:54329/poker_range_trainer npm run test:integration   # 5 + 32 passed
+docker compose up -d && DATABASE_URL=postgresql://poker_range_trainer@localhost:54329/poker_range_trainer npm run test:integration   # 5 + 32 passed
 ```
 
 Key files: `apps/api/src/app.ts` (Express composition), `apps/api/src/practice/repository.ts` + `scoring.ts` (transactional idempotent drill recording), `apps/api/src/auth/{tokens,cookies,middleware,password}.ts` (sessions/CSRF/Argon2id), `apps/api/src/imports/{service,repository}.ts` (legacy import), `packages/database/src/migrations/0001_persistence_foundation.sql` + `migrator.ts` (schema), `packages/domain/src/domain/{spacedRepetition,freePractice,edgeHands,weaknessDrill}.ts` (what to drill), `packages/contracts/src/practice.ts` (modes/contracts), `apps/web/lib/{api-client,drill}.ts` + `apps/web/next.config.ts` (client/proxy), `scripts/verify-shared-package-runtime.ts` + `.github/workflows/ci.yml` (gate), `docs/architecture/rebuild-status.md` (source of truth for what exists).

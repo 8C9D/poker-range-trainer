@@ -14,6 +14,7 @@ multi-user web product. One npm-workspaces monorepo:
 - `apps/api` — Express 5 API. The single authority for auth, validation, use
   cases, and PostgreSQL transactions. Routers take a service port and middleware;
   repositories own SQL; every response is parsed through its contract schema.
+- `apps/e2e` — Playwright specs against the production build behind TLS.
 - `packages/domain` — pure poker logic and analytics (no framework, no I/O).
   Both apps reuse it; the API never re-implements analytics in SQL.
 - `packages/contracts` — Zod schemas for every request/response and the version 1
@@ -24,7 +25,8 @@ multi-user web product. One npm-workspaces monorepo:
   toolchain; `archived/RESTORE.md` says how to hook one back up.
 
 Design docs: `docs/architecture/architecture.md`,
-`docs/architecture/data-and-import.md`, `docs/adr/`. The build ledger is
+`docs/architecture/data-and-import.md`, `docs/adr/`. Operations are in
+`docs/deployment.md`. The build ledger is
 `docs/architecture/status.md`; read it for what exists and what does not
 rather than restating it here.
 
@@ -79,6 +81,9 @@ same-named scripts run the mobile-only variants):
 - `npm run test:run`
 - `npm run build`
 - `npm run test:integration` — needs PostgreSQL (`docker compose up -d`) and
-  `DATABASE_URL=postgresql://poker_range_trainer:poker_range_trainer_local@localhost:54329/poker_range_trainer`
+  `DATABASE_URL=postgresql://poker_range_trainer@localhost:54329/poker_range_trainer`
+- `npm run test:e2e` — same `DATABASE_URL`; run it when a change reaches the browser
+  or the production process. Browsers install once with
+  `npx --workspace @poker-range-trainer/e2e playwright install`.
 
 If any command fails, diagnose and fix the root cause before committing.

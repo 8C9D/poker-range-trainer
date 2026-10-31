@@ -1,5 +1,5 @@
-# Builds the production image and proves it is a working release. Nothing is
-# published: this checks the Dockerfile on every push.
+# Builds the production image and proves it is a working release, and starts the
+# development database from compose.yaml. Nothing is published.
 name: Image
 
 on:
@@ -18,3 +18,10 @@ jobs:
 
       - name: Smoke test
         run: scripts/smoke-image.sh poker-range-trainer:smoke
+
+      - name: Start the development database
+        run: |
+          docker compose up --detach --wait
+          docker compose exec --no-TTY postgres \
+            psql --host 127.0.0.1 --username poker_range_trainer \
+            --dbname poker_range_trainer --command 'select 1'

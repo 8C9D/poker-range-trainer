@@ -19,7 +19,7 @@ if (!existsSync(path.join(webDistDir, 'index.html'))) {
 const app = createApp({
   config: loadConfig({
     NODE_ENV: 'test',
-    DATABASE_URL: 'postgresql://smoke:smoke@127.0.0.1:5432/smoke',
+    DATABASE_URL: 'postgresql://127.0.0.1:5432/smoke',
     API_ORIGINS: 'http://localhost:5173',
     WEB_DIST_DIR: webDistDir,
   }),

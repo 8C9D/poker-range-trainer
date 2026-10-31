@@ -19,7 +19,7 @@ jobs:
         env:
           POSTGRES_DB: poker_range_trainer
           POSTGRES_USER: poker_range_trainer
-          POSTGRES_PASSWORD: poker_range_trainer_local
+          POSTGRES_HOST_AUTH_METHOD: trust
         ports:
           - 54329:5432
         options: >-
@@ -29,7 +29,7 @@ jobs:
           --health-retries 12
 
     env:
-      DATABASE_URL: postgresql://poker_range_trainer:poker_range_trainer_local@localhost:54329/poker_range_trainer
+      DATABASE_URL: postgresql://poker_range_trainer@localhost:54329/poker_range_trainer
 
     steps:
       - uses: actions/checkout@v4

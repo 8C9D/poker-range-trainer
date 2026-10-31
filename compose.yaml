@@ -4,9 +4,10 @@ services:
     environment:
       POSTGRES_DB: poker_range_trainer
       POSTGRES_USER: poker_range_trainer
-      POSTGRES_PASSWORD: poker_range_trainer_local
+      # Development only: no password, and reachable from this machine alone.
+      POSTGRES_HOST_AUTH_METHOD: trust
     ports:
-      - '54329:5432'
+      - '127.0.0.1:54329:5432'
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U poker_range_trainer -d poker_range_trainer']
       interval: 5s

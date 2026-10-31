@@ -17,6 +17,7 @@ Express API over PostgreSQL, in one npm-workspaces monorepo.
 | Domain | `packages/domain` | Framework-neutral poker logic: hand matrix, range math, drill scoring, spaced repetition, streaks, leaks, and analytics. Shared by the API and the web app. |
 | Contracts | `packages/contracts` | Zod schemas for every request, response, and the JSON backup file. Both apps validate against them. |
 | Database package | `packages/database` | Drizzle schema, migrations, migrator, seed, and connection helpers. |
+| End-to-end tests | `apps/e2e` | Playwright against the production build behind TLS, in Chromium, Firefox, WebKit, and a phone viewport. |
 
 The design is written up in
 [`docs/architecture/architecture.md`](docs/architecture/architecture.md),
@@ -24,7 +25,8 @@ The design is written up in
 [`docs/adr/0001-postgresql-over-nosql.md`](docs/adr/0001-postgresql-over-nosql.md), and
 [`docs/adr/0002-vite-react-spa-served-by-express.md`](docs/adr/0002-vite-react-spa-served-by-express.md).
 [`docs/architecture/status.md`](docs/architecture/status.md) records
-what has been built and what has not.
+what has been built and what has not, and
+[`docs/deployment.md`](docs/deployment.md) is the operations runbook.
 
 ## Features
 
@@ -53,11 +55,11 @@ Requirements: Node.js 24.15 or later, npm 11.12.1, and Docker (for PostgreSQL).
 
 ```bash
 npm ci                     # root workspaces: apps/* and packages/*
-docker compose up -d       # PostgreSQL 16 on localhost:54329
+docker compose up -d       # PostgreSQL 16 on 127.0.0.1:54329, no password
 
 # Environment: copy the values from .env.example into your shell (there is no
 # dotenv loader). At minimum the API needs DATABASE_URL and API_ORIGINS.
-export DATABASE_URL=postgresql://poker_range_trainer:poker_range_trainer_local@localhost:54329/poker_range_trainer
+export DATABASE_URL=postgresql://poker_range_trainer@localhost:54329/poker_range_trainer
 export API_ORIGINS=http://localhost:5173
 
 npm run db:migrate         # apply packages/database/src/migrations in order
@@ -70,6 +72,9 @@ Register an account at `http://localhost:5173/register`. To try the import path,
 use **Account → Import backup** with `screenshots/seed-backup.json`, a realistic
 fixture.
 
+A volume created before the database dropped its password still asks for one;
+`docker compose down -v` once to recreate it, which erases that local data.
+
 To run the production shape locally, build everything and point the API at the
 web bundle; one process then serves both the app and `/api`:
 
@@ -77,6 +82,9 @@ web bundle; one process then serves both the app and `/api`:
 npm run build
 WEB_DIST_DIR=apps/web/dist npm run start:api   # http://localhost:3001
 ```
+
+For a deployment, build the container image; [`docs/deployment.md`](docs/deployment.md)
+covers configuration, releases, and backups.
 
 The iOS client in `mobile/` has its own dependency tree; install it with
 `npm ci --prefix mobile` only if you intend to build or type-check it.
@@ -91,13 +99,15 @@ Run these from the repo root.
 | `npm run lint` | ESLint over the workspaces and the iOS app. |
 | `npm run test:run` | Unit suites: packages (Vitest), web (Vitest + Testing Library), API (Vitest + supertest), iOS app (Jest). |
 | `npm run test:integration` | Database and API tests against a real PostgreSQL (`DATABASE_URL` required; each file creates and drops its own database). |
+| `npm run test:e2e` | Browser tests against the production build behind TLS (`DATABASE_URL` required; the run creates and drops its own database). Install browsers once with `npx --workspace @poker-range-trainer/e2e playwright install`. |
 | `npm run build` | Builds packages, the web bundle, and the API; runs the compiled-package smoke test and the API runtime smoke (which serves the bundle); type-checks the remaining TypeScript projects, the iOS client included. |
 | `npm run db:migrate` / `npm run db:seed` | Apply migrations / seed hand classes. |
 | `npm run format` / `npm run format:check` | Prettier. |
 
 `lint`, `test:run`, `build`, and `test:integration` run in CI on every push and
 pull request (`.github/workflows/ci.yml`), and are the local validation gate
-before any commit.
+before any commit. Separate workflows run `test:e2e` and build and smoke-test the
+production image.
 
 ## API overview
 
@@ -120,12 +130,14 @@ are `{ data }` (collections add `meta`); failures are `application/problem+json`
 apps/
   api/            Express API: auth/, ranges/, practice/, settings/, imports/, app.ts, server.ts
   web/            Vite + React SPA: src/routes.tsx (route table), src/components/, src/lib/ (api-client, drill logic)
+  e2e/            Playwright specs and the stack they run against
 packages/
   domain/         Pure poker logic and analytics (no framework, no I/O)
   contracts/      Zod request/response schemas shared by both apps
   database/       Drizzle schema, SQL migrations, migrator, seed, connection
 docs/             Architecture, ADRs, implementation status, the iOS app's privacy and support pages
 compose.yaml      Local PostgreSQL
+Dockerfile        The production image
 mobile/           iOS client (on-device storage)
 src/              TypeScript core the iOS client imports, plus React components no build target uses
 archived/         Fourteen trimmed features, fenced out of every toolchain (archived/RESTORE.md)
@@ -158,4 +170,5 @@ records what each one moved and how to hook it back up.
 
 - [`docs/architecture/`](docs/architecture/) — architecture, data model and import design, implementation status.
 - [`docs/adr/`](docs/adr/) — architecture decision records.
+- [`docs/deployment.md`](docs/deployment.md) — running it in production.
 - [`CLAUDE.md`](CLAUDE.md) — workflow rules and the validation gate.
