@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 
 import { loadConfig } from '../src/config.js'
 
-const databaseUrl = 'postgresql://user:password@localhost:5432/poker'
+const databaseUrl = 'postgresql://localhost:5432/poker'
 
 describe('loadConfig', () => {
   it('applies safe development defaults', () => {
@@ -51,6 +51,9 @@ describe('loadConfig', () => {
     )
     expect(() =>
       loadConfig({ DATABASE_URL: databaseUrl, NODE_ENV: 'production', TRUST_PROXY: 'true' }),
+    ).toThrow('hop count')
+    expect(() =>
+      loadConfig({ DATABASE_URL: databaseUrl, NODE_ENV: 'production', TRUST_PROXY: '1' }),
     ).toThrow('API_ORIGINS')
     expect(() =>
       loadConfig({

@@ -78,7 +78,8 @@ export class ImportsService {
       conflicts.push({
         kind: 'already_imported',
         rangeIds: [],
-        message: 'This backup was already imported; importing it again would change nothing.',
+        message:
+          'This backup was already imported. Merging it again would change nothing; replacing restores your library from it.',
       })
     }
     if (context.collidingRangeIds.length > 0) {

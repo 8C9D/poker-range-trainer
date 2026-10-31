@@ -23,6 +23,14 @@ export const MIN_EASE = 1.3
 export const FIRST_INTERVAL_DAYS = 1
 /** Least a shaky per-hand record may shrink an interval to (half). */
 export const MIN_CONFIDENCE = 0.5
+/**
+ * Ceiling on a review interval, about a century. Strong sessions multiply the
+ * interval, so without it an unbroken streak outgrows what the API accepts on
+ * the eleventh session and every later session of that range fails to save.
+ */
+export const MAX_INTERVAL_DAYS = 36_500
+/** Ceiling on `ease`; the stored column holds two decimals below a thousand. */
+export const MAX_EASE = 999.99
 
 /** Keep a caller's confidence inside [MIN_CONFIDENCE, 1], treating junk as 1. */
 function clampConfidence(confidence: number): number {
@@ -59,7 +67,7 @@ export function scheduleNextReview(
   } else if (accuracyPercentage < 80) {
     intervalDays = Math.max(1, prev.intervalDays)
   } else {
-    ease = prev.ease + 0.1
+    ease = Math.min(MAX_EASE, prev.ease + 0.1)
     intervalDays =
       prev.intervalDays <= 0 ? FIRST_INTERVAL_DAYS : Math.round(prev.intervalDays * prev.ease)
   }
@@ -67,7 +75,10 @@ export function scheduleNextReview(
   // pull the interval back toward "soon" in proportion to how shaky the range's
   // per-hand record is. `confidence` of 1 (the default, and the value used when
   // there is no per-hand data) leaves the schedule exactly as it was.
-  intervalDays = Math.max(1, Math.round(intervalDays * clampConfidence(confidence)))
+  intervalDays = Math.min(
+    MAX_INTERVAL_DAYS,
+    Math.max(1, Math.round(intervalDays * clampConfidence(confidence))),
+  )
   const dueAt = new Date(new Date(reviewedAt).getTime() + intervalDays * DAY_MS).toISOString()
   return { rangeId: prev.rangeId, ease, intervalDays, dueAt, lastReviewedAt: reviewedAt }
 }

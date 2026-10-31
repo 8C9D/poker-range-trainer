@@ -118,6 +118,11 @@ export function loadConfig(env: Environment = process.env): ApiConfig {
   if (nodeEnv === 'production' && env.TRUST_PROXY === undefined) {
     throw new Error('TRUST_PROXY must be explicitly configured in production.')
   }
+  // `true` believes the left-most X-Forwarded-For, which any client can write, so
+  // every rate limit would key on an address the caller chose.
+  if (nodeEnv === 'production' && env.TRUST_PROXY === 'true') {
+    throw new Error('TRUST_PROXY must be a proxy hop count or false in production, never true.')
+  }
 
   const logLevel = (env.LOG_LEVEL ?? 'info') as LogLevel
   if (!logLevels.has(logLevel)) throw new Error('LOG_LEVEL must be a supported Pino log level.')

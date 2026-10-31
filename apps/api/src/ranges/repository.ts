@@ -15,6 +15,8 @@ import { handClasses, rangeHands, rangePracticeStats, ranges } from '@poker-rang
 import { TOTAL_HOLDEM_COMBOS } from '@poker-range-trainer/domain/domain/rangeMath'
 import { parseHandInput } from '@poker-range-trainer/domain/domain/pokerHands'
 
+import { withoutScenarioMetadata } from '../imports/backup.js'
+
 export interface Clock {
   now(): Date
 }
@@ -325,7 +327,14 @@ export class PostgresRangeRepository implements RangeRepository {
       this.assertVersion(current, input.version)
       const next = {
         name: input.name?.trim() ?? current.name,
-        ...(input.metadata === undefined ? {} : metadataValues(input.metadata)),
+        ...(input.metadata === undefined
+          ? {}
+          : {
+              ...metadataValues(input.metadata),
+              // The owner just decided these fields; an imported original must not
+              // come back through the next export.
+              legacyPayload: withoutScenarioMetadata(current.legacyPayload),
+            }),
         version: current.version + 1,
         updatedAt: now,
       }
@@ -404,6 +413,9 @@ export class PostgresRangeRepository implements RangeRepository {
   ): Promise<RangeRead> {
     const now = this.clock.now()
     return this.database.transaction(async (transaction) => {
+      // Before the row: an import takes the owner lock and then updates ranges, so
+      // taking them the other way round here deadlocks against it.
+      await this.lockOwnerLibrary(transaction, userId)
       const source = await this.lockRange(transaction, userId, rangeId, false)
       this.assertVersion(source, input.version)
       const [copy] = await transaction
@@ -541,8 +553,12 @@ export class PostgresRangeRepository implements RangeRepository {
     if (row.version !== expected) throw new RangeVersionConflictError()
   }
 
-  private async nextDisplayOrder(transaction: Queryable, userId: string): Promise<number> {
+  private async lockOwnerLibrary(transaction: Queryable, userId: string): Promise<void> {
     await transaction.execute(sql`select pg_advisory_xact_lock(hashtext(${userId}))`)
+  }
+
+  private async nextDisplayOrder(transaction: Queryable, userId: string): Promise<number> {
+    await this.lockOwnerLibrary(transaction, userId)
     const [result] = await transaction
       .select({ displayOrder: max(ranges.displayOrder) })
       .from(ranges)

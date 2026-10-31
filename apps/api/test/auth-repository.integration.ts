@@ -209,4 +209,35 @@ describe('PostgreSQL auth repository', () => {
       }),
     ).resolves.toBe(true)
   })
+
+  it('purges only sessions that died before the cutoff', async () => {
+    const day = 24 * 60 * 60 * 1000
+    const { user, session } = await createUser(
+      `purge-${randomUUID()}@example.test`,
+      new Date(now.getTime() + 2 * day),
+    )
+    const longLived = await repository.createAdditionalSession({
+      userId: user.id,
+      ...hashedSession(new Date(now.getTime() + 60 * day)),
+    })
+    const revoked = await repository.createAdditionalSession({
+      userId: user.id,
+      ...hashedSession(new Date(now.getTime() + 60 * day)),
+    })
+    await repository.revokeSession(user.id, revoked.id)
+
+    const remaining = async () => {
+      const result = await testPool?.query<{ id: string }>(
+        'select id from auth_sessions where user_id = $1',
+        [user.id],
+      )
+      return result?.rows.map((row) => row.id).sort()
+    }
+
+    await repository.purgeDeadSessions(now)
+    expect(await remaining()).toEqual([session.id, longLived.id, revoked.id].sort())
+
+    await repository.purgeDeadSessions(new Date(now.getTime() + 3 * day))
+    expect(await remaining()).toEqual([longLived.id])
+  })
 })

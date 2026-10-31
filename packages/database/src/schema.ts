@@ -82,6 +82,7 @@ export const authSessions = pgTable(
     unique('auth_sessions_token_hash_unique').on(table.tokenHash),
     index('auth_sessions_active_lookup').on(table.tokenHash, table.expiresAt),
     index('auth_sessions_user_expiry').on(table.userId, table.expiresAt),
+    index('auth_sessions_expiry').on(table.expiresAt),
     check('auth_sessions_token_hash_sha256', sql`${table.tokenHash} ~ '^[0-9a-f]{64}$'`),
     check('auth_sessions_csrf_hash_sha256', sql`${table.csrfTokenHash} ~ '^[0-9a-f]{64}$'`),
     check('auth_sessions_expiry_after_creation', sql`${table.expiresAt} > ${table.createdAt}`),
@@ -415,6 +416,7 @@ export const reviewStates = pgTable(
     index('review_states_owner_due_idx').on(table.userId, table.dueAt),
     check('review_states_ease_minimum', sql`${table.ease} >= 1.3`),
     check('review_states_interval_nonnegative', sql`${table.intervalDays} >= 0`),
+    check('review_states_interval_ceiling', sql`${table.intervalDays} <= 36500`),
     check(
       'review_states_schedule_valid',
       sql`(

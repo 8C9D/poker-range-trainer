@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { accuracyPercentage } from '@poker-range-trainer/domain/domain/accuracy'
+import { MAX_INTERVAL_DAYS } from '@poker-range-trainer/domain/domain/spacedRepetition'
 
 import { handCodeSchema, idSchema, successResponseSchema, timestampSchema } from './common.js'
 import { rangeHandsSchema } from './ranges.js'
@@ -84,10 +85,12 @@ function requireComputedAccuracy(
   }
 }
 
+// A read, so bounded by what storage holds rather than by what one submission
+// may carry: an imported session from an older client can be longer than 500.
 const practiceCountersSchema = z
   .object({
-    totalQuestions: attemptCountSchema.min(1).max(500),
-    correctAnswers: attemptCountSchema.max(500),
+    totalQuestions: attemptCountSchema.min(1),
+    correctAnswers: attemptCountSchema,
     accuracyPercentage: accuracyPercentageSchema,
   })
   .strict()
@@ -137,7 +140,7 @@ export const reviewStateSchema = z
   .object({
     rangeId: idSchema,
     ease: z.number().min(1.3).max(999.99).multipleOf(0.01),
-    intervalDays: z.number().int().nonnegative().max(36_500),
+    intervalDays: z.number().int().nonnegative().max(MAX_INTERVAL_DAYS),
     dueAt: timestampSchema.nullable(),
     lastReviewedAt: timestampSchema.nullable(),
   })

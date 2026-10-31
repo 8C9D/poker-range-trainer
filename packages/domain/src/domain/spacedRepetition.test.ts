@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest'
 import {
   DEFAULT_EASE,
   MIN_EASE,
+  MAX_EASE,
+  MAX_INTERVAL_DAYS,
   FIRST_INTERVAL_DAYS,
   seedReviewState,
   scheduleNextReview,
@@ -50,6 +52,26 @@ describe('scheduleNextReview', () => {
     const kept = scheduleNextReview(established, 60, REVIEWED_AT)
     expect(kept.intervalDays).toBe(6)
     expect(kept.ease).toBe(DEFAULT_EASE)
+  })
+
+  it('never lets an unbroken streak grow past the interval ceiling', () => {
+    let state = seedReviewState('r1')
+    for (let session = 0; session < 40; session += 1) {
+      state = scheduleNextReview(state, 100, REVIEWED_AT)
+      expect(state.intervalDays).toBeLessThanOrEqual(MAX_INTERVAL_DAYS)
+    }
+    expect(state.intervalDays).toBe(MAX_INTERVAL_DAYS)
+    expect(Date.parse(state.dueAt)).toBeGreaterThan(Date.parse(REVIEWED_AT))
+  })
+
+  it('holds an interval already above the ceiling at the ceiling', () => {
+    const imported: RangeReviewState = { ...seedReviewState('r1'), intervalDays: 90_000 }
+    expect(scheduleNextReview(imported, 60, REVIEWED_AT).intervalDays).toBe(MAX_INTERVAL_DAYS)
+  })
+
+  it('caps ease at MAX_EASE', () => {
+    const top: RangeReviewState = { ...seedReviewState('r1'), ease: MAX_EASE }
+    expect(scheduleNextReview(top, 100, REVIEWED_AT).ease).toBe(MAX_EASE)
   })
 
   it('grants the first interval and raises ease for a strong first session', () => {

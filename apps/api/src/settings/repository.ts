@@ -6,6 +6,7 @@ import {
   practiceSessions,
   rangeHandAccuracy,
   rangePracticeStats,
+  ranges,
   reviewStates,
   userTrainingGoals,
 } from '@poker-range-trainer/database'
@@ -70,6 +71,16 @@ export class PostgresSettingsRepository implements SettingsRepository {
   async resetPracticeStats(userId: string): Promise<PracticeStatsReset> {
     const resetAt = this.clock.now()
     return this.database.transaction(async (transaction) => {
+      // A submission holds its range row until it commits, so taking every row
+      // (in the id order bulk mutations use) waits out the ones in flight and
+      // holds off new ones. Without it a submission could land between two of the
+      // deletes below and survive as a session with no stats or schedule.
+      await transaction.execute(sql`
+        select ${ranges.id} from ${ranges}
+        where ${ranges.userId} = ${userId}
+        order by ${ranges.id}
+        for update
+      `)
       // Soft-deleted ranges still count: their practice records are being erased too.
       const counted = await transaction.execute(sql`
         select count(*)::int as "rangesReset" from (

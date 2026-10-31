@@ -6,6 +6,7 @@ import type { Logger } from 'pino'
 import { closeDatabase, createDatabase, createPostgresPool } from '@poker-range-trainer/database'
 
 import { createApp, type ReadinessCheck } from './app.js'
+import type { AuthRepository } from './auth/repository.js'
 import { createAuthMiddleware } from './auth/middleware.js'
 import { PostgresAuthRepository } from './auth/repository.js'
 import { createAuthRouter } from './auth/routes.js'
@@ -13,7 +14,7 @@ import { loadConfig, type ApiConfig } from './config.js'
 import { PostgresImportsRepository } from './imports/repository.js'
 import { createExportsRouter, createImportsRouter } from './imports/routes.js'
 import { ImportsService } from './imports/service.js'
-import { createLogger } from './logger.js'
+import { createLogger, errorDiagnostics } from './logger.js'
 import { PostgresPracticeRepository } from './practice/repository.js'
 import { createPracticeRouter } from './practice/routes.js'
 import { PracticeService } from './practice/service.js'
@@ -36,6 +37,27 @@ export interface ServerDependencies {
   createHttpServer?: (app: ReturnType<typeof createApp>) => Server
 }
 
+/** Longer than the idle timeout of common load balancers, so they close first. */
+const KEEP_ALIVE_TIMEOUT_MS = 65_000
+/** In-flight requests get this long after SIGTERM before their sockets are cut. */
+const SHUTDOWN_GRACE_MS = 8_000
+const SESSION_PURGE_INTERVAL_MS = 60 * 60 * 1000
+/** Dead sessions stay this long, so a recent revocation can still be looked up. */
+const SESSION_RETENTION_MS = 30 * 24 * 60 * 60 * 1000
+
+/** Expired and revoked sessions are never read again, so nothing else removes them. */
+function scheduleSessionPurge(repository: AuthRepository, logger: Logger): () => void {
+  const purge = () => {
+    repository.purgeDeadSessions(new Date(Date.now() - SESSION_RETENTION_MS)).then(
+      (deleted) => logger.info({ deleted }, 'dead sessions purged'),
+      (error: unknown) => logger.warn(errorDiagnostics(error), 'session purge failed'),
+    )
+  }
+  const timer = setInterval(purge, SESSION_PURGE_INTERVAL_MS)
+  timer.unref()
+  return () => clearInterval(timer)
+}
+
 export function createServerRuntime(
   config: ApiConfig = loadConfig(),
   logger: Logger = createLogger(config.logLevel),
@@ -48,7 +70,9 @@ export function createServerRuntime(
       'PostgreSQL pool error',
     )
   })
+  let closing: Promise<void> | undefined
   const readiness: ReadinessCheck = async () => {
+    if (closing) throw new Error('The server is shutting down.')
     await pool.query('SELECT 1')
   }
   const database = createDatabase(pool)
@@ -99,16 +123,24 @@ export function createServerRuntime(
     },
   })
   const server = (dependencies.createHttpServer ?? createServer)(app)
-  let closing: Promise<void> | undefined
+  server.keepAliveTimeout = KEEP_ALIVE_TIMEOUT_MS
+  server.headersTimeout = KEEP_ALIVE_TIMEOUT_MS + 1_000
+  const stopSessionPurge = scheduleSessionPurge(authRepository, logger)
 
   const close = async (): Promise<void> => {
     if (closing) return closing
+    stopSessionPurge()
+    const force = setTimeout(() => server.closeAllConnections(), SHUTDOWN_GRACE_MS)
+    force.unref()
     const closeServer = server.listening
       ? new Promise<void>((resolve, reject) => {
           server.close((error) => (error === undefined ? resolve() : reject(error)))
         })
       : Promise.resolve()
-    closing = closeServer.finally(async () => closeDatabase(pool))
+    closing = closeServer.finally(async () => {
+      clearTimeout(force)
+      await closeDatabase(pool)
+    })
     return closing
   }
 

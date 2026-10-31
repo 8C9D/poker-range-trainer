@@ -37,7 +37,7 @@ const user: PublicAuthUser = {
 function config(overrides: Partial<ApiConfig> = {}): ApiConfig {
   return {
     ...loadConfig({
-      DATABASE_URL: 'postgresql://user:password@localhost:5432/poker',
+      DATABASE_URL: 'postgresql://localhost:5432/poker',
       NODE_ENV: 'test',
     }),
     rateLimitMax: 1_000,
@@ -73,6 +73,7 @@ class FakeRepository implements AuthRepository {
     return session
   })
   readonly touchSessionLastSeen = vi.fn(async () => true)
+  readonly purgeDeadSessions = vi.fn(async () => 0)
   readonly revokeSession = vi.fn(async (userId: string, sessionId: string) => {
     for (const [hash, resolved] of this.sessions) {
       if (resolved.user.id === userId && resolved.session.id === sessionId) {

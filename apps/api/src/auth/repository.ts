@@ -1,4 +1,4 @@
-import { and, eq, gt, isNull, lt } from 'drizzle-orm'
+import { and, eq, gt, isNotNull, isNull, lt, or } from 'drizzle-orm'
 
 import type { Database } from '@poker-range-trainer/database'
 import { authSessions, users } from '@poker-range-trainer/database'
@@ -72,6 +72,8 @@ export interface AuthRepository {
   resolveActiveSession(tokenHash: string): Promise<ResolvedAuthSession | undefined>
   revokeSession(userId: string, sessionId: string): Promise<boolean>
   touchSessionLastSeen(input: TouchSessionInput): Promise<boolean>
+  /** Deletes sessions that expired or were revoked before `before`; returns how many. */
+  purgeDeadSessions(before: Date): Promise<number>
 }
 
 /** A safe, typed conflict that can become a public duplicate-email response upstream. */
@@ -270,6 +272,19 @@ export class PostgresAuthRepository implements AuthRepository {
       )
       .returning({ id: authSessions.id })
     return rows.length === 1
+  }
+
+  async purgeDeadSessions(before: Date): Promise<number> {
+    const rows = await this.database
+      .delete(authSessions)
+      .where(
+        or(
+          lt(authSessions.expiresAt, before),
+          and(isNotNull(authSessions.revokedAt), lt(authSessions.revokedAt, before)),
+        ),
+      )
+      .returning({ id: authSessions.id })
+    return rows.length
   }
 
   private assertNewSession(session: SessionHashes, now: Date): void {

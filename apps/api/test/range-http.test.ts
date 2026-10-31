@@ -65,7 +65,7 @@ const listItem = {
 function testConfig() {
   return {
     ...loadConfig({
-      DATABASE_URL: 'postgresql://user:password@localhost:5432/poker',
+      DATABASE_URL: 'postgresql://localhost:5432/poker',
       NODE_ENV: 'test',
     }),
     rateLimitMax: 1_000,

@@ -379,14 +379,22 @@ export class PostgresPracticeRepository implements PracticeRepository {
    * keep inflating volumes that every per-range cut beside them reports as gone.
    */
   async readLibrarySnapshot(userId: string): Promise<LibrarySnapshot> {
-    const [goal] = await this.database
+    return this.database.transaction((transaction) => this.librarySnapshot(transaction, userId), {
+      isolationLevel: 'repeatable read',
+      accessMode: 'read only',
+    })
+  }
+
+  /** Reports cross-check these tables, so they must all describe one moment. */
+  private async librarySnapshot(database: Queryable, userId: string): Promise<LibrarySnapshot> {
+    const [goal] = await database
       .select({ dailyHandGoal: userTrainingGoals.dailyHandGoal })
       .from(userTrainingGoals)
       .where(eq(userTrainingGoals.userId, userId))
       .limit(1)
     const trainingGoal = goal?.dailyHandGoal ?? null
 
-    const rangeRows = await this.database
+    const rangeRows = await database
       .select()
       .from(ranges)
       .where(and(eq(ranges.userId, userId), isNull(ranges.deletedAt)))
@@ -403,7 +411,7 @@ export class PostgresPracticeRepository implements PracticeRepository {
     }
     const liveIds = rangeRows.map((row) => row.id)
 
-    const handRows = await this.database
+    const handRows = await database
       .select({ rangeId: rangeHands.rangeId, handCode: rangeHands.handCode })
       .from(rangeHands)
       .where(and(eq(rangeHands.userId, userId), inArray(rangeHands.rangeId, liveIds)))
@@ -415,7 +423,7 @@ export class PostgresPracticeRepository implements PracticeRepository {
       handsByRange.set(row.rangeId, hands)
     }
 
-    const sessionRows = await this.database
+    const sessionRows = await database
       .select({
         rangeId: practiceSessions.rangeId,
         completedAt: practiceSessions.completedAt,
@@ -439,7 +447,7 @@ export class PostgresPracticeRepository implements PracticeRepository {
 
     // A zero-attempt row carries no history; the legacy shape has no way to say
     // "practiced at nothing", and every report treats it as absent anyway.
-    const statsRows = await this.database
+    const statsRows = await database
       .select()
       .from(rangePracticeStats)
       .where(
@@ -460,7 +468,7 @@ export class PostgresPracticeRepository implements PracticeRepository {
       }
     }
 
-    const accuracyRows = await this.database
+    const accuracyRows = await database
       .select({
         rangeId: rangeHandAccuracy.rangeId,
         handCode: rangeHandAccuracy.handCode,
@@ -485,7 +493,7 @@ export class PostgresPracticeRepository implements PracticeRepository {
       handAccuracy[row.rangeId] = perRange
     }
 
-    const reviewRows = await this.database
+    const reviewRows = await database
       .select()
       .from(reviewStates)
       .where(and(eq(reviewStates.userId, userId), inArray(reviewStates.rangeId, liveIds)))

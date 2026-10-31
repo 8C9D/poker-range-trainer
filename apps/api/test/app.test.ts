@@ -1,6 +1,6 @@
 import express, { type Express } from 'express'
 import { EventEmitter } from 'node:events'
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, renameSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -16,7 +16,7 @@ import {
 
 import { createApp } from '../src/app.js'
 import { loadConfig, type ApiConfig } from '../src/config.js'
-import { createLogger } from '../src/logger.js'
+import { createLogger, errorDiagnostics } from '../src/logger.js'
 import { createServerRuntime } from '../src/server.js'
 
 const requestId = '7a7e6f3e-17be-4b69-a31b-1f902417c560'
@@ -24,7 +24,7 @@ const ready = async (): Promise<void> => undefined
 const silentLogger = createLogger('silent')
 const config = (overrides: Partial<ApiConfig> = {}): ApiConfig => ({
   ...loadConfig({
-    DATABASE_URL: 'postgresql://user:password@localhost:5432/poker',
+    DATABASE_URL: 'postgresql://localhost:5432/poker',
     NODE_ENV: 'test',
   }),
   ...overrides,
@@ -54,7 +54,92 @@ function buildWebBundle(): string {
   return dist
 }
 
+describe('API rate limit scope', () => {
+  const strict = () => config({ rateLimitMax: 1, rateLimitWindowMs: 60_000 })
+
+  it('never answers a health probe with a 429', async () => {
+    const app = createApp({ config: strict(), logger: silentLogger, readiness: ready })
+    for (let probe = 0; probe < 5; probe += 1) {
+      await request(app).get('/api/v1/health/live').expect(200)
+      await request(app).get('/api/v1/health/ready').expect(200)
+    }
+    await request(app).get('/api/v1/absent').expect(404)
+    await request(app).get('/api/v1/absent').expect(429)
+  })
+
+  it('leaves the web bundle outside the API limit', async () => {
+    const app = createApp({
+      config: { ...strict(), webDistDir: buildWebBundle() },
+      logger: silentLogger,
+      readiness: ready,
+    })
+    for (let load = 0; load < 5; load += 1) {
+      await request(app).get('/app/today').expect(200)
+      await request(app).get('/assets/index-abc123.js').expect(200)
+    }
+  })
+})
+
+describe('API failure logging', () => {
+  it('records where a failure happened without its message', async () => {
+    const lines: string[] = []
+    const logger = createLogger('error', {}, { write: (line: string) => lines.push(line) })
+    const driverError = Object.assign(
+      new Error('Failed query: insert into users params: leak@example.test,$argon2id$secret'),
+      {
+        cause: Object.assign(new Error('duplicate key'), { code: '23505', constraint: 'users_pk' }),
+      },
+    )
+    const app = createApp({
+      config: config(),
+      logger,
+      readiness: ready,
+      registerRoutes(api) {
+        api.get('/api/v1/boom', () => {
+          throw driverError
+        })
+      },
+    })
+    await request(app).get('/api/v1/boom').expect(500)
+
+    const line = lines.join('')
+    expect(line).not.toContain('leak@example.test')
+    expect(line).not.toContain('argon2id')
+    expect(JSON.parse(line)).toMatchObject({
+      msg: 'request failed',
+      errorName: 'Error',
+      errorCode: '23505',
+      constraint: 'users_pk',
+      stackFrames: expect.arrayContaining([expect.stringMatching(/^at /)]),
+    })
+  })
+
+  it('names the schema path of a rejected value, not the value', () => {
+    expect(
+      errorDiagnostics(
+        Object.assign(new Error('{"value":"private"}'), {
+          name: 'ZodError',
+          issues: [{ path: ['data', 'review', 'intervalDays'], message: 'too big' }],
+        }),
+      ),
+    ).toMatchObject({ errorName: 'ZodError', issuePaths: ['data.review.intervalDays'] })
+  })
+})
+
 describe('API app factory', () => {
+  it('serves the app from an install path with a dotted directory', async () => {
+    const parent = mkdtempSync(path.join(tmpdir(), 'web-install-'))
+    const dotted = path.join(parent, '.local', 'dist')
+    mkdirSync(path.dirname(dotted))
+    renameSync(buildWebBundle(), dotted)
+    const app = createApp({
+      config: config({ webDistDir: dotted }),
+      logger: silentLogger,
+      readiness: ready,
+    })
+    await request(app).get('/app/today').expect(200).expect('Content-Type', /html/)
+  })
+
   it('has no listener side effect and returns contract-valid liveness', async () => {
     const now = () => new Date('2026-01-02T03:04:05.000Z')
     const app = createApp({ config: config(), logger: silentLogger, readiness: ready, now })
@@ -101,6 +186,25 @@ describe('API app factory', () => {
       .expect(200)
     expect(generated.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/i)
     expect(generated.headers['x-request-id']).not.toBe('not-a-uuid')
+  })
+
+  it('treats a request from its own origin as same-origin, whatever the allowlist says', async () => {
+    const app = createApp({
+      config: config({ frontendOrigins: ['https://app.example.com'] }),
+      logger: silentLogger,
+      readiness: ready,
+    })
+    await request(app)
+      .get('/api/v1/health/live')
+      .set('Host', 'trainer.example.test')
+      .set('Origin', 'http://trainer.example.test')
+      .expect(200)
+    const crossOrigin = await request(app)
+      .get('/api/v1/health/live')
+      .set('Host', 'trainer.example.test')
+      .set('Origin', 'http://elsewhere.example.test')
+      .expect(403)
+    assertProblem(crossOrigin.body, 403, 'FORBIDDEN')
   })
 
   it('uses credentialed CORS only for exact allowed origins', async () => {
@@ -167,8 +271,8 @@ describe('API app factory', () => {
       logger: silentLogger,
       readiness: ready,
     })
-    await request(limited).get('/api/v1/health/live').expect(200)
-    const limitedResponse = await request(limited).get('/api/v1/health/live').expect(429)
+    await request(limited).get('/api/v1/absent').expect(404)
+    const limitedResponse = await request(limited).get('/api/v1/absent').expect(429)
     assertProblem(limitedResponse.body, 429, 'RATE_LIMITED')
 
     const parseProtected = createApp({
@@ -379,7 +483,7 @@ describe('API app factory', () => {
       config: config(),
       logger,
       readiness: async () => {
-        throw new Error('postgresql://username:password@secret-host')
+        throw new Error('connection to secret-host refused')
       },
     })
     await request(app).get('/api/v1/health/ready').set('x-request-id', requestId).expect(503)
@@ -413,7 +517,7 @@ describe('API app factory', () => {
       .get('/api/v1/settings/training-goal')
       .expect(401)
       .expect('Cache-Control', 'no-store')
-    pool.emit('error', new Error('postgresql://username:password@secret-host'))
+    pool.emit('error', new Error('connection to secret-host refused'))
     expect(logger.error).toHaveBeenCalledWith({ errorName: 'Error' }, 'PostgreSQL pool error')
     await Promise.all([runtime.close(), runtime.close()])
     expect(pool.end).toHaveBeenCalledOnce()

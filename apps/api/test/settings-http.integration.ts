@@ -324,4 +324,31 @@ describe('HTTP user settings against PostgreSQL', () => {
       .expect(200)
     expect(secondReset.body.data.rangesReset).toBe(0)
   })
+
+  it('waits for a submission in flight before erasing practice records', async () => {
+    const owner = await register('reset-race')
+    const rangeId = await practiceOnce(owner)
+
+    // The row lock a submission holds from its first statement to its commit.
+    const submission = await testPool.connect()
+    await submission.query('begin')
+    await submission.query('select id from ranges where id = $1 for update', [rangeId])
+
+    let finished = false
+    const reset = request(app)
+      .post('/api/v1/settings/reset-practice-stats')
+      .set(asUser(owner))
+      .send({ confirm: true })
+      .then((response) => {
+        finished = true
+        return response
+      })
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    expect(finished).toBe(false)
+
+    await submission.query('commit')
+    submission.release()
+    expect((await reset).status).toBe(200)
+    expect(await ownerCounts(owner.id)).toMatchObject({ sessions: '0', stats: '0', reviews: '0' })
+  })
 })

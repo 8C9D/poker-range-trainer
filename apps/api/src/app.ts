@@ -14,7 +14,7 @@ import helmet from 'helmet'
 import type { Logger } from 'pino'
 
 import type { ApiConfig } from './config.js'
-import { createLogger } from './logger.js'
+import { createLogger, errorDiagnostics } from './logger.js'
 import { requestId, sendProblem } from './problem.js'
 
 export type ReadinessCheck = () => Promise<void>
@@ -70,7 +70,6 @@ function isReservedPath(pathname: string): boolean {
 function webBundle(distDir: string): express.Router {
   const router = express.Router()
   const assetsDir = path.join(distDir, 'assets') + path.sep
-  const indexHtml = path.join(distDir, 'index.html')
   router.use(
     express.static(distDir, {
       index: false,
@@ -87,7 +86,8 @@ function webBundle(distDir: string): express.Router {
   router.use((req, res, next) => {
     if ((req.method !== 'GET' && req.method !== 'HEAD') || isReservedPath(req.path)) return next()
     res.setHeader('Cache-Control', 'no-cache')
-    res.sendFile(indexHtml, (error?: Error) => {
+    // Relative to `root`, or send refuses any install path with a dotted directory.
+    res.sendFile('index.html', { root: distDir }, (error?: Error) => {
       if (error) next(error)
     })
   })
@@ -164,17 +164,44 @@ export function createApp(options: CreateAppOptions): Express {
     res.setHeader('Permissions-Policy', 'camera=(), geolocation=(), microphone=()')
     next()
   })
+  // The allowlist governs other origins. A page this process served, posting back
+  // to the host it came from, is same-origin and has nothing to be allowed for.
   app.use(
-    cors({
-      credentials: true,
-      origin(origin, callback) {
-        if (origin === undefined || config.frontendOrigins.includes(origin))
-          return callback(null, true)
-        return callback(new CorsOriginError())
-      },
+    cors((corsRequest, callback) => {
+      const req = corsRequest as Request
+      const origin = req.headers.origin
+      const allowed =
+        origin === undefined ||
+        config.frontendOrigins.includes(origin) ||
+        origin === `${req.protocol}://${req.get('host')}`
+      if (!allowed) return callback(new CorsOriginError())
+      callback(null, { credentials: true, origin: true })
     }),
   )
+  // Probes stay ahead of the limiter: a platform that polls health from one
+  // address must never read a 429 as an unhealthy instance. The limiter guards the
+  // API alone, since one page load of the bundle is already several static files.
+  app.get('/api/v1/health/live', (_req, res) => res.status(200).json(healthData(now)))
+  app.get('/api/v1/health/ready', async (req, res) => {
+    try {
+      await readiness()
+      res.status(200).json(healthData(now))
+    } catch (error: unknown) {
+      logger.warn(
+        { requestId: requestId(req), errorName: error instanceof Error ? error.name : 'Error' },
+        'readiness check failed',
+      )
+      sendProblem(req, res, {
+        status: 503,
+        title: 'Service unavailable',
+        detail: 'The service is not ready.',
+        code: 'INTERNAL_ERROR',
+      })
+    }
+  })
+
   app.use(
+    '/api',
     rateLimit({
       windowMs: config.rateLimitWindowMs,
       limit: config.rateLimitMax,
@@ -201,25 +228,6 @@ export function createApp(options: CreateAppOptions): Express {
     parseJsonBody(req, res, next)
   })
 
-  app.get('/api/v1/health/live', (_req, res) => res.status(200).json(healthData(now)))
-  app.get('/api/v1/health/ready', async (req, res) => {
-    try {
-      await readiness()
-      res.status(200).json(healthData(now))
-    } catch (error: unknown) {
-      logger.warn(
-        { requestId: requestId(req), errorName: error instanceof Error ? error.name : 'Error' },
-        'readiness check failed',
-      )
-      sendProblem(req, res, {
-        status: 503,
-        title: 'Service unavailable',
-        detail: 'The service is not ready.',
-        code: 'INTERNAL_ERROR',
-      })
-    }
-  })
-
   registerRoutes?.(app)
   if (config.webDistDir !== undefined) app.use(webBundle(config.webDistDir))
   app.use((req, res) => {
@@ -241,8 +249,6 @@ function errorHandler(logger: Logger, isProduction: boolean): ErrorRequestHandle
       type?: string
       status?: number
       statusCode?: number
-      message?: string
-      name?: string
     }
     if (error instanceof CorsOriginError) {
       sendProblem(req, res, {
@@ -275,10 +281,7 @@ function errorHandler(logger: Logger, isProduction: boolean): ErrorRequestHandle
       })
       return
     }
-    logger.error(
-      { requestId: requestId(req), errorName: typedError.name ?? 'Error' },
-      'request failed',
-    )
+    logger.error({ requestId: requestId(req), ...errorDiagnostics(error) }, 'request failed')
     sendProblem(req, res, {
       status: 500,
       title: 'Internal server error',

@@ -390,4 +390,44 @@ describe('HTTP practice sessions against PostgreSQL', () => {
       accuracyPercentage: 0,
     })
   })
+
+  it('keeps saving a range through a perfect streak longer than the schedule allows', async () => {
+    const owner = await register('practice-streak')
+    const created = await request(app)
+      .post('/api/v1/ranges')
+      .set(asUser(owner))
+      .send({ name: 'Streak chart', hands: ['AA'] })
+      .expect(201)
+    const rangeId = created.body.data.id as string
+
+    let intervalDays = 0
+    for (let session = 0; session < 14; session += 1) {
+      const response = await request(app)
+        .post('/api/v1/practice/sessions')
+        .set(asUser(owner))
+        .send({
+          mode: 'recognition',
+          rangeId,
+          idempotencyKey: randomUUID(),
+          answers: [
+            {
+              questionId: randomUUID(),
+              hand: 'AA',
+              answer: true,
+              answeredAt: '2024-01-01T00:00:00.000Z',
+            },
+          ],
+        })
+        .expect(200)
+      intervalDays = practiceSessionSubmissionResponseSchema.parse(response.body).data.review
+        .intervalDays
+    }
+    expect(intervalDays).toBe(36_500)
+
+    const read = await request(app)
+      .get(`/api/v1/practice/ranges/${rangeId}`)
+      .set(asUser(owner))
+      .expect(200)
+    expect(rangePracticeReadResponseSchema.parse(read.body).data.review?.intervalDays).toBe(36_500)
+  })
 })

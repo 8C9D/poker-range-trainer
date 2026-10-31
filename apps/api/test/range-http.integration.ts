@@ -222,4 +222,40 @@ describe('HTTP range library against PostgreSQL', () => {
       .send({ version: bulk.body.data.items[0].version, favorite: false })
       .expect(404)
   })
+
+  it('takes the owner lock before the source row when duplicating', async () => {
+    const owner = await register('duplicate-lock-order')
+    const me = await request(app).get('/api/v1/auth/me').set('Cookie', owner.cookie).expect(200)
+    const created = await request(app)
+      .post('/api/v1/ranges')
+      .set('Cookie', owner.cookie)
+      .set('x-csrf-token', owner.csrfToken)
+      .send({ name: 'Locked source', hands: ['AA'] })
+      .expect(201)
+    const rangeId = created.body.data.id as string
+
+    // An import holds this lock, then updates the owner's ranges.
+    const importer = await testPool!.connect()
+    await importer.query('begin')
+    await importer.query('select pg_advisory_xact_lock(hashtext($1))', [me.body.data.user.id])
+
+    let finished = false
+    const duplicate = request(app)
+      .post(`/api/v1/ranges/${rangeId}/duplicate`)
+      .set('Cookie', owner.cookie)
+      .set('x-csrf-token', owner.csrfToken)
+      .send({ version: created.body.data.version })
+      .then((response) => {
+        finished = true
+        return response
+      })
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    expect(finished).toBe(false)
+
+    // The duplicate is queued without the row, so the import can still take it.
+    await importer.query('select id from ranges where id = $1 for update nowait', [rangeId])
+    await importer.query('commit')
+    importer.release()
+    expect((await duplicate).status).toBe(200)
+  })
 })

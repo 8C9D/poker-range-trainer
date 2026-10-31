@@ -17,6 +17,11 @@ export function createPostgresPool(connectionString: string, options: PoolConfig
     connectionString,
     max: 10,
     idleTimeoutMillis: 10_000,
+    // Bounded waits: an exhausted pool or a stuck query fails a request instead of
+    // hanging it, and readiness reports the database instead of never answering.
+    connectionTimeoutMillis: 5_000,
+    statement_timeout: 60_000,
+    idle_in_transaction_session_timeout: 60_000,
     ...options,
   })
 }

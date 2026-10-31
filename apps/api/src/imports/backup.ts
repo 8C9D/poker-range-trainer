@@ -440,6 +440,23 @@ export interface ExportSnapshot {
   trainingGoal: number | null
 }
 
+/**
+ * A range's preserved import payload once its scenario fields have been edited:
+ * those fields answer to the columns from then on, while anything the product
+ * has no home for stays preserved.
+ */
+export function withoutScenarioMetadata(
+  payload: Record<string, unknown> | null,
+): Record<string, unknown> | null {
+  if (!isPlainObject(payload?.metadata)) return payload
+  const { metadata, ...rest } = payload
+  const kept = Object.entries(metadata).filter(
+    ([key]) => !(SUPPORTED_METADATA_KEYS as readonly string[]).includes(key),
+  )
+  if (kept.length > 0) return { ...rest, metadata: Object.fromEntries(kept) }
+  return Object.keys(rest).length > 0 ? rest : null
+}
+
 function exportMetadata(row: ExportRangeRow): Record<string, unknown> | undefined {
   const payloadMetadata = row.legacyPayload?.metadata
   const preserved = isPlainObject(payloadMetadata) ? payloadMetadata : {}

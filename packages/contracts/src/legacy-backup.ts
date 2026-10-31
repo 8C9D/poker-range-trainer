@@ -23,6 +23,10 @@ export const MAX_LEGACY_IMPORT_WARNINGS = 1_000
 
 const legacyRangeIdSchema = z.string().min(1).max(MAX_LEGACY_RANGE_ID_LENGTH)
 const nonNegativeIntegerSchema = z.number().int().nonnegative()
+// Counters that land in integer columns and come back through the read models,
+// which share this bound; a larger value is refused here rather than failing a
+// commit or breaking every later read of the imported range.
+const persistedCountSchema = nonNegativeIntegerSchema.max(1_000_000_000)
 const positiveFiniteSchema = z.number().finite().positive()
 const legacyRangeActionSchema = z.enum(RANGE_ACTIONS)
 // `z.record(z.enum(...), value)` is exhaustive in Zod 4. Legacy action maps
@@ -88,8 +92,8 @@ export type LegacyRange = z.infer<typeof legacyRangeSchema>
 const legacyPracticeStatSchema = z
   .object({
     rangeId: legacyRangeIdSchema,
-    totalAttempts: nonNegativeIntegerSchema,
-    correctAttempts: nonNegativeIntegerSchema,
+    totalAttempts: persistedCountSchema,
+    correctAttempts: persistedCountSchema,
     lastPracticedAt: timestampSchema,
   })
   .strict()
@@ -106,10 +110,10 @@ const legacyPracticeStatSchema = z
 const legacyHandAccuracyStatSchema = z
   .object({
     hand: handCodeSchema,
-    attempts: nonNegativeIntegerSchema,
-    correct: nonNegativeIntegerSchema,
-    falsePositives: nonNegativeIntegerSchema,
-    falseNegatives: nonNegativeIntegerSchema,
+    attempts: persistedCountSchema,
+    correct: persistedCountSchema,
+    falsePositives: persistedCountSchema,
+    falseNegatives: persistedCountSchema,
   })
   .strict()
   .superRefine((stat, context) => {
@@ -142,10 +146,10 @@ const legacySessionSchema = z
   .object({
     rangeId: legacyRangeIdSchema,
     playedAt: timestampSchema,
-    totalQuestions: nonNegativeIntegerSchema.refine((value) => value > 0, {
+    totalQuestions: persistedCountSchema.refine((value) => value > 0, {
       message: 'totalQuestions must be greater than zero.',
     }),
-    correctAnswers: nonNegativeIntegerSchema,
+    correctAnswers: persistedCountSchema,
   })
   .strict()
   .superRefine((session, context) => {

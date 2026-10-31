@@ -11,6 +11,7 @@ import {
   legacyBackupPreviewResponseSchema,
   legacyBackupV1Schema,
   type LegacyBackupV1,
+  rangePracticeReadResponseSchema,
 } from '@poker-range-trainer/contracts'
 import {
   createDatabase,
@@ -634,5 +635,106 @@ describe('HTTP legacy backup import and export against PostgreSQL', () => {
       [owner.userId],
     )
     expect(goal?.rows[0]?.daily_hand_goal).toBe(50)
+  })
+
+  it('restores a library from a backup it has already imported', async () => {
+    const owner = await register('import-restore')
+    await importSeed(owner)
+    const seededNames = (await listRanges(owner)).map((item) => item.name).sort()
+    const [first] = await listRanges(owner)
+    const read = await request(app)
+      .get(`/api/v1/ranges/${first?.id}`)
+      .set(asUser(owner))
+      .expect(200)
+    await request(app)
+      .delete(`/api/v1/ranges/${first?.id}`)
+      .set(asUser(owner))
+      .send({ version: read.body.data.version })
+      .expect(200)
+    expect(await listRanges(owner)).toHaveLength(seededNames.length - 1)
+
+    const previewed = await preview(owner, seedBackup)
+    expect(previewed.alreadyImported).toBe(true)
+
+    // Merging the same file again is still refused: it could only add nothing.
+    await request(app)
+      .post('/api/v1/imports/legacy-backup')
+      .set(asUser(owner))
+      .send({ backup: seedBackup, expectedDigest: previewed.digest, strategy: 'merge' })
+      .expect(409)
+
+    await commit(owner, seedBackup, 'replace', previewed.digest)
+    expect((await listRanges(owner)).map((item) => item.name).sort()).toEqual(seededNames)
+    expect(
+      await countRows(
+        `select count(*) from legacy_imports where user_id = $1 and status = 'completed'`,
+        [owner.userId],
+      ),
+    ).toBe(1)
+  })
+
+  it('reads back imported practice that exceeds what a new session may carry', async () => {
+    const owner = await register('import-oversized')
+    const backup = structuredClone(seedBackup)
+    backup.sessionHistory['rng-btn-open']?.push({
+      rangeId: 'rng-btn-open',
+      playedAt: '2026-08-19T09:00:00.000Z',
+      totalQuestions: 501,
+      correctAnswers: 400,
+    })
+    const review = backup.reviewStates['rng-btn-open']
+    if (review) review.intervalDays = 90_000
+
+    const previewed = await preview(owner, backup)
+    await commit(owner, backup, 'merge', previewed.digest)
+
+    const listed = await listRanges(owner)
+    const range = listed.find((item) => item.name === 'BTN open 100bb')
+    const read = await request(app)
+      .get(`/api/v1/practice/ranges/${range?.id}`)
+      .set(asUser(owner))
+      .expect(200)
+    const practice = rangePracticeReadResponseSchema.parse(read.body).data
+    expect(practice.review?.intervalDays).toBe(36_500)
+    expect(practice.recentSessions[0]?.totalQuestions).toBe(501)
+  })
+
+  it('refuses a counter no read model could return', async () => {
+    const owner = await register('import-huge-counter')
+    const backup = structuredClone(seedBackup)
+    const stat = backup.practiceStats['rng-btn-open']
+    if (stat) stat.totalAttempts = 3_000_000_000
+    await request(app)
+      .post('/api/v1/imports/legacy-backup/preview')
+      .set(asUser(owner))
+      .send({ backup })
+      .expect(422)
+  })
+
+  it('exports what the owner saved over a preserved import original', async () => {
+    const owner = await register('import-cleared-metadata')
+    const backup = structuredClone(seedBackup)
+    const source = backup.ranges.find((range) => range.id === 'rng-btn-open')
+    if (!source) throw new Error('The seed backup has no BTN range.')
+    // Padding is trimmed on the way in, so the original lands in legacy_payload.
+    source.metadata = { notes: '  padded note  ', extension: 'kept' } as typeof source.metadata
+
+    const previewed = await preview(owner, backup)
+    await commit(owner, backup, 'merge', previewed.digest)
+    const range = (await listRanges(owner)).find((item) => item.name === source.name)
+    const read = await request(app)
+      .get(`/api/v1/ranges/${range?.id}`)
+      .set(asUser(owner))
+      .expect(200)
+    await request(app)
+      .patch(`/api/v1/ranges/${range?.id}`)
+      .set(asUser(owner))
+      .send({ version: read.body.data.version, metadata: null })
+      .expect(200)
+
+    const exported = await request(app).get('/api/v1/exports/backup').set(asUser(owner)).expect(200)
+    const file = legacyBackupV1Schema.parse(exported.body.data.backup)
+    const saved = file.ranges.find((candidate) => candidate.id === 'rng-btn-open')
+    expect(saved?.metadata).toEqual({ extension: 'kept' })
   })
 })

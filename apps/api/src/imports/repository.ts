@@ -15,6 +15,8 @@ import {
   reviewStates,
   userTrainingGoals,
 } from '@poker-range-trainer/database'
+import { MAX_INTERVAL_DAYS } from '@poker-range-trainer/domain/domain/spacedRepetition'
+
 import {
   derivePreservationWarnings,
   LEGACY_BACKUP_VERSION,
@@ -147,15 +149,20 @@ export class PostgresImportsRepository implements ImportsRepository {
       await transaction.execute(sql`select pg_advisory_xact_lock(hashtext(${userId}))`)
 
       const [recorded] = await transaction
-        .select({ status: legacyImports.status })
+        .select({ id: legacyImports.id, status: legacyImports.status })
         .from(legacyImports)
         .where(
           and(eq(legacyImports.userId, userId), eq(legacyImports.backupSha256, backupSha256)),
         )
         .limit(1)
-      if (recorded?.status === 'completed') throw new LegacyImportAlreadyImportedError()
+      // Merging a file twice can only add nothing. Replacing from it again is how
+      // an owner restores that backup, so the record is reused rather than refused.
+      const alreadyCompleted = recorded?.status === 'completed'
+      if (alreadyCompleted && strategy === 'merge') throw new LegacyImportAlreadyImportedError()
 
-      const importId = await this.startImport(transaction, userId, backupSha256, backup, now)
+      const importId = alreadyCompleted
+        ? await this.reopenImport(transaction, recorded.id)
+        : await this.startImport(transaction, userId, backupSha256, backup, now)
       const importedRanges = await this.importRanges(
         transaction,
         userId,
@@ -183,15 +190,23 @@ export class PostgresImportsRepository implements ImportsRepository {
     })
   }
 
+  /** One snapshot across every table, so a drill finishing mid-export cannot tear the file. */
   async readExportSnapshot(userId: string): Promise<ExportSnapshot> {
-    const [goal] = await this.database
+    return this.database.transaction((transaction) => this.exportSnapshot(transaction, userId), {
+      isolationLevel: 'repeatable read',
+      accessMode: 'read only',
+    })
+  }
+
+  private async exportSnapshot(database: Queryable, userId: string): Promise<ExportSnapshot> {
+    const [goal] = await database
       .select({ dailyHandGoal: userTrainingGoals.dailyHandGoal })
       .from(userTrainingGoals)
       .where(eq(userTrainingGoals.userId, userId))
       .limit(1)
     const trainingGoal = goal?.dailyHandGoal ?? null
 
-    const rangeRows = await this.database
+    const rangeRows = await database
       .select({
         id: ranges.id,
         legacyRangeId: ranges.legacyRangeId,
@@ -225,7 +240,7 @@ export class PostgresImportsRepository implements ImportsRepository {
     const liveIds = rangeRows.map((row) => row.id)
 
     // Canonical 13x13 order, so an exported file re-imports byte-comparably.
-    const handRows = await this.database
+    const handRows = await database
       .select({ rangeId: rangeHands.rangeId, handCode: rangeHands.handCode })
       .from(rangeHands)
       .innerJoin(handClasses, eq(handClasses.code, rangeHands.handCode))
@@ -238,7 +253,7 @@ export class PostgresImportsRepository implements ImportsRepository {
       handsByRange.set(row.rangeId, hands)
     }
 
-    const statRows = await this.database
+    const statRows = await database
       .select()
       .from(rangePracticeStats)
       .where(
@@ -258,7 +273,7 @@ export class PostgresImportsRepository implements ImportsRepository {
       }
     }
 
-    const accuracyRows = await this.database
+    const accuracyRows = await database
       .select({
         rangeId: rangeHandAccuracy.rangeId,
         handCode: rangeHandAccuracy.handCode,
@@ -284,7 +299,7 @@ export class PostgresImportsRepository implements ImportsRepository {
       handAccuracy[row.rangeId] = entries
     }
 
-    const sessionRows = await this.database
+    const sessionRows = await database
       .select({
         rangeId: practiceSessions.rangeId,
         completedAt: practiceSessions.completedAt,
@@ -305,7 +320,7 @@ export class PostgresImportsRepository implements ImportsRepository {
       sessionHistory[row.rangeId] = sessions
     }
 
-    const reviewRows = await this.database
+    const reviewRows = await database
       .select()
       .from(reviewStates)
       .where(and(eq(reviewStates.userId, userId), inArray(reviewStates.rangeId, liveIds)))
@@ -375,6 +390,15 @@ export class PostgresImportsRepository implements ImportsRepository {
       if (isUniqueViolation(error)) throw new LegacyImportInProgressError()
       throw error
     }
+  }
+
+  /** Back to pending, so the record reads the same as a first import until it completes. */
+  private async reopenImport(transaction: Queryable, importId: string): Promise<string> {
+    await transaction
+      .update(legacyImports)
+      .set({ status: 'pending', completedAt: null, outcome: null })
+      .where(eq(legacyImports.id, importId))
+    return importId
   }
 
   /**
@@ -532,7 +556,9 @@ export class PostgresImportsRepository implements ImportsRepository {
           rangeId,
           userId,
           ease: normalizeReviewEase(review.ease),
-          intervalDays: review.intervalDays,
+          // A schedule older than the ceiling still imports; the next review
+          // would apply the same cap.
+          intervalDays: Math.min(review.intervalDays, MAX_INTERVAL_DAYS),
           dueAt: scheduled ? new Date(review.dueAt) : null,
           lastReviewedAt: scheduled ? new Date(review.lastReviewedAt) : null,
         })

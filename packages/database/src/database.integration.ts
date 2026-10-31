@@ -69,6 +69,7 @@ describe('PostgreSQL persistence foundation', () => {
         '0001_persistence_foundation.sql',
         '0002_practice_submission_replays.sql',
         '0003_widen_training_goal_constraint.sql',
+        '0004_review_interval_ceiling.sql',
       ])
       const ledger = await firstPool.query<{ id: string; count: string }>(
         'select id, count(*) as count from schema_migrations group by id order by id',
@@ -81,6 +82,7 @@ describe('PostgreSQL persistence foundation', () => {
         { id: '0001_persistence_foundation.sql', count: '1' },
         { id: '0002_practice_submission_replays.sql', count: '1' },
         { id: '0003_widen_training_goal_constraint.sql', count: '1' },
+        { id: '0004_review_interval_ceiling.sql', count: '1' },
       ])
       expect(usersTable.rows).toEqual([{ users_table: 'users' }])
     } finally {
