@@ -90,6 +90,9 @@ test('deletes the account and frees its address @cross-browser', async ({ page }
   await page.getByLabel('Password', { exact: true }).fill(PASSWORD)
   await page.getByRole('button', { name: 'Create account' }).click()
   await expect(page).toHaveURL(/\/app/)
+  // Today has finished loading before the page is left: WebKit reports a fetch
+  // that a navigation cancels as an uncaught error, which the health check fails.
+  await expect(page.getByRole('heading', { name: 'Welcome' })).toBeVisible()
   await page.goto('/app/library')
   await expect(page.getByText('Your library is empty')).toBeVisible()
 })
