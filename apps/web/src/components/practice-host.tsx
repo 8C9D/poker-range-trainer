@@ -132,14 +132,22 @@ async function loadDrill(
   }
 }
 
+/** The range a run was dealt from: the server scores it against that version's chart. */
+type DealtRange = Pick<RangeRead, 'id' | 'version'>
+
 /** Build the exact submission the mode's contract variant expects. */
 function answeredSubmission(
   mode: AnsweredMode,
-  rangeId: string,
+  range: DealtRange,
   idempotencyKey: string,
   answers: readonly DrillAnswer[],
 ): PracticeSessionSubmission {
-  const base = { rangeId, idempotencyKey, answers: toSubmissionAnswers(answers) }
+  const base = {
+    rangeId: range.id,
+    rangeVersion: range.version,
+    idempotencyKey,
+    answers: toSubmissionAnswers(answers),
+  }
   switch (mode) {
     case 'timed':
       return { mode, ...base }
@@ -229,6 +237,8 @@ export function PracticeHost() {
         if (!active) return
         // A queue outlives the ranges in it; a deleted one is skipped, not fatal.
         if (caught instanceof ApiClientError && caught.status === 404) {
+          // Whatever the notice said was about this range, not the next one.
+          setNotice(undefined)
           setSkipped((current) => [...current, rangeId])
           setIndex((current) => current + 1)
           return
@@ -254,12 +264,12 @@ export function PracticeHost() {
   }, [])
 
   const finish = useCallback(
-    (endedRangeId: string, endedMode: AnsweredMode, key: string, answers: DrillAnswer[]): void => {
+    (ended: DealtRange, endedMode: AnsweredMode, key: string, answers: DrillAnswer[]): void => {
       if (answers.length === 0) {
         setOutcome({ status: 'unanswered' })
         return
       }
-      void submit(answeredSubmission(endedMode, endedRangeId, key, answers))
+      void submit(answeredSubmission(endedMode, ended, key, answers))
     },
     [submit],
   )
@@ -269,13 +279,13 @@ export function PracticeHost() {
   useEffect(() => {
     if (mode !== 'timed' || drill === undefined || outcome.status !== 'idle') return
     const { startedAtMs, answers, idempotencyKey } = run
-    const endedRangeId = drill.range.id
+    const ended = { id: drill.range.id, version: drill.range.version }
     const tick = setInterval(() => {
       const current = Date.now()
       setNowMs(current)
       if (!isDrillOver(startedAtMs, seconds, current)) return
       clearInterval(tick)
-      finish(endedRangeId, 'timed', idempotencyKey, answers)
+      finish(ended, 'timed', idempotencyKey, answers)
     }, 250)
     return () => clearInterval(tick)
   }, [mode, seconds, drill, outcome.status, run, finish])
@@ -311,7 +321,7 @@ export function PracticeHost() {
   function next(): void {
     if (!drill || !run.awaitingNext) return
     if (run.answers.length >= questionCount) {
-      finish(drill.range.id, mode as AnsweredMode, run.idempotencyKey, run.answers)
+      finish(drill.range, mode as AnsweredMode, run.idempotencyKey, run.answers)
       return
     }
     setRun({
@@ -324,7 +334,7 @@ export function PracticeHost() {
 
   function finishEarly(): void {
     if (!drill) return
-    finish(drill.range.id, mode as AnsweredMode, run.idempotencyKey, run.answers)
+    finish(drill.range, mode as AnsweredMode, run.idempotencyKey, run.answers)
   }
 
   function checkBuild(): void {
@@ -333,6 +343,7 @@ export function PracticeHost() {
     void submit({
       mode: 'build',
       rangeId: drill.range.id,
+      rangeVersion: drill.range.version,
       idempotencyKey: run.idempotencyKey,
       selectedHands: [...run.built],
     })
@@ -345,7 +356,7 @@ export function PracticeHost() {
       return
     }
     // Same key: the server may already hold this attempt, and must not add it twice.
-    finish(drill.range.id, mode as AnsweredMode, run.idempotencyKey, run.answers)
+    finish(drill.range, mode as AnsweredMode, run.idempotencyKey, run.answers)
   }
 
   function restart(discarded: boolean): void {
@@ -354,6 +365,19 @@ export function PracticeHost() {
     setOutcome({ status: 'idle' })
     setNowMs(Date.now())
     setNotice(discarded ? 'Those answers were discarded. Nothing was recorded.' : undefined)
+  }
+
+  /**
+   * After a run whose chart was replaced mid-drill, the copy on this page is
+   * stale, so the next run loads the range again instead of re-dealing it.
+   */
+  function practiceAgain(result: SessionResult): void {
+    if (result.chartChanged !== true) {
+      restart(false)
+      return
+    }
+    setNotice('This drill uses the edited chart.')
+    retryLoad()
   }
 
   function goToNextRange(): void {
@@ -521,7 +545,7 @@ export function PracticeHost() {
           mode={mode}
           rangeHands={range.hands}
           hasNext={hasNext}
-          onAgain={() => restart(false)}
+          onAgain={() => practiceAgain(outcome.result)}
           onNext={goToNextRange}
         />
       ) : outcome.status === 'unanswered' ? (
@@ -778,7 +802,7 @@ function SessionSummary({
   onAgain: () => void
   onNext: () => void
 }) {
-  const { session, stats, review } = result
+  const { session, stats, review, chartChanged } = result
   const recap = mode === 'build' ? null : recapMisses(toPracticeAttempts(answers))
   const comparison = mode === 'build' ? compareBuiltRange([...rangeHands], [...built]) : undefined
 
@@ -793,6 +817,12 @@ function SessionSummary({
         This range is now {stats.accuracyPercentage.toFixed(0)}% across {stats.totalAttempts}{' '}
         answers. Next review: {formatDue(review.dueAt)}.
       </p>
+      {chartChanged === true ? (
+        <p className="success-notice" role="status">
+          This range&apos;s chart was edited while you practiced. Practicing again loads the
+          edited chart.
+        </p>
+      ) : null}
       {comparison ? (
         <div className="summary-hands">
           <HandList label="Correct" hands={comparison.correct} />

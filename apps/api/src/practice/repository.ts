@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 
-import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, sql } from 'drizzle-orm'
 
 import {
   practiceSessionSubmissionResponseSchema,
@@ -14,6 +14,7 @@ import {
   practiceAttempts,
   practiceSessions,
   practiceSubmissionReplays,
+  rangeChartRevisions,
   rangeHandAccuracy,
   rangeHands,
   rangePracticeStats,
@@ -29,7 +30,7 @@ import {
   scheduleNextReview,
   seedReviewState,
 } from '@poker-range-trainer/domain/domain/spacedRepetition'
-import type { PokerHand } from '@poker-range-trainer/domain/domain/pokerHands'
+import { areValidHands, type PokerHand } from '@poker-range-trainer/domain/domain/pokerHands'
 import type {
   PracticeSessionRecord,
   RangeHandAccuracy,
@@ -69,6 +70,16 @@ export class PracticeUnscorableError extends Error {
   }
 }
 
+/** The submission names a range version the range has never had. */
+export class PracticeRangeVersionError extends Error {
+  readonly code = 'PRACTICE_RANGE_VERSION_UNKNOWN'
+
+  constructor() {
+    super('The submission names a range version that does not exist yet.')
+    this.name = 'PracticeRangeVersionError'
+  }
+}
+
 /** A committed replay must always be parseable through the public response contract. */
 export class PracticeReplayCorruptedError extends Error {
   readonly code = 'PRACTICE_REPLAY_CORRUPTED'
@@ -99,18 +110,28 @@ const sessionBucket = sql<string>`date_bin('15 minutes', ${practiceSessions.comp
  */
 const MAX_REPORTED_SESSION_ROWS = 100_000
 
+/**
+ * Present only when the client sent it, so a submission without a version keeps
+ * the fingerprint it had before versions existed and its replay still matches.
+ */
+function dealtVersionOf(submission: PracticeSessionSubmission): { rangeVersion?: number } {
+  return submission.rangeVersion === undefined ? {} : { rangeVersion: submission.rangeVersion }
+}
+
 function requestFingerprint(submission: PracticeSessionSubmission): string {
   const canonical =
     submission.mode === 'build'
       ? {
           mode: submission.mode,
           rangeId: submission.rangeId,
+          ...dealtVersionOf(submission),
           idempotencyKey: submission.idempotencyKey,
           selectedHands: normalizeRangeHands(submission.selectedHands),
         }
       : {
           mode: submission.mode,
           rangeId: submission.rangeId,
+          ...dealtVersionOf(submission),
           idempotencyKey: submission.idempotencyKey,
           answers: submission.answers
             .map((answer) => ({
@@ -122,6 +143,20 @@ function requestFingerprint(submission: PracticeSessionSubmission): string {
             .sort((left, right) => left.questionId.localeCompare(right.questionId)),
         }
   return createHash('sha256').update(JSON.stringify(canonical)).digest('hex')
+}
+
+interface LockedRange {
+  version: number
+  /** The version at which the range's current chart took effect. */
+  chartVersion: number
+}
+
+/** Stored from `range_hands`, so anything off-vocabulary is corruption, not input. */
+function retiredChartHands(hands: string[]): PokerHand[] {
+  if (!areValidHands(hands) || new Set(hands).size !== hands.length) {
+    throw new Error('A retired range chart holds an invalid hand.')
+  }
+  return hands
 }
 
 function asRangeHandAccuracy(
@@ -199,9 +234,9 @@ export class PostgresPracticeRepository implements PracticeRepository {
         return parsed.data
       }
 
-      await this.lockActiveRange(transaction, userId, submission.rangeId)
-      const hands = await this.lockedRangeHands(transaction, userId, submission.rangeId)
-      const scored = scorePracticeSubmission(submission, hands)
+      const range = await this.lockActiveRange(transaction, userId, submission.rangeId)
+      const chart = await this.dealtChart(transaction, userId, submission, range)
+      const scored = scorePracticeSubmission(submission, chart.hands)
       if (scored.totalQuestions === 0) throw new PracticeUnscorableError()
       const completedAt = this.clock.now()
       const sessionId = randomUUID()
@@ -277,6 +312,7 @@ export class PostgresPracticeRepository implements PracticeRepository {
             lastPracticedAt: lastPracticedAt.toISOString(),
           },
           review,
+          ...(chart.changed ? { chartChanged: true as const } : {}),
         },
       })
       await transaction.insert(practiceSubmissionReplays).values({
@@ -577,13 +613,58 @@ export class PostgresPracticeRepository implements PracticeRepository {
     transaction: Queryable,
     userId: string,
     rangeId: string,
-  ): Promise<void> {
+  ): Promise<LockedRange> {
     const result = await transaction.execute(sql`
-      select ${ranges.id} from ${ranges}
+      select ${ranges.version} as "version", ${ranges.chartVersion} as "chartVersion"
+      from ${ranges}
       where ${ranges.id} = ${rangeId} and ${ranges.userId} = ${userId} and ${ranges.deletedAt} is null
       for update
     `)
     if (result.rows.length !== 1) throw new PracticeRangeNotFoundError()
+    const row = result.rows[0] as { version: number | string; chartVersion: number | string }
+    return { version: Number(row.version), chartVersion: Number(row.chartVersion) }
+  }
+
+  /**
+   * The chart a drill was dealt from, which is what its player was shown and so
+   * the only fair thing to score it against.
+   *
+   * A submission without a version, or one dealt since the current chart took
+   * effect, gets the current chart. One dealt earlier gets the retired chart that
+   * covered its version; if that has been purged, which takes a drill page left
+   * open for weeks, the current chart is the only one left to score against.
+   */
+  private async dealtChart(
+    transaction: Queryable,
+    userId: string,
+    submission: PracticeSessionSubmission,
+    range: LockedRange,
+  ): Promise<{ hands: PokerHand[]; changed: boolean }> {
+    const dealt = submission.rangeVersion
+    if (dealt !== undefined && dealt > range.version) throw new PracticeRangeVersionError()
+    if (dealt === undefined || dealt >= range.chartVersion) {
+      return {
+        hands: await this.lockedRangeHands(transaction, userId, submission.rangeId),
+        changed: false,
+      }
+    }
+    const [revision] = await transaction
+      .select({ hands: rangeChartRevisions.hands })
+      .from(rangeChartRevisions)
+      .where(
+        and(
+          eq(rangeChartRevisions.userId, userId),
+          eq(rangeChartRevisions.rangeId, submission.rangeId),
+          lte(rangeChartRevisions.firstVersion, dealt),
+          gte(rangeChartRevisions.lastVersion, dealt),
+        ),
+      )
+      .limit(1)
+    const hands =
+      revision === undefined
+        ? await this.lockedRangeHands(transaction, userId, submission.rangeId)
+        : retiredChartHands(revision.hands)
+    return { hands, changed: true }
   }
 
   private async lockedRangeHands(

@@ -11,11 +11,11 @@ limitation is removed; this file, not the README, is the source of truth for
 | Slice | Where | Notes |
 | --- | --- | --- |
 | Monorepo, shared packages, compiled-package smoke test | root, `packages/*`, `scripts/` | Domain is a NodeNext package consumed by both apps. |
-| PostgreSQL schema + migrations (0001–0004), seed, migrator with advisory lock | `packages/database` | Owner-scoped tables, check constraints, partial unique indexes for imported ids and session fingerprints. |
+| PostgreSQL schema + migrations (0001–0005), seed, migrator with advisory lock | `packages/database` | Owner-scoped tables, check constraints, partial unique indexes for imported ids and session fingerprints. |
 | Express foundation | `apps/api/src/app.ts` | Request ids, pino logging with redaction, helmet (the production CSP included), CORS allowlist, rate limits, 1 MiB JSON limit (larger only on `/api/v1/imports`), problem+json errors, health/readiness. With `WEB_DIST_DIR` set it also serves the built web bundle: immutable hashed assets and an `index.html` fallback for page URLs, mounted after the API routes so unknown `/api` paths keep their problem+json 404 ([ADR 0002](../adr/0002-vite-react-spa-served-by-express.md)). |
 | Auth | `apps/api/src/auth` | Argon2 password hashing, server-side revocable sessions, HTTP-only cookie + double-submit CSRF, auth-specific rate limiter, session touch, hourly purge of dead sessions. Password change (revokes every other session, and a sign-in racing it is refused), sign out everywhere, and account deletion (cascades to everything the account owns). |
 | Ranges | `apps/api/src/ranges` | CRUD, list with search/filters/sorts/pagination, archive/favorite/restore/duplicate, atomic bulk mutations, optimistic versions. |
-| Practice sessions | `apps/api/src/practice` | Server-side scoring from the saved range, one transaction per submission, idempotent replay ledger. |
+| Practice sessions | `apps/api/src/practice` | Server-side scoring from the saved range, one transaction per submission, idempotent replay ledger. A submission names the range version it was dealt from and is scored against that version's chart, so editing the chart in another tab mid-drill no longer splits the recorded result from the feedback the player saw; replaced charts are kept 30 days (`range_chart_revisions`, migration 0005). |
 | Practice read models | `apps/api/src/practice` | Per-range read, Today, Progress; computed with the domain functions over a library snapshot; time-zone aware via `zonedCalendarDays`. |
 | Settings | `apps/api/src/settings` | Training goal (any bounded positive integer) and an explicit practice-stats reset. |
 | Backup import/export | `apps/api/src/imports` | Preview (digest, counts, preservation warnings, conflicts), atomic commit with `merge`/`replace`, audit row, unsupported fields kept in `legacy_payload`, export as a version 1 file. |
@@ -43,10 +43,14 @@ limitation is removed; this file, not the README, is the source of truth for
   makes those reads take about two seconds; nothing a person could play comes
   close. There are no per-account quotas on ranges, sessions, or imports beyond
   the 64 MiB, 10,000-range limits on one backup file.
-- A drill is scored against the range as it stands when the drill is submitted. If
-  the chart is edited in another tab mid-drill, the on-screen feedback came from
-  the old chart and the recorded result from the new one. Refusing the submission
-  would throw away the drill, and scoring the old chart needs a history of charts.
+- A drill page left open for more than 30 days after its chart was edited is
+  scored against the current chart, because the chart it was dealt from has been
+  purged; so is a submission from a page loaded before range versions were sent.
+- Chart history is written by the API, so a chart edit made by the release before
+  migration 0005 (while a deploy is in progress, or after a rollback) is not
+  recorded: a drill dealt before that edit is scored against the newer chart. A
+  rollback past 0005 also makes pages loaded on the newer release fail to save
+  drills until they are reloaded, since the older API refuses `rangeVersion`.
 - `replace` imports soft-delete the previous library (and release their imported
   ids); the rows remain for recovery but there is no UI to restore them. The same
   backup file can be replaced from again, which is how a library is restored;

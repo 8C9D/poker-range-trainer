@@ -4,7 +4,7 @@ import { accuracyPercentage } from '@poker-range-trainer/domain/domain/accuracy'
 import { MAX_INTERVAL_DAYS } from '@poker-range-trainer/domain/domain/spacedRepetition'
 
 import { handCodeSchema, idSchema, successResponseSchema, timestampSchema } from './common.js'
-import { rangeHandsSchema } from './ranges.js'
+import { rangeHandsSchema, rangeVersionSchema } from './ranges.js'
 
 export const practiceModeValues = ['recognition', 'timed', 'weakness', 'edges', 'mistakes', 'build'] as const
 export const practiceModeSchema = z.enum(practiceModeValues)
@@ -42,9 +42,18 @@ const questionAnswersSchema = z
 /** A blank build is a legacy no-record reveal, not a submit-able practice attempt. */
 export const selectedHandsSchema = rangeHandsSchema
 
+/**
+ * The range version the drill was dealt from, so it is scored against the chart
+ * its player saw even if the chart was edited in another tab meanwhile. Optional
+ * only so a page loaded before the field existed can still save; without it the
+ * drill is scored against the current chart.
+ */
+const dealtRangeVersionSchema = rangeVersionSchema.optional()
+
 const answeredPracticeSubmissionSchema = z
   .object({
     rangeId: idSchema,
+    rangeVersion: dealtRangeVersionSchema,
     idempotencyKey: idempotencyKeySchema,
     answers: questionAnswersSchema,
   })
@@ -60,6 +69,7 @@ export const practiceSessionSubmissionSchema = z.discriminatedUnion('mode', [
     .object({
       mode: z.literal('build'),
       rangeId: idSchema,
+      rangeVersion: dealtRangeVersionSchema,
       idempotencyKey: idempotencyKeySchema,
       selectedHands: selectedHandsSchema,
     })
@@ -181,6 +191,14 @@ export const practiceSessionSubmissionResponseSchema = successResponseSchema(
       session: apiPracticeSessionSchema,
       stats: rangePracticeStatsSchema,
       review: reviewStateSchema,
+      /**
+       * Present, and true, only when the range's chart was replaced after the
+       * drill was dealt: the page's copy is stale and the next drill should load
+       * it again. Absent otherwise, so a page loaded before the field existed,
+       * which sends no version and so never sees a change, still gets exactly
+       * the response shape its strict parser expects, and so do old replays.
+       */
+      chartChanged: z.literal(true).optional(),
     })
     .strict(),
 )

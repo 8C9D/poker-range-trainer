@@ -50,6 +50,7 @@ const secondRange: RangeRead = { ...range, id: secondId, name: 'CO open' }
 
 function sessionResponse(
   session: Partial<{ totalQuestions: number; correctAnswers: number }> = {},
+  chartChanged = false,
 ) {
   const totalQuestions = session.totalQuestions ?? 2
   const correctAnswers = session.correctAnswers ?? 1
@@ -78,6 +79,7 @@ function sessionResponse(
         dueAt: '2026-01-05T03:04:05.000Z',
         lastReviewedAt: iso,
       },
+      ...(chartChanged ? { chartChanged: true as const } : {}),
     },
   }
 }
@@ -230,7 +232,8 @@ describe('PracticeHost', () => {
     await waitFor(() => expect(submit).toHaveBeenCalledTimes(1))
     const first = submit.mock.calls[0]?.[0] as AnsweredSubmission
     expect(practiceSessionSubmissionSchema.safeParse(first)).toMatchObject({ success: true })
-    expect(first).toMatchObject({ mode: 'recognition', rangeId })
+    // The version the drill was dealt from, so it is scored against that chart.
+    expect(first).toMatchObject({ mode: 'recognition', rangeId, rangeVersion: 2 })
     expect(first.answers).toHaveLength(2)
     expect(first.answers.map((entry) => entry.answer)).toEqual([true, false])
 
@@ -262,12 +265,76 @@ describe('PracticeHost', () => {
     await waitFor(() => expect(submit).toHaveBeenCalledTimes(1))
     const submission = submit.mock.calls[0]?.[0]
     expect(practiceSessionSubmissionSchema.safeParse(submission)).toMatchObject({ success: true })
-    expect(submission).toMatchObject({ mode: 'build', rangeId, selectedHands: ['AA', 'QQ'] })
+    expect(submission).toMatchObject({
+      mode: 'build',
+      rangeId,
+      rangeVersion: 2,
+      selectedHands: ['AA', 'QQ'],
+    })
 
     expect(await screen.findByText('Missed (2)')).toBeInTheDocument()
     expect(screen.getByText('AKs, KK')).toBeInTheDocument()
     expect(screen.getByText('Extra (1)')).toBeInTheDocument()
     expect(screen.getByText('QQ')).toBeInTheDocument()
+  })
+
+  it('re-deals the same chart when practicing again, and reloads it once it was edited', async () => {
+    navigation.search = `range=${rangeId}`
+    renderAt(<PracticeHost />, '/app/practice')
+    expect(await screen.findByRole('heading', { name: 'BTN open' })).toBeInTheDocument()
+    const user = userEvent.setup()
+
+    await user.keyboard('i')
+    await user.click(screen.getByRole('button', { name: 'Finish early' }))
+    await user.click(await screen.findByRole('button', { name: 'Practice again' }))
+    expect(screen.getByText('Question 1 of 20')).toBeInTheDocument()
+    expect(read).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText(/chart was edited/)).not.toBeInTheDocument()
+
+    // Edited in another tab while this run was dealt from version 2.
+    submit.mockResolvedValueOnce(sessionResponse({}, true))
+    read.mockResolvedValue({ data: { ...range, version: 3, hands: ['KK'] } })
+    await user.keyboard('i')
+    expect(screen.getByText('Correct')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Finish early' }))
+    expect(
+      await screen.findByText(/This range's chart was edited while you practiced/),
+    ).toBeInTheDocument()
+    expect(submit.mock.calls[1]?.[0]).toMatchObject({ rangeVersion: 2 })
+
+    await user.click(screen.getByRole('button', { name: 'Practice again' }))
+    expect(await screen.findByText('This drill uses the edited chart.')).toBeInTheDocument()
+    expect(read).toHaveBeenCalledTimes(2)
+    // AA is no longer in the edited chart, and the next submission names its version.
+    await user.keyboard('i')
+    expect(screen.getByText('Missed')).toBeInTheDocument()
+    expect(screen.queryByText('This drill uses the edited chart.')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Finish early' }))
+    await waitFor(() => expect(submit).toHaveBeenCalledTimes(3))
+    expect(submit.mock.calls[2]?.[0]).toMatchObject({ rangeVersion: 3 })
+  })
+
+  it('drops the edited-chart notice when the reloaded range is gone and the queue moves on', async () => {
+    navigation.search = `queue=${rangeId},${secondId}`
+    read.mockImplementation((id: string) =>
+      Promise.resolve({ data: id === rangeId ? range : secondRange }),
+    )
+    submit.mockResolvedValueOnce(sessionResponse({}, true))
+    renderAt(<PracticeHost />, '/app/practice')
+    expect(await screen.findByRole('heading', { name: 'BTN open' })).toBeInTheDocument()
+    const user = userEvent.setup()
+    await user.keyboard('i')
+    await user.click(screen.getByRole('button', { name: 'Finish early' }))
+    expect(await screen.findByText(/chart was edited while you practiced/)).toBeInTheDocument()
+
+    // Deleted elsewhere too: the reload skips it, and the notice was about it.
+    read.mockImplementation((id: string) =>
+      id === rangeId ? Promise.reject(problem(404)) : Promise.resolve({ data: secondRange }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Practice again' }))
+    expect(await screen.findByRole('heading', { name: 'CO open' })).toBeInTheDocument()
+    expect(screen.getByText(/1 queued range was skipped/)).toBeInTheDocument()
+    expect(screen.queryByText('This drill uses the edited chart.')).not.toBeInTheDocument()
   })
 
   it('moves to the next range in a queue once the first is saved', async () => {
@@ -307,7 +374,7 @@ describe('PracticeHost', () => {
 
       elapsed = 31_000
       await waitFor(() => expect(submit).toHaveBeenCalledTimes(1), { timeout: 2_000 })
-      expect(submit.mock.calls[0]?.[0]).toMatchObject({ mode: 'timed', rangeId })
+      expect(submit.mock.calls[0]?.[0]).toMatchObject({ mode: 'timed', rangeId, rangeVersion: 2 })
       expect(await screen.findByText('1 of 2 correct · 50%')).toBeInTheDocument()
     } finally {
       clock.mockRestore()

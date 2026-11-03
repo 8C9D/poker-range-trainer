@@ -17,6 +17,19 @@ interface RangePractice {
 
 const HANDS = ['AA', 'KK', 'QQ', 'AKs']
 
+/** All 169 starting hands: pairs, then suited and offsuit for every unpaired pair of ranks. */
+function everyHand(): string[] {
+  const ranks = 'AKQJT98765432'
+  const hands: string[] = []
+  for (const [high, highRank] of [...ranks].entries()) {
+    hands.push(`${highRank}${highRank}`)
+    for (const lowRank of ranks.slice(high + 1)) {
+      hands.push(`${highRank}${lowRank}s`, `${highRank}${lowRank}o`)
+    }
+  }
+  return hands
+}
+
 const readPractice = (page: Parameters<typeof api>[0], range: RangeRecord) =>
   api<RangePractice>(page, 'GET', `/practice/ranges/${range.id}`)
 
@@ -50,6 +63,46 @@ test('records a drill the server scored, and Today and Progress report it @cross
   await expect(overview).toContainText('100%')
   await expect(overview).toContainText('1 day')
   await expect(overview).toContainText('5')
+})
+
+test('scores a drill against the chart it was dealt, though another tab edited it', async ({
+  page,
+}) => {
+  await signUp(page)
+  const range = await createRange(page, 'Edited elsewhere', HANDS)
+  await page.goto(`/app/practice?range=${range.id}&count=5`)
+  await expect(page.getByText('Question 1 of 5')).toBeVisible()
+  await answerCorrectly(page, HANDS)
+  await page.keyboard.press('Enter')
+
+  // Another tab inverts the chart while this drill is still dealing, so every
+  // answer this page marks correct would be a miss against the edited chart.
+  const inverted = everyHand().filter((hand) => !HANDS.includes(hand))
+  expect(inverted).toHaveLength(165)
+  const edited = await api<RangeRecord>(page, 'PATCH', `/ranges/${range.id}`, {
+    version: range.version,
+    hands: inverted,
+  })
+  expect(edited.version).toBe(range.version + 1)
+
+  for (const question of [2, 3, 4, 5]) {
+    await expect(page.getByText(`Question ${question} of 5`)).toBeVisible()
+    await answerCorrectly(page, HANDS)
+    if (question < 5) await page.keyboard.press('Enter')
+  }
+  await page.getByRole('button', { name: 'See results' }).click()
+  const summary = page.getByRole('region', { name: 'Session summary' })
+  // The record agrees with the feedback this page showed: five of five.
+  await expect(summary).toContainText('5 of 5 correct · 100%')
+  await expect(summary).toContainText('No misses')
+  await expect(summary).toContainText("This range's chart was edited while you practiced")
+  const practice = await readPractice(page, range)
+  expect(practice.stats).toMatchObject({ totalAttempts: 5, correctAttempts: 5 })
+
+  await summary.getByRole('button', { name: 'Practice again' }).click()
+  await expect(page.getByText('This drill uses the edited chart.')).toBeVisible()
+  await expect(page.getByText('Question 1 of 5')).toBeVisible()
+  await answerCorrectly(page, inverted)
 })
 
 test('scores a build-from-memory drill against the saved chart', async ({ page }) => {

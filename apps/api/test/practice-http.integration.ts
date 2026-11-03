@@ -237,6 +237,160 @@ describe('HTTP practice sessions against PostgreSQL', () => {
     expect(malformed.body).toMatchObject({ code: 'VALIDATION_FAILED' })
   })
 
+  it('scores a drill against the chart it was dealt from, even after an edit elsewhere', async () => {
+    const owner = await register('practice-dealt-chart')
+    const created = await request(app)
+      .post('/api/v1/ranges')
+      .set(asUser(owner))
+      .send({ name: 'Edited mid-drill', hands: ['AA', 'AKs'] })
+      .expect(201)
+    const rangeId = created.body.data.id as string
+    expect(created.body.data.version).toBe(1)
+
+    async function patch(version: number, body: Record<string, unknown>): Promise<number> {
+      const response = await request(app)
+        .patch(`/api/v1/ranges/${rangeId}`)
+        .set(asUser(owner))
+        .send({ version, ...body })
+        .expect(200)
+      return response.body.data.version as number
+    }
+
+    /** AA and KK both called in: right on the first chart, half right on the edited one. */
+    function drill(rangeVersion?: number, idempotencyKey = randomUUID()) {
+      return {
+        mode: 'recognition' as const,
+        rangeId,
+        ...(rangeVersion === undefined ? {} : { rangeVersion }),
+        idempotencyKey,
+        answers: ['AA', 'AKs', 'KK'].map((hand, index) => ({
+          questionId: randomUUID(),
+          hand,
+          answer: hand !== 'KK',
+          answeredAt: `2024-01-01T00:00:0${index}.000Z`,
+        })),
+      }
+    }
+
+    async function submit(body: ReturnType<typeof drill>) {
+      const response = await request(app)
+        .post('/api/v1/practice/sessions')
+        .set(asUser(owner))
+        .send(body)
+        .expect(200)
+      return practiceSessionSubmissionResponseSchema.parse(response.body).data
+    }
+
+    // Another tab replaces the chart while a drill dealt from version 1 is open.
+    expect(await patch(1, { hands: ['KK', 'QQ'] })).toBe(2)
+    const dealt = await submit(drill(1))
+    expect(dealt.session).toMatchObject({ totalQuestions: 3, correctAnswers: 3 })
+    expect(dealt.chartChanged).toBe(true)
+    const accuracy = await request(app)
+      .get(`/api/v1/practice/ranges/${rangeId}`)
+      .set(asUser(owner))
+      .expect(200)
+    // Recorded against the chart the player saw: KK was out of it, so no miss.
+    expect(accuracy.body.data.handAccuracy).toEqual([
+      { hand: 'AA', attempts: 1, correct: 1, falsePositives: 0, falseNegatives: 0 },
+      { hand: 'AKs', attempts: 1, correct: 1, falsePositives: 0, falseNegatives: 0 },
+      { hand: 'KK', attempts: 1, correct: 1, falsePositives: 0, falseNegatives: 0 },
+    ])
+
+    // Dealt from the current chart, or sent by a page that names no version.
+    for (const body of [drill(2), drill()]) {
+      const current = await submit(body)
+      expect(current.session).toMatchObject({ totalQuestions: 3, correctAnswers: 0 })
+      // Exactly the shape a page from before versions existed parses strictly.
+      expect(Object.keys(current).sort()).toEqual(['review', 'session', 'stats'])
+    }
+
+    // A rename, or re-saving the same cells, is not a new chart.
+    expect(await patch(2, { name: 'Renamed mid-drill' })).toBe(3)
+    expect(await patch(3, { hands: ['QQ', 'KK'] })).toBe(4)
+    for (const version of [2, 3]) {
+      const unchanged = await submit(drill(version))
+      expect(unchanged.session.correctAnswers).toBe(0)
+      expect(unchanged.chartChanged).toBeUndefined()
+    }
+
+    // Back to the first chart: versions 2 to 4 are now the retired KK/QQ chart.
+    expect(await patch(4, { hands: ['AKs', 'AA'] })).toBe(5)
+    const revisions = await testPool?.query(
+      `select first_version, last_version, hands from range_chart_revisions
+       where range_id = $1 order by last_version`,
+      [rangeId],
+    )
+    expect(revisions?.rows).toEqual([
+      { first_version: 1, last_version: 1, hands: ['AA', 'AKs'] },
+      { first_version: 2, last_version: 4, hands: ['KK', 'QQ'] },
+    ])
+    const middle = await submit(drill(3))
+    expect(middle.session.correctAnswers).toBe(0)
+    expect(middle.chartChanged).toBe(true)
+    expect((await submit(drill(5))).session.correctAnswers).toBe(3)
+
+    // The build drill is scored against the dealt chart too.
+    const build = await request(app)
+      .post('/api/v1/practice/sessions')
+      .set(asUser(owner))
+      .send({
+        mode: 'build',
+        rangeId,
+        rangeVersion: 2,
+        idempotencyKey: randomUUID(),
+        selectedHands: ['KK', 'QQ'],
+      })
+      .expect(200)
+    expect(build.body.data).toMatchObject({
+      session: { mode: 'build', totalQuestions: 2, correctAnswers: 2 },
+      chartChanged: true,
+    })
+
+    // A version the range never had cannot have dealt anything.
+    const ahead = await request(app)
+      .post('/api/v1/practice/sessions')
+      .set(asUser(owner))
+      .send(drill(6))
+      .expect(409)
+    expect(ahead.body).toMatchObject({ code: 'CONFLICT' })
+
+    // One key is one submission: the version is part of what it names.
+    const key = randomUUID()
+    const original = drill(1, key)
+    const replayed = await submit(original)
+    expect(replayed.chartChanged).toBe(true)
+    expect(await submit(original)).toEqual(replayed)
+    await request(app)
+      .post('/api/v1/practice/sessions')
+      .set(asUser(owner))
+      .send({ ...original, rangeVersion: 5 })
+      .expect(409)
+    // A replay saved before the flag existed still answers, as unchanged.
+    await testPool?.query(
+      `update practice_submission_replays
+       set response_snapshot = response_snapshot #- '{data,chartChanged}'
+       where idempotency_key = $1`,
+      [key],
+    )
+    const { chartChanged: _flag, ...unflagged } = replayed
+    expect(_flag).toBe(true)
+    expect(await submit(original)).toEqual(unflagged)
+
+    // Once purged, a long-open drill can only be scored against the current chart.
+    await testPool?.query(
+      "update range_chart_revisions set retired_at = now() - interval '31 days' where range_id = $1",
+      [rangeId],
+    )
+    const purged = await new PostgresRangeRepository(createDatabase(testPool!)).purgeRetiredCharts(
+      new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+    )
+    expect(purged).toBeGreaterThanOrEqual(2)
+    const fallback = await submit(drill(3))
+    expect(fallback.session.correctAnswers).toBe(3)
+    expect(fallback.chartChanged).toBe(true)
+  })
+
   it('reads back the practice one submission produced, for its owner only', async () => {
     const owner = await register('practice-reader')
     const stranger = await register('practice-stranger')

@@ -288,6 +288,36 @@ describe('practice submission contracts', () => {
     }).success).toBe(false)
   })
 
+  it('carries the range version a drill was dealt from, when the client knows it', () => {
+    const answered = {
+      mode: 'recognition',
+      rangeId: ids.range,
+      idempotencyKey: ids.request,
+      answers: [answer],
+    } as const
+    const built = {
+      mode: 'build',
+      rangeId: ids.range,
+      idempotencyKey: ids.request,
+      selectedHands: ['AA'],
+    } as const
+    expect(practiceSessionSubmissionSchema.parse({ ...answered, rangeVersion: 7 })).toMatchObject({
+      rangeVersion: 7,
+    })
+    expect(practiceSessionSubmissionSchema.parse({ ...built, rangeVersion: 1 })).toMatchObject({
+      rangeVersion: 1,
+    })
+    expect(practiceSessionSubmissionSchema.parse(answered)).not.toHaveProperty('rangeVersion')
+    for (const rangeVersion of [0, -1, 1.5, '3', null]) {
+      expect(practiceSessionSubmissionSchema.safeParse({ ...answered, rangeVersion }).success).toBe(
+        false,
+      )
+      expect(practiceSessionSubmissionSchema.safeParse({ ...built, rangeVersion }).success).toBe(
+        false,
+      )
+    }
+  })
+
   it('accepts non-empty build selections but rejects duplicates and blank reveals', () => {
     expect(practiceSessionSubmissionSchema.parse({
       mode: 'build',
@@ -338,7 +368,18 @@ describe('practice submission contracts', () => {
       },
     }
 
+    // An unchanged chart adds nothing, so the shape stays what older pages parse.
     expect(practiceSessionSubmissionResponseSchema.parse(response)).toEqual(response)
+    expect(
+      practiceSessionSubmissionResponseSchema.parse({
+        data: { ...response.data, chartChanged: true },
+      }),
+    ).toEqual({ data: { ...response.data, chartChanged: true } })
+    for (const chartChanged of [false, 'yes', null]) {
+      expect(practiceSessionSubmissionResponseSchema.safeParse({
+        data: { ...response.data, chartChanged },
+      }).success).toBe(false)
+    }
     expect(practiceSessionSubmissionResponseSchema.safeParse({
       ...response,
       data: { ...response.data, session: { ...response.data.session, correctAnswers: 11 } },

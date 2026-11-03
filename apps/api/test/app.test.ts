@@ -17,7 +17,7 @@ import {
 import { createApp } from '../src/app.js'
 import { loadConfig, type ApiConfig } from '../src/config.js'
 import { createLogger, errorDiagnostics } from '../src/logger.js'
-import { createServerRuntime } from '../src/server.js'
+import { createServerRuntime, runPurges } from '../src/server.js'
 
 const requestId = '7a7e6f3e-17be-4b69-a31b-1f902417c560'
 const ready = async (): Promise<void> => undefined
@@ -522,5 +522,31 @@ describe('API app factory', () => {
     expect(logger.error).toHaveBeenCalledWith({ errorName: 'Error' }, 'PostgreSQL pool error')
     await Promise.all([runtime.close(), runtime.close()])
     expect(pool.end).toHaveBeenCalledOnce()
+  })
+
+  it('purges dead sessions and retired charts on their own cutoffs, each failing alone', async () => {
+    const day = 24 * 60 * 60 * 1000
+    const now = Date.parse('2026-03-01T00:00:00.000Z')
+    const purgeDeadSessions = vi.fn(async () => {
+      throw Object.assign(new Error('relation "auth_sessions" is locked by secret-host'), {
+        code: '55P03',
+      })
+    })
+    const purgeRetiredCharts = vi.fn(async () => 4)
+    const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() } as unknown as Logger
+
+    runPurges({ auth: { purgeDeadSessions }, ranges: { purgeRetiredCharts } }, logger, now)
+
+    expect(purgeDeadSessions).toHaveBeenCalledWith(new Date(now - 30 * day))
+    expect(purgeRetiredCharts).toHaveBeenCalledWith(new Date(now - 30 * day))
+    await vi.waitFor(() => {
+      expect(logger.info).toHaveBeenCalledWith({ deleted: 4 }, 'retired range charts purged')
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ errorName: 'Error', errorCode: '55P03' }),
+        'session purge failed',
+      )
+    })
+    // A diagnostic never carries the message, which can quote hosts and values.
+    expect(JSON.stringify(vi.mocked(logger.warn).mock.calls)).not.toContain('secret-host')
   })
 })

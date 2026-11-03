@@ -21,6 +21,7 @@ import { sendProblem } from '../problem.js'
 import {
   PracticeIdempotencyConflictError,
   PracticeRangeNotFoundError,
+  PracticeRangeVersionError,
   PracticeUnscorableError,
 } from './repository.js'
 import { PracticeService } from './service.js'
@@ -87,6 +88,15 @@ function mapPracticeError(
       status: 409,
       title: 'Conflict',
       detail: 'This idempotency key was already used for a different submission.',
+      code: 'CONFLICT',
+    })
+    return true
+  }
+  if (error instanceof PracticeRangeVersionError) {
+    sendProblem(request, response, {
+      status: 409,
+      title: 'Conflict',
+      detail: 'The drill names a range version this range has not reached.',
       code: 'CONFLICT',
     })
     return true

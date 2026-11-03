@@ -22,6 +22,7 @@ import { createLogger } from '../src/logger.js'
 import {
   PracticeIdempotencyConflictError,
   PracticeRangeNotFoundError,
+  PracticeRangeVersionError,
   PracticeReplayCorruptedError,
   PracticeUnscorableError,
 } from '../src/practice/repository.js'
@@ -366,6 +367,20 @@ describe('HTTP practice session route', () => {
       .send(requestFor('recognition'))
       .expect(409)
     expect(conflict.body).toMatchObject({ code: 'CONFLICT' })
+
+    service.submit.mockRejectedValueOnce(new PracticeRangeVersionError())
+    const ahead = await request(app)
+      .post('/api/v1/practice/sessions')
+      .send({ ...requestFor('recognition'), rangeVersion: 99 })
+      .expect(409)
+    expect(ahead.body).toMatchObject({
+      code: 'CONFLICT',
+      detail: 'The drill names a range version this range has not reached.',
+    })
+    expect(service.submit).toHaveBeenLastCalledWith(
+      ownerId,
+      expect.objectContaining({ rangeVersion: 99 }),
+    )
 
     service.submit.mockRejectedValueOnce(new PracticeUnscorableError())
     const unscorable = await request(app)

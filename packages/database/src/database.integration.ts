@@ -70,6 +70,7 @@ describe('PostgreSQL persistence foundation', () => {
         '0002_practice_submission_replays.sql',
         '0003_widen_training_goal_constraint.sql',
         '0004_review_interval_ceiling.sql',
+        '0005_range_chart_revisions.sql',
       ])
       const ledger = await firstPool.query<{ id: string; count: string }>(
         'select id, count(*) as count from schema_migrations group by id order by id',
@@ -83,6 +84,7 @@ describe('PostgreSQL persistence foundation', () => {
         { id: '0002_practice_submission_replays.sql', count: '1' },
         { id: '0003_widen_training_goal_constraint.sql', count: '1' },
         { id: '0004_review_interval_ceiling.sql', count: '1' },
+        { id: '0005_range_chart_revisions.sql', count: '1' },
       ])
       expect(usersTable.rows).toEqual([{ users_table: 'users' }])
     } finally {
@@ -145,6 +147,33 @@ describe('PostgreSQL persistence foundation', () => {
         [rangeId, ownerId],
       ),
     ).rejects.toMatchObject({ code: '23514' })
+    // A chart cannot have taken effect at a version the range has not reached.
+    await expect(
+      testPool.query('update ranges set chart_version = version + 1 where id = $1', [rangeId]),
+    ).rejects.toMatchObject({ code: '23514' })
+    await expect(
+      testPool.query('update ranges set chart_version = 0 where id = $1', [rangeId]),
+    ).rejects.toMatchObject({ code: '23514' })
+    await testPool.query(
+      `insert into range_chart_revisions (range_id, user_id, first_version, last_version, hands)
+       values ($1, $2, 1, 2, array['AA', 'KK'])`,
+      [rangeId, ownerId],
+    )
+    for (const [values, code] of [
+      [[rangeId, otherUserId, 3, 3, ['AA']], '23503'],
+      [[rangeId, ownerId, 1, 2, ['QQ']], '23505'],
+      [[rangeId, ownerId, 4, 3, ['AA']], '23514'],
+      [[rangeId, ownerId, 0, 3, ['AA']], '23514'],
+      [[rangeId, ownerId, 5, 5, []], '23514'],
+    ] as const) {
+      await expect(
+        testPool.query(
+          `insert into range_chart_revisions (range_id, user_id, first_version, last_version, hands)
+           values ($1, $2, $3, $4, $5)`,
+          [...values],
+        ),
+      ).rejects.toMatchObject({ code })
+    }
     await expect(
       testPool.query(
         `insert into range_hand_accuracy
@@ -272,6 +301,11 @@ describe('PostgreSQL persistence foundation', () => {
        values ($1, $2, 2.5, 1, now() + interval '1 day', now())`,
       [rangeId, userId],
     )
+    await testPool.query(
+      `insert into range_chart_revisions (range_id, user_id, first_version, last_version, hands)
+       values ($1, $2, 1, 1, array['AKs'])`,
+      [rangeId, userId],
+    )
 
     await testPool.query('delete from ranges where id = $1 and user_id = $2', [rangeId, userId])
     const remaining = await testPool.query<{ count: string }>(
@@ -281,6 +315,7 @@ describe('PostgreSQL persistence foundation', () => {
         union all select range_id::text from range_practice_stats where range_id = $1
         union all select range_id::text from range_hand_accuracy where range_id = $1
         union all select range_id::text from review_states where range_id = $1
+        union all select range_id::text from range_chart_revisions where range_id = $1
       ) as range_children`,
       [rangeId],
     )

@@ -106,5 +106,6 @@ Rehearse a restore before relying on it. Users can also export their own library
 from **Account**, but that is a portability feature, not a server backup: it holds
 no accounts.
 
-Sessions that expired or were revoked over 30 days ago are purged hourly by the
-running process, so no scheduled job is needed.
+Sessions that expired or were revoked over 30 days ago, and range charts replaced
+over 30 days ago, are purged hourly by the running process, so no scheduled job is
+needed.

@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, isNull, max, sql, type SQL } from 'drizzle-orm'
+import { and, asc, count, desc, eq, isNull, lt, max, sql, type SQL } from 'drizzle-orm'
 
 import type {
   BulkRangeMutationRequest,
@@ -11,7 +11,13 @@ import type {
   ScenarioMetadata,
 } from '@poker-range-trainer/contracts'
 import type { Database } from '@poker-range-trainer/database'
-import { handClasses, rangeHands, rangePracticeStats, ranges } from '@poker-range-trainer/database'
+import {
+  handClasses,
+  rangeChartRevisions,
+  rangeHands,
+  rangePracticeStats,
+  ranges,
+} from '@poker-range-trainer/database'
 import { TOTAL_HOLDEM_COMBOS } from '@poker-range-trainer/domain/domain/rangeMath'
 import { parseHandInput } from '@poker-range-trainer/domain/domain/pokerHands'
 
@@ -103,6 +109,7 @@ const rangeSelection = {
   userId: ranges.userId,
   name: ranges.name,
   version: ranges.version,
+  chartVersion: ranges.chartVersion,
   displayOrder: ranges.displayOrder,
   gameType: ranges.gameType,
   tableSize: ranges.tableSize,
@@ -133,6 +140,12 @@ interface ListRow extends RangeRow {
 function numberValue(value: number | string | null | undefined): number {
   if (typeof value === 'number') return value
   return Number(value ?? 0)
+}
+
+function sameHandSet(left: readonly string[], right: readonly string[]): boolean {
+  const leftSet = new Set(left)
+  const rightSet = new Set(right)
+  return leftSet.size === rightSet.size && [...leftSet].every((hand) => rightSet.has(hand))
 }
 
 function copyName(sourceName: string): string {
@@ -314,6 +327,19 @@ export class PostgresRangeRepository implements RangeRepository {
     }
   }
 
+  /**
+   * Charts replaced before `before`, across all owners. Nothing but a drill page
+   * left open since then could still name them, and such a drill is scored
+   * against the current chart instead.
+   */
+  async purgeRetiredCharts(before: Date): Promise<number> {
+    const rows = await this.database
+      .delete(rangeChartRevisions)
+      .where(lt(rangeChartRevisions.retiredAt, before))
+      .returning({ rangeId: rangeChartRevisions.rangeId })
+    return rows.length
+  }
+
   async get(userId: string, rangeId: string): Promise<RangeRead> {
     const row = await this.findRange(this.database, userId, rangeId, false)
     if (!row) throw new RangeNotFoundError()
@@ -325,6 +351,15 @@ export class PostgresRangeRepository implements RangeRepository {
     return this.database.transaction(async (transaction) => {
       const current = await this.lockRange(transaction, userId, rangeId, false)
       this.assertVersion(current, input.version)
+      const version = current.version + 1
+      const previousHands =
+        input.hands === undefined ? undefined : await this.handsFor(transaction, rangeId, userId)
+      // Only a different set of hands is a new chart: a rename, a metadata edit, or
+      // re-saving the same cells leaves every open drill on the chart it was dealt.
+      const chartChanged =
+        input.hands !== undefined &&
+        previousHands !== undefined &&
+        !sameHandSet(previousHands, input.hands)
       const next = {
         name: input.name?.trim() ?? current.name,
         ...(input.metadata === undefined
@@ -335,7 +370,8 @@ export class PostgresRangeRepository implements RangeRepository {
               // come back through the next export.
               legacyPayload: withoutScenarioMetadata(current.legacyPayload),
             }),
-        version: current.version + 1,
+        version,
+        ...(chartChanged ? { chartVersion: version } : {}),
         updatedAt: now,
       }
       const [updated] = await transaction
@@ -344,6 +380,18 @@ export class PostgresRangeRepository implements RangeRepository {
         .where(and(eq(ranges.id, rangeId), eq(ranges.userId, userId)))
         .returning()
       if (!updated) throw new Error('Locked range update did not return a row.')
+      if (chartChanged && previousHands.length > 0) {
+        // The chart being replaced, kept for drills dealt from it that are still
+        // open. An empty chart could not have dealt one, so there is nothing to keep.
+        await transaction.insert(rangeChartRevisions).values({
+          rangeId,
+          userId,
+          firstVersion: current.chartVersion,
+          lastVersion: current.version,
+          hands: previousHands,
+          retiredAt: now,
+        })
+      }
       if (input.hands !== undefined) {
         await transaction
           .delete(rangeHands)
@@ -624,7 +672,8 @@ export class PostgresRangeRepository implements RangeRepository {
     const result = await transaction.execute(sql`
       select
         ${ranges.id} as "id", ${ranges.userId} as "userId", ${ranges.name} as "name",
-        ${ranges.version} as "version", ${ranges.displayOrder} as "displayOrder",
+        ${ranges.version} as "version", ${ranges.chartVersion} as "chartVersion",
+        ${ranges.displayOrder} as "displayOrder",
         ${ranges.gameType} as "gameType", ${ranges.tableSize} as "tableSize",
         ${ranges.stackDepthBb} as "stackDepthBb", ${ranges.position} as "position",
         ${ranges.actionType} as "actionType", ${ranges.versusPosition} as "versusPosition",
@@ -652,7 +701,8 @@ export class PostgresRangeRepository implements RangeRepository {
     const result = await transaction.execute(sql`
       select
         ${ranges.id} as "id", ${ranges.userId} as "userId", ${ranges.name} as "name",
-        ${ranges.version} as "version", ${ranges.displayOrder} as "displayOrder",
+        ${ranges.version} as "version", ${ranges.chartVersion} as "chartVersion",
+        ${ranges.displayOrder} as "displayOrder",
         ${ranges.gameType} as "gameType", ${ranges.tableSize} as "tableSize",
         ${ranges.stackDepthBb} as "stackDepthBb", ${ranges.position} as "position",
         ${ranges.actionType} as "actionType", ${ranges.versusPosition} as "versusPosition",
@@ -677,6 +727,7 @@ export class PostgresRangeRepository implements RangeRepository {
     return {
       ...row,
       version: numberValue(row.version),
+      chartVersion: numberValue(row.chartVersion),
       displayOrder: numberValue(row.displayOrder),
       stackDepthBb: row.stackDepthBb === null ? null : String(row.stackDepthBb),
       archived: Boolean(row.archived),

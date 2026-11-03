@@ -10,6 +10,7 @@ The schema carries the product's learning loop and nothing beyond it.
 | `sessions` | Revocable browser sessions | hashed token identifier, expiry, user foreign key |
 | `ranges` | User-owned named preflop charts and scenario metadata | owner foreign key; archive/favorite flags; soft-delete timestamp; indexed by owner plus updated/activity/filter fields |
 | `range_hands` | Selected hand classes in a range | composite primary key `(range_id, hand_code)`; `hand_code` constrained to the 169 canonical classes |
+| `range_chart_revisions` | Charts a range has replaced, so a drill dealt from one is scored against it | key `(range_id, last_version)`; covers versions `first_version..last_version`; `ranges.chart_version` names the version that introduced the current chart; purged 30 days after retirement |
 | `practice_sessions` | Completed practice summaries | range and user foreign keys; non-negative counts; recorded timestamp |
 | `range_practice_stats` | Fast per-range totals | one row per range; counters constrained to valid totals |
 | `range_hand_accuracy` | Per-range hand accuracy and error directions | composite key `(range_id, hand_code)`; all counters constrained and mutually consistent |
@@ -26,6 +27,14 @@ fields.
 Recording a drill is one database transaction: insert the session, update the
 range totals and relevant hand aggregates, then advance the review schedule. A
 failure rolls back the whole recording.
+
+A drill is scored against the chart it was dealt from. The web app sends the
+range version it loaded; a version since the current chart took effect scores
+against `range_hands`, an older one against the retired chart that covered it,
+and a version the range never reached is refused with 409. The response's
+`chartChanged` tells the page its copy is stale, so the next drill reloads it.
+Only an edit that changes the set of hands retires a chart; renames, metadata,
+archive, favorite, and re-saving the same cells do not.
 
 ## Backup import and export
 

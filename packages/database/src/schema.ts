@@ -142,6 +142,8 @@ export const ranges = pgTable(
     userId: uuid('user_id').notNull(),
     name: text('name').notNull(),
     version: integer('version').notNull().default(1),
+    /** The version at which the current chart (its `range_hands`) took effect. */
+    chartVersion: integer('chart_version').notNull().default(1),
     displayOrder: integer('display_order').notNull().default(0),
     gameType: gameTypeEnum('game_type'),
     tableSize: tableSizeEnum('table_size'),
@@ -198,6 +200,10 @@ export const ranges = pgTable(
       sql`${table.name} = trim(${table.name}) and length(${table.name}) between 1 and 120`,
     ),
     check('ranges_version_positive', sql`${table.version} > 0`),
+    check(
+      'ranges_chart_version_valid',
+      sql`${table.chartVersion} between 1 and ${table.version}`,
+    ),
     check('ranges_display_order_nonnegative', sql`${table.displayOrder} >= 0`),
     check(
       'ranges_legacy_backup_version_current',
@@ -235,6 +241,44 @@ export const rangeHands = pgTable(
       name: 'range_hands_range_owner_fk',
     }).onDelete('cascade'),
     index('range_hands_owner_hand_idx').on(table.userId, table.handCode),
+  ],
+)
+
+/**
+ * Charts a range has replaced: the hands it held for versions
+ * `firstVersion..lastVersion`, kept so a drill dealt from one of those versions is
+ * scored against what its player saw. Purged once `retiredAt` is old enough that
+ * no drill page could still be open on it.
+ */
+export const rangeChartRevisions = pgTable(
+  'range_chart_revisions',
+  {
+    rangeId: uuid('range_id').notNull(),
+    userId: uuid('user_id').notNull(),
+    firstVersion: integer('first_version').notNull(),
+    lastVersion: integer('last_version').notNull(),
+    hands: text('hands').array().notNull(),
+    retiredAt: timestamp('retired_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.rangeId, table.lastVersion],
+      name: 'range_chart_revisions_pkey',
+    }),
+    foreignKey({
+      columns: [table.rangeId, table.userId],
+      foreignColumns: [ranges.id, ranges.userId],
+      name: 'range_chart_revisions_range_owner_fk',
+    }).onDelete('cascade'),
+    index('range_chart_revisions_retired_idx').on(table.retiredAt),
+    check(
+      'range_chart_revisions_versions_ordered',
+      sql`${table.firstVersion} between 1 and ${table.lastVersion}`,
+    ),
+    check(
+      'range_chart_revisions_hands_bounded',
+      sql`cardinality(${table.hands}) between 1 and 169`,
+    ),
   ],
 )
 

@@ -41,19 +41,39 @@ export interface ServerDependencies {
 const KEEP_ALIVE_TIMEOUT_MS = 65_000
 /** In-flight requests get this long after SIGTERM before their sockets are cut. */
 const SHUTDOWN_GRACE_MS = 8_000
-const SESSION_PURGE_INTERVAL_MS = 60 * 60 * 1000
+const PURGE_INTERVAL_MS = 60 * 60 * 1000
 /** Dead sessions stay this long, so a recent revocation can still be looked up. */
 const SESSION_RETENTION_MS = 30 * 24 * 60 * 60 * 1000
+/**
+ * Replaced charts stay this long, so a drill page opened before an edit can still
+ * be scored against the chart it showed. A drill open for longer than this is
+ * scored against the current chart.
+ */
+const CHART_REVISION_RETENTION_MS = 30 * 24 * 60 * 60 * 1000
 
-/** Expired and revoked sessions are never read again, so nothing else removes them. */
-function scheduleSessionPurge(repository: AuthRepository, logger: Logger): () => void {
-  const purge = () => {
-    repository.purgeDeadSessions(new Date(Date.now() - SESSION_RETENTION_MS)).then(
-      (deleted) => logger.info({ deleted }, 'dead sessions purged'),
-      (error: unknown) => logger.warn(errorDiagnostics(error), 'session purge failed'),
-    )
-  }
-  const timer = setInterval(purge, SESSION_PURGE_INTERVAL_MS)
+export interface PurgeRepositories {
+  auth: Pick<AuthRepository, 'purgeDeadSessions'>
+  ranges: Pick<PostgresRangeRepository, 'purgeRetiredCharts'>
+}
+
+/**
+ * Rows nothing reads again once they age out: expired and revoked sessions, and
+ * charts no open drill can still name. Each purge fails on its own, so one
+ * broken table never stops the other being cleaned.
+ */
+export function runPurges(repositories: PurgeRepositories, logger: Logger, now: number): void {
+  repositories.auth.purgeDeadSessions(new Date(now - SESSION_RETENTION_MS)).then(
+    (deleted) => logger.info({ deleted }, 'dead sessions purged'),
+    (error: unknown) => logger.warn(errorDiagnostics(error), 'session purge failed'),
+  )
+  repositories.ranges.purgeRetiredCharts(new Date(now - CHART_REVISION_RETENTION_MS)).then(
+    (deleted) => logger.info({ deleted }, 'retired range charts purged'),
+    (error: unknown) => logger.warn(errorDiagnostics(error), 'range chart purge failed'),
+  )
+}
+
+function schedulePurges(repositories: PurgeRepositories, logger: Logger): () => void {
+  const timer = setInterval(() => runPurges(repositories, logger, Date.now()), PURGE_INTERVAL_MS)
   timer.unref()
   return () => clearInterval(timer)
 }
@@ -125,11 +145,11 @@ export function createServerRuntime(
   const server = (dependencies.createHttpServer ?? createServer)(app)
   server.keepAliveTimeout = KEEP_ALIVE_TIMEOUT_MS
   server.headersTimeout = KEEP_ALIVE_TIMEOUT_MS + 1_000
-  const stopSessionPurge = scheduleSessionPurge(authRepository, logger)
+  const stopPurges = schedulePurges({ auth: authRepository, ranges: rangeRepository }, logger)
 
   const close = async (): Promise<void> => {
     if (closing) return closing
-    stopSessionPurge()
+    stopPurges()
     const force = setTimeout(() => server.closeAllConnections(), SHUTDOWN_GRACE_MS)
     force.unref()
     const closeServer = server.listening
